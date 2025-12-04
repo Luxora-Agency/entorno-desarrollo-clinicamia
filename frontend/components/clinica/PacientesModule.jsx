@@ -136,72 +136,76 @@ export default function PacientesModule({ user }) {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Pacientes</h1>
-          <p className="text-gray-600 mt-1">Administra los pacientes de la clínica</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Pacientes</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Administra los pacientes de la clínica</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600">
+            <Button className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Nuevo Paciente
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-lg sm:text-xl">
                 {editingPaciente ? 'Editar Paciente' : 'Nuevo Paciente'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="nombre">Nombre *</Label>
+                  <Label htmlFor="nombre" className="text-sm sm:text-base">Nombre *</Label>
                   <Input
                     id="nombre"
                     value={formData.nombre}
                     onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                     required
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="apellido">Apellido *</Label>
+                  <Label htmlFor="apellido" className="text-sm sm:text-base">Apellido *</Label>
                   <Input
                     id="apellido"
                     value={formData.apellido}
                     onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
                     required
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="cedula">Cédula *</Label>
+                  <Label htmlFor="cedula" className="text-sm sm:text-base">Cédula *</Label>
                   <Input
                     id="cedula"
                     value={formData.cedula}
                     onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
                     required
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="fecha_nacimiento">Fecha de Nacimiento *</Label>
+                  <Label htmlFor="fecha_nacimiento" className="text-sm sm:text-base">Fecha de Nacimiento *</Label>
                   <Input
                     id="fecha_nacimiento"
                     type="date"
                     value={formData.fecha_nacimiento}
                     onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
                     required
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="genero">Género</Label>
+                  <Label htmlFor="genero" className="text-sm sm:text-base">Género</Label>
                   <Select value={formData.genero} onValueChange={(value) => setFormData({ ...formData, genero: value })}>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11 sm:h-12">
                       <SelectValue placeholder="Seleccionar" />
                     </SelectTrigger>
                     <SelectContent>
@@ -212,72 +216,79 @@ export default function PacientesModule({ user }) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="tipo_sangre">Tipo de Sangre</Label>
+                  <Label htmlFor="tipo_sangre" className="text-sm sm:text-base">Tipo de Sangre</Label>
                   <Input
                     id="tipo_sangre"
                     value={formData.tipo_sangre}
                     onChange={(e) => setFormData({ ...formData, tipo_sangre: e.target.value })}
                     placeholder="Ej: O+"
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="telefono">Teléfono</Label>
+                  <Label htmlFor="telefono" className="text-sm sm:text-base">Teléfono</Label>
                   <Input
                     id="telefono"
                     value={formData.telefono}
                     onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-sm sm:text-base">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="h-11 sm:h-12"
                   />
                 </div>
               </div>
               <div>
-                <Label htmlFor="direccion">Dirección</Label>
+                <Label htmlFor="direccion" className="text-sm sm:text-base">Dirección</Label>
                 <Input
                   id="direccion"
                   value={formData.direccion}
                   onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+                  className="h-11 sm:h-12"
                 />
               </div>
               <div>
-                <Label htmlFor="alergias">Alergias</Label>
+                <Label htmlFor="alergias" className="text-sm sm:text-base">Alergias</Label>
                 <Input
                   id="alergias"
                   value={formData.alergias}
                   onChange={(e) => setFormData({ ...formData, alergias: e.target.value })}
                   placeholder="Enumere las alergias conocidas"
+                  className="h-11 sm:h-12"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="contacto_emergencia_nombre">Contacto de Emergencia</Label>
+                  <Label htmlFor="contacto_emergencia_nombre" className="text-sm sm:text-base">Contacto de Emergencia</Label>
                   <Input
                     id="contacto_emergencia_nombre"
                     value={formData.contacto_emergencia_nombre}
                     onChange={(e) => setFormData({ ...formData, contacto_emergencia_nombre: e.target.value })}
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="contacto_emergencia_telefono">Teléfono de Emergencia</Label>
+                  <Label htmlFor="contacto_emergencia_telefono" className="text-sm sm:text-base">Teléfono de Emergencia</Label>
                   <Input
                     id="contacto_emergencia_telefono"
                     value={formData.contacto_emergencia_telefono}
                     onChange={(e) => setFormData({ ...formData, contacto_emergencia_telefono: e.target.value })}
+                    className="h-11 sm:h-12"
                   />
                 </div>
               </div>
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-teal-500 hover:bg-teal-600">
+                <Button type="submit" className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
                   {editingPaciente ? 'Actualizar' : 'Crear'}
                 </Button>
               </div>
@@ -288,14 +299,14 @@ export default function PacientesModule({ user }) {
 
       {/* Search */}
       <Card className="mb-6">
-        <CardContent className="p-4">
+        <CardContent className="p-3 sm:p-4">
           <div className="flex items-center gap-2">
-            <Search className="w-5 h-5 text-gray-400" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
             <Input
               placeholder="Buscar por nombre, apellido o cédula..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border-0 focus-visible:ring-0"
+              className="border-0 focus-visible:ring-0 text-sm sm:text-base"
             />
           </div>
         </CardContent>
@@ -304,58 +315,63 @@ export default function PacientesModule({ user }) {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Pacientes ({pacientes.length})</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Lista de Pacientes ({pacientes.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center py-8 text-gray-500">Cargando...</p>
+            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">Cargando...</p>
           ) : pacientes.length === 0 ? (
-            <p className="text-center py-8 text-gray-500">No hay pacientes registrados</p>
+            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">No hay pacientes registrados</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nombre</TableHead>
-                  <TableHead>Cédula</TableHead>
-                  <TableHead>Teléfono</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Tipo Sangre</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pacientes.map((paciente) => (
-                  <TableRow key={paciente.id}>
-                    <TableCell className="font-medium">
-                      {paciente.nombre} {paciente.apellido}
-                    </TableCell>
-                    <TableCell>{paciente.cedula}</TableCell>
-                    <TableCell>{paciente.telefono || '-'}</TableCell>
-                    <TableCell>{paciente.email || '-'}</TableCell>
-                    <TableCell>{paciente.tipo_sangre || '-'}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(paciente)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(paciente.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Cédula</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Teléfono</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Email</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Tipo Sangre</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pacientes.map((paciente) => (
+                      <TableRow key={paciente.id}>
+                        <TableCell className="font-medium text-xs sm:text-sm">
+                          {paciente.nombre} {paciente.apellido}
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm">{paciente.cedula}</TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden md:table-cell">{paciente.telefono || '-'}</TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{paciente.email || '-'}</TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{paciente.tipo_sangre || '-'}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1 sm:gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(paciente)}
+                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                            >
+                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0 sm:h-9 sm:w-9"
+                              onClick={() => handleDelete(paciente.id)}
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>

@@ -163,54 +163,56 @@ export default function EspecialidadesModule({ user }) {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Especialidades</h1>
-          <p className="text-gray-600 mt-1">Gestiona las especialidades médicas</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Especialidades</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Gestiona las especialidades médicas</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600">
+            <Button className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Agregar Especialidad
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-lg sm:text-xl">
                 {editingEspecialidad ? 'Editar Especialidad' : 'Nueva Especialidad'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <Label htmlFor="titulo">Título *</Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="sm:col-span-2">
+                  <Label htmlFor="titulo" className="text-sm sm:text-base">Título *</Label>
                   <Input
                     id="titulo"
                     value={formData.titulo}
                     onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
                     required
                     placeholder="Ej: Cardiología General"
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="codigo">Código</Label>
+                  <Label htmlFor="codigo" className="text-sm sm:text-base">Código</Label>
                   <Input
                     id="codigo"
                     value={formData.codigo}
                     onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                     placeholder="Ej: CARD-001"
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="departamento_id">Departamento *</Label>
+                  <Label htmlFor="departamento_id" className="text-sm sm:text-base">Departamento *</Label>
                   <Select value={formData.departamento_id} onValueChange={(value) => setFormData({ ...formData, departamento_id: value })} required>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11 sm:h-12">
                       <SelectValue placeholder="Seleccionar departamento" />
                     </SelectTrigger>
                     <SelectContent>
@@ -223,7 +225,7 @@ export default function EspecialidadesModule({ user }) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="costo_cop">Costo en COP *</Label>
+                  <Label htmlFor="costo_cop" className="text-sm sm:text-base">Costo en COP *</Label>
                   <Input
                     id="costo_cop"
                     type="number"
@@ -232,10 +234,11 @@ export default function EspecialidadesModule({ user }) {
                     required
                     placeholder="50000"
                     min="0"
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="duracion_minutos">Duración (minutos) *</Label>
+                  <Label htmlFor="duracion_minutos" className="text-sm sm:text-base">Duración (minutos) *</Label>
                   <Input
                     id="duracion_minutos"
                     type="number"
@@ -244,10 +247,11 @@ export default function EspecialidadesModule({ user }) {
                     required
                     placeholder="30"
                     min="1"
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="duracion_externa_min">Duración Externa (minutos)</Label>
+                  <Label htmlFor="duracion_externa_min" className="text-sm sm:text-base">Duración Externa (min)</Label>
                   <Input
                     id="duracion_externa_min"
                     type="number"
@@ -255,10 +259,11 @@ export default function EspecialidadesModule({ user }) {
                     onChange={(e) => setFormData({ ...formData, duracion_externa_min: e.target.value })}
                     placeholder="45"
                     min="0"
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="duracion_interna_min">Duración Interna (minutos)</Label>
+                  <Label htmlFor="duracion_interna_min" className="text-sm sm:text-base">Duración Interna (min)</Label>
                   <Input
                     id="duracion_interna_min"
                     type="number"
@@ -266,12 +271,13 @@ export default function EspecialidadesModule({ user }) {
                     onChange={(e) => setFormData({ ...formData, duracion_interna_min: e.target.value })}
                     placeholder="20"
                     min="0"
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="estado">Estado *</Label>
+                  <Label htmlFor="estado" className="text-sm sm:text-base">Estado *</Label>
                   <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })} required>
-                    <SelectTrigger>
+                    <SelectTrigger className="h-11 sm:h-12">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -282,7 +288,7 @@ export default function EspecialidadesModule({ user }) {
                 </div>
               </div>
               <div>
-                <Label htmlFor="descripcion">Descripción</Label>
+                <Label htmlFor="descripcion" className="text-sm sm:text-base">Descripción</Label>
                 <Textarea
                   id="descripcion"
                   value={formData.descripcion}
@@ -291,11 +297,11 @@ export default function EspecialidadesModule({ user }) {
                   placeholder="Descripción de la especialidad..."
                 />
               </div>
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-teal-500 hover:bg-teal-600">
+                <Button type="submit" className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
                   {editingEspecialidad ? 'Actualizar' : 'Crear'}
                 </Button>
               </div>
@@ -306,14 +312,14 @@ export default function EspecialidadesModule({ user }) {
 
       {/* Search */}
       <Card className="mb-6">
-        <CardContent className="p-4">
+        <CardContent className="p-3 sm:p-4">
           <div className="flex items-center gap-2">
-            <Search className="w-5 h-5 text-gray-400" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
             <Input
               placeholder="Buscar por título o código..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border-0 focus-visible:ring-0"
+              className="border-0 focus-visible:ring-0 text-sm sm:text-base"
             />
           </div>
         </CardContent>
@@ -322,72 +328,75 @@ export default function EspecialidadesModule({ user }) {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Especialidades ({especialidades.length})</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Lista de Especialidades ({especialidades.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center py-8 text-gray-500">Cargando...</p>
+            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">Cargando...</p>
           ) : especialidades.length === 0 ? (
-            <p className="text-center py-8 text-gray-500">No hay especialidades registradas</p>
+            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">No hay especialidades registradas</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Título</TableHead>
-                    <TableHead>Departamento</TableHead>
-                    <TableHead>Fecha Creación</TableHead>
-                    <TableHead>Costo Consulta</TableHead>
-                    <TableHead>Duración Externa</TableHead>
-                    <TableHead>Duración Interna</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {especialidades.map((especialidad) => (
-                    <TableRow key={especialidad.id}>
-                      <TableCell className="font-medium">
-                        {especialidad.titulo}
-                        {especialidad.codigo && (
-                          <div className="text-xs text-gray-500">{especialidad.codigo}</div>
-                        )}
-                      </TableCell>
-                      <TableCell>{especialidad.departamentoNombre}</TableCell>
-                      <TableCell>{formatDate(especialidad.createdAt)}</TableCell>
-                      <TableCell className="font-semibold text-teal-600">
-                        {formatCurrency(especialidad.costoCOP)}
-                      </TableCell>
-                      <TableCell>{especialidad.duracionExternaMin ? `${especialidad.duracionExternaMin} min` : '-'}</TableCell>
-                      <TableCell>{especialidad.duracionInternaMin ? `${especialidad.duracionInternaMin} min` : '-'}</TableCell>
-                      <TableCell>
-                        <Badge className={especialidad.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                          {especialidad.estado}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(especialidad)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => handleDelete(especialidad.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm">Título</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Departamento</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Fecha</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Costo</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Dur. Ext.</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Dur. Int.</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Estado</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {especialidades.map((especialidad) => (
+                      <TableRow key={especialidad.id}>
+                        <TableCell className="font-medium text-xs sm:text-sm">
+                          {especialidad.titulo}
+                          {especialidad.codigo && (
+                            <div className="text-xs text-gray-500">{especialidad.codigo}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden md:table-cell">{especialidad.departamentoNombre}</TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{formatDate(especialidad.createdAt)}</TableCell>
+                        <TableCell className="font-semibold text-teal-600 text-xs sm:text-sm">
+                          {formatCurrency(especialidad.costoCOP)}
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{especialidad.duracionExternaMin ? `${especialidad.duracionExternaMin} min` : '-'}</TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{especialidad.duracionInternaMin ? `${especialidad.duracionInternaMin} min` : '-'}</TableCell>
+                        <TableCell>
+                          <Badge className={`${especialidad.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} text-xs`}>
+                            {especialidad.estado}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1 sm:gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(especialidad)}
+                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                            >
+                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0 sm:h-9 sm:w-9"
+                              onClick={() => handleDelete(especialidad.id)}
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
