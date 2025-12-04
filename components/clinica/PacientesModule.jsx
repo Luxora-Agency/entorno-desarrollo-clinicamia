@@ -106,7 +106,8 @@ export default function PacientesModule({ user }) {
 
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:4000/pacientes/${id}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      await fetch(`${apiUrl}/pacientes/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
