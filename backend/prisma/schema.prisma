@@ -136,6 +136,7 @@ model Especialidad {
   
   // Relaciones
   departamento          Departamento  @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
+  doctores              DoctorEspecialidad[]
   citas                 Cita[]
 
   @@map("especialidades")
