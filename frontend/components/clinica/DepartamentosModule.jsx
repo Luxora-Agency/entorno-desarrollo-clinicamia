@@ -47,7 +47,8 @@ export default function DepartamentosModule({ user }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const usuariosData = await usuariosRes.json();
-      setUsuarios(usuariosData.data || usuariosData.usuarios || []);
+      // La API de usuarios devuelve data.usuarios en lugar de solo data
+      setUsuarios(usuariosData.data?.usuarios || []);
 
       setLoading(false);
     } catch (error) {
