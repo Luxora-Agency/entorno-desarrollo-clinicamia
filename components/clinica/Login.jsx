@@ -52,13 +52,13 @@ export default function Login({ onLogin }) {
           {/* Logo */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 bg-gradient-to-br from-teal-400 to-teal-500 rounded-lg flex items-center justify-center">
-                <Activity className="w-7 h-7 text-white" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-bold text-blue-900">clínica mia</h2>
-                <p className="text-xs text-teal-600">medicina integral avanza</p>
-              </div>
+              <Image 
+                src="/clinica-mia-logo.png" 
+                alt="Clínica Mía Logo" 
+                width={200}
+                height={80}
+                className="h-16 w-auto"
+              />
             </div>
           </div>
 
