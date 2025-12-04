@@ -17,9 +17,9 @@ doctores.get('/', async (c) => {
       limit: parseInt(limit),
       page: parseInt(page),
     });
-    return c.json(successResponse(result.doctores, 'Doctores obtenidos exitosamente', result.pagination));
-  } catch (error) {
-    return c.json(errorResponse(error.message), 500);
+    return c.json({ success: true, data: result.doctores, pagination: result.pagination });
+  } catch (err) {
+    return c.json(error(err.message), 500);
   }
 });
 
