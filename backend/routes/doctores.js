@@ -39,9 +39,9 @@ doctores.post('/', async (c) => {
   try {
     const body = await c.req.json();
     const doctor = await doctorService.crear(body);
-    return c.json(successResponse({ doctor }, 'Doctor creado exitosamente'), 201);
-  } catch (error) {
-    return c.json(errorResponse(error.message), 400);
+    return c.json(success({ doctor }, 'Doctor creado exitosamente'), 201);
+  } catch (err) {
+    return c.json(error(err.message), 400);
   }
 });
 
