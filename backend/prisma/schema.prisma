@@ -52,6 +52,7 @@ model Usuario {
   updatedAt         DateTime        @default(now()) @map("updated_at")
   
   // Relaciones
+  doctor            Doctor?
   citasComoDoctor   Cita[]          @relation("CitasDoctor")
   departamentosResponsable Departamento[] @relation("DepartamentoResponsable")
 
