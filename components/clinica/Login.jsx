@@ -5,8 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Eye, EyeOff, ArrowRight, Activity, Users, Calendar, FileText } from 'lucide-react';
-import Image from 'next/image';
+import { Eye, EyeOff, ArrowRight, Users, Calendar } from 'lucide-react';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
