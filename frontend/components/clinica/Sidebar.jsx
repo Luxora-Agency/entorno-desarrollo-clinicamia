@@ -53,6 +53,42 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
               </button>
             );
           })}
+
+          {/* Acordeón de Departamentos */}
+          <Accordion type="single" collapsible className="w-full">
+            <AccordionItem value="departamentos" className="border-0">
+              <AccordionTrigger className="hover:no-underline px-4 py-3 hover:bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-gray-500" />
+                  <span className="text-sm text-gray-700">Departamentos</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-0 pt-1 pl-4">
+                <button
+                  onClick={() => setActiveModule('especialidades')}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
+                    activeModule === 'especialidades'
+                      ? 'bg-teal-50 text-teal-700 font-semibold'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Especialidades
+                  {activeModule === 'especialidades' && <ChevronRight className="w-4 h-4 text-teal-600 ml-auto" />}
+                </button>
+                <button
+                  onClick={() => setActiveModule('departamentos')}
+                  className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
+                    activeModule === 'departamentos'
+                      ? 'bg-teal-50 text-teal-700 font-semibold'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  Agregar Departamento
+                  {activeModule === 'departamentos' && <ChevronRight className="w-4 h-4 text-teal-600 ml-auto" />}
+                </button>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </div>
       </nav>
 
