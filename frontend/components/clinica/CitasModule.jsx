@@ -43,14 +43,14 @@ export default function CitasModule({ user }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const citasData = await citasRes.json();
-      setCitas(citasData.citas || []);
+      setCitas(citasData.data || []);
 
       // Cargar pacientes
       const pacientesRes = await fetch(`${apiUrl}/pacientes?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const pacientesData = await pacientesRes.json();
-      setPacientes(pacientesData.pacientes || []);
+      setPacientes(pacientesData.data || []);
 
       // Simular doctores (en producción vendría de un endpoint de usuarios con rol DOCTOR)
       setDoctores([{ id: user.id, nombre: user.nombre, apellido: user.apellido }]);
