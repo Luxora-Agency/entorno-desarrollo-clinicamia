@@ -11,6 +11,7 @@ const citas = require('./routes/citas');
 const departamentos = require('./routes/departamentos');
 const especialidades = require('./routes/especialidades');
 const usuarios = require('./routes/usuarios');
+const doctores = require('./routes/doctores');
 
 const app = new Hono();
 
