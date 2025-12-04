@@ -39,17 +39,17 @@ enum Estado {
 }
 
 model Usuario {
-  id                String          @id @default(uuid())
-  email             String          @unique
-  password          String
-  nombre            String
-  apellido          String
-  rol               Rol
-  telefono          String?
-  cedula            String?
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String          @unique @db.VarChar(255)
+  password          String          @db.VarChar(255)
+  nombre            String          @db.VarChar(255)
+  apellido          String          @db.VarChar(255)
+  rol               String          @db.VarChar(50)
+  telefono          String?         @db.VarChar(20)
+  cedula            String?         @db.VarChar(50)
   activo            Boolean         @default(true)
   createdAt         DateTime        @default(now()) @map("created_at")
-  updatedAt         DateTime        @updatedAt @map("updated_at")
+  updatedAt         DateTime        @default(now()) @map("updated_at")
   
   // Relaciones
   citasComoDoctor   Cita[]          @relation("CitasDoctor")
