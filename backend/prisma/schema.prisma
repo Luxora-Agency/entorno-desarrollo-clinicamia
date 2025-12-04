@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  SUPER_ADMIN
+  ADMIN
+  DOCTOR
+  NURSE
+  RECEPTIONIST
+  PATIENT
+  PHARMACIST
+  LAB_TECHNICIAN
+}
+
+enum Genero {
+  Masculino
+  Femenino
+  Otro
+}
+
+enum EstadoCita {
+  Programada
+  Confirmada
+  EnConsulta
+  Completada
+  Cancelada
+  NoAsistio
+}
+
+enum Estado {
+  Activo
+  Inactivo
+}
+
+model Usuario {
+  id                String          @id @default(uuid())
+  email             String          @unique
+  password          String
+  nombre            String
+  apellido          String
+  rol               Rol
+  telefono          String?
+  cedula            String?
+  activo            Boolean         @default(true)
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+  
+  // Relaciones
+  citasComoDoctor   Cita[]          @relation("CitasDoctor")
+  departamentosResponsable Departamento[] @relation("DepartamentoResponsable")
+
+  @@map("usuarios")
+}
+
+model Paciente {
+  id                             String    @id @default(uuid())
+  nombre                         String
+  apellido                       String
+  cedula                         String    @unique
+  fechaNacimiento                DateTime  @map("fecha_nacimiento") @db.Date
+  genero                         Genero?
+  telefono                       String?
+  email                          String?
+  direccion                      String?
+  tipoSangre                     String?   @map("tipo_sangre")
+  alergias                       String?
+  contactoEmergenciaNombre       String?   @map("contacto_emergencia_nombre")
+  contactoEmergenciaTelefono     String?   @map("contacto_emergencia_telefono")
+  activo                         Boolean   @default(true)
+  createdAt                      DateTime  @default(now()) @map("created_at")
+  updatedAt                      DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  citas                          Cita[]
+
+  @@map("pacientes")
+}
+
+model Cita {
+  id              String       @id @default(uuid())
+  pacienteId      String       @map("paciente_id")
+  doctorId        String       @map("doctor_id")
+  especialidadId  String?      @map("especialidad_id")
+  fecha           DateTime     @db.Date
+  hora            DateTime     @db.Time
+  motivo          String
+  estado          EstadoCita   @default(Programada)
+  notas           String?
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  
+  // Relaciones
+  paciente        Paciente     @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  doctor          Usuario      @relation("CitasDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  especialidad    Especialidad? @relation(fields: [especialidadId], references: [id])
+
+  @@map("citas")
+}
+
+model Departamento {
+  id                  String          @id @default(uuid())
+  nombre              String          @unique
+  descripcion         String?
+  responsableId       String?         @map("responsable_id")
+  estado              Estado          @default(Activo)
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  
+  // Relaciones
+  responsable         Usuario?        @relation("DepartamentoResponsable", fields: [responsableId], references: [id])
+  especialidades      Especialidad[]
+
+  @@map("departamentos")
+}
+
+model Especialidad {
+  id                    String        @id @default(uuid())
+  titulo                String
+  codigo                String?
+  departamentoId        String        @map("departamento_id")
+  costoCOP              Float         @map("costo_cop")
+  duracionMinutos       Int           @map("duracion_minutos")
+  duracionExternaMin    Int?          @map("duracion_externa_min")
+  duracionInternaMin    Int?          @map("duracion_interna_min")
+  descripcion           String?
+  estado                Estado        @default(Activo)
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+  
+  // Relaciones
+  departamento          Departamento  @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
+  citas                 Cita[]
+
+  @@map("especialidades")
+}
