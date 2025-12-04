@@ -44,28 +44,28 @@ export default function DashboardHome({ user }) {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
           Bienvenido, {user.nombre}
         </h1>
-        <p className="text-gray-600">
+        <p className="text-sm sm:text-base text-gray-600">
           Panel de control - Clínica Mía
         </p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <Card className="border-l-4 border-l-teal-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
               Total Pacientes
             </CardTitle>
-            <Users className="w-5 h-5 text-teal-500" />
+            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-teal-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">
+            <div className="text-2xl sm:text-3xl font-bold text-gray-900">
               {stats.totalPacientes}
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -76,13 +76,13 @@ export default function DashboardHome({ user }) {
 
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
               Citas de Hoy
             </CardTitle>
-            <Calendar className="w-5 h-5 text-blue-500" />
+            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">
+            <div className="text-2xl sm:text-3xl font-bold text-gray-900">
               {stats.citasHoy}
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -91,15 +91,15 @@ export default function DashboardHome({ user }) {
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-orange-500">
+        <Card className="border-l-4 border-l-orange-500 sm:col-span-2 lg:col-span-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">
+            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
               Citas Pendientes
             </CardTitle>
-            <Activity className="w-5 h-5 text-orange-500" />
+            <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-gray-900">
+            <div className="text-2xl sm:text-3xl font-bold text-gray-900">
               {stats.citasPendientes}
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -112,24 +112,24 @@ export default function DashboardHome({ user }) {
       {/* Welcome Message */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-xl">Sistema de Gestión Hospitalaria</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Sistema de Gestión Hospitalaria</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <p className="text-gray-600">
+            <p className="text-sm sm:text-base text-gray-600">
               Bienvenido al sistema de gestión integral de Clínica Mía. Desde aquí puedes administrar:
             </p>
             <ul className="space-y-2">
-              <li className="flex items-center gap-2 text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+              <li className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
+                <div className="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0"></div>
                 <span><strong>Pacientes:</strong> Registro completo de pacientes con historias clínicas</span>
               </li>
-              <li className="flex items-center gap-2 text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+              <li className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
+                <div className="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0"></div>
                 <span><strong>Citas:</strong> Agenda médica y programación de consultas</span>
               </li>
-              <li className="flex items-center gap-2 text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
+              <li className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
+                <div className="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0"></div>
                 <span><strong>Más módulos:</strong> Próximamente farmacia, laboratorio y más</span>
               </li>
             </ul>

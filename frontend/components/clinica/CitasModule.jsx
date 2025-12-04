@@ -151,34 +151,34 @@ export default function CitasModule({ user }) {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Agenda de Citas</h1>
-          <p className="text-gray-600 mt-1">Gestiona las citas médicas</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Agenda de Citas</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Gestiona las citas médicas</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600">
+            <Button className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Nueva Cita
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-lg sm:text-xl">
                 {editingCita ? 'Editar Cita' : 'Nueva Cita'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="paciente_id">Paciente *</Label>
+                <Label htmlFor="paciente_id" className="text-sm sm:text-base">Paciente *</Label>
                 <Select value={formData.paciente_id} onValueChange={(value) => setFormData({ ...formData, paciente_id: value })} required>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-12">
                     <SelectValue placeholder="Seleccionar paciente" />
                   </SelectTrigger>
                   <SelectContent>
@@ -191,9 +191,9 @@ export default function CitasModule({ user }) {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="doctor_id">Doctor *</Label>
+                <Label htmlFor="doctor_id" className="text-sm sm:text-base">Doctor *</Label>
                 <Select value={formData.doctor_id} onValueChange={(value) => setFormData({ ...formData, doctor_id: value })} required>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-12">
                     <SelectValue placeholder="Seleccionar doctor" />
                   </SelectTrigger>
                   <SelectContent>
@@ -205,30 +205,32 @@ export default function CitasModule({ user }) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="fecha">Fecha *</Label>
+                  <Label htmlFor="fecha" className="text-sm sm:text-base">Fecha *</Label>
                   <Input
                     id="fecha"
                     type="date"
                     value={formData.fecha}
                     onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
                     required
+                    className="h-11 sm:h-12"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="hora">Hora *</Label>
+                  <Label htmlFor="hora" className="text-sm sm:text-base">Hora *</Label>
                   <Input
                     id="hora"
                     type="time"
                     value={formData.hora}
                     onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
                     required
+                    className="h-11 sm:h-12"
                   />
                 </div>
               </div>
               <div>
-                <Label htmlFor="motivo">Motivo de Consulta *</Label>
+                <Label htmlFor="motivo" className="text-sm sm:text-base">Motivo de Consulta *</Label>
                 <Textarea
                   id="motivo"
                   value={formData.motivo}
@@ -238,7 +240,7 @@ export default function CitasModule({ user }) {
                 />
               </div>
               <div>
-                <Label htmlFor="notas">Notas Adicionales</Label>
+                <Label htmlFor="notas" className="text-sm sm:text-base">Notas Adicionales</Label>
                 <Textarea
                   id="notas"
                   value={formData.notas}
@@ -246,11 +248,11 @@ export default function CitasModule({ user }) {
                   rows={2}
                 />
               </div>
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-teal-500 hover:bg-teal-600">
+                <Button type="submit" className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
                   {editingCita ? 'Actualizar' : 'Crear'}
                 </Button>
               </div>
@@ -261,16 +263,16 @@ export default function CitasModule({ user }) {
 
       {/* Date Filter */}
       <Card className="mb-6">
-        <CardContent className="p-4">
-          <div className="flex items-center gap-4">
+        <CardContent className="p-3 sm:p-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
             <CalendarIcon className="w-5 h-5 text-gray-400" />
             <Input
               type="date"
               value={selectedFecha}
               onChange={(e) => setSelectedFecha(e.target.value)}
-              className="max-w-xs"
+              className="max-w-full sm:max-w-xs h-11 sm:h-12"
             />
-            <span className="text-sm text-gray-600">
+            <span className="text-xs sm:text-sm text-gray-600">
               {citas.length} cita{citas.length !== 1 ? 's' : ''} para esta fecha
             </span>
           </div>
@@ -280,72 +282,77 @@ export default function CitasModule({ user }) {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Citas del Día</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Citas del Día</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center py-8 text-gray-500">Cargando...</p>
+            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">Cargando...</p>
           ) : citas.length === 0 ? (
-            <p className="text-center py-8 text-gray-500">No hay citas programadas para esta fecha</p>
+            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">No hay citas programadas para esta fecha</p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Hora</TableHead>
-                  <TableHead>Paciente</TableHead>
-                  <TableHead>Doctor</TableHead>
-                  <TableHead>Motivo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {citas.map((cita) => (
-                  <TableRow key={cita.id}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-gray-400" />
-                        {cita.hora}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {cita.paciente_nombre} {cita.paciente_apellido}
-                      <div className="text-xs text-gray-500">{cita.paciente_cedula}</div>
-                    </TableCell>
-                    <TableCell>
-                      Dr. {cita.doctor_nombre} {cita.doctor_apellido}
-                    </TableCell>
-                    <TableCell className="max-w-xs truncate">{cita.motivo}</TableCell>
-                    <TableCell>
-                      <Badge className={getEstadoBadge(cita.estado)}>
-                        {cita.estado}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEdit(cita)}
-                          disabled={cita.estado === 'Cancelada'}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => handleCancel(cita.id)}
-                          disabled={cita.estado === 'Cancelada'}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm">Hora</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Paciente</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Doctor</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Motivo</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Estado</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {citas.map((cita) => (
+                      <TableRow key={cita.id}>
+                        <TableCell className="font-medium text-xs sm:text-sm">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-gray-400" />
+                            {cita.hora}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm">
+                          {cita.paciente_nombre} {cita.paciente_apellido}
+                          <div className="text-xs text-gray-500">{cita.paciente_cedula}</div>
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden md:table-cell">
+                          Dr. {cita.doctor_nombre} {cita.doctor_apellido}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate text-xs sm:text-sm hidden lg:table-cell">{cita.motivo}</TableCell>
+                        <TableCell>
+                          <Badge className={`${getEstadoBadge(cita.estado)} text-xs`}>
+                            {cita.estado}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1 sm:gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(cita)}
+                              disabled={cita.estado === 'Cancelada'}
+                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                            >
+                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0 sm:h-9 sm:w-9"
+                              onClick={() => handleCancel(cita.id)}
+                              disabled={cita.estado === 'Cancelada'}
+                            >
+                              <X className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
           )}
         </CardContent>
       </Card>
