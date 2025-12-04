@@ -115,7 +115,8 @@ export default function CitasModule({ user }) {
 
     try {
       const token = localStorage.getItem('token');
-      await fetch(`http://localhost:4000/citas/${id}`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      await fetch(`${apiUrl}/citas/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
