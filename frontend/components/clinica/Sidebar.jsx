@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 export default function Sidebar({ user, activeModule, setActiveModule, onLogout }) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isDeptOpen, setIsDeptOpen] = useState(true);
+  const [isDoctoresOpen, setIsDoctoresOpen] = useState(true);
 
   const menuItems = [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Panel' },
