@@ -51,9 +51,9 @@ doctores.put('/:id', async (c) => {
     const { id } = c.req.param();
     const body = await c.req.json();
     const doctor = await doctorService.actualizar(id, body);
-    return c.json(successResponse({ doctor }, 'Doctor actualizado exitosamente'));
-  } catch (error) {
-    return c.json(errorResponse(error.message), 400);
+    return c.json(success({ doctor }, 'Doctor actualizado exitosamente'));
+  } catch (err) {
+    return c.json(error(err.message), 400);
   }
 });
 
