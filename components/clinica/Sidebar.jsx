@@ -18,14 +18,12 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
     <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
       <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-teal-400 to-teal-500 rounded-lg flex items-center justify-center">
-            <Activity className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-blue-900">clínica mia</h2>
-            <p className="text-xs text-teal-600">medicina integral avanza</p>
-          </div>
+        <div className="flex items-center justify-center">
+          <img 
+            src="/clinica-mia-logo.png" 
+            alt="Clínica Mía Logo" 
+            className="h-12 w-auto"
+          />
         </div>
       </div>
 
