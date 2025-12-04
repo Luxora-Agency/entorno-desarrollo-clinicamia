@@ -40,14 +40,14 @@ export default function DepartamentosModule({ user }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const departamentosData = await departamentosRes.json();
-      setDepartamentos(departamentosData.departamentos || []);
+      setDepartamentos(departamentosData.data || []);
 
       // Cargar usuarios (sin pacientes)
       const usuariosRes = await fetch(`${apiUrl}/usuarios/no-pacientes`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const usuariosData = await usuariosRes.json();
-      setUsuarios(usuariosData.usuarios || []);
+      setUsuarios(usuariosData.data || usuariosData.usuarios || []);
 
       setLoading(false);
     } catch (error) {
@@ -87,7 +87,7 @@ export default function DepartamentosModule({ user }) {
         resetForm();
         loadData();
       } else {
-        alert(data.error || 'Error al guardar el departamento');
+        alert(data.error || data.message || 'Error al guardar el departamento');
       }
     } catch (error) {
       console.error('Error saving departamento:', error);
@@ -121,7 +121,7 @@ export default function DepartamentosModule({ user }) {
       if (response.ok) {
         loadData();
       } else {
-        alert(data.error);
+        alert(data.error || data.message);
       }
     } catch (error) {
       console.error('Error deleting departamento:', error);
