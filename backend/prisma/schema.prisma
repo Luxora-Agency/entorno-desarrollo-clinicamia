@@ -139,3 +139,34 @@ model Especialidad {
 
   @@map("especialidades")
 }
+model Doctor {
+  id                 String   @id @default(uuid())
+  usuarioId          String   @unique @map("usuario_id") @db.Uuid
+  licenciaMedica     String   @map("licencia_medica")
+  universidad        String?
+  aniosExperiencia   Int?     @map("anios_experiencia")
+  biografia          String?  @db.Text
+  horarios           Json?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  usuario            Usuario  @relation(fields: [usuarioId], references: [id])
+  especialidades     DoctorEspecialidad[]
+  citas              Cita[]   @relation("DoctorCitas")
+
+  @@map("doctores")
+}
+
+model DoctorEspecialidad {
+  id              String   @id @default(uuid())
+  doctorId        String   @map("doctor_id") @db.Uuid
+  especialidadId  String   @map("especialidad_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  doctor          Doctor       @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  especialidad    Especialidad @relation(fields: [especialidadId], references: [id])
+
+  @@unique([doctorId, especialidadId])
+  @@map("doctores_especialidades")
+}
+
