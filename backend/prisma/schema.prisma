@@ -154,7 +154,7 @@ model Doctor {
 
   usuario            Usuario  @relation(fields: [usuarioId], references: [id])
   especialidades     DoctorEspecialidad[]
-  citas              Cita[]   @relation("DoctorCitas")
+  citas              Cita[]   @relation("CitasDoctor")
 
   @@map("doctores")
 }
