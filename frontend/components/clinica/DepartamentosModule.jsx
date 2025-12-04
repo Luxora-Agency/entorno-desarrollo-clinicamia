@@ -190,14 +190,14 @@ export default function DepartamentosModule({ user }) {
               <div>
                 <Label htmlFor="responsable_id">Usuario Responsable (Opcional)</Label>
                 <Select 
-                  value={formData.responsable_id} 
-                  onValueChange={(value) => setFormData({ ...formData, responsable_id: value })}
+                  value={formData.responsable_id || "none"} 
+                  onValueChange={(value) => setFormData({ ...formData, responsable_id: value === "none" ? "" : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar responsable (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin responsable</SelectItem>
+                    <SelectItem value="none">Sin responsable</SelectItem>
                     {usuarios.map((usuario) => (
                       <SelectItem key={usuario.id} value={usuario.id}>
                         {usuario.nombre} {usuario.apellido} - {usuario.rol}
