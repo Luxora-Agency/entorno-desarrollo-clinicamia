@@ -19,6 +19,10 @@ export default function Dashboard({ user, onLogout }) {
         return <PacientesModule user={user} />;
       case 'citas':
         return <CitasModule user={user} />;
+      case 'especialidades':
+        return <EspecialidadesModule user={user} />;
+      case 'departamentos':
+        return <DepartamentosModule user={user} />;
       default:
         return <DashboardHome user={user} />;
     }
