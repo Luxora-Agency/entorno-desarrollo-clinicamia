@@ -1,269 +1,205 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutDashboard, Users, Calendar, LogOut, ChevronRight, Building2, ChevronDown, Menu, X, UserCog } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, X, Menu, Building2, ChevronDown, LogOut, UserCog, Stethoscope } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
 export default function Sidebar({ user, activeModule, setActiveModule, onLogout }) {
-  const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isDeptOpen, setIsDeptOpen] = useState(true);
-  const [isDoctoresOpen, setIsDoctoresOpen] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isGestionMedicaOpen, setIsGestionMedicaOpen] = useState(true);
+  const [isDoctoresOpen, setIsDoctoresOpen] = useState(false);
 
   const menuItems = [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Panel' },
-    { id: 'pacientes', icon: Users, label: 'Pacientes' },
-    { id: 'citas', icon: Calendar, label: 'Agenda De Consulta' },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'pacientes', label: 'Pacientes', icon: Users },
+    { id: 'citas', label: 'Citas', icon: Calendar },
   ];
-
-  const getInitials = (nombre, apellido) => {
-    return `${nombre?.charAt(0) || ''}${apellido?.charAt(0) || ''}`;
-  };
-
-  const handleNavigation = (moduleId) => {
-    setActiveModule(moduleId);
-    if (window.innerWidth < 768) {
-      setIsMobileOpen(false);
-    }
-  };
 
   return (
     <>
-      {/* Mobile Toggle Button */}
-      <Button
-        className="md:hidden fixed top-4 left-4 z-50 bg-teal-500 hover:bg-teal-600"
-        size="icon"
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="md:hidden fixed top-4 left-4 z-50 p-2.5 bg-white rounded-xl shadow-lg hover:shadow-xl transition-all border border-gray-200"
       >
-        {isMobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-      </Button>
+        {isOpen ? <X className="w-5 h-5 text-gray-700" /> : <Menu className="w-5 h-5 text-gray-700" />}
+      </button>
 
-      {/* Overlay para mobile */}
-      {isMobileOpen && (
+      {/* Overlay */}
+      {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={() => setIsMobileOpen(false)}
+          className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm"
+          onClick={() => setIsOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`
-          fixed md:static inset-y-0 left-0 z-40
-          w-64 bg-white border-r border-gray-200 flex flex-col
-          transform transition-transform duration-300 ease-in-out
-          ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        `}
+        className={`fixed md:sticky top-0 left-0 h-screen w-72 bg-white border-r border-gray-100 z-40 transform transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : '-translate-x-full'
+        } md:translate-x-0 shadow-xl md:shadow-none`}
       >
-        {/* Logo */}
-        <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center justify-center">
-            <img
-              src="/clinica-mia-logo.png"
-              alt="Clínica Mía Logo"
-              className="h-12 w-auto"
-            />
+        <div className="flex flex-col h-full">
+          {/* Header */}
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-center gap-3 mb-6">
+              <img 
+                src="/clinica-mia-logo.png" 
+                alt="Clínica Mía" 
+                className="h-10 w-auto"
+              />
+            </div>
+            
+            {/* User Profile */}
+            <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+              <Avatar className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-white shadow-sm">
+                <AvatarFallback className="text-white font-semibold text-sm">
+                  {user.nombre?.[0]}{user.apellido?.[0]}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-gray-900 truncate">
+                  {user.nombre} {user.apellido}
+                </p>
+                <p className="text-xs text-gray-600 truncate">{user.rol}</p>
+              </div>
+            </div>
           </div>
-        </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 p-4 overflow-y-auto">
-          <div className="space-y-1">
-            {/* Menu items principales */}
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeModule === item.id;
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto py-4 px-3">
+            <div className="space-y-1">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setActiveModule(item.id);
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === item.id
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
 
-              return (
+              {/* Departamentos Section */}
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Gestión Médica</p>
+                </div>
+                
                 <button
-                  key={item.id}
-                  onClick={() => handleNavigation(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                    isActive
-                      ? 'bg-teal-50 text-teal-700 font-semibold'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  onClick={() => setIsGestionMedicaOpen(!isGestionMedicaOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
                 >
-                  <Icon
-                    className={`w-5 h-5 ${
-                      isActive ? 'text-teal-600' : 'text-gray-500'
-                    }`}
-                  />
-                  <span className="flex-1 text-left text-sm">{item.label}</span>
-                  {isActive && <ChevronRight className="w-4 h-4 text-teal-600" />}
+                  <div className="flex items-center gap-3">
+                    <Building2 className="w-4 h-4" />
+                    <span>Departamentos</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isGestionMedicaOpen ? 'rotate-180' : ''}`} />
                 </button>
-              );
-            })}
+                
+                {isGestionMedicaOpen && (
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                    <button
+                      onClick={() => {
+                        setActiveModule('departamentos');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'departamentos'
+                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Ver Departamentos</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('especialidades');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'especialidades'
+                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Ver Especialidades</span>
+                    </button>
+                  </div>
+                )}
 
-            {/* Separador */}
-            <div className="pt-4 pb-2">
-              <p className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider">
-                GESTIÓN MÉDICA
-              </p>
+                {/* Doctores Section */}
+                <button
+                  onClick={() => setIsDoctoresOpen(!isDoctoresOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all mt-1"
+                >
+                  <div className="flex items-center gap-3">
+                    <Stethoscope className="w-4 h-4" />
+                    <span>Doctores</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isDoctoresOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isDoctoresOpen && (
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                    <button
+                      onClick={() => {
+                        setActiveModule('doctores');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'doctores'
+                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Ver Doctores</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('agregar-doctor');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'agregar-doctor'
+                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Agregar Doctor</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
+          </nav>
 
-            {/* Departamentos con acordeón */}
-            <div>
-              <button
-                onClick={() => setIsDeptOpen(!isDeptOpen)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                  activeModule === 'departamentos' || activeModule === 'especialidades'
-                    ? 'bg-teal-50 text-teal-700 font-semibold'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <Building2
-                  className={`w-5 h-5 ${
-                    activeModule === 'departamentos' || activeModule === 'especialidades'
-                      ? 'text-teal-600'
-                      : 'text-gray-500'
-                  }`}
-                />
-                <span className="flex-1 text-left text-sm">Departamentos</span>
-                <ChevronDown
-                  className={`w-4 h-4 transition-transform ${
-                    isDeptOpen ? 'rotate-0' : '-rotate-90'
-                  } ${
-                    activeModule === 'departamentos' || activeModule === 'especialidades'
-                      ? 'text-teal-600'
-                      : 'text-gray-500'
-                  }`}
-                />
-              </button>
-
-              {/* Sub-items */}
-              {isDeptOpen && (
-                <div className="mt-1 ml-4 space-y-1">
-                  <button
-                    onClick={() => handleNavigation('especialidades')}
-                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
-                      activeModule === 'especialidades'
-                        ? 'bg-teal-50 text-teal-700 font-semibold'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className={`w-2 h-2 rounded-full ${
-                      activeModule === 'especialidades' ? 'bg-teal-600' : 'bg-gray-400'
-                    }`} />
-                    <span className="flex-1 text-left">Especialidades</span>
-                    {activeModule === 'especialidades' && (
-                      <ChevronRight className="w-4 h-4 text-teal-600" />
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigation('departamentos')}
-                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
-                      activeModule === 'departamentos'
-                        ? 'bg-teal-50 text-teal-700 font-semibold'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className={`w-2 h-2 rounded-full ${
-                      activeModule === 'departamentos' ? 'bg-teal-600' : 'bg-gray-400'
-                    }`} />
-                    <span className="flex-1 text-left">Agregar Departamento</span>
-                    {activeModule === 'departamentos' && (
-                      <ChevronRight className="w-4 h-4 text-teal-600" />
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Doctores con acordeón */}
-            <div>
-              <button
-                onClick={() => setIsDoctoresOpen(!isDoctoresOpen)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
-                  activeModule === 'doctores' || activeModule === 'agregar-doctor'
-                    ? 'bg-teal-50 text-teal-700 font-semibold'
-                    : 'text-gray-700 hover:bg-gray-50'
-                }`}
-              >
-                <UserCog
-                  className={`w-5 h-5 ${
-                    activeModule === 'doctores' || activeModule === 'agregar-doctor'
-                      ? 'text-teal-600'
-                      : 'text-gray-500'
-                  }`}
-                />
-                <span className="flex-1 text-left text-sm">Doctores</span>
-                <ChevronDown
-                  className={`w-4 h-4 transition-transform ${
-                    isDoctoresOpen ? 'rotate-0' : '-rotate-90'
-                  } ${
-                    activeModule === 'doctores' || activeModule === 'agregar-doctor'
-                      ? 'text-teal-600'
-                      : 'text-gray-500'
-                  }`}
-                />
-              </button>
-
-              {/* Sub-items */}
-              {isDoctoresOpen && (
-                <div className="mt-1 ml-4 space-y-1">
-                  <button
-                    onClick={() => handleNavigation('doctores')}
-                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
-                      activeModule === 'doctores'
-                        ? 'bg-teal-50 text-teal-700 font-semibold'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className={`w-2 h-2 rounded-full ${
-                      activeModule === 'doctores' ? 'bg-teal-600' : 'bg-gray-400'
-                    }`} />
-                    <span className="flex-1 text-left">Todos los Doctores</span>
-                    {activeModule === 'doctores' && (
-                      <ChevronRight className="w-4 h-4 text-teal-600" />
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => handleNavigation('agregar-doctor')}
-                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
-                      activeModule === 'agregar-doctor'
-                        ? 'bg-teal-50 text-teal-700 font-semibold'
-                        : 'text-gray-600 hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className={`w-2 h-2 rounded-full ${
-                      activeModule === 'agregar-doctor' ? 'bg-teal-600' : 'bg-gray-400'
-                    }`} />
-                    <span className="flex-1 text-left">Agregar Doctor</span>
-                    {activeModule === 'agregar-doctor' && (
-                      <ChevronRight className="w-4 h-4 text-teal-600" />
-                    )}
-                  </button>
-                </div>
-              )}
-            </div>
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-100">
+            <Button
+              onClick={onLogout}
+              variant="ghost"
+              className="w-full justify-start gap-3 text-gray-700 hover:bg-red-50 hover:text-red-600 text-sm font-medium"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Cerrar Sesión</span>
+            </Button>
           </div>
-        </nav>
-
-        {/* User Profile */}
-        <div className="p-4 border-t border-gray-200">
-          <div className="flex items-center gap-3 mb-3">
-            <Avatar className="w-10 h-10 bg-teal-500">
-              <AvatarFallback className="bg-teal-500 text-white font-semibold">
-                {getInitials(user.nombre, user.apellido)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">
-                {user.nombre} {user.apellido}
-              </p>
-              <p className="text-xs text-gray-500 truncate">{user.rol}</p>
-            </div>
-          </div>
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-all"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Cerrar Sesión</span>
-          </button>
         </div>
       </aside>
     </>
