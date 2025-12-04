@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, LayoutDashboard, Users, Calendar, LogOut, ChevronRight, User } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, LogOut, ChevronRight } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 export default function Sidebar({ user, activeModule, setActiveModule, onLogout }) {
