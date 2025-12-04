@@ -1747,6 +1747,9 @@ video {
 .pt-4 {
   padding-top: 1rem;
 }
+.pt-16 {
+  padding-top: 4rem;
+}
 .text-left {
   text-align: left;
 }
@@ -3833,6 +3836,10 @@ code {
 
   .md\:flex-row {
     flex-direction: row;
+  }
+
+  .md\:pt-0 {
+    padding-top: 0px;
   }
 
   .md\:text-sm {
