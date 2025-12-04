@@ -54,11 +54,12 @@ export default function PacientesModule({ user }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
     try {
       const url = editingPaciente
-        ? `http://localhost:4000/pacientes/${editingPaciente.id}`
-        : 'http://localhost:4000/pacientes';
+        ? `${apiUrl}/pacientes/${editingPaciente.id}`
+        : `${apiUrl}/pacientes`;
       
       const method = editingPaciente ? 'PUT' : 'POST';
 
