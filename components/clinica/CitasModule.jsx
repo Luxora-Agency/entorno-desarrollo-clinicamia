@@ -36,16 +36,17 @@ export default function CitasModule({ user }) {
   const loadData = async () => {
     try {
       const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
       // Cargar citas
-      const citasRes = await fetch(`http://localhost:4000/citas?fecha=${selectedFecha}&limit=100`, {
+      const citasRes = await fetch(`${apiUrl}/citas?fecha=${selectedFecha}&limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const citasData = await citasRes.json();
       setCitas(citasData.citas || []);
 
       // Cargar pacientes
-      const pacientesRes = await fetch('http://localhost:4000/pacientes?limit=100', {
+      const pacientesRes = await fetch(`${apiUrl}/pacientes?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const pacientesData = await pacientesRes.json();
