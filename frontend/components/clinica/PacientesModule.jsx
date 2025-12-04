@@ -43,7 +43,7 @@ export default function PacientesModule({ user }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
-      setPacientes(data.pacientes || []);
+      setPacientes(data.data || []);
     } catch (error) {
       console.error('Error loading pacientes:', error);
     } finally {
@@ -88,15 +88,15 @@ export default function PacientesModule({ user }) {
       nombre: paciente.nombre || '',
       apellido: paciente.apellido || '',
       cedula: paciente.cedula || '',
-      fecha_nacimiento: paciente.fecha_nacimiento || '',
+      fecha_nacimiento: paciente.fechaNacimiento || paciente.fecha_nacimiento || '',
       genero: paciente.genero || '',
       telefono: paciente.telefono || '',
       email: paciente.email || '',
       direccion: paciente.direccion || '',
-      tipo_sangre: paciente.tipo_sangre || '',
+      tipo_sangre: paciente.tipoSangre || paciente.tipo_sangre || '',
       alergias: paciente.alergias || '',
-      contacto_emergencia_nombre: paciente.contacto_emergencia_nombre || '',
-      contacto_emergencia_telefono: paciente.contacto_emergencia_telefono || '',
+      contacto_emergencia_nombre: paciente.contactoEmergenciaNombre || paciente.contacto_emergencia_nombre || '',
+      contacto_emergencia_telefono: paciente.contactoEmergenciaTelefono || paciente.contacto_emergencia_telefono || '',
     });
     setIsDialogOpen(true);
   };
@@ -345,7 +345,7 @@ export default function PacientesModule({ user }) {
                         <TableCell className="text-xs sm:text-sm">{paciente.cedula}</TableCell>
                         <TableCell className="text-xs sm:text-sm hidden md:table-cell">{paciente.telefono || '-'}</TableCell>
                         <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{paciente.email || '-'}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{paciente.tipo_sangre || '-'}</TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{paciente.tipoSangre || paciente.tipo_sangre || '-'}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1 sm:gap-2">
                             <Button
