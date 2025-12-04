@@ -30,13 +30,20 @@ export default function Login({ onLogin }) {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await response.json();
+      const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Error al iniciar sesión');
+        throw new Error(result.error || result.message || 'Error al iniciar sesión');
       }
 
-      onLogin(data.user, data.token);
+      // El backend devuelve la data dentro de result.data
+      const { user, token } = result.data || result;
+      
+      if (!user || !token) {
+        throw new Error('Respuesta inválida del servidor');
+      }
+
+      onLogin(user, token);
     } catch (err) {
       setError(err.message);
     } finally {
