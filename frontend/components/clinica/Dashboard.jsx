@@ -36,7 +36,7 @@ export default function Dashboard({ user, onLogout }) {
         setActiveModule={setActiveModule}
         onLogout={onLogout}
       />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pt-16 md:pt-0">
         {renderModule()}
       </main>
     </div>
