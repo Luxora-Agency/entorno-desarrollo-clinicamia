@@ -104,13 +104,13 @@ model Cita {
 }
 
 model Departamento {
-  id                  String          @id @default(uuid())
-  nombre              String          @unique
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre              String          @unique @db.VarChar(255)
   descripcion         String?
-  responsableId       String?         @map("responsable_id")
-  estado              Estado          @default(Activo)
+  responsableId       String?         @map("responsable_id") @db.Uuid
+  estado              String          @default("Activo") @db.VarChar(20)
   createdAt           DateTime        @default(now()) @map("created_at")
-  updatedAt           DateTime        @updatedAt @map("updated_at")
+  updatedAt           DateTime        @default(now()) @map("updated_at")
   
   // Relaciones
   responsable         Usuario?        @relation("DepartamentoResponsable", fields: [responsableId], references: [id])
@@ -120,18 +120,18 @@ model Departamento {
 }
 
 model Especialidad {
-  id                    String        @id @default(uuid())
-  titulo                String
-  codigo                String?
-  departamentoId        String        @map("departamento_id")
-  costoCOP              Float         @map("costo_cop")
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titulo                String        @db.VarChar(255)
+  codigo                String?       @db.VarChar(50)
+  departamentoId        String        @map("departamento_id") @db.Uuid
+  costoCOP              Decimal       @map("costo_cop") @db.Decimal(10, 2)
   duracionMinutos       Int           @map("duracion_minutos")
   duracionExternaMin    Int?          @map("duracion_externa_min")
   duracionInternaMin    Int?          @map("duracion_interna_min")
   descripcion           String?
-  estado                Estado        @default(Activo)
+  estado                String        @default("Activo") @db.VarChar(20)
   createdAt             DateTime      @default(now()) @map("created_at")
-  updatedAt             DateTime      @updatedAt @map("updated_at")
+  updatedAt             DateTime      @default(now()) @map("updated_at")
   
   // Relaciones
   departamento          Departamento  @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
