@@ -1,7 +1,7 @@
 const { Hono } = require('hono');
 const doctorService = require('../services/doctor.service');
 const { authMiddleware } = require('../middleware/auth');
-const { successResponse, errorResponse } = require('../utils/response');
+const { success, error } = require('../utils/response');
 
 const doctores = new Hono();
 
