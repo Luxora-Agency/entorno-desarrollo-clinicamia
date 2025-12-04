@@ -51,11 +51,9 @@ export default function Login({ onLogin }) {
           {/* Logo */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-6">
-              <Image 
+              <img 
                 src="/clinica-mia-logo.png" 
                 alt="Clínica Mía Logo" 
-                width={200}
-                height={80}
                 className="h-16 w-auto"
               />
             </div>
