@@ -28,9 +28,9 @@ doctores.get('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const doctor = await doctorService.obtenerPorId(id);
-    return c.json(successResponse({ doctor }, 'Doctor obtenido exitosamente'));
-  } catch (error) {
-    return c.json(errorResponse(error.message), 404);
+    return c.json(success({ doctor }));
+  } catch (err) {
+    return c.json(error(err.message), 404);
   }
 });
 
