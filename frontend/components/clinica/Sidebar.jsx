@@ -1,7 +1,8 @@
 'use client';
 
-import { LayoutDashboard, Users, Calendar, LogOut, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, LogOut, ChevronRight, Building2, ChevronDown } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export default function Sidebar({ user, activeModule, setActiveModule, onLogout }) {
   const menuItems = [
