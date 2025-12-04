@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Eye, EyeOff, ArrowRight, Users, Calendar } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Activity, Users, Calendar, TrendingUp } from 'lucide-react';
 
 export default function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -36,7 +36,6 @@ export default function Login({ onLogin }) {
         throw new Error(result.error || result.message || 'Error al iniciar sesión');
       }
 
-      // El backend devuelve la data dentro de result.data
       const { user, token } = result.data || result;
       
       if (!user || !token) {
@@ -52,78 +51,68 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
+    <div className="min-h-screen flex">
       {/* Left Column - Login Form */}
-      <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-6 sm:p-8 lg:p-12">
+      <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-md">
           {/* Logo */}
-          <div className="mb-6 sm:mb-8">
-            <div className="flex items-center gap-3 mb-4 sm:mb-6">
-              <img 
-                src="/clinica-mia-logo.png" 
-                alt="Clínica Mía Logo" 
-                className="h-12 sm:h-16 w-auto"
-              />
-            </div>
-          </div>
-
-          {/* Welcome Message */}
-          <div className="mb-6 sm:mb-8">
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-              ¡Bienvenido de nuevo!
+          <div className="mb-8">
+            <img 
+              src="/clinica-mia-logo.png" 
+              alt="Clínica Mía Logo" 
+              className="h-12 w-auto mb-6"
+            />
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Bienvenido de nuevo
             </h1>
-            <p className="text-base sm:text-lg text-teal-600 border-b-2 border-teal-500 inline-block pb-1">
-              Inicia sesión para continuar.
+            <p className="text-base text-gray-600">
+              Inicia sesión para acceder al sistema de gestión
             </p>
           </div>
 
-          <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
-            Portal de gestión interna de Clínica Mía. Accede a todas las herramientas necesarias para administrar pacientes, citas, órdenes médicas y recursos de la clínica.
-          </p>
-
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
             <div>
-              <Label htmlFor="email" className="text-gray-700 font-medium text-sm sm:text-base">
+              <Label htmlFor="email" className="text-sm font-semibold text-gray-700 mb-2 block">
                 Correo Electrónico
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="Ingresa tu correo electrónico"
+                placeholder="tu@correo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="mt-2 h-11 sm:h-12"
+                className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-gray-700 font-medium text-sm sm:text-base">
+              <Label htmlFor="password" className="text-sm font-semibold text-gray-700 mb-2 block">
                 Contraseña
               </Label>
-              <div className="relative mt-2">
+              <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
-                  placeholder="Ingresa tu contraseña"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pr-10 h-11 sm:h-12"
+                  className="h-11 pr-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
             </div>
@@ -133,7 +122,6 @@ export default function Login({ onLogin }) {
                 id="remember"
                 checked={rememberMe}
                 onCheckedChange={setRememberMe}
-                className="border-teal-500 data-[state=checked]:bg-teal-500"
               />
               <label
                 htmlFor="remember"
@@ -146,14 +134,14 @@ export default function Login({ onLogin }) {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-5 sm:py-6 rounded-lg transition-all"
+              className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-md transition-all"
             >
               {loading ? (
                 'Iniciando sesión...'
               ) : (
                 <span className="flex items-center justify-center gap-2">
                   Iniciar Sesión
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowRight className="w-4 h-4" />
                 </span>
               )}
             </Button>
@@ -161,67 +149,63 @@ export default function Login({ onLogin }) {
         </div>
       </div>
 
-      {/* Right Column - Dashboard Preview - Hidden on mobile */}
-      <div className="hidden lg:flex w-full lg:w-1/2 bg-gradient-to-br from-gray-50 to-gray-100 items-center justify-center p-12">
-        <div className="w-full max-w-2xl">
+      {/* Right Column - Stats Preview */}
+      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]"></div>
+        <div className="relative z-10 w-full max-w-lg">
           <div className="mb-8">
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Sistema de gestión
+            <h2 className="text-3xl font-bold text-white mb-3">
+              Sistema de Gestión Integral
             </h2>
-            <h3 className="text-2xl font-semibold text-blue-900 mb-4">
-              integral para Clínica Mía
-            </h3>
-            <p className="text-gray-600">
-              Administra de manera eficiente todas las operaciones de la clínica desde un solo lugar. Control total sobre pacientes, personal, inventario y servicios médicos.
+            <p className="text-blue-100 text-lg">
+              Todo lo que necesitas para administrar tu clínica en un solo lugar
             </p>
           </div>
 
-          {/* Dashboard Stats Preview */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <Users className="w-8 h-8 text-teal-500" />
-                <span className="text-3xl font-bold text-gray-900">$12,402</span>
-              </div>
-              <p className="text-sm text-gray-600">Ingresos del Mes</p>
-              <p className="text-xs text-teal-600 mt-1">+12.5% vs mes anterior</p>
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 gap-4 mb-8">
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
+              <Users className="w-8 h-8 text-blue-200 mb-3" />
+              <p className="text-2xl font-bold text-white mb-1">1,200+</p>
+              <p className="text-sm text-blue-100">Pacientes Activos</p>
             </div>
-
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-              <div className="flex items-center justify-between mb-2">
-                <Calendar className="w-8 h-8 text-blue-500" />
-                <span className="text-3xl font-bold text-gray-900">83,305</span>
-              </div>
-              <p className="text-sm text-gray-600">Citas Totales</p>
-              <p className="text-xs text-blue-600 mt-1">+8.3% vs mes anterior</p>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
+              <Calendar className="w-8 h-8 text-blue-200 mb-3" />
+              <p className="text-2xl font-bold text-white mb-1">3,500+</p>
+              <p className="text-sm text-blue-100">Citas Mensuales</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
+              <Activity className="w-8 h-8 text-blue-200 mb-3" />
+              <p className="text-2xl font-bold text-white mb-1">25+</p>
+              <p className="text-sm text-blue-100">Especialidades</p>
+            </div>
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
+              <TrendingUp className="w-8 h-8 text-blue-200 mb-3" />
+              <p className="text-2xl font-bold text-white mb-1">98%</p>
+              <p className="text-sm text-blue-100">Satisfacción</p>
             </div>
           </div>
 
           {/* Features List */}
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-            <h4 className="font-semibold text-gray-900 mb-4">Funcionalidades principales:</h4>
-            <ul className="space-y-3">
-              <li className="flex items-center gap-3 text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                <span>Gestión completa de pacientes y expedientes médicos</span>
-              </li>
-              <li className="flex items-center gap-3 text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                <span>Agenda de citas y calendario médico</span>
-              </li>
-              <li className="flex items-center gap-3 text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                <span>Control de inventario y farmacia</span>
-              </li>
-              <li className="flex items-center gap-3 text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                <span>Administración de personal médico</span>
-              </li>
-              <li className="flex items-center gap-3 text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full"></div>
-                <span>Reportes y análisis en tiempo real</span>
-              </li>
-            </ul>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3 text-white">
+              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-white"></div>
+              </div>
+              <span className="text-sm">Gestión completa de pacientes y citas</span>
+            </div>
+            <div className="flex items-center gap-3 text-white">
+              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-white"></div>
+              </div>
+              <span className="text-sm">Control de doctores y especialidades</span>
+            </div>
+            <div className="flex items-center gap-3 text-white">
+              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                <div className="w-2 h-2 rounded-full bg-white"></div>
+              </div>
+              <span className="text-sm">Reportes y análisis en tiempo real</span>
+            </div>
           </div>
         </div>
       </div>
