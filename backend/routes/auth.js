@@ -1,7 +1,6 @@
 const { Hono } = require('hono');
-const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const { pool } = require('../db');
+const Usuario = require('../models/Usuario');
 const { authMiddleware } = require('../middleware/auth');
 
 const auth = new Hono();
@@ -9,29 +8,14 @@ const auth = new Hono();
 // Registro de usuario
 auth.post('/register', async (c) => {
   try {
-    const { email, password, nombre, apellido, rol, telefono, cedula } = await c.req.json();
+    const data = await c.req.json();
 
     // Validar campos requeridos
-    if (!email || !password || !nombre || !apellido || !rol) {
+    if (!data.email || !data.password || !data.nombre || !data.apellido || !data.rol) {
       return c.json({ error: 'Todos los campos son requeridos' }, 400);
     }
 
-    // Verificar si el usuario ya existe
-    const existingUser = await pool.query('SELECT * FROM usuarios WHERE email = $1', [email]);
-    if (existingUser.rows.length > 0) {
-      return c.json({ error: 'El email ya está registrado' }, 400);
-    }
-
-    // Hash de la contraseña
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Insertar usuario
-    const result = await pool.query(
-      'INSERT INTO usuarios (email, password, nombre, apellido, rol, telefono, cedula) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, nombre, apellido, rol, telefono, cedula, activo, created_at',
-      [email, hashedPassword, nombre, apellido, rol, telefono, cedula]
-    );
-
-    const user = result.rows[0];
+    const user = await Usuario.create(data);
 
     // Generar token
     const token = jwt.sign(
@@ -43,7 +27,7 @@ auth.post('/register', async (c) => {
     return c.json({ user, token }, 201);
   } catch (error) {
     console.error('Error en registro:', error);
-    return c.json({ error: 'Error al registrar usuario' }, 500);
+    return c.json({ error: error.message || 'Error al registrar usuario' }, 500);
   }
 });
 
@@ -57,16 +41,14 @@ auth.post('/login', async (c) => {
     }
 
     // Buscar usuario
-    const result = await pool.query('SELECT * FROM usuarios WHERE email = $1 AND activo = true', [email]);
+    const user = await Usuario.findByEmail(email);
     
-    if (result.rows.length === 0) {
+    if (!user) {
       return c.json({ error: 'Credenciales inválidas' }, 401);
     }
 
-    const user = result.rows[0];
-
     // Verificar contraseña
-    const isValidPassword = await bcrypt.compare(password, user.password);
+    const isValidPassword = await Usuario.verifyPassword(password, user.password);
     if (!isValidPassword) {
       return c.json({ error: 'Credenciales inválidas' }, 401);
     }
@@ -92,17 +74,13 @@ auth.post('/login', async (c) => {
 auth.get('/me', authMiddleware, async (c) => {
   try {
     const userId = c.get('user').id;
-    
-    const result = await pool.query(
-      'SELECT id, email, nombre, apellido, rol, telefono, cedula, activo, created_at FROM usuarios WHERE id = $1',
-      [userId]
-    );
+    const user = await Usuario.findById(userId);
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return c.json({ error: 'Usuario no encontrado' }, 404);
     }
 
-    return c.json({ user: result.rows[0] });
+    return c.json({ user });
   } catch (error) {
     console.error('Error al obtener perfil:', error);
     return c.json({ error: 'Error al obtener perfil' }, 500);
