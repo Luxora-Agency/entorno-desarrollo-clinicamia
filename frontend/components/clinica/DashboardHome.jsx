@@ -35,8 +35,8 @@ export default function DashboardHome({ user }) {
       
       setStats({
         totalPacientes: pacientesData.pagination?.total || 0,
-        citasHoy: citasData.citas?.length || 0,
-        citasPendientes: citasData.citas?.filter(c => c.estado === 'Programada' || c.estado === 'Confirmada').length || 0,
+        citasHoy: citasData.data?.length || 0,
+        citasPendientes: citasData.data?.filter(c => c.estado === 'Programada' || c.estado === 'Confirmada').length || 0,
       });
     } catch (error) {
       console.error('Error loading stats:', error);
