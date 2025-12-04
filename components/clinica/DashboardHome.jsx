@@ -18,16 +18,17 @@ export default function DashboardHome({ user }) {
   const loadStats = async () => {
     try {
       const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
       // Obtener total de pacientes
-      const pacientesRes = await fetch('http://localhost:4000/pacientes?limit=1', {
+      const pacientesRes = await fetch(`${apiUrl}/pacientes?limit=1`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const pacientesData = await pacientesRes.json();
       
       // Obtener citas de hoy
       const today = new Date().toISOString().split('T')[0];
-      const citasRes = await fetch(`http://localhost:4000/citas?fecha=${today}&limit=100`, {
+      const citasRes = await fetch(`${apiUrl}/citas?fecha=${today}&limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const citasData = await citasRes.json();
