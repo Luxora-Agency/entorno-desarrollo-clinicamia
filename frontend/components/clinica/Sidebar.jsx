@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutDashboard, Users, Calendar, LogOut, ChevronRight, Building2, ChevronDown, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, LogOut, ChevronRight, Building2, ChevronDown, Menu, X, UserCog } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
