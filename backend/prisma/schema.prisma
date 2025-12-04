@@ -142,7 +142,7 @@ model Especialidad {
   @@map("especialidades")
 }
 model Doctor {
-  id                 String   @id @default(uuid())
+  id                 String   @id @default(uuid()) @db.Uuid
   usuarioId          String   @unique @map("usuario_id") @db.Uuid
   licenciaMedica     String   @map("licencia_medica")
   universidad        String?
@@ -159,7 +159,7 @@ model Doctor {
 }
 
 model DoctorEspecialidad {
-  id              String   @id @default(uuid())
+  id              String   @id @default(uuid()) @db.Uuid
   doctorId        String   @map("doctor_id") @db.Uuid
   especialidadId  String   @map("especialidad_id") @db.Uuid
   createdAt       DateTime @default(now()) @map("created_at")
