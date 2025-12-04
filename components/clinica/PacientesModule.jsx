@@ -38,7 +38,8 @@ export default function PacientesModule({ user }) {
   const loadPacientes = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:4000/pacientes?search=${search}&limit=50`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/pacientes?search=${search}&limit=50`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
