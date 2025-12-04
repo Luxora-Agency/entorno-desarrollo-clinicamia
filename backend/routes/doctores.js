@@ -62,9 +62,9 @@ doctores.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const result = await doctorService.eliminar(id);
-    return c.json(successResponse(result, result.message));
-  } catch (error) {
-    return c.json(errorResponse(error.message), 400);
+    return c.json(success(result, result.message));
+  } catch (err) {
+    return c.json(error(err.message), 400);
   }
 });
 
