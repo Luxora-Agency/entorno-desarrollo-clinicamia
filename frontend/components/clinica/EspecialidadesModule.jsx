@@ -45,14 +45,14 @@ export default function EspecialidadesModule({ user }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       const especialidadesData = await especialidadesRes.json();
-      setEspecialidades(especialidadesData.especialidades || []);
+      setEspecialidades(especialidadesData.data || []);
 
       // Cargar departamentos
       const departamentosRes = await fetch(`${apiUrl}/departamentos?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const departamentosData = await departamentosRes.json();
-      setDepartamentos(departamentosData.departamentos || []);
+      setDepartamentos(departamentosData.data || []);
 
       setLoading(false);
     } catch (error) {
@@ -89,7 +89,7 @@ export default function EspecialidadesModule({ user }) {
         resetForm();
         loadData();
       } else {
-        alert(data.error || 'Error al guardar la especialidad');
+        alert(data.error || data.message || 'Error al guardar la especialidad');
       }
     } catch (error) {
       console.error('Error saving especialidad:', error);
@@ -128,7 +128,7 @@ export default function EspecialidadesModule({ user }) {
       if (response.ok) {
         loadData();
       } else {
-        alert(data.error);
+        alert(data.error || data.message);
       }
     } catch (error) {
       console.error('Error deleting especialidad:', error);
