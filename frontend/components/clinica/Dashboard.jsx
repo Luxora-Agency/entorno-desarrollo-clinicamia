@@ -5,6 +5,8 @@ import Sidebar from './Sidebar';
 import DashboardHome from './DashboardHome';
 import PacientesModule from './PacientesModule';
 import CitasModule from './CitasModule';
+import EspecialidadesModule from './EspecialidadesModule';
+import DepartamentosModule from './DepartamentosModule';
 
 export default function Dashboard({ user, onLogout }) {
   const [activeModule, setActiveModule] = useState('dashboard');
