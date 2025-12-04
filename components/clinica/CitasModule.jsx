@@ -65,11 +65,12 @@ export default function CitasModule({ user }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
     try {
       const url = editingCita
-        ? `http://localhost:4000/citas/${editingCita.id}`
-        : 'http://localhost:4000/citas';
+        ? `${apiUrl}/citas/${editingCita.id}`
+        : `${apiUrl}/citas`;
       
       const method = editingCita ? 'PUT' : 'POST';
 
