@@ -85,8 +85,8 @@ model Paciente {
 model Cita {
   id              String       @id @default(uuid())
   pacienteId      String       @map("paciente_id")
-  doctorId        String       @map("doctor_id")
-  especialidadId  String?      @map("especialidad_id")
+  doctorId        String       @map("doctor_id") @db.Uuid
+  especialidadId  String?      @map("especialidad_id") @db.Uuid
   fecha           DateTime     @db.Date
   hora            DateTime     @db.Time
   motivo          String
