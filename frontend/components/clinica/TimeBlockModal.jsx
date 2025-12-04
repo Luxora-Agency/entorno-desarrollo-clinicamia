@@ -40,9 +40,9 @@ export default function TimeBlockModal({ isOpen, onClose, selectedDate, onSave, 
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className=\"max-w-md\">
+      <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className=\"text-xl font-semibold text-gray-900\">
+          <DialogTitle className="text-xl font-semibold text-gray-900">
             <Clock className=\"w-5 h-5 inline mr-2 text-blue-600\" />
             Configurar Horarios
           </DialogTitle>
