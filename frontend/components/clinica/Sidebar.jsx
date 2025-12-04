@@ -170,6 +170,75 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 </div>
               )}
             </div>
+
+            {/* Doctores con acordeón */}
+            <div>
+              <button
+                onClick={() => setIsDoctoresOpen(!isDoctoresOpen)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  activeModule === 'doctores' || activeModule === 'agregar-doctor'
+                    ? 'bg-teal-50 text-teal-700 font-semibold'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <UserCog
+                  className={`w-5 h-5 ${
+                    activeModule === 'doctores' || activeModule === 'agregar-doctor'
+                      ? 'text-teal-600'
+                      : 'text-gray-500'
+                  }`}
+                />
+                <span className="flex-1 text-left text-sm">Doctores</span>
+                <ChevronDown
+                  className={`w-4 h-4 transition-transform ${
+                    isDoctoresOpen ? 'rotate-0' : '-rotate-90'
+                  } ${
+                    activeModule === 'doctores' || activeModule === 'agregar-doctor'
+                      ? 'text-teal-600'
+                      : 'text-gray-500'
+                  }`}
+                />
+              </button>
+
+              {/* Sub-items */}
+              {isDoctoresOpen && (
+                <div className="mt-1 ml-4 space-y-1">
+                  <button
+                    onClick={() => handleNavigation('doctores')}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
+                      activeModule === 'doctores'
+                        ? 'bg-teal-50 text-teal-700 font-semibold'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${
+                      activeModule === 'doctores' ? 'bg-teal-600' : 'bg-gray-400'
+                    }`} />
+                    <span className="flex-1 text-left">Todos los Doctores</span>
+                    {activeModule === 'doctores' && (
+                      <ChevronRight className="w-4 h-4 text-teal-600" />
+                    )}
+                  </button>
+
+                  <button
+                    onClick={() => handleNavigation('agregar-doctor')}
+                    className={`w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all text-sm ${
+                      activeModule === 'agregar-doctor'
+                        ? 'bg-teal-50 text-teal-700 font-semibold'
+                        : 'text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className={`w-2 h-2 rounded-full ${
+                      activeModule === 'agregar-doctor' ? 'bg-teal-600' : 'bg-gray-400'
+                    }`} />
+                    <span className="flex-1 text-left">Agregar Doctor</span>
+                    {activeModule === 'agregar-doctor' && (
+                      <ChevronRight className="w-4 h-4 text-teal-600" />
+                    )}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </nav>
 
