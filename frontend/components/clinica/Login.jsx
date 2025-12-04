@@ -45,45 +45,45 @@ export default function Login({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Column - Login Form */}
-      <div className="w-1/2 bg-white flex items-center justify-center p-12">
+      <div className="w-full lg:w-1/2 bg-white flex items-center justify-center p-6 sm:p-8 lg:p-12">
         <div className="w-full max-w-md">
           {/* Logo */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-6">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex items-center gap-3 mb-4 sm:mb-6">
               <img 
                 src="/clinica-mia-logo.png" 
                 alt="Clínica Mía Logo" 
-                className="h-16 w-auto"
+                className="h-12 sm:h-16 w-auto"
               />
             </div>
           </div>
 
           {/* Welcome Message */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <div className="mb-6 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
               ¡Bienvenido de nuevo!
             </h1>
-            <p className="text-lg text-teal-600 border-b-2 border-teal-500 inline-block pb-1">
+            <p className="text-base sm:text-lg text-teal-600 border-b-2 border-teal-500 inline-block pb-1">
               Inicia sesión para continuar.
             </p>
           </div>
 
-          <p className="text-gray-600 mb-8">
+          <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
             Portal de gestión interna de Clínica Mía. Accede a todas las herramientas necesarias para administrar pacientes, citas, órdenes médicas y recursos de la clínica.
           </p>
 
           {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
+              <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
             <div>
-              <Label htmlFor="email" className="text-gray-700 font-medium">
+              <Label htmlFor="email" className="text-gray-700 font-medium text-sm sm:text-base">
                 Correo Electrónico
               </Label>
               <Input
@@ -93,12 +93,12 @@ export default function Login({ onLogin }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="mt-2"
+                className="mt-2 h-11 sm:h-12"
               />
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-gray-700 font-medium">
+              <Label htmlFor="password" className="text-gray-700 font-medium text-sm sm:text-base">
                 Contraseña
               </Label>
               <div className="relative mt-2">
@@ -109,7 +109,7 @@ export default function Login({ onLogin }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="pr-10"
+                  className="pr-10 h-11 sm:h-12"
                 />
                 <button
                   type="button"
@@ -139,7 +139,7 @@ export default function Login({ onLogin }) {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-6 rounded-lg transition-all"
+              className="w-full bg-teal-500 hover:bg-teal-600 text-white font-semibold py-5 sm:py-6 rounded-lg transition-all"
             >
               {loading ? (
                 'Iniciando sesión...'
@@ -154,8 +154,8 @@ export default function Login({ onLogin }) {
         </div>
       </div>
 
-      {/* Right Column - Dashboard Preview */}
-      <div className="w-1/2 bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-12">
+      {/* Right Column - Dashboard Preview - Hidden on mobile */}
+      <div className="hidden lg:flex w-full lg:w-1/2 bg-gradient-to-br from-gray-50 to-gray-100 items-center justify-center p-12">
         <div className="w-full max-w-2xl">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-900 mb-2">

@@ -143,42 +143,43 @@ export default function DepartamentosModule({ user }) {
   };
 
   return (
-    <div className="p-8">
+    <div className="p-4 sm:p-6 lg:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Departamentos</h1>
-          <p className="text-gray-600 mt-1">Gestiona los departamentos de la clínica</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Departamentos</h1>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Gestiona los departamentos de la clínica</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600">
+            <Button className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Agregar Departamento
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-lg sm:text-xl">
                 {editingDepartamento ? 'Editar Departamento' : 'Nuevo Departamento'}
               </DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="nombre">Nombre *</Label>
+                <Label htmlFor="nombre" className="text-sm sm:text-base">Nombre *</Label>
                 <Input
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   required
                   placeholder="Ej: Cardiología"
+                  className="h-11 sm:h-12"
                 />
               </div>
               <div>
-                <Label htmlFor="descripcion">Descripción</Label>
+                <Label htmlFor="descripcion" className="text-sm sm:text-base">Descripción</Label>
                 <Textarea
                   id="descripcion"
                   value={formData.descripcion}
@@ -188,12 +189,12 @@ export default function DepartamentosModule({ user }) {
                 />
               </div>
               <div>
-                <Label htmlFor="responsable_id">Usuario Responsable (Opcional)</Label>
+                <Label htmlFor="responsable_id" className="text-sm sm:text-base">Usuario Responsable (Opcional)</Label>
                 <Select 
                   value={formData.responsable_id || "none"} 
                   onValueChange={(value) => setFormData({ ...formData, responsable_id: value === "none" ? "" : value })}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-12">
                     <SelectValue placeholder="Seleccionar responsable (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -207,9 +208,9 @@ export default function DepartamentosModule({ user }) {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="estado">Estado *</Label>
+                <Label htmlFor="estado" className="text-sm sm:text-base">Estado *</Label>
                 <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })} required>
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 sm:h-12">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -220,18 +221,18 @@ export default function DepartamentosModule({ user }) {
               </div>
 
               {/* Nota informativa */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
-                <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-blue-800">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 flex gap-2 sm:gap-3">
+                <Info className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs sm:text-sm text-blue-800">
                   <span className="font-semibold">💡 Nota:</span> La cantidad de especialidades se calculará automáticamente basándose en las especialidades activas asignadas a este departamento.
                 </p>
               </div>
 
-              <div className="flex gap-2 justify-end">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-teal-500 hover:bg-teal-600">
+                <Button type="submit" className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
                   {editingDepartamento ? 'Actualizar' : 'Crear'}
                 </Button>
               </div>
@@ -242,14 +243,14 @@ export default function DepartamentosModule({ user }) {
 
       {/* Search */}
       <Card className="mb-6">
-        <CardContent className="p-4">
+        <CardContent className="p-3 sm:p-4">
           <div className="flex items-center gap-2">
-            <Search className="w-5 h-5 text-gray-400" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
             <Input
               placeholder="Buscar por nombre..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border-0 focus-visible:ring-0"
+              className="border-0 focus-visible:ring-0 text-sm sm:text-base"
             />
           </div>
         </CardContent>
@@ -258,75 +259,78 @@ export default function DepartamentosModule({ user }) {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Departamentos ({departamentos.length})</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Lista de Departamentos ({departamentos.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center py-8 text-gray-500">Cargando...</p>
+            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">Cargando...</p>
           ) : departamentos.length === 0 ? (
-            <p className="text-center py-8 text-gray-500">No hay departamentos registrados</p>
+            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">No hay departamentos registrados</p>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Responsable</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead>Fecha Creación</TableHead>
-                    <TableHead className="text-center">Cant. Especialidades</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {departamentos.map((departamento) => (
-                    <TableRow key={departamento.id}>
-                      <TableCell className="font-medium">{departamento.nombre}</TableCell>
-                      <TableCell>
-                        {departamento.responsableNombre === 'N/A' ? (
-                          <span className="text-gray-400 italic">N/A</span>
-                        ) : (
-                          departamento.responsableNombre
-                        )}
-                      </TableCell>
-                      <TableCell className="max-w-xs truncate">
-                        {departamento.descripcion || '-'}
-                      </TableCell>
-                      <TableCell>{formatDate(departamento.createdAt)}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200">
-                          {departamento.cantidadEspecialidades}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={departamento.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                          {departamento.estado}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(departamento)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-600 hover:text-red-700"
-                            onClick={() => handleDelete(departamento.id)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            <div className="overflow-x-auto -mx-2 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Responsable</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Descripción</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Fecha</TableHead>
+                      <TableHead className="text-center text-xs sm:text-sm">Esp.</TableHead>
+                      <TableHead className="text-xs sm:text-sm">Estado</TableHead>
+                      <TableHead className="text-right text-xs sm:text-sm">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {departamentos.map((departamento) => (
+                      <TableRow key={departamento.id}>
+                        <TableCell className="font-medium text-xs sm:text-sm">{departamento.nombre}</TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden md:table-cell">
+                          {departamento.responsableNombre === 'N/A' ? (
+                            <span className="text-gray-400 italic">N/A</span>
+                          ) : (
+                            departamento.responsableNombre
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate text-xs sm:text-sm hidden lg:table-cell">
+                          {departamento.descripcion || '-'}
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{formatDate(departamento.createdAt)}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200 text-xs">
+                            {departamento.cantidadEspecialidades}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`${departamento.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} text-xs`}>
+                            {departamento.estado}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1 sm:gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(departamento)}
+                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                            >
+                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0 sm:h-9 sm:w-9"
+                              onClick={() => handleDelete(departamento.id)}
+                            >
+                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
           )}
         </CardContent>
