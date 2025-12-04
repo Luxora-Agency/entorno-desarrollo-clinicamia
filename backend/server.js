@@ -57,6 +57,7 @@ app.route('/citas', citas);
 app.route('/departamentos', departamentos);
 app.route('/especialidades', especialidades);
 app.route('/usuarios', usuarios);
+app.route('/doctores', doctores);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
