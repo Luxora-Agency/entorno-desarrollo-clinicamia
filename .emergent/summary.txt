@@ -1,0 +1,87 @@
+<analysis>
+The trajectory details the development of the Clínica Mía hospital management system, focusing on the Patient Admissions module. A significant portion of the work involved extensive and difficult debugging of the backend environment. The AI engineer resolved a critical, recurring issue where the PostgreSQL database was not running. This involved installing and configuring PostgreSQL from scratch, creating the database and user, and managing permissions.
+
+A major blocker was a series of Prisma-related errors, stemming from an unintended library version upgrade (from 5.8.0 to 5.22.0) and a schema name mismatch ( vs. ). After multiple failed attempts, the engineer correctly diagnosed the issue and, following user instruction, reverted the codebase to a last known stable commit (), which successfully stabilized the environment.
+
+With a stable backend, the engineer completed Phase 6, creating the Hono.js services and routes for the hospitalization module (Unidades, Habitaciones, Camas, Admisiones, Movimientos). Following user feedback, the engineer also created frontend CRUD modules for Unidades, Habitaciones, and Camas, and styled them to match the application's existing design. The Admisiones (Phase 7) and Movimientos (Phase 8) tabs were implemented, including a backend fix to correctly join and display user names instead of IDs. The work was interrupted just after creating the Citas tab component (Phase 5).
+
+The user's primary language is **Spanish**. All subsequent interactions must be in Spanish.
+</analysis>
+
+<product_requirements>
+The project is Clínica Mía, a hospital management system. The primary objective is to build a comprehensive Patient Admissions view, which serves as a central hub for managing a selected patient.
+
+This view is organized into several tabs:
+1.  **Patient Information**: Detailed patient data view.
+2.  **Citas (Appointments)**: Manage and create patient appointments.
+3.  **Admisiones/Hospitalizaciones**: Track hospitalization status, history, and manage admission/discharge.
+4.  **Movimientos**: A visual timeline of a patient's transfers within the hospital.
+5.  **Historia Clínica**: Read-only view of clinical history.
+6.  **Facturación (Billing)**: Administrative view for invoices and account status.
+
+As an emergent requirement from the user for practical testing and data management, dedicated CRUD (Create, Read, Update, Delete) modules for **Unidades**, **Habitaciones**, and **Camas** were added to the frontend. These are accessible via a new Hospitalización dropdown in the main sidebar. The system must maintain a consistent and professional UI design across all new and existing modules.
+</product_requirements>
+
+<key_technical_concepts>
+- **Frameworks**: Next.js (Frontend), Hono.js (Backend).
+- **Database**: PostgreSQL with Prisma ORM.
+- **Architecture**: Monorepo with separate  and  directories, using a Service-Route pattern on the backend.
+- **Authentication**: JWT-based authentication.
+- **Key Debugging Issues Solved**:
+    - **Prisma Version Conflict**: Reverted from  to the stable .
+    - **Prisma Schema Drift**: Corrected model naming convention from  back to  by reverting to a stable git commit.
+    - **Database Connectivity**: Configured PostgreSQL () and seeded the database to restore functionality.
+</key_technical_concepts>
+
+<code_architecture>
+The project follows a monorepo structure with distinct frontend and backend applications.
+
+**Directory Structure:**
+
+
+- ****
+  - **Importance**: Defines the entire database schema. It was the epicenter of major debugging efforts.
+  - **Summary of Changes**: After significant issues with incorrect model names (), it was reverted to a stable version using  model names (, ). It was then modified to add missing relations to the  model to link it to , , and , enabling richer data fetching.
+
+- ** and **
+  - **Importance**: These directories contain the application's business logic and API endpoint definitions, respectively.
+  - **Summary of Changes**: Five new service files and five new route files were created for the hospitalization module (, , , , ). The  and  were later modified to manually map and include the responsible user's name in the API response to address a user request.
+
+- ****
+  - **Importance**: The main entry point for the Hono.js backend server.
+  - **Summary of Changes**: It was updated to import and register the five new route modules for the hospitalization feature.
+
+- ****
+  - **Importance**: The main navigation component for the application.
+  - **Summary of Changes**: The Hospitalización item was converted into a dropdown menu to house links to the new CRUD modules: Unidades, Habitaciones, and Camas, which was a direct response to a user request for better data management.
+
+- ****
+  - **Importance**: The central component that acts as a router for rendering different modules based on the active state.
+  - **Summary of Changes**: It was updated to include  statements for , , and  to render the newly created management modules.
+
+- **, , **
+  - **Importance**: New frontend components for managing core hospitalization data.
+  - **Summary of Changes**: These files were created from scratch. Initially, they had a basic layout, but after user feedback, they were completely rewritten to match the sophisticated and consistent design of existing modules like , incorporating gradient headers, icon cards, and a standardized table layout.
+
+- ****
+  - **Importance**: The component for the Citas tab within the patient detail view.
+  - **Summary of Changes**: This file was created to replace a placeholder. The implementation was adapted from the existing  to fit within the tabbed interface and filter appointments for the selected patient.
+</code_architecture>
+
+<pending_tasks>
+- **Fase 11: Activar/Inactivar Pacientes**: Implement the UI and backend logic to mark patients as inactive instead of deleting them.
+- **Fase 9: Tab 5 - Historia Clínica**: Build the read-only clinical history tab.
+- **Fase 10: Tab 6 - Facturación**: Build the billing and account status tab.
+</pending_tasks>
+
+<current_work>
+The AI engineer was working on **Fase 5: Tab 2 - Citas**. The goal is to create an appointments tab within the new Patient Admissions view. This involves reusing and adapting the existing logic from .
+
+The last action performed was creating the new component file  with the complete, adapted code. Immediately after the file was successfully written, the trajectory shows an attempt to restart the Next.js server (). The work was interrupted at this exact point, before verifying if the server restarted correctly or if the new component rendered without errors in the UI.
+
+The system is in a state where the code for the Citas tab has been written, but it has not yet been tested or confirmed to be working.
+</current_work>
+
+<optional_next_step>
+Restart the Next.js server and verify that it starts without errors. Then, navigate to the Admisiones view in the application, select a patient, and check that the new Citas tab renders correctly.
+</optional_next_step>
