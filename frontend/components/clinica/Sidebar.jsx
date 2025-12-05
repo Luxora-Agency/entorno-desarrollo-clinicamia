@@ -367,45 +367,17 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
                     <button
                       onClick={() => {
-                        setActiveModule('hospitalizacion-dashboard');
+                        setActiveModule('unidades');
                         setIsOpen(false);
                       }}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                        activeModule === 'hospitalizacion-dashboard'
+                        activeModule === 'unidades'
                           ? 'bg-emerald-50 text-emerald-700 font-semibold'
                           : 'text-gray-600 hover:bg-gray-50'
                       }`}
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                      <span>Dashboard</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActiveModule('mapa-camas');
-                        setIsOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                        activeModule === 'mapa-camas'
-                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                      <span>Mapa de Camas</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setActiveModule('gestion-camas');
-                        setIsOpen(false);
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                        activeModule === 'gestion-camas'
-                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                      <span>Gestión de Camas</span>
+                      <span>Unidades</span>
                     </button>
                     <button
                       onClick={() => {
@@ -420,6 +392,20 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                     >
                       <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
                       <span>Habitaciones</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('gestion-camas');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'gestion-camas'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Camas</span>
                     </button>
                     <button
                       onClick={() => {
