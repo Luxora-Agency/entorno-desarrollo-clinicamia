@@ -280,39 +280,79 @@ export default function CitasModule({ user }) {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="doctor_id" className="text-sm font-semibold text-gray-700 mb-2 block">Doctor *</Label>
-                <Select value={formData.doctor_id} onValueChange={(value) => setFormData({ ...formData, doctor_id: value })} required>
+                <Label className="text-sm font-semibold text-gray-700 mb-2 block">Especialidad *</Label>
+                <Select 
+                  value={formData.especialidad_id} 
+                  onValueChange={handleEspecialidadChange}
+                  required
+                >
                   <SelectTrigger className="h-11 border-gray-300">
-                    <SelectValue placeholder="Seleccionar doctor" />
+                    <SelectValue placeholder="Seleccionar especialidad" />
                   </SelectTrigger>
                   <SelectContent>
-                    {doctores.map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        Dr. {d.nombre} {d.apellido}
+                    {especialidades.map((esp) => (
+                      <SelectItem key={esp.id} value={esp.id}>
+                        {esp.titulo}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label className="text-sm font-semibold text-gray-700 mb-2 block">Tipo de Servicio *</Label>
-                <Select 
-                  value={formData.tipoServicio} 
-                  onValueChange={handleTipoServicioChange}
-                  required
-                >
-                  <SelectTrigger className="h-11 border-gray-300">
-                    <SelectValue placeholder="Seleccionar tipo de servicio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="especialidad">Especialidad</SelectItem>
-                    <SelectItem value="examen">Examen</SelectItem>
-                    <SelectItem value="procedimiento">Procedimiento</SelectItem>
-                  </SelectContent>
-                </Select>
+
+              {formData.especialidad_id && (
+                <div>
+                  <Label htmlFor="doctor_id" className="text-sm font-semibold text-gray-700 mb-2 block">Doctor *</Label>
+                  <Select value={formData.doctor_id} onValueChange={(value) => setFormData({ ...formData, doctor_id: value })} required>
+                    <SelectTrigger className="h-11 border-gray-300">
+                      <SelectValue placeholder="Seleccionar doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctoresFiltrados.length > 0 ? (
+                        doctoresFiltrados.map((d) => (
+                          <SelectItem key={d.id} value={d.id}>
+                            Dr. {d.nombre} {d.apellido}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-doctors" disabled>No hay doctores disponibles</SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="duracion_minutos" className="text-sm font-semibold text-gray-700 mb-2 block">Duración (min) *</Label>
+                  <Input
+                    id="duracion_minutos"
+                    type="number"
+                    min="1"
+                    value={formData.duracion_minutos}
+                    onChange={(e) => setFormData({ ...formData, duracion_minutos: e.target.value })}
+                    className="h-11 border-gray-300"
+                    required
+                    placeholder="30"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="costo" className="text-sm font-semibold text-gray-700 mb-2 block">Costo (COP) *</Label>
+                  <Input
+                    id="costo"
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={formData.costo}
+                    onChange={(e) => setFormData({ ...formData, costo: e.target.value })}
+                    className="h-11 border-gray-300"
+                    required
+                    placeholder="0"
+                  />
+                </div>
               </div>
 
-              {formData.tipoServicio && (
+              {formData.especialidad_id && false && (
                 <div>
                   <Label className="text-sm font-semibold text-gray-700 mb-2 block">
                     {formData.tipoServicio === 'especialidad' ? 'Especialidad' : 
