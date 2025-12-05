@@ -203,7 +203,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       <span>Agregar Doctor</span>
                     </button>
                   </div>
-                )}
+                </div>
 
                 {/* Pacientes - sin sub-items */}
                 <button
