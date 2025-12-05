@@ -10,6 +10,8 @@ import TabAdmisiones from './admisiones/TabAdmisiones';
 import TabMovimientos from './admisiones/TabMovimientos';
 import TabHistoria from './admisiones/TabHistoria';
 import TabFacturacion from './admisiones/TabFacturacion';
+import TabOrdenesMedicas from './admisiones/TabOrdenesMedicas';
+import TabOrdenesMedicamentos from './admisiones/TabOrdenesMedicamentos';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function AdmisionesView({ user }) {
