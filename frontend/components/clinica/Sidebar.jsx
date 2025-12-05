@@ -696,7 +696,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       <span>Comentarios</span>
                     </button>
                   </div>
-                )}
+                </div>
 
                 <button
                   onClick={() => {
