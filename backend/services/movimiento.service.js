@@ -44,26 +44,35 @@ class MovimientoService {
     });
 
     // Cargar información del usuario responsable para cada movimiento
-    for (const movimiento of movimientos) {
-      if (movimiento.responsable) {
-        try {
-          const usuario = await prisma.usuario.findUnique({
-            where: { id: movimiento.responsable },
-            select: { nombre: true, apellido: true, rol: true },
-          });
-          if (usuario) {
-            movimiento.responsableInfo = {
-              nombre: `${usuario.nombre} ${usuario.apellido}`,
-              rol: usuario.rol,
-            };
+    const movimientosConResponsable = await Promise.all(
+      movimientos.map(async (movimiento) => {
+        let responsableInfo = null;
+        
+        if (movimiento.responsable) {
+          try {
+            const usuario = await prisma.usuario.findUnique({
+              where: { id: movimiento.responsable },
+              select: { nombre: true, apellido: true, rol: true },
+            });
+            if (usuario) {
+              responsableInfo = {
+                nombre: `${usuario.nombre} ${usuario.apellido}`,
+                rol: usuario.rol,
+              };
+            }
+          } catch (error) {
+            console.error('Error cargando usuario responsable:', error);
           }
-        } catch (error) {
-          console.error('Error cargando usuario responsable:', error);
         }
-      }
-    }
 
-    return movimientos;
+        return {
+          ...movimiento,
+          responsableInfo,
+        };
+      })
+    );
+
+    return movimientosConResponsable;
   }
 
   /**
