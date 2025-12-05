@@ -445,7 +445,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       <span>Reportes</span>
                     </button>
                   </div>
-                )}
+                </div>
               </div>
 
               {/* FARMACIA */}
