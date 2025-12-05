@@ -98,6 +98,11 @@ app.route('/habitaciones', habitacion);
 app.route('/camas', cama);
 app.route('/admisiones', admision);
 app.route('/movimientos', movimiento);
+// Rutas de facturación y órdenes
+app.route('/ordenes-medicas', ordenesMedicas);
+app.route('/ordenes-medicamentos', ordenesMedicamentos);
+app.route('/facturas', facturas);
+app.route('/paquetes-hospitalizacion', paquetesHospitalizacion);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
