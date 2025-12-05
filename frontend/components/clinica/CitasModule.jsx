@@ -138,16 +138,25 @@ export default function CitasModule({ user }) {
   const handleEdit = (cita) => {
     setEditingCita(cita);
     setFormData({
-      paciente_id: cita.paciente_id || '',
-      doctor_id: cita.doctor_id || '',
-      tipoServicio: '',
-      servicioId: '',
+      paciente_id: cita.pacienteId || '',
+      especialidad_id: cita.especialidadId || '',
+      doctor_id: cita.doctorId || '',
       fecha: cita.fecha || '',
       hora: cita.hora || '',
+      duracion_minutos: cita.duracionMinutos || '',
+      costo: cita.costo || '',
       motivo: cita.motivo || '',
       notas: cita.notas || '',
     });
-    setSelectedServicio(null);
+    
+    // Si hay especialidad, cargar doctores filtrados
+    if (cita.especialidadId) {
+      const doctoresConEspecialidad = doctores.filter(doctor => 
+        doctor.doctor?.especialidades?.some(esp => esp.especialidadId === cita.especialidadId)
+      );
+      setDoctoresFiltrados(doctoresConEspecialidad);
+    }
+    
     setIsDialogOpen(true);
   };
 
