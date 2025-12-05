@@ -16,6 +16,7 @@ import CategoriasExamenesModule from './CategoriasExamenesModule';
 import FarmaciaModule from './FarmaciaModule';
 import CategoriasProductosModule from './CategoriasProductosModule';
 import EtiquetasProductosModule from './EtiquetasProductosModule';
+import AdmisionesView from './AdmisionesView';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
