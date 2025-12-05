@@ -15,6 +15,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
   const [isOpen, setIsOpen] = useState(false);
   const [isDepartamentosOpen, setIsDepartamentosOpen] = useState(false);
   const [isDoctoresOpen, setIsDoctoresOpen] = useState(false);
+  const [isPacientesOpen, setIsPacientesOpen] = useState(false);
   const [isExamenesOpen, setIsExamenesOpen] = useState(false);
   const [isHospitalizacionOpen, setIsHospitalizacionOpen] = useState(false);
   const [isFarmaciaOpen, setIsFarmaciaOpen] = useState(false);
