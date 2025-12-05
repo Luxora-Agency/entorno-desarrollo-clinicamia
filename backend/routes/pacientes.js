@@ -78,13 +78,29 @@ pacientes.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTI
 });
 
 /**
- * DELETE /pacientes/:id - Eliminar un paciente
+ * DELETE /pacientes/:id - Eliminar un paciente (soft delete)
  */
 pacientes.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
   try {
     const { id } = c.req.param();
     await pacienteService.delete(id);
-    return c.json(success(null, 'Paciente eliminado correctamente'));
+    return c.json(success(null, 'Paciente inactivado correctamente'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PATCH /pacientes/:id/toggle-activo - Activar o inactivar un paciente
+ */
+pacientes.patch('/:id/toggle-activo', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+  try {
+    const { id } = c.req.param();
+    const paciente = await pacienteService.toggleActivo(id);
+    const mensaje = paciente.activo 
+      ? 'Paciente activado correctamente' 
+      : 'Paciente inactivado correctamente';
+    return c.json(success({ paciente }, mensaje));
   } catch (err) {
     return c.json(error(err.message), err.statusCode || 500);
   }
