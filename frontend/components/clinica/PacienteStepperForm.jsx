@@ -271,6 +271,27 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
     return null;
   };
 
+  const uploadDocuments = async (pacienteId, token, apiUrl) => {
+    try {
+      for (const doc of documentos) {
+        const formData = new FormData();
+        formData.append('file', doc.file);
+        formData.append('pacienteId', pacienteId);
+        formData.append('categoria', 'General');
+        
+        await fetch(`${apiUrl}/documentos-paciente/upload`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+      }
+    } catch (error) {
+      console.error('Error al subir documentos:', error);
+    }
+  };
+
   const handleSubmit = async () => {
     try {
       const token = localStorage.getItem('token');
