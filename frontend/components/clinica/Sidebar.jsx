@@ -156,7 +156,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       <span>Ver Especialidades</span>
                     </button>
                   </div>
-                )}
+                </div>
 
                 {/* Doctores */}
                 <button
