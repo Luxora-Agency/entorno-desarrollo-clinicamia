@@ -15,7 +15,9 @@ import {
   FileText,
   TrendingUp,
   CreditCard,
-  AlertCircle
+  AlertCircle,
+  Plus,
+  Eye
 } from 'lucide-react';
 
 export default function TabFacturacion({ pacienteId, paciente }) {
