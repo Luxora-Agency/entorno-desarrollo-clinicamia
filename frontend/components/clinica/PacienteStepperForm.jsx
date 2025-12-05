@@ -74,6 +74,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
     { number: 2, title: 'Contacto y Emergencias', icon: Phone },
     { number: 3, title: 'Aseguramiento en Salud', icon: Shield },
     { number: 4, title: 'Información Médica', icon: Activity },
+    { number: 5, title: 'Documentos', icon: FileText },
   ];
 
   const tiposDocumento = [
