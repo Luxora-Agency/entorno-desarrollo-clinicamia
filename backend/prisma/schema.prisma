@@ -322,3 +322,23 @@ model ProductoEtiqueta {
   @@unique([productoId, etiquetaId])
   @@map("productos_etiquetas")
 }
+
+model DocumentoPaciente {
+  id              String    @id @default(uuid())
+  pacienteId      String    @map("paciente_id")
+  nombreArchivo   String    @map("nombre_archivo")
+  nombreOriginal  String    @map("nombre_original")
+  tipoArchivo     String    @map("tipo_archivo")
+  tamano          Int       // en bytes
+  rutaArchivo     String    @map("ruta_archivo")
+  descripcion     String?
+  categoria       String?   // Ej: "Historia Clínica", "Resultados", "Consentimiento", etc.
+  uploadedBy      String?   @map("uploaded_by") @db.Uuid
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  paciente        Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  @@map("documentos_paciente")
+
+}
