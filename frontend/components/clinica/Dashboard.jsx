@@ -41,7 +41,7 @@ export default function Dashboard({ user, onLogout }) {
       case 'dashboard':
         return <DashboardHome user={user} />;
       case 'admisiones':
-        return <AdmisionesModule user={user} />;
+        return <AdmisionesView user={user} />;
       case 'pacientes':
         return <PacientesModule user={user} />;
       case 'citas':
