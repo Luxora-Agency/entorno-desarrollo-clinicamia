@@ -1066,6 +1066,14 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
           )}
         </div>
       </div>
+
+      {/* Modal de Éxito */}
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={handleCloseModal}
+        pacienteId={savedPaciente?.id}
+        pacienteNombre={savedPaciente?.nombre}
+      />
     </div>
   );
 }
