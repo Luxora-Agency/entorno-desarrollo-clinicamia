@@ -52,9 +52,15 @@ model Usuario {
   updatedAt         DateTime        @default(now()) @map("updated_at")
   
   // Relaciones
-  doctor            Doctor?
-  citasComoDoctor   Cita[]          @relation("CitasDoctor")
-  departamentosResponsable Departamento[] @relation("DepartamentoResponsable")
+  doctor                        Doctor?
+  citasComoDoctor               Cita[]                  @relation("CitasDoctor")
+  departamentosResponsable      Departamento[]          @relation("DepartamentoResponsable")
+  ordenesMedicasComoDoctor      OrdenMedica[]           @relation("OrdenMedicaDoctor")
+  ordenesMedicasComoEjecutor    OrdenMedica[]           @relation("OrdenMedicaEjecutor")
+  ordenesMedicamentosComoDoctor OrdenMedicamento[]      @relation("OrdenMedicamentoDoctor")
+  ordenesMedicamentosComoDespachador OrdenMedicamento[] @relation("OrdenMedicamentoDespachador")
+  facturasCreadas               Factura[]
+  pagosRegistrados              Pago[]
 
   @@map("usuarios")
 }
