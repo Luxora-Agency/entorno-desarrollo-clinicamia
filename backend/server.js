@@ -18,6 +18,12 @@ const categoriaProducto = require('./routes/categoriaProducto');
 const etiquetaProducto = require('./routes/etiquetaProducto');
 const productos = require('./routes/productos');
 const documentosPaciente = require('./routes/documentosPaciente');
+// Rutas de hospitalización
+const unidad = require('./routes/unidad');
+const habitacion = require('./routes/habitacion');
+const cama = require('./routes/cama');
+const admision = require('./routes/admision');
+const movimiento = require('./routes/movimiento');
 
 const app = new Hono();
 
