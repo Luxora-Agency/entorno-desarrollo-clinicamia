@@ -448,9 +448,19 @@ export default function TabAdmisiones({ pacienteId, user }) {
                     <p className="text-gray-600">
                       <span className="font-medium">Diagnóstico Ingreso:</span> {admision.diagnosticoIngreso}
                     </p>
+                    {admision.responsableIngresoInfo && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Responsable: {admision.responsableIngresoInfo.nombre} ({admision.responsableIngresoInfo.rol})
+                      </p>
+                    )}
                     {admision.diagnosticoEgreso && (
                       <p className="text-gray-600 mt-1">
                         <span className="font-medium">Diagnóstico Egreso:</span> {admision.diagnosticoEgreso}
+                      </p>
+                    )}
+                    {admision.responsableEgresoInfo && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Responsable: {admision.responsableEgresoInfo.nombre} ({admision.responsableEgresoInfo.rol})
                       </p>
                     )}
                   </div>
