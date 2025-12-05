@@ -36,7 +36,55 @@ class AdmisionService {
       orderBy: { fechaIngreso: 'desc' },
     });
 
-    return admisiones;
+    // Cargar información de los usuarios responsables
+    const admisionesConResponsables = await Promise.all(
+      admisiones.map(async (admision) => {
+        let responsableIngresoInfo = null;
+        let responsableEgresoInfo = null;
+
+        if (admision.responsableIngreso) {
+          try {
+            const usuario = await prisma.usuario.findUnique({
+              where: { id: admision.responsableIngreso },
+              select: { nombre: true, apellido: true, rol: true },
+            });
+            if (usuario) {
+              responsableIngresoInfo = {
+                nombre: `${usuario.nombre} ${usuario.apellido}`,
+                rol: usuario.rol,
+              };
+            }
+          } catch (error) {
+            console.error('Error cargando usuario responsable ingreso:', error);
+          }
+        }
+
+        if (admision.responsableEgreso) {
+          try {
+            const usuario = await prisma.usuario.findUnique({
+              where: { id: admision.responsableEgreso },
+              select: { nombre: true, apellido: true, rol: true },
+            });
+            if (usuario) {
+              responsableEgresoInfo = {
+                nombre: `${usuario.nombre} ${usuario.apellido}`,
+                rol: usuario.rol,
+              };
+            }
+          } catch (error) {
+            console.error('Error cargando usuario responsable egreso:', error);
+          }
+        }
+
+        return {
+          ...admision,
+          responsableIngresoInfo,
+          responsableEgresoInfo,
+        };
+      })
+    );
+
+    return admisionesConResponsables;
   }
 
   /**
