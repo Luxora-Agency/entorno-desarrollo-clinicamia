@@ -360,8 +360,10 @@ model Unidad {
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   // Relaciones
-  habitaciones    Habitacion[]
-  admisiones      Admision[]
+  habitaciones           Habitacion[]
+  admisiones             Admision[]
+  movimientosOrigen      Movimiento[]  @relation("MovimientoUnidadOrigen")
+  movimientosDestino     Movimiento[]  @relation("MovimientoUnidadDestino")
 
   @@map("unidades")
 }
