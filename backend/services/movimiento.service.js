@@ -27,6 +27,18 @@ class MovimientoService {
             paciente: true,
           },
         },
+        unidadOrigen: true,
+        unidadDestino: true,
+        camaOrigen: {
+          include: {
+            habitacion: true,
+          },
+        },
+        camaDestino: {
+          include: {
+            habitacion: true,
+          },
+        },
       },
       orderBy: { fechaMovimiento: 'desc' },
     });
