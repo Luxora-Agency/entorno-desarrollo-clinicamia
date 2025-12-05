@@ -441,6 +441,9 @@ model Admision {
   unidad                Unidad            @relation(fields: [unidadId], references: [id])
   cama                  Cama?             @relation(fields: [camaId], references: [id])
   movimientos           Movimiento[]
+  ordenesMedicas        OrdenMedica[]
+  ordenesMedicamentos   OrdenMedicamento[]
+  itemsFactura          FacturaItem[]
 
   @@map("admisiones")
 }
