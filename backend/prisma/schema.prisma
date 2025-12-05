@@ -396,8 +396,10 @@ model Cama {
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
   // Relaciones
-  habitacion      Habitacion    @relation(fields: [habitacionId], references: [id], onDelete: Cascade)
-  admisiones      Admision[]
+  habitacion           Habitacion    @relation(fields: [habitacionId], references: [id], onDelete: Cascade)
+  admisiones           Admision[]
+  movimientosOrigen    Movimiento[]  @relation("MovimientoCamaOrigen")
+  movimientosDestino   Movimiento[]  @relation("MovimientoCamaDestino")
 
   @@unique([numero, habitacionId])
   @@map("camas")
