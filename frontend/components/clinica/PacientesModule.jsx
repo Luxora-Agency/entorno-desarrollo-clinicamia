@@ -55,6 +55,29 @@ export default function PacientesModule({ user }) {
     }
   };
 
+  const handleToggleActivo = async (id, activo) => {
+    const mensaje = activo 
+      ? '¿Está seguro de inactivar este paciente?' 
+      : '¿Está seguro de activar este paciente?';
+    
+    if (!confirm(mensaje)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/pacientes/${id}/toggle-activo`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (response.ok) {
+        loadPacientes();
+      }
+    } catch (error) {
+      console.error('Error toggling paciente estado:', error);
+    }
+  };
+
   const calcularIMC = (peso, altura) => {
     if (!peso || !altura) return '-';
     // Altura está en metros en la BD
