@@ -12,6 +12,19 @@ const pacientes = new Hono();
 pacientes.use('*', authMiddleware);
 
 /**
+ * GET /pacientes/search - Búsqueda rápida de pacientes
+ */
+pacientes.get('/search', async (c) => {
+  try {
+    const { q } = c.req.query();
+    const pacientes = await pacienteService.search(q);
+    return c.json(success({ pacientes }));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
  * GET /pacientes - Obtener todos los pacientes
  */
 pacientes.get('/', async (c) => {
