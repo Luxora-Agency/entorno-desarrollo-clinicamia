@@ -38,8 +38,8 @@ app.use('/*', cors({
 app.get('/', (c) => {
   return c.json({
     message: 'API de Clínica Mía - Sistema de Gestión Hospitalaria',
-    version: '2.0.0',
-    features: ['Prisma ORM', 'Departamentos', 'Especialidades'],
+    version: '2.1.0',
+    features: ['Prisma ORM', 'Departamentos', 'Especialidades', 'Hospitalización'],
     endpoints: {
       auth: '/auth',
       pacientes: '/pacientes',
@@ -52,6 +52,13 @@ app.get('/', (c) => {
       examenesProcedimientos: '/examenes-procedimientos',
       categoriasProductos: '/categorias-productos',
       etiquetasProductos: '/etiquetas-productos',
+      documentosPaciente: '/documentos-paciente',
+      // Hospitalización
+      unidades: '/unidades',
+      habitaciones: '/habitaciones',
+      camas: '/camas',
+      admisiones: '/admisiones',
+      movimientos: '/movimientos',
     }
   });
 });
