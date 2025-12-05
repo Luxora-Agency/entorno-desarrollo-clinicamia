@@ -79,10 +79,21 @@ export default function Dashboard({ user, onLogout }) {
       case 'pacientes':
         return <PacientesModule user={user} />;
       case 'agregar-paciente':
-        // Obtener pacienteId del query param si existe
-        const pacienteIdParam = searchParams.get('pacienteId');
-        // Aquí deberías cargar el paciente si existe el ID
-        return <div>Formulario de edición de paciente (en construcción)</div>;
+        if (loadingPaciente) {
+          return <div className="p-8 text-center">Cargando información del paciente...</div>;
+        }
+        return <PacienteStepperForm
+          user={user}
+          editingPaciente={editingPaciente}
+          onBack={() => {
+            setEditingPaciente(null);
+            changeModule('pacientes');
+          }}
+          onSuccess={() => {
+            setEditingPaciente(null);
+            changeModule('pacientes');
+          }}
+        />;
       case 'citas':
         return <CitasModule user={user} />;
       case 'especialidades':
