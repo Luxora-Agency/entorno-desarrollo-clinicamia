@@ -25,14 +25,16 @@ export default function CitasModule({ user }) {
   const [selectedServicio, setSelectedServicio] = useState(null);
   const [formData, setFormData] = useState({
     paciente_id: '',
+    especialidad_id: '',
     doctor_id: '',
-    tipoServicio: '', // 'especialidad', 'examen', 'procedimiento'
-    servicioId: '',
     fecha: new Date().toISOString().split('T')[0],
     hora: '',
+    duracion_minutos: '',
+    costo: '',
     motivo: '',
     notas: '',
   });
+  const [doctoresFiltrados, setDoctoresFiltrados] = useState([]);
 
   useEffect(() => {
     loadData();
