@@ -31,47 +31,38 @@ export default function PanelPaciente({ paciente, onEdit }) {
   };
 
   return (
-    <Card className="border-2 shadow-lg sticky top-6">
+    <Card className="border-2 shadow-lg">
       <CardContent className="p-6">
-        {/* Header con Avatar y Nombre */}
-        <div className="flex items-start gap-4 mb-6">
-          <Avatar className="h-20 w-20 bg-gradient-to-br from-emerald-500 to-teal-600 border-4 border-white shadow-md">
-            <AvatarFallback className="text-white font-bold text-2xl">
-              {paciente.nombre?.[0]}{paciente.apellido?.[0]}
-            </AvatarFallback>
-          </Avatar>
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Header con Avatar y Nombre */}
+          <div className="flex items-start gap-4 flex-shrink-0">
+            <Avatar className="h-20 w-20 bg-gradient-to-br from-emerald-500 to-teal-600 border-4 border-white shadow-md">
+              <AvatarFallback className="text-white font-bold text-2xl">
+                {paciente.nombre?.[0]}{paciente.apellido?.[0]}
+              </AvatarFallback>
+            </Avatar>
 
-          <div className="flex-1 min-w-0">
-            <h2 className="text-2xl font-bold text-gray-900 truncate">
-              {paciente.nombre} {paciente.apellido}
-            </h2>
-            <p className="text-sm text-gray-600 mb-2">
-              CC: {paciente.cedula}
-            </p>
-            <Badge 
-              className={`${
-                paciente.estado === 'Activo' || paciente.activo
-                  ? 'bg-green-100 text-green-700 border-green-200'
-                  : 'bg-gray-100 text-gray-700 border-gray-200'
-              } border`}
-            >
-              {paciente.estado || (paciente.activo ? 'Activo' : 'Inactivo')}
-            </Badge>
+            <div className="min-w-0">
+              <h2 className="text-2xl font-bold text-gray-900 truncate">
+                {paciente.nombre} {paciente.apellido}
+              </h2>
+              <p className="text-sm text-gray-600 mb-2">
+                CC: {paciente.cedula}
+              </p>
+              <Badge 
+                className={`${
+                  paciente.estado === 'Activo' || paciente.activo
+                    ? 'bg-green-100 text-green-700 border-green-200'
+                    : 'bg-gray-100 text-gray-700 border-gray-200'
+                } border`}
+              >
+                {paciente.estado || (paciente.activo ? 'Activo' : 'Inactivo')}
+              </Badge>
+            </div>
           </div>
 
-          <Button
-            onClick={onEdit}
-            variant="outline"
-            size="sm"
-            className="flex-shrink-0"
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Editar
-          </Button>
-        </div>
-
-        {/* Información Básica */}
-        <div className="space-y-3 border-t pt-4">
+          {/* Información Básica - Grid Horizontal */}
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 border-l-0 lg:border-l pl-0 lg:pl-6">
           <div className="flex items-center gap-3 text-sm">
             <Calendar className="w-4 h-4 text-gray-400" />
             <div>
