@@ -80,6 +80,12 @@ app.route('/categorias-productos', categoriaProducto);
 app.route('/etiquetas-productos', etiquetaProducto);
 app.route('/productos', productos);
 app.route('/documentos-paciente', documentosPaciente);
+// Rutas de hospitalización
+app.route('/unidades', unidad);
+app.route('/habitaciones', habitacion);
+app.route('/camas', cama);
+app.route('/admisiones', admision);
+app.route('/movimientos', movimiento);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
