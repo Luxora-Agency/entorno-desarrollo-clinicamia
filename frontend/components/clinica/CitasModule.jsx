@@ -99,20 +99,18 @@ export default function CitasModule({ user }) {
       
       const method = editingCita ? 'PUT' : 'POST';
 
-      // Construir el payload según el tipo de servicio
+      // Construir el payload
       const payload = {
         paciente_id: formData.paciente_id,
         doctor_id: formData.doctor_id,
+        especialidad_id: formData.especialidad_id,
         fecha: formData.fecha,
         hora: formData.hora,
-        motivo: formData.motivo || (selectedServicio ? `${formData.tipoServicio}: ${selectedServicio.nombre}` : ''),
+        duracion_minutos: parseInt(formData.duracion_minutos) || 30,
+        costo: parseFloat(formData.costo) || 0,
+        motivo: formData.motivo,
         notas: formData.notas,
       };
-
-      // Agregar la especialidad si es el tipo de servicio seleccionado
-      if (formData.tipoServicio === 'especialidad' && formData.servicioId) {
-        payload.especialidad_id = formData.servicioId;
-      }
 
       const response = await fetch(url, {
         method,
