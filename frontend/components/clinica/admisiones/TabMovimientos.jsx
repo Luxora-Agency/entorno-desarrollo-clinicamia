@@ -461,10 +461,10 @@ export default function TabMovimientos({ pacienteId, user }) {
                           </div>
                         )}
 
-                        {movimiento.responsable && (
+                        {movimiento.responsableInfo && (
                           <div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
                             <User className="w-3 h-3" />
-                            Registrado por: {movimiento.responsable}
+                            Registrado por: {movimiento.responsableInfo.nombre} ({movimiento.responsableInfo.rol})
                           </div>
                         )}
                       </div>
