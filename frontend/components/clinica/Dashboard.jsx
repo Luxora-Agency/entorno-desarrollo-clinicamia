@@ -18,6 +18,9 @@ import CategoriasProductosModule from './CategoriasProductosModule';
 import EtiquetasProductosModule from './EtiquetasProductosModule';
 import AdmisionesView from './AdmisionesView';
 import PacienteStepperForm from './PacienteStepperForm';
+import UnidadesModule from './UnidadesModule';
+import HabitacionesModule from './HabitacionesModule';
+import CamasModule from './CamasModule';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
