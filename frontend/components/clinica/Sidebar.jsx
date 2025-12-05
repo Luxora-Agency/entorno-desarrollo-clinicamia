@@ -206,21 +206,53 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                   </div>
                 </div>
 
-                {/* Pacientes - sin sub-items */}
+                {/* Pacientes - con sub-items */}
                 <button
-                  onClick={() => {
-                    setActiveModule('pacientes');
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
-                    activeModule === 'pacientes'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
+                  onClick={() => setIsPacientesOpen(!isPacientesOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all mt-1"
                 >
-                  <Users className="w-4 h-4" />
-                  <span>Pacientes</span>
+                  <div className="flex items-center gap-3">
+                    <Users className="w-4 h-4" />
+                    <span>Pacientes</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isPacientesOpen ? 'rotate-180' : ''}`} />
                 </button>
+                
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  isPacientesOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                }`}>
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                    <button
+                      onClick={() => {
+                        setActiveModule('pacientes');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        activeModule === 'pacientes'
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <ClipboardList className="w-4 h-4" />
+                      <span>Ver Pacientes</span>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setActiveModule('agregar-paciente');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        activeModule === 'agregar-paciente'
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Agregar Nuevo Paciente</span>
+                    </button>
+                  </div>
+                </div>
 
                 {/* Agenda de Consulta - sin sub-items */}
                 <button
