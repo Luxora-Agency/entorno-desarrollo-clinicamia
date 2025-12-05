@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2, Users, Phone, Mail, Calendar, MapPin, Activity } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, Phone, Mail, Calendar, MapPin, Activity, Power } from 'lucide-react';
 import { formatDateLong } from '@/lib/dateUtils';
 import PacienteStepperForm from './PacienteStepperForm';
 
