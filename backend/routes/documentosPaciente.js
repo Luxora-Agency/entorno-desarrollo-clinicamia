@@ -4,7 +4,7 @@
 const { Hono } = require('hono');
 const documentoService = require('../services/documentoPaciente.service');
 const { authMiddleware } = require('../middleware/auth');
-const { success, error } = require('../utils/responses');
+const { success, error } = require('../utils/response');
 const path = require('path');
 const fs = require('fs').promises;
 const { v4: uuidv4 } = require('uuid');
