@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2, Info } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Info, Building2, Users, CheckCircle2, XCircle } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDateLong } from '@/lib/dateUtils';
 
 export default function DepartamentosModule({ user }) {
   const [departamentos, setDepartamentos] = useState([]);
@@ -139,63 +140,66 @@ export default function DepartamentosModule({ user }) {
     setEditingDepartamento(null);
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-CO');
-  };
-
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-6 lg:p-8 bg-white min-h-screen">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Departamentos</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Gestiona los departamentos de la clínica</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-xl">
+              <Building2 className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Departamentos</h1>
+          </div>
+          <p className="text-gray-600 ml-14">Gestiona los departamentos de la clínica</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
+            <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md w-full sm:w-auto h-11 font-semibold">
               <Plus className="w-4 h-4 mr-2" />
               Agregar Departamento
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl">
+              <DialogTitle className="text-xl flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-emerald-600" />
                 {editingDepartamento ? 'Editar Departamento' : 'Nuevo Departamento'}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <Label htmlFor="nombre" className="text-sm sm:text-base">Nombre *</Label>
+                <Label htmlFor="nombre" className="text-sm font-semibold text-gray-700 mb-2 block">Nombre *</Label>
                 <Input
                   id="nombre"
                   value={formData.nombre}
                   onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                   required
                   placeholder="Ej: Cardiología"
-                  className="h-11 sm:h-12"
+                  className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                 />
               </div>
               <div>
-                <Label htmlFor="descripcion" className="text-sm sm:text-base">Descripción</Label>
+                <Label htmlFor="descripcion" className="text-sm font-semibold text-gray-700 mb-2 block">Descripción</Label>
                 <Textarea
                   id="descripcion"
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   rows={3}
                   placeholder="Descripción del departamento..."
+                  className="border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                 />
               </div>
               <div>
-                <Label htmlFor="responsable_id" className="text-sm sm:text-base">Usuario Responsable (Opcional)</Label>
+                <Label htmlFor="responsable_id" className="text-sm font-semibold text-gray-700 mb-2 block">Usuario Responsable (Opcional)</Label>
                 <Select 
                   value={formData.responsable_id || "none"} 
                   onValueChange={(value) => setFormData({ ...formData, responsable_id: value === "none" ? "" : value })}
                 >
-                  <SelectTrigger className="h-11 sm:h-12">
+                  <SelectTrigger className="h-11 border-gray-300">
                     <SelectValue placeholder="Seleccionar responsable (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
@@ -209,9 +213,9 @@ export default function DepartamentosModule({ user }) {
                 </Select>
               </div>
               <div>
-                <Label htmlFor="estado" className="text-sm sm:text-base">Estado *</Label>
+                <Label htmlFor="estado" className="text-sm font-semibold text-gray-700 mb-2 block">Estado *</Label>
                 <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })} required>
-                  <SelectTrigger className="h-11 sm:h-12">
+                  <SelectTrigger className="h-11 border-gray-300">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -222,18 +226,18 @@ export default function DepartamentosModule({ user }) {
               </div>
 
               {/* Nota informativa */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 flex gap-2 sm:gap-3">
-                <Info className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-xs sm:text-sm text-blue-800">
-                  <span className="font-semibold">💡 Nota:</span> La cantidad de especialidades se calculará automáticamente basándose en las especialidades activas asignadas a este departamento.
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex gap-3">
+                <Info className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-emerald-800">
+                  <span className="font-semibold">Nota:</span> La cantidad de especialidades se calculará automáticamente basándose en las especialidades activas asignadas a este departamento.
                 </p>
               </div>
 
-              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto h-11">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
+                <Button type="submit" className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white w-full sm:w-auto h-11 font-semibold">
                   {editingDepartamento ? 'Actualizar' : 'Crear'}
                 </Button>
               </div>
@@ -243,95 +247,125 @@ export default function DepartamentosModule({ user }) {
       </div>
 
       {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+      <Card className="mb-6 shadow-sm border-gray-200">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Search className="w-5 h-5 text-gray-400" />
             <Input
               placeholder="Buscar por nombre..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border-0 focus-visible:ring-0 text-sm sm:text-base"
+              className="border-0 focus-visible:ring-0 h-10"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Lista de Departamentos ({departamentos.length})</CardTitle>
+      <Card className="shadow-sm border-gray-200">
+        <CardHeader className="border-b border-gray-100">
+          <CardTitle className="text-xl flex items-center gap-2">
+            <Building2 className="w-5 h-5 text-emerald-600" />
+            Lista de Departamentos
+            <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
+              {departamentos.length}
+            </Badge>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
-            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">Cargando...</p>
+            <div className="text-center py-12">
+              <div className="inline-block w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-gray-500 mt-4">Cargando...</p>
+            </div>
           ) : departamentos.length === 0 ? (
-            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">No hay departamentos registrados</p>
+            <div className="text-center py-12">
+              <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No hay departamentos registrados</p>
+              <p className="text-sm text-gray-400 mt-2">Agrega uno usando el botón superior</p>
+            </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 sm:mx-0">
-              <div className="inline-block min-w-full align-middle">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Responsable</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Descripción</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Fecha</TableHead>
-                      <TableHead className="text-center text-xs sm:text-sm">Esp.</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Estado</TableHead>
-                      <TableHead className="text-right text-xs sm:text-sm">Acciones</TableHead>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-semibold">Nombre</TableHead>
+                    <TableHead className="font-semibold hidden md:table-cell">Responsable</TableHead>
+                    <TableHead className="font-semibold hidden lg:table-cell">Descripción</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">Fecha Creación</TableHead>
+                    <TableHead className="text-center font-semibold">Especialidades</TableHead>
+                    <TableHead className="font-semibold">Estado</TableHead>
+                    <TableHead className="text-right font-semibold">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {departamentos.map((departamento) => (
+                    <TableRow key={departamento.id} className="hover:bg-gray-50">
+                      <TableCell className="font-semibold text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <Building2 className="w-4 h-4 text-emerald-600" />
+                          {departamento.nombre}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        {departamento.responsableNombre === 'N/A' ? (
+                          <span className="text-gray-400 italic flex items-center gap-1.5">
+                            <Users className="w-3.5 h-3.5" />
+                            Sin asignar
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1.5 text-gray-700">
+                            <Users className="w-3.5 h-3.5 text-gray-500" />
+                            {departamento.responsableNombre}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate text-gray-600 hidden lg:table-cell">
+                        {departamento.descripcion || '-'}
+                      </TableCell>
+                      <TableCell className="text-gray-600 hidden sm:table-cell">{formatDateLong(departamento.createdAt).fecha}</TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold">
+                          {departamento.cantidadEspecialidades}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {departamento.estado === 'Activo' ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 w-fit">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Activo
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-gray-100 text-gray-800 border border-gray-200 flex items-center gap-1 w-fit">
+                            <XCircle className="w-3 h-3" />
+                            Inactivo
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(departamento)}
+                            className="h-9 w-9 p-0 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                            onClick={() => handleDelete(departamento.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {departamentos.map((departamento) => (
-                      <TableRow key={departamento.id}>
-                        <TableCell className="font-medium text-xs sm:text-sm">{departamento.nombre}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden md:table-cell">
-                          {departamento.responsableNombre === 'N/A' ? (
-                            <span className="text-gray-400 italic">N/A</span>
-                          ) : (
-                            departamento.responsableNombre
-                          )}
-                        </TableCell>
-                        <TableCell className="max-w-xs truncate text-xs sm:text-sm hidden lg:table-cell">
-                          {departamento.descripcion || '-'}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{formatDate(departamento.createdAt)}</TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-200 text-xs">
-                            {departamento.cantidadEspecialidades}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={`${departamento.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} text-xs`}>
-                            {departamento.estado}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1 sm:gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(departamento)}
-                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-                            >
-                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0 sm:h-9 sm:w-9"
-                              onClick={() => handleDelete(departamento.id)}
-                            >
-                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

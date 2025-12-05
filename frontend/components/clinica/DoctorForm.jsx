@@ -17,6 +17,8 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
   const [activeTab, setActiveTab] = useState('basica');
   const [especialidades, setEspecialidades] = useState([]);
   const [selectedEspecialidades, setSelectedEspecialidades] = useState([]);
+  const [searchEspecialidad, setSearchEspecialidad] = useState('');
+  const [showEspecialidadesDropdown, setShowEspecialidadesDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDates, setSelectedDates] = useState({});
@@ -141,6 +143,44 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validación de campos obligatorios
+    if (!formData.nombre?.trim()) {
+      alert('El nombre es obligatorio');
+      setActiveTab('basica');
+      return;
+    }
+    
+    if (!formData.apellido?.trim()) {
+      alert('El apellido es obligatorio');
+      setActiveTab('basica');
+      return;
+    }
+    
+    if (!formData.cedula?.trim()) {
+      alert('La cédula es obligatoria');
+      setActiveTab('basica');
+      return;
+    }
+    
+    if (!formData.email?.trim()) {
+      alert('El email es obligatorio');
+      setActiveTab('basica');
+      return;
+    }
+    
+    if (!formData.telefono?.trim()) {
+      alert('El teléfono es obligatorio');
+      setActiveTab('basica');
+      return;
+    }
+    
+    if (selectedEspecialidades.length === 0) {
+      alert('Debe seleccionar al menos una especialidad');
+      setActiveTab('basica');
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -197,7 +237,7 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
+      <div className="max-w-7xl mx-auto p-6 lg:p-8">
         <Button
           variant="ghost"
           onClick={onBack}
@@ -208,12 +248,68 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
         </Button>
 
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">
             {editingDoctor ? 'Editar Doctor' : 'Agregar Nuevo Doctor'}
           </h1>
-          <p className="text-lg text-gray-600">
-            Complete la información del doctor en las siguientes secciones
+          <p className="text-sm text-gray-500 mb-4">
+            Doctores &gt; Todos los Doctores &gt; {editingDoctor ? 'Editar' : 'Agregar Nuevo'}
           </p>
+          <p className="text-base text-gray-600 mb-6">
+            Complete la información del nuevo doctor en el formulario. Los campos están organizados en tres secciones para facilitar el registro:
+          </p>
+          
+          {/* Cards de información */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <User className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Información Básica</h3>
+                  <p className="text-xs text-gray-600">Nombre completo, cédula, especialidades, email, teléfono</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-purple-100 p-2 rounded-lg">
+                  <GraduationCap className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Información Profesional</h3>
+                  <p className="text-xs text-gray-600">Licencia médica, universidad, años de experiencia, biografía</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+              <div className="flex items-start gap-3">
+                <div className="bg-green-100 p-2 rounded-lg">
+                  <Clock className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-gray-900 mb-1">Horarios de Atención</h3>
+                  <p className="text-xs text-gray-600">Días y horarios de disponibilidad</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Campos requeridos */}
+          <div className="bg-orange-50 border-2 border-orange-200 rounded-xl p-4 flex items-start gap-3">
+            <div className="bg-orange-100 p-2 rounded-lg">
+              <Award className="w-5 h-5 text-orange-600" />
+            </div>
+            <div>
+              <h3 className="font-bold text-gray-900 mb-1">Campos Requeridos</h3>
+              <p className="text-sm text-gray-600">
+                Solo los campos básicos son obligatorios: <strong>nombre completo, cédula, especialidades, email y teléfono</strong>. 
+                La información profesional y horarios son opcionales pero recomendados para un perfil completo.
+              </p>
+            </div>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -238,18 +334,18 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
 
             {/* Información Básica */}
             <TabsContent value="basica">
-              <Card className="shadow-premium border-0">
+              <Card className="shadow-lg border-0 bg-white">
                 <CardContent className="p-8">
                   <div className="space-y-8">
-                    {/* Datos Personales */}
+                    {/* Nombre Completo del Doctor */}
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <User className="w-5 h-5 text-blue-600" />
-                        Datos Personales
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <User className="w-5 h-5 text-emerald-600" />
+                        Nombre Completo del Doctor
                       </h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                          <Label htmlFor="nombre" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                          <Label htmlFor="nombre" className="text-sm font-semibold text-gray-700">
                             Nombre *
                           </Label>
                           <Input
@@ -257,8 +353,8 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
                             value={formData.nombre}
                             onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
                             required
-                            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
-                            placeholder="Ej: Juan"
+                            className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg"
+                            placeholder="Ej: Juan Carlos"
                           />
                         </div>
                         <div className="space-y-2">
@@ -268,149 +364,169 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
                             value={formData.apellido}
                             onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
                             required
-                            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
-                            placeholder="Ej: Pérez"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="cedula" className="text-sm font-semibold text-gray-700">Cédula *</Label>
-                          <Input
-                            id="cedula"
-                            value={formData.cedula}
-                            onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
-                            required
-                            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
-                            placeholder="1234567890"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="genero" className="text-sm font-semibold text-gray-700">Género</Label>
-                          <Select value={formData.genero} onValueChange={(value) => setFormData({ ...formData, genero: value })}>
-                            <SelectTrigger className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg">
-                              <SelectValue placeholder="Seleccionar" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="Masculino">Masculino</SelectItem>
-                              <SelectItem value="Femenino">Femenino</SelectItem>
-                              <SelectItem value="Otro">Otro</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="fecha_nacimiento" className="text-sm font-semibold text-gray-700">Fecha de Nacimiento</Label>
-                          <Input
-                            id="fecha_nacimiento"
-                            type="date"
-                            value={formData.fecha_nacimiento}
-                            onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
-                            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
+                            className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg"
+                            placeholder="Ej: Pérez García"
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* Información de Contacto */}
+                    {/* Cédula */}
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <Phone className="w-5 h-5 text-blue-600" />
-                        Información de Contacto
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="email" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <Mail className="w-4 h-4" />
-                            Email *
-                          </Label>
-                          <Input
-                            id="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                            required
-                            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
-                            placeholder="doctor@clinica.com"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="telefono" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <Phone className="w-4 h-4" />
-                            Teléfono
-                          </Label>
-                          <Input
-                            id="telefono"
-                            value={formData.telefono}
-                            onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
-                            placeholder="+57 300 123 4567"
-                          />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor="direccion" className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                            <MapPin className="w-4 h-4" />
-                            Dirección
-                          </Label>
-                          <Input
-                            id="direccion"
-                            value={formData.direccion}
-                            onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                            className="h-12 border-gray-300 focus:border-blue-500 focus:ring-blue-500 rounded-lg"
-                            placeholder="Dirección completa"
-                          />
-                        </div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">Cédula</h3>
+                      <div className="space-y-2">
+                        <Label htmlFor="cedula" className="text-sm font-semibold text-gray-700">Número de Cédula *</Label>
+                        <Input
+                          id="cedula"
+                          value={formData.cedula}
+                          onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
+                          required
+                          className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg max-w-md"
+                          placeholder="1234567890"
+                        />
                       </div>
                     </div>
 
-                    {/* Especialidades */}
+                    {/* Especialidades - Select múltiple con búsqueda */}
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                        <Award className="w-5 h-5 text-blue-600" />
-                        Especialidades Médicas *
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Award className="w-5 h-5 text-emerald-600" />
+                        Especialidades *
                       </h3>
-                      <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 max-h-96 overflow-y-auto">
-                        {especialidades.length === 0 ? (
-                          <p className="text-center text-gray-500 py-8">No hay especialidades disponibles</p>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {especialidades.map((esp) => (
+                      <div className="space-y-3">
+                        <div className="relative">
+                          <Input
+                            placeholder="Buscar y seleccionar especialidades..."
+                            value={searchEspecialidad}
+                            onChange={(e) => setSearchEspecialidad(e.target.value)}
+                            onFocus={() => setShowEspecialidadesDropdown(true)}
+                            className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg"
+                          />
+                          
+                          {showEspecialidadesDropdown && (
+                            <>
                               <div 
-                                key={esp.id} 
-                                className="flex items-center space-x-3 p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-blue-400 hover:shadow-md transition-all cursor-pointer"
-                                onClick={() => handleEspecialidadToggle(esp.id)}
-                              >
-                                <Checkbox
-                                  id={`esp-${esp.id}`}
-                                  checked={selectedEspecialidades.includes(esp.id)}
-                                  onCheckedChange={() => handleEspecialidadToggle(esp.id)}
-                                  className="border-2 border-gray-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
-                                />
-                                <label
-                                  htmlFor={`esp-${esp.id}`}
-                                  className="text-sm font-semibold leading-none cursor-pointer flex-1"
-                                >
-                                  {esp.titulo}
-                                  <span className="text-xs text-gray-500 font-normal block mt-1">{esp.departamentoNombre}</span>
-                                </label>
+                                className="fixed inset-0 z-10"
+                                onClick={() => setShowEspecialidadesDropdown(false)}
+                              />
+                              <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-gray-200 rounded-xl shadow-xl z-20 max-h-80 overflow-y-auto">
+                                {especialidades.length === 0 ? (
+                                  <div className="p-4 text-center text-gray-500">
+                                    No hay especialidades disponibles
+                                  </div>
+                                ) : (
+                                  <div className="p-2">
+                                    {especialidades
+                                      .filter(esp => 
+                                        esp.titulo.toLowerCase().includes(searchEspecialidad.toLowerCase()) ||
+                                        esp.departamentoNombre?.toLowerCase().includes(searchEspecialidad.toLowerCase())
+                                      )
+                                      .map((esp) => (
+                                        <div
+                                          key={esp.id}
+                                          onClick={() => {
+                                            if (!selectedEspecialidades.includes(esp.id)) {
+                                              setSelectedEspecialidades([...selectedEspecialidades, esp.id]);
+                                            }
+                                            setSearchEspecialidad('');
+                                          }}
+                                          className={`p-3 rounded-lg cursor-pointer transition-all ${
+                                            selectedEspecialidades.includes(esp.id)
+                                              ? 'bg-emerald-100 text-emerald-700 opacity-50 cursor-not-allowed'
+                                              : 'hover:bg-gray-100'
+                                          }`}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <div>
+                                              <div className="font-medium text-sm">{esp.titulo}</div>
+                                              {esp.departamentoNombre && (
+                                                <div className="text-xs text-gray-500">{esp.departamentoNombre}</div>
+                                              )}
+                                            </div>
+                                            {selectedEspecialidades.includes(esp.id) && (
+                                              <span className="text-emerald-600 text-xs font-semibold">✓ Seleccionada</span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                )}
                               </div>
-                            ))}
+                            </>
+                          )}
+                        </div>
+                        
+                        {selectedEspecialidades.length > 0 && (
+                          <div className="border-2 border-emerald-200 rounded-xl p-4 bg-emerald-50">
+                            <p className="text-sm font-semibold text-gray-700 mb-3">
+                              Especialidades Seleccionadas ({selectedEspecialidades.length})
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {selectedEspecialidades.map((espId) => {
+                                const esp = especialidades.find(e => e.id === espId);
+                                return esp ? (
+                                  <Badge 
+                                    key={espId} 
+                                    className="bg-emerald-600 text-white border-0 px-3 py-2 text-sm flex items-center gap-2"
+                                  >
+                                    {esp.titulo}
+                                    <X
+                                      className="w-4 h-4 cursor-pointer hover:bg-emerald-700 rounded-full"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEspecialidadToggle(espId);
+                                      }}
+                                    />
+                                  </Badge>
+                                ) : null;
+                              })}
+                            </div>
                           </div>
                         )}
                       </div>
-                      {selectedEspecialidades.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {selectedEspecialidades.map((espId) => {
-                            const esp = especialidades.find(e => e.id === espId);
-                            return esp ? (
-                              <Badge key={espId} className="bg-blue-100 text-blue-700 border-blue-300 px-4 py-2 text-sm font-semibold">
-                                {esp.titulo}
-                                <X
-                                  className="w-4 h-4 ml-2 cursor-pointer hover:text-blue-900"
-                                  onClick={() => handleEspecialidadToggle(espId)}
-                                />
-                              </Badge>
-                            ) : null;
-                          })}
-                        </div>
-                      )}
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Mail className="w-5 h-5 text-emerald-600" />
+                        Email
+                      </h3>
+                      <div className="space-y-2">
+                        <Label htmlFor="email" className="text-sm font-semibold text-gray-700">
+                          Correo Electrónico *
+                        </Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                          required
+                          className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg"
+                          placeholder="doctor@clinica.com"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Teléfono */}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Phone className="w-5 h-5 text-emerald-600" />
+                        Teléfono
+                      </h3>
+                      <div className="space-y-2">
+                        <Label htmlFor="telefono" className="text-sm font-semibold text-gray-700">
+                          Número de Teléfono *
+                        </Label>
+                        <Input
+                          id="telefono"
+                          value={formData.telefono}
+                          onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                          required
+                          className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg max-w-md"
+                          placeholder="+57 300 123 4567"
+                        />
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -419,83 +535,82 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
 
             {/* Información Profesional */}
             <TabsContent value="profesional">
-              <Card className="shadow-premium border-0">
+              <Card className="shadow-lg border-0 bg-white">
                 <CardContent className="p-8">
                   <div className="space-y-8">
+                    {/* Licencia Médica */}
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <FileText className="w-5 h-5 text-purple-600" />
-                        Credenciales Profesionales
+                        Licencia Médica
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="licencia_medica" className="text-sm font-semibold text-gray-700">Licencia Médica *</Label>
-                          <Input
-                            id="licencia_medica"
-                            value={formData.licencia_medica}
-                            onChange={(e) => setFormData({ ...formData, licencia_medica: e.target.value })}
-                            required
-                            placeholder="LM-12345"
-                            className="h-12 border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="anios_experiencia" className="text-sm font-semibold text-gray-700">Años de Experiencia</Label>
-                          <Input
-                            id="anios_experiencia"
-                            type="number"
-                            value={formData.anios_experiencia}
-                            onChange={(e) => setFormData({ ...formData, anios_experiencia: e.target.value })}
-                            placeholder="0"
-                            min="0"
-                            className="h-12 border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg"
-                          />
-                        </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="licencia_medica" className="text-sm font-semibold text-gray-700">Número de Licencia Médica</Label>
+                        <Input
+                          id="licencia_medica"
+                          value={formData.licencia_medica}
+                          onChange={(e) => setFormData({ ...formData, licencia_medica: e.target.value })}
+                          placeholder="LM-12345"
+                          className="h-11 border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg max-w-md"
+                        />
+                        <p className="text-xs text-gray-500">Opcional - Número de registro profesional</p>
                       </div>
                     </div>
 
+                    {/* Universidad */}
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                         <GraduationCap className="w-5 h-5 text-purple-600" />
-                        Formación Académica
+                        Universidad
                       </h3>
                       <div className="space-y-2">
-                        <Label htmlFor="universidad" className="text-sm font-semibold text-gray-700">Universidad</Label>
+                        <Label htmlFor="universidad" className="text-sm font-semibold text-gray-700">Universidad de Estudios</Label>
                         <Input
                           id="universidad"
                           value={formData.universidad}
                           onChange={(e) => setFormData({ ...formData, universidad: e.target.value })}
-                          placeholder="Universidad donde estudió"
-                          className="h-12 border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg"
+                          placeholder="Ej: Universidad Nacional de Colombia"
+                          className="h-11 border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg"
                         />
                       </div>
                     </div>
 
+                    {/* Años de Experiencia */}
                     <div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-6">Biografía Profesional</h3>
-                      <Textarea
-                        id="biografia"
-                        value={formData.biografia}
-                        onChange={(e) => setFormData({ ...formData, biografia: e.target.value })}
-                        rows={8}
-                        placeholder="Información adicional sobre el doctor: experiencia, logros, áreas de interés, certificaciones, publicaciones, etc."
-                        className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg resize-none text-base"
-                      />
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Award className="w-5 h-5 text-purple-600" />
+                        Años de Experiencia
+                      </h3>
+                      <div className="space-y-2">
+                        <Label htmlFor="anios_experiencia" className="text-sm font-semibold text-gray-700">Años de Experiencia Profesional</Label>
+                        <Input
+                          id="anios_experiencia"
+                          type="number"
+                          value={formData.anios_experiencia}
+                          onChange={(e) => setFormData({ ...formData, anios_experiencia: e.target.value })}
+                          placeholder="0"
+                          min="0"
+                          max="70"
+                          className="h-11 border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg max-w-xs"
+                        />
+                      </div>
                     </div>
 
-                    <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
-                      <Checkbox
-                        id="activo"
-                        checked={formData.activo}
-                        onCheckedChange={(checked) => setFormData({ ...formData, activo: checked })}
-                        className="border-2 border-gray-400 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
-                      />
-                      <label
-                        htmlFor="activo"
-                        className="text-base font-semibold leading-none cursor-pointer"
-                      >
-                        Doctor Activo en el Sistema
-                      </label>
+                    {/* Biografía */}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4">Biografía sobre el Doctor (Opcional)</h3>
+                      <div className="space-y-2">
+                        <Label htmlFor="biografia" className="text-sm font-semibold text-gray-700">Biografía Profesional</Label>
+                        <Textarea
+                          id="biografia"
+                          value={formData.biografia}
+                          onChange={(e) => setFormData({ ...formData, biografia: e.target.value })}
+                          rows={6}
+                          placeholder="Escriba información relevante sobre el doctor: experiencia, logros, áreas de interés, certificaciones, publicaciones, etc."
+                          className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg resize-none"
+                        />
+                        <p className="text-xs text-gray-500">Esta información aparecerá en el perfil público del doctor</p>
+                      </div>
                     </div>
                   </div>
                 </CardContent>

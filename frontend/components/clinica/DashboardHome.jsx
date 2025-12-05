@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Users, Calendar, Activity, TrendingUp } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Calendar, Activity, TrendingUp, UserPlus, CalendarCheck, Building2, Stethoscope } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
 
 export default function DashboardHome({ user }) {
   const [stats, setStats] = useState({
@@ -20,13 +20,11 @@ export default function DashboardHome({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      // Obtener total de pacientes
       const pacientesRes = await fetch(`${apiUrl}/pacientes?limit=1`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const pacientesData = await pacientesRes.json();
       
-      // Obtener citas de hoy
       const today = new Date().toISOString().split('T')[0];
       const citasRes = await fetch(`${apiUrl}/citas?fecha=${today}&limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -43,99 +41,155 @@ export default function DashboardHome({ user }) {
     }
   };
 
+  const statCards = [
+    {
+      title: 'Total Pacientes',
+      value: stats.totalPacientes,
+      icon: Users,
+      color: 'emerald',
+      bgColor: 'bg-emerald-50',
+      iconColor: 'text-emerald-600',
+      borderColor: 'border-emerald-100'
+    },
+    {
+      title: 'Citas de Hoy',
+      value: stats.citasHoy,
+      icon: Calendar,
+      color: 'teal',
+      bgColor: 'bg-teal-50',
+      iconColor: 'text-teal-600',
+      borderColor: 'border-teal-100'
+    },
+    {
+      title: 'Citas Pendientes',
+      value: stats.citasPendientes,
+      icon: CalendarCheck,
+      color: 'blue',
+      bgColor: 'bg-blue-50',
+      iconColor: 'text-blue-600',
+      borderColor: 'border-blue-100'
+    },
+    {
+      title: 'Tasa Ocupación',
+      value: '85%',
+      icon: TrendingUp,
+      color: 'purple',
+      bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-600',
+      borderColor: 'border-purple-100'
+    },
+  ];
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-6 lg:p-8 bg-white min-h-screen">
       {/* Header */}
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
           Bienvenido, {user.nombre}
         </h1>
-        <p className="text-sm sm:text-base text-gray-600">
-          Panel de control - Clínica Mía
+        <p className="text-gray-600">
+          Resumen general del sistema de Clínica Mía
         </p>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-        <Card className="border-l-4 border-l-teal-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-              Total Pacientes
-            </CardTitle>
-            <Users className="w-4 h-4 sm:w-5 sm:h-5 text-teal-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {stats.totalPacientes}
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {statCards.map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <Card key={index} className={`border ${stat.borderColor} shadow-sm hover:shadow-md transition-shadow`}>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className={`${stat.bgColor} p-3 rounded-xl`}>
+                    <Icon className={`w-6 h-6 ${stat.iconColor}`} />
+                  </div>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900 mb-1">{stat.value}</p>
+                  <p className="text-sm text-gray-600">{stat.title}</p>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border border-gray-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-3 rounded-xl">
+                <Activity className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Acciones Rápidas</h3>
+                <p className="text-sm text-gray-600">Tareas frecuentes del sistema</p>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Pacientes registrados en el sistema
-            </p>
+            <div className="space-y-3">
+              <button className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-emerald-50 rounded-lg transition-colors text-left group">
+                <UserPlus className="w-5 h-5 text-gray-600 group-hover:text-emerald-600" />
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Registrar Nuevo Paciente</p>
+                  <p className="text-xs text-gray-500">Agregar paciente al sistema</p>
+                </div>
+              </button>
+              <button className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-emerald-50 rounded-lg transition-colors text-left group">
+                <Calendar className="w-5 h-5 text-gray-600 group-hover:text-emerald-600" />
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Agendar Cita</p>
+                  <p className="text-xs text-gray-500">Programar nueva cita médica</p>
+                </div>
+              </button>
+              <button className="w-full flex items-center gap-3 p-4 bg-gray-50 hover:bg-emerald-50 rounded-lg transition-colors text-left group">
+                <Stethoscope className="w-5 h-5 text-gray-600 group-hover:text-emerald-600" />
+                <div>
+                  <p className="font-semibold text-gray-900 text-sm">Agregar Doctor</p>
+                  <p className="text-xs text-gray-500">Registrar nuevo doctor</p>
+                </div>
+              </button>
+            </div>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-blue-500">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-              Citas de Hoy
-            </CardTitle>
-            <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {stats.citasHoy}
+        <Card className="border border-gray-200 shadow-sm">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-3 rounded-xl">
+                <Building2 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Resumen del Sistema</h3>
+                <p className="text-sm text-gray-600">Información general</p>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Citas programadas para hoy
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="border-l-4 border-l-orange-500 sm:col-span-2 lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xs sm:text-sm font-medium text-gray-600">
-              Citas Pendientes
-            </CardTitle>
-            <Activity className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-gray-900">
-              {stats.citasPendientes}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Departamentos</span>
+                </div>
+                <span className="text-sm font-bold text-gray-900">5</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Activity className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Especialidades</span>
+                </div>
+                <span className="text-sm font-bold text-gray-900">12</span>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Stethoscope className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm font-medium text-gray-700">Doctores</span>
+                </div>
+                <span className="text-sm font-bold text-gray-900">8</span>
+              </div>
             </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Citas por confirmar o atender
-            </p>
           </CardContent>
         </Card>
       </div>
-
-      {/* Welcome Message */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Sistema de Gestión Hospitalaria</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <p className="text-sm sm:text-base text-gray-600">
-              Bienvenido al sistema de gestión integral de Clínica Mía. Desde aquí puedes administrar:
-            </p>
-            <ul className="space-y-2">
-              <li className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0"></div>
-                <span><strong>Pacientes:</strong> Registro completo de pacientes con historias clínicas</span>
-              </li>
-              <li className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0"></div>
-                <span><strong>Citas:</strong> Agenda médica y programación de consultas</span>
-              </li>
-              <li className="flex items-center gap-2 text-xs sm:text-sm text-gray-700">
-                <div className="w-2 h-2 bg-teal-500 rounded-full flex-shrink-0"></div>
-                <span><strong>Más módulos:</strong> Próximamente farmacia, laboratorio y más</span>
-              </li>
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }

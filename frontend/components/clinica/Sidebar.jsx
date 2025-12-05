@@ -1,20 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { LayoutDashboard, Users, Calendar, X, Menu, Building2, ChevronDown, LogOut, UserCog, Stethoscope } from 'lucide-react';
+import { 
+  LayoutDashboard, Users, Calendar, X, Menu, Building2, ChevronDown, LogOut, 
+  Stethoscope, ClipboardList, Beaker, Pill, FolderOpen, Tags, ShoppingCart,
+  CreditCard, UserCheck, Ticket, Megaphone, FileText, Mail, Settings,
+  FileText as OrderIcon, Activity, Building as Hospital, Bed, MapPin as Map, DoorOpen, ArrowRightLeft,
+  UserMinus, BarChart3
+} from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
 export default function Sidebar({ user, activeModule, setActiveModule, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isGestionMedicaOpen, setIsGestionMedicaOpen] = useState(true);
+  const [isDepartamentosOpen, setIsDepartamentosOpen] = useState(false);
   const [isDoctoresOpen, setIsDoctoresOpen] = useState(false);
-
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'pacientes', label: 'Pacientes', icon: Users },
-    { id: 'citas', label: 'Citas', icon: Calendar },
-  ];
+  const [isExamenesOpen, setIsExamenesOpen] = useState(false);
+  const [isHospitalizacionOpen, setIsHospitalizacionOpen] = useState(false);
+  const [isFarmaciaOpen, setIsFarmaciaOpen] = useState(false);
+  const [isPublicacionesOpen, setIsPublicacionesOpen] = useState(false);
 
   return (
     <>
@@ -52,8 +56,8 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
             </div>
             
             {/* User Profile */}
-            <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-              <Avatar className="h-10 w-10 bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-white shadow-sm">
+            <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-100">
+              <Avatar className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-white shadow-sm">
                 <AvatarFallback className="text-white font-semibold text-sm">
                   {user.nombre?.[0]}{user.apellido?.[0]}
                 </AvatarFallback>
@@ -70,45 +74,56 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto py-4 px-3">
             <div className="space-y-1">
-              {menuItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setActiveModule(item.id);
-                      setIsOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      activeModule === item.id
-                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
+              {/* Panel y Admisiones - sin sección */}
+              <button
+                onClick={() => {
+                  setActiveModule('dashboard');
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeModule === 'dashboard'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span>Panel</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  setActiveModule('admisiones');
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeModule === 'admisiones'
+                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <ClipboardList className="w-4 h-4" />
+                <span>Admisiones</span>
+              </button>
 
-              {/* Departamentos Section */}
+              {/* GESTIÓN MÉDICA */}
               <div className="pt-4 mt-4 border-t border-gray-100">
                 <div className="px-3 mb-2">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Gestión Médica</p>
                 </div>
                 
+                {/* Departamentos */}
                 <button
-                  onClick={() => setIsGestionMedicaOpen(!isGestionMedicaOpen)}
+                  onClick={() => setIsDepartamentosOpen(!isDepartamentosOpen)}
                   className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
                 >
                   <div className="flex items-center gap-3">
                     <Building2 className="w-4 h-4" />
                     <span>Departamentos</span>
                   </div>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isGestionMedicaOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isDepartamentosOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
-                {isGestionMedicaOpen && (
+                {isDepartamentosOpen && (
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
                     <button
                       onClick={() => {
@@ -117,7 +132,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       }}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                         activeModule === 'departamentos'
-                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
                           : 'text-gray-600 hover:bg-gray-50'
                       }`}
                     >
@@ -131,7 +146,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       }}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                         activeModule === 'especialidades'
-                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
                           : 'text-gray-600 hover:bg-gray-50'
                       }`}
                     >
@@ -141,7 +156,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                   </div>
                 )}
 
-                {/* Doctores Section */}
+                {/* Doctores */}
                 <button
                   onClick={() => setIsDoctoresOpen(!isDoctoresOpen)}
                   className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all mt-1"
@@ -162,7 +177,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       }}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                         activeModule === 'doctores'
-                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
                           : 'text-gray-600 hover:bg-gray-50'
                       }`}
                     >
@@ -176,7 +191,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       }}
                       className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
                         activeModule === 'agregar-doctor'
-                          ? 'bg-blue-50 text-blue-700 font-semibold'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
                           : 'text-gray-600 hover:bg-gray-50'
                       }`}
                     >
@@ -185,6 +200,528 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                     </button>
                   </div>
                 )}
+
+                {/* Pacientes - sin sub-items */}
+                <button
+                  onClick={() => {
+                    setActiveModule('pacientes');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
+                    activeModule === 'pacientes'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Users className="w-4 h-4" />
+                  <span>Pacientes</span>
+                </button>
+
+                {/* Agenda de Consulta - sin sub-items */}
+                <button
+                  onClick={() => {
+                    setActiveModule('citas');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
+                    activeModule === 'citas'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Calendar className="w-4 h-4" />
+                  <span>Agenda de Consulta</span>
+                </button>
+
+                {/* Exámenes y Procedimientos */}
+                <button
+                  onClick={() => setIsExamenesOpen(!isExamenesOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all mt-1"
+                >
+                  <div className="flex items-center gap-3">
+                    <Beaker className="w-4 h-4" />
+                    <span>Exámenes y Procedimientos</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isExamenesOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isExamenesOpen && (
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                    <button
+                      onClick={() => {
+                        setActiveModule('examenes');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'examenes'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Todos</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('categorias-examenes');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'categorias-examenes'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Categorías</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Órdenes Médicas - sin sub-items */}
+                <button
+                  onClick={() => {
+                    setActiveModule('ordenes-medicas');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
+                    activeModule === 'ordenes-medicas'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <OrderIcon className="w-4 h-4" />
+                  <span>Órdenes Médicas</span>
+                </button>
+
+                {/* Historia Clínica - sin sub-items */}
+                <button
+                  onClick={() => {
+                    setActiveModule('historia-clinica');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
+                    activeModule === 'historia-clinica'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Activity className="w-4 h-4" />
+                  <span>Historia Clínica</span>
+                </button>
+
+                {/* Hospitalización - con sub-items */}
+                <button
+                  onClick={() => setIsHospitalizacionOpen(!isHospitalizacionOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all mt-1"
+                >
+                  <div className="flex items-center gap-3">
+                    <Hospital className="w-4 h-4" />
+                    <span>Hospitalización</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isHospitalizacionOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isHospitalizacionOpen && (
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                    <button
+                      onClick={() => {
+                        setActiveModule('hospitalizacion-dashboard');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'hospitalizacion-dashboard'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Dashboard</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('mapa-camas');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'mapa-camas'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Mapa de Camas</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('gestion-camas');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'gestion-camas'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Gestión de Camas</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('habitaciones');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'habitaciones'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Habitaciones</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('admisiones-hospitalizacion');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'admisiones-hospitalizacion'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Admisiones</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('movimientos');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'movimientos'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Movimientos</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('altas');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'altas'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Altas</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('reportes-hospitalizacion');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'reportes-hospitalizacion'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Reportes</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* FARMACIA */}
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Farmacia</p>
+                </div>
+                
+                <button
+                  onClick={() => setIsFarmaciaOpen(!isFarmaciaOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <Pill className="w-4 h-4" />
+                    <span>Productos</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isFarmaciaOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isFarmaciaOpen && (
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                    <button
+                      onClick={() => {
+                        setActiveModule('farmacia');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'farmacia'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Farmacia</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('categorias-farmacia');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'categorias-farmacia'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Categorías</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('etiquetas-farmacia');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'etiquetas-farmacia'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Etiquetas</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('ordenes-pedidos');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'ordenes-pedidos'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Órdenes y Pedidos</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* PROGRAMA MÍA PASS */}
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Programa Mía Pass</p>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setActiveModule('planes');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    activeModule === 'planes'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  <span>Planes</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveModule('suscriptores-pass');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
+                    activeModule === 'suscriptores-pass'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>Suscriptores</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveModule('cupones');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
+                    activeModule === 'cupones'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Ticket className="w-4 h-4" />
+                  <span>Cupones</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setActiveModule('talento-medico');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
+                    activeModule === 'talento-medico'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Stethoscope className="w-4 h-4" />
+                  <span>Talento Médico</span>
+                </button>
+              </div>
+
+              {/* ATENCIÓN Y SOPORTE */}
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Atención y Soporte</p>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setActiveModule('tickets-soporte');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    activeModule === 'tickets-soporte'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Ticket className="w-4 h-4" />
+                  <span>Tickets de Soporte</span>
+                </button>
+              </div>
+
+              {/* CONTENIDO Y COMUNICACIÓN */}
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Contenido y Comunicación</p>
+                </div>
+                
+                <button
+                  onClick={() => setIsPublicacionesOpen(!isPublicacionesOpen)}
+                  className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <Megaphone className="w-4 h-4" />
+                    <span>Publicaciones</span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${isPublicacionesOpen ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {isPublicacionesOpen && (
+                  <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                    <button
+                      onClick={() => {
+                        setActiveModule('todas-publicaciones');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'todas-publicaciones'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Todas las Publicaciones</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('categorias-publicaciones');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'categorias-publicaciones'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Categorías</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('etiquetas-publicaciones');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'etiquetas-publicaciones'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Etiquetas</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveModule('comentarios');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                        activeModule === 'comentarios'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : 'text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                      <span>Comentarios</span>
+                    </button>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => {
+                    setActiveModule('suscriptores-boletin');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all mt-1 ${
+                    activeModule === 'suscriptores-boletin'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Mail className="w-4 h-4" />
+                  <span>Suscriptores al Boletín</span>
+                </button>
+              </div>
+
+              {/* CONFIGURACIÓN */}
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Configuración</p>
+                </div>
+                
+                <button
+                  onClick={() => {
+                    setActiveModule('usuarios-roles');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    activeModule === 'usuarios-roles'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <Settings className="w-4 h-4" />
+                  <span>Usuarios y Roles</span>
+                </button>
               </div>
             </div>
           </nav>

@@ -89,7 +89,7 @@ export default function Login({ onLogin }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="h-11 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
               />
             </div>
 
@@ -105,7 +105,7 @@ export default function Login({ onLogin }) {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-11 pr-10 border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  className="h-11 pr-10 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                 />
                 <button
                   type="button"
@@ -134,7 +134,7 @@ export default function Login({ onLogin }) {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-md transition-all"
+              className="w-full h-11 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold rounded-lg shadow-md transition-all"
             >
               {loading ? (
                 'Iniciando sesión...'
@@ -150,14 +150,14 @@ export default function Login({ onLogin }) {
       </div>
 
       {/* Right Column - Stats Preview */}
-      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 items-center justify-center p-12 relative overflow-hidden">
+      <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-emerald-600 via-emerald-700 to-teal-800 items-center justify-center p-12 relative overflow-hidden">
         <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:20px_20px]"></div>
         <div className="relative z-10 w-full max-w-lg">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-white mb-3">
               Sistema de Gestión Integral
             </h2>
-            <p className="text-blue-100 text-lg">
+            <p className="text-emerald-100 text-lg">
               Todo lo que necesitas para administrar tu clínica en un solo lugar
             </p>
           </div>
@@ -165,24 +165,24 @@ export default function Login({ onLogin }) {
           {/* Stats Grid */}
           <div className="grid grid-cols-2 gap-4 mb-8">
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
-              <Users className="w-8 h-8 text-blue-200 mb-3" />
+              <Users className="w-8 h-8 text-emerald-200 mb-3" />
               <p className="text-2xl font-bold text-white mb-1">1,200+</p>
-              <p className="text-sm text-blue-100">Pacientes Activos</p>
+              <p className="text-sm text-emerald-100">Pacientes Activos</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
-              <Calendar className="w-8 h-8 text-blue-200 mb-3" />
+              <Calendar className="w-8 h-8 text-emerald-200 mb-3" />
               <p className="text-2xl font-bold text-white mb-1">3,500+</p>
-              <p className="text-sm text-blue-100">Citas Mensuales</p>
+              <p className="text-sm text-emerald-100">Citas Mensuales</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
-              <Activity className="w-8 h-8 text-blue-200 mb-3" />
+              <Activity className="w-8 h-8 text-emerald-200 mb-3" />
               <p className="text-2xl font-bold text-white mb-1">25+</p>
-              <p className="text-sm text-blue-100">Especialidades</p>
+              <p className="text-sm text-emerald-100">Especialidades</p>
             </div>
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-5 border border-white/20">
-              <TrendingUp className="w-8 h-8 text-blue-200 mb-3" />
+              <TrendingUp className="w-8 h-8 text-emerald-200 mb-3" />
               <p className="text-2xl font-bold text-white mb-1">98%</p>
-              <p className="text-sm text-blue-100">Satisfacción</p>
+              <p className="text-sm text-emerald-100">Satisfacción</p>
             </div>
           </div>
 

@@ -41,7 +41,11 @@ const roleMiddleware = (allowedRoles = []) => {
       return c.json(error('Usuario no autenticado'), 401);
     }
 
-    if (!allowedRoles.includes(user.rol)) {
+    // Comparación case-insensitive de roles
+    const userRole = user.rol.toUpperCase();
+    const allowedRolesUpper = allowedRoles.map(role => role.toUpperCase());
+    
+    if (!allowedRolesUpper.includes(userRole)) {
       return c.json(error('No tiene permisos para esta acción'), 403);
     }
     

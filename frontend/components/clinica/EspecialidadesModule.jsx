@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Activity, Clock, DollarSign, CheckCircle2, XCircle, Building2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
+import { formatDateLong } from '@/lib/dateUtils';
 
 export default function EspecialidadesModule({ user }) {
   const [especialidades, setEspecialidades] = useState([]);
@@ -158,61 +159,63 @@ export default function EspecialidadesModule({ user }) {
     }).format(value);
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-CO');
-  };
-
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-6 lg:p-8 bg-white min-h-screen">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Especialidades</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Gestiona las especialidades médicas</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-xl">
+              <Activity className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Especialidades</h1>
+          </div>
+          <p className="text-gray-600 ml-14">Gestiona las especialidades médicas</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={(open) => {
           setIsDialogOpen(open);
           if (!open) resetForm();
         }}>
           <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
+            <Button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md w-full sm:w-auto h-11 font-semibold">
               <Plus className="w-4 h-4 mr-2" />
-              Agregar Especialidad
+              Especialidades
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl">
+              <DialogTitle className="text-xl flex items-center gap-2">
+                <Activity className="w-5 h-5 text-emerald-600" />
                 {editingEspecialidad ? 'Editar Especialidad' : 'Nueva Especialidad'}
               </DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <Label htmlFor="titulo" className="text-sm sm:text-base">Título *</Label>
+                  <Label htmlFor="titulo" className="text-sm font-semibold text-gray-700 mb-2 block">Título *</Label>
                   <Input
                     id="titulo"
                     value={formData.titulo}
                     onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
                     required
                     placeholder="Ej: Cardiología General"
-                    className="h-11 sm:h-12"
+                    className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="codigo" className="text-sm sm:text-base">Código</Label>
+                  <Label htmlFor="codigo" className="text-sm font-semibold text-gray-700 mb-2 block">Código</Label>
                   <Input
                     id="codigo"
                     value={formData.codigo}
                     onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
                     placeholder="Ej: CARD-001"
-                    className="h-11 sm:h-12"
+                    className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="departamento_id" className="text-sm sm:text-base">Departamento *</Label>
+                  <Label htmlFor="departamento_id" className="text-sm font-semibold text-gray-700 mb-2 block">Departamento *</Label>
                   <Select value={formData.departamento_id} onValueChange={(value) => setFormData({ ...formData, departamento_id: value })} required>
-                    <SelectTrigger className="h-11 sm:h-12">
+                    <SelectTrigger className="h-11 border-gray-300">
                       <SelectValue placeholder="Seleccionar departamento" />
                     </SelectTrigger>
                     <SelectContent>
@@ -225,7 +228,7 @@ export default function EspecialidadesModule({ user }) {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="costo_cop" className="text-sm sm:text-base">Costo en COP *</Label>
+                  <Label htmlFor="costo_cop" className="text-sm font-semibold text-gray-700 mb-2 block">Costo en COP *</Label>
                   <Input
                     id="costo_cop"
                     type="number"
@@ -234,11 +237,11 @@ export default function EspecialidadesModule({ user }) {
                     required
                     placeholder="50000"
                     min="0"
-                    className="h-11 sm:h-12"
+                    className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="duracion_minutos" className="text-sm sm:text-base">Duración (minutos) *</Label>
+                  <Label htmlFor="duracion_minutos" className="text-sm font-semibold text-gray-700 mb-2 block">Duración (minutos) *</Label>
                   <Input
                     id="duracion_minutos"
                     type="number"
@@ -247,11 +250,11 @@ export default function EspecialidadesModule({ user }) {
                     required
                     placeholder="30"
                     min="1"
-                    className="h-11 sm:h-12"
+                    className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="duracion_externa_min" className="text-sm sm:text-base">Duración Externa (min)</Label>
+                  <Label htmlFor="duracion_externa_min" className="text-sm font-semibold text-gray-700 mb-2 block">Duración Externa (min)</Label>
                   <Input
                     id="duracion_externa_min"
                     type="number"
@@ -259,11 +262,11 @@ export default function EspecialidadesModule({ user }) {
                     onChange={(e) => setFormData({ ...formData, duracion_externa_min: e.target.value })}
                     placeholder="45"
                     min="0"
-                    className="h-11 sm:h-12"
+                    className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="duracion_interna_min" className="text-sm sm:text-base">Duración Interna (min)</Label>
+                  <Label htmlFor="duracion_interna_min" className="text-sm font-semibold text-gray-700 mb-2 block">Duración Interna (min)</Label>
                   <Input
                     id="duracion_interna_min"
                     type="number"
@@ -271,13 +274,13 @@ export default function EspecialidadesModule({ user }) {
                     onChange={(e) => setFormData({ ...formData, duracion_interna_min: e.target.value })}
                     placeholder="20"
                     min="0"
-                    className="h-11 sm:h-12"
+                    className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="estado" className="text-sm sm:text-base">Estado *</Label>
+                  <Label htmlFor="estado" className="text-sm font-semibold text-gray-700 mb-2 block">Estado *</Label>
                   <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })} required>
-                    <SelectTrigger className="h-11 sm:h-12">
+                    <SelectTrigger className="h-11 border-gray-300">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -288,20 +291,21 @@ export default function EspecialidadesModule({ user }) {
                 </div>
               </div>
               <div>
-                <Label htmlFor="descripcion" className="text-sm sm:text-base">Descripción</Label>
+                <Label htmlFor="descripcion" className="text-sm font-semibold text-gray-700 mb-2 block">Descripción</Label>
                 <Textarea
                   id="descripcion"
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
                   rows={3}
                   placeholder="Descripción de la especialidad..."
+                  className="border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
                 />
               </div>
-              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end pt-2">
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto h-11">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
+                <Button type="submit" className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white w-full sm:w-auto h-11 font-semibold">
                   {editingEspecialidad ? 'Actualizar' : 'Crear'}
                 </Button>
               </div>
@@ -311,92 +315,142 @@ export default function EspecialidadesModule({ user }) {
       </div>
 
       {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="p-3 sm:p-4">
-          <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+      <Card className="mb-6 shadow-sm border-gray-200">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-3">
+            <Search className="w-5 h-5 text-gray-400" />
             <Input
               placeholder="Buscar por título o código..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border-0 focus-visible:ring-0 text-sm sm:text-base"
+              className="border-0 focus-visible:ring-0 h-10"
             />
           </div>
         </CardContent>
       </Card>
 
       {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Lista de Especialidades ({especialidades.length})</CardTitle>
+      <Card className="shadow-sm border-gray-200">
+        <CardHeader className="border-b border-gray-100">
+          <CardTitle className="text-xl flex items-center gap-2">
+            <Activity className="w-5 h-5 text-emerald-600" />
+            Lista de Especialidades
+            <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
+              {especialidades.length}
+            </Badge>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
-            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">Cargando...</p>
+            <div className="text-center py-12">
+              <div className="inline-block w-8 h-8 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin"></div>
+              <p className="text-gray-500 mt-4">Cargando...</p>
+            </div>
           ) : especialidades.length === 0 ? (
-            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">No hay especialidades registradas</p>
+            <div className="text-center py-12">
+              <Activity className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-500">No hay especialidades registradas</p>
+              <p className="text-sm text-gray-400 mt-2">Agrega una usando el botón superior</p>
+            </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 sm:mx-0">
-              <div className="inline-block min-w-full align-middle">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs sm:text-sm">Título</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Departamento</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Fecha</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Costo</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Dur. Ext.</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Dur. Int.</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Estado</TableHead>
-                      <TableHead className="text-right text-xs sm:text-sm">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {especialidades.map((especialidad) => (
-                      <TableRow key={especialidad.id}>
-                        <TableCell className="font-medium text-xs sm:text-sm">
-                          {especialidad.titulo}
-                          {especialidad.codigo && (
-                            <div className="text-xs text-gray-500">{especialidad.codigo}</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden md:table-cell">{especialidad.departamentoNombre}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{formatDate(especialidad.createdAt)}</TableCell>
-                        <TableCell className="font-semibold text-teal-600 text-xs sm:text-sm">
-                          {formatCurrency(especialidad.costoCOP)}
-                        </TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{especialidad.duracionExternaMin ? `${especialidad.duracionExternaMin} min` : '-'}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{especialidad.duracionInternaMin ? `${especialidad.duracionInternaMin} min` : '-'}</TableCell>
-                        <TableCell>
-                          <Badge className={`${especialidad.estado === 'Activo' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} text-xs`}>
-                            {especialidad.estado}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1 sm:gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(especialidad)}
-                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
-                            >
-                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0 sm:h-9 sm:w-9"
-                              onClick={() => handleDelete(especialidad.id)}
-                            >
-                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
-                            </Button>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-semibold">Título</TableHead>
+                    <TableHead className="font-semibold hidden md:table-cell">Departamento</TableHead>
+                    <TableHead className="font-semibold hidden lg:table-cell">Fecha Creación</TableHead>
+                    <TableHead className="font-semibold">Costo</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">Dur. Ext.</TableHead>
+                    <TableHead className="font-semibold hidden sm:table-cell">Dur. Int.</TableHead>
+                    <TableHead className="font-semibold">Estado</TableHead>
+                    <TableHead className="text-right font-semibold">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {especialidades.map((especialidad) => (
+                    <TableRow key={especialidad.id} className="hover:bg-gray-50">
+                      <TableCell className="font-semibold text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-emerald-600" />
+                          <div>
+                            {especialidad.titulo}
+                            {especialidad.codigo && (
+                              <div className="text-xs text-gray-500 font-normal">{especialidad.codigo}</div>
+                            )}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell">
+                        <span className="flex items-center gap-1.5 text-gray-700">
+                          <Building2 className="w-3.5 h-3.5 text-gray-500" />
+                          {especialidad.departamentoNombre}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-gray-600 hidden lg:table-cell">{formatDateLong(especialidad.createdAt).fecha}</TableCell>
+                      <TableCell className="font-semibold text-emerald-700">
+                        <div className="flex items-center gap-1.5">
+                          <DollarSign className="w-4 h-4" />
+                          {formatCurrency(especialidad.costoCOP)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {especialidad.duracionExternaMin ? (
+                          <span className="flex items-center gap-1.5 text-gray-700">
+                            <Clock className="w-3.5 h-3.5 text-gray-500" />
+                            {especialidad.duracionExternaMin} min
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">
+                        {especialidad.duracionInternaMin ? (
+                          <span className="flex items-center gap-1.5 text-gray-700">
+                            <Clock className="w-3.5 h-3.5 text-gray-500" />
+                            {especialidad.duracionInternaMin} min
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {especialidad.estado === 'Activo' ? (
+                          <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1 w-fit">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Activo
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-gray-100 text-gray-800 border border-gray-200 flex items-center gap-1 w-fit">
+                            <XCircle className="w-3 h-3" />
+                            Inactivo
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(especialidad)}
+                            className="h-9 w-9 p-0 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-9 w-9 p-0 hover:bg-red-50 hover:text-red-700 hover:border-red-300"
+                            onClick={() => handleDelete(especialidad.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

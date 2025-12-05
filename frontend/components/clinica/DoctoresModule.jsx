@@ -50,14 +50,19 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-6 lg:p-8 bg-white min-h-screen">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Doctores</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Gestiona el equipo médico de la clínica</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-xl">
+              <UserCog className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Doctores</h1>
+          </div>
+          <p className="text-gray-600 ml-14">Gestiona el equipo médico de la clínica</p>
         </div>
-        <Button onClick={onAdd} className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
+        <Button onClick={onAdd} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md w-full sm:w-auto h-11 font-semibold">
           <Plus className="w-4 h-4 mr-2" />
           Agregar Doctor
         </Button>

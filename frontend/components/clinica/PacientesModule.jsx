@@ -3,37 +3,25 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Plus, Search, Edit, Trash2, User } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Search, Edit, Trash2, Users, Phone, Mail, Calendar, MapPin, Activity } from 'lucide-react';
+import { formatDateLong } from '@/lib/dateUtils';
+import PacienteStepperForm from './PacienteStepperForm';
 
 export default function PacientesModule({ user }) {
   const [pacientes, setPacientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [editingPaciente, setEditingPaciente] = useState(null);
-  const [formData, setFormData] = useState({
-    nombre: '',
-    apellido: '',
-    cedula: '',
-    fecha_nacimiento: '',
-    genero: '',
-    telefono: '',
-    email: '',
-    direccion: '',
-    tipo_sangre: '',
-    alergias: '',
-    contacto_emergencia_nombre: '',
-    contacto_emergencia_telefono: '',
-  });
 
   useEffect(() => {
-    loadPacientes();
-  }, [search]);
+    if (!showForm) {
+      loadPacientes();
+    }
+  }, [search, showForm]);
 
   const loadPacientes = async () => {
     try {
@@ -49,56 +37,6 @@ export default function PacientesModule({ user }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const token = localStorage.getItem('token');
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-
-    try {
-      const url = editingPaciente
-        ? `${apiUrl}/pacientes/${editingPaciente.id}`
-        : `${apiUrl}/pacientes`;
-      
-      const method = editingPaciente ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        setIsDialogOpen(false);
-        resetForm();
-        loadPacientes();
-      }
-    } catch (error) {
-      console.error('Error saving paciente:', error);
-    }
-  };
-
-  const handleEdit = (paciente) => {
-    setEditingPaciente(paciente);
-    setFormData({
-      nombre: paciente.nombre || '',
-      apellido: paciente.apellido || '',
-      cedula: paciente.cedula || '',
-      fecha_nacimiento: paciente.fechaNacimiento || paciente.fecha_nacimiento || '',
-      genero: paciente.genero || '',
-      telefono: paciente.telefono || '',
-      email: paciente.email || '',
-      direccion: paciente.direccion || '',
-      tipo_sangre: paciente.tipoSangre || paciente.tipo_sangre || '',
-      alergias: paciente.alergias || '',
-      contacto_emergencia_nombre: paciente.contactoEmergenciaNombre || paciente.contacto_emergencia_nombre || '',
-      contacto_emergencia_telefono: paciente.contactoEmergenciaTelefono || paciente.contacto_emergencia_telefono || '',
-    });
-    setIsDialogOpen(true);
   };
 
   const handleDelete = async (id) => {
@@ -117,260 +55,253 @@ export default function PacientesModule({ user }) {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      nombre: '',
-      apellido: '',
-      cedula: '',
-      fecha_nacimiento: '',
-      genero: '',
-      telefono: '',
-      email: '',
-      direccion: '',
-      tipo_sangre: '',
-      alergias: '',
-      contacto_emergencia_nombre: '',
-      contacto_emergencia_telefono: '',
-    });
-    setEditingPaciente(null);
+  const calcularIMC = (peso, altura) => {
+    if (!peso || !altura) return '-';
+    // Altura está en metros en la BD
+    const imc = peso / (altura ** 2);
+    return imc.toFixed(1);
   };
 
+  const calcularEdad = (fechaNacimiento) => {
+    if (!fechaNacimiento) return '-';
+    const hoy = new Date();
+    const nacimiento = new Date(fechaNacimiento);
+    let edad = hoy.getFullYear() - nacimiento.getFullYear();
+    const mes = hoy.getMonth() - nacimiento.getMonth();
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+      edad--;
+    }
+    return `${edad} años`;
+  };
+
+  const getIMCColor = (imc) => {
+    if (imc === '-') return 'bg-gray-100 text-gray-700';
+    const valor = parseFloat(imc);
+    if (valor < 18.5) return 'bg-blue-100 text-blue-700';
+    if (valor < 25) return 'bg-green-100 text-green-700';
+    if (valor < 30) return 'bg-yellow-100 text-yellow-700';
+    return 'bg-red-100 text-red-700';
+  };
+
+  if (showForm) {
+    return (
+      <PacienteStepperForm
+        user={user}
+        editingPaciente={editingPaciente}
+        onBack={() => {
+          setShowForm(false);
+          setEditingPaciente(null);
+        }}
+        onSuccess={() => {
+          setShowForm(false);
+          setEditingPaciente(null);
+          loadPacientes();
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
+    <div className="p-6 lg:p-8 bg-white min-h-screen">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Pacientes</h1>
-          <p className="text-sm sm:text-base text-gray-600 mt-1">Administra los pacientes de la clínica</p>
+          <div className="flex items-center gap-3 mb-2">
+            <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-xl">
+              <Users className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-3xl font-bold text-gray-900">Pacientes</h1>
+          </div>
+          <p className="text-gray-600 ml-14">Administra los pacientes de la clínica</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={(open) => {
-          setIsDialogOpen(open);
-          if (!open) resetForm();
-        }}>
-          <DialogTrigger asChild>
-            <Button className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              Nuevo Paciente
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-[95vw] sm:max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-lg sm:text-xl">
-                {editingPaciente ? 'Editar Paciente' : 'Nuevo Paciente'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="nombre" className="text-sm sm:text-base">Nombre *</Label>
-                  <Input
-                    id="nombre"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    required
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="apellido" className="text-sm sm:text-base">Apellido *</Label>
-                  <Input
-                    id="apellido"
-                    value={formData.apellido}
-                    onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                    required
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="cedula" className="text-sm sm:text-base">Cédula *</Label>
-                  <Input
-                    id="cedula"
-                    value={formData.cedula}
-                    onChange={(e) => setFormData({ ...formData, cedula: e.target.value })}
-                    required
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="fecha_nacimiento" className="text-sm sm:text-base">Fecha de Nacimiento *</Label>
-                  <Input
-                    id="fecha_nacimiento"
-                    type="date"
-                    value={formData.fecha_nacimiento}
-                    onChange={(e) => setFormData({ ...formData, fecha_nacimiento: e.target.value })}
-                    required
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="genero" className="text-sm sm:text-base">Género</Label>
-                  <Select value={formData.genero} onValueChange={(value) => setFormData({ ...formData, genero: value })}>
-                    <SelectTrigger className="h-11 sm:h-12">
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Masculino">Masculino</SelectItem>
-                      <SelectItem value="Femenino">Femenino</SelectItem>
-                      <SelectItem value="Otro">Otro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="tipo_sangre" className="text-sm sm:text-base">Tipo de Sangre</Label>
-                  <Input
-                    id="tipo_sangre"
-                    value={formData.tipo_sangre}
-                    onChange={(e) => setFormData({ ...formData, tipo_sangre: e.target.value })}
-                    placeholder="Ej: O+"
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="telefono" className="text-sm sm:text-base">Teléfono</Label>
-                  <Input
-                    id="telefono"
-                    value={formData.telefono}
-                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email" className="text-sm sm:text-base">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-              </div>
-              <div>
-                <Label htmlFor="direccion" className="text-sm sm:text-base">Dirección</Label>
-                <Input
-                  id="direccion"
-                  value={formData.direccion}
-                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                  className="h-11 sm:h-12"
-                />
-              </div>
-              <div>
-                <Label htmlFor="alergias" className="text-sm sm:text-base">Alergias</Label>
-                <Input
-                  id="alergias"
-                  value={formData.alergias}
-                  onChange={(e) => setFormData({ ...formData, alergias: e.target.value })}
-                  placeholder="Enumere las alergias conocidas"
-                  className="h-11 sm:h-12"
-                />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="contacto_emergencia_nombre" className="text-sm sm:text-base">Contacto de Emergencia</Label>
-                  <Input
-                    id="contacto_emergencia_nombre"
-                    value={formData.contacto_emergencia_nombre}
-                    onChange={(e) => setFormData({ ...formData, contacto_emergencia_nombre: e.target.value })}
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="contacto_emergencia_telefono" className="text-sm sm:text-base">Teléfono de Emergencia</Label>
-                  <Input
-                    id="contacto_emergencia_telefono"
-                    value={formData.contacto_emergencia_telefono}
-                    onChange={(e) => setFormData({ ...formData, contacto_emergencia_telefono: e.target.value })}
-                    className="h-11 sm:h-12"
-                  />
-                </div>
-              </div>
-              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end pt-2">
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="w-full sm:w-auto">
-                  Cancelar
-                </Button>
-                <Button type="submit" className="bg-teal-500 hover:bg-teal-600 w-full sm:w-auto">
-                  {editingPaciente ? 'Actualizar' : 'Crear'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          onClick={() => setShowForm(true)}
+          className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md w-full sm:w-auto h-11 font-semibold"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Nuevo Paciente
+        </Button>
       </div>
 
       {/* Search */}
-      <Card className="mb-6">
-        <CardContent className="p-3 sm:p-4">
+      <Card className="mb-6 shadow-sm">
+        <CardContent className="p-4">
           <div className="flex items-center gap-2">
-            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
+            <Search className="w-5 h-5 text-gray-400" />
             <Input
-              placeholder="Buscar por nombre, apellido o cédula..."
+              placeholder="Buscar por nombre, cédula, email o teléfono..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border-0 focus-visible:ring-0 text-sm sm:text-base"
+              className="border-0 focus-visible:ring-0"
             />
           </div>
         </CardContent>
       </Card>
 
+      {/* Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card className="shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 p-2 rounded-lg">
+                <Users className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Total Pacientes</p>
+                <p className="text-2xl font-bold text-gray-900">{pacientes.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-green-100 p-2 rounded-lg">
+                <Activity className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Activos</p>
+                <p className="text-2xl font-bold text-gray-900">{pacientes.filter(p => p.estado === 'Activo').length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="bg-purple-100 p-2 rounded-lg">
+                <Calendar className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Nuevos este mes</p>
+                <p className="text-2xl font-bold text-gray-900">0</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Table */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Lista de Pacientes ({pacientes.length})</CardTitle>
+          <CardTitle className="text-xl">Lista de Pacientes</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">Cargando...</p>
+            <p className="text-center py-8 text-gray-500">Cargando...</p>
           ) : pacientes.length === 0 ? (
-            <p className="text-center py-8 text-gray-500 text-sm sm:text-base">No hay pacientes registrados</p>
+            <div className="text-center py-12">
+              <Users className="w-16 h-16 mx-auto text-gray-300 mb-4" />
+              <p className="text-gray-500 mb-4">No hay pacientes registrados</p>
+              <Button onClick={() => setShowForm(true)} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Agregar Primer Paciente
+              </Button>
+            </div>
           ) : (
-            <div className="overflow-x-auto -mx-2 sm:mx-0">
-              <div className="inline-block min-w-full align-middle">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs sm:text-sm">Nombre</TableHead>
-                      <TableHead className="text-xs sm:text-sm">Cédula</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden md:table-cell">Teléfono</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Email</TableHead>
-                      <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Tipo Sangre</TableHead>
-                      <TableHead className="text-right text-xs sm:text-sm">Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pacientes.map((paciente) => (
-                      <TableRow key={paciente.id}>
-                        <TableCell className="font-medium text-xs sm:text-sm">
-                          {paciente.nombre} {paciente.apellido}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-gray-50">
+                    <TableHead className="font-bold">Paciente</TableHead>
+                    <TableHead className="font-bold">Cédula</TableHead>
+                    <TableHead className="font-bold">Teléfono</TableHead>
+                    <TableHead className="font-bold">Género</TableHead>
+                    <TableHead className="font-bold">F. Nacimiento</TableHead>
+                    <TableHead className="font-bold">Tipo Sangre</TableHead>
+                    <TableHead className="font-bold">Dirección</TableHead>
+                    <TableHead className="font-bold">Datos Médicos</TableHead>
+                    <TableHead className="font-bold">Última Consulta</TableHead>
+                    <TableHead className="font-bold">Estado</TableHead>
+                    <TableHead className="font-bold text-center">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pacientes.map((paciente) => {
+                    const imc = calcularIMC(paciente.peso, paciente.altura);
+                    return (
+                      <TableRow key={paciente.id} className="hover:bg-gray-50">
+                        <TableCell>
+                          <div>
+                            <p className="font-bold text-gray-900">{paciente.nombre} {paciente.apellido}</p>
+                            <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                              <Mail className="w-3 h-3" />
+                              {paciente.email || 'Sin email'}
+                            </p>
+                          </div>
                         </TableCell>
-                        <TableCell className="text-xs sm:text-sm">{paciente.cedula}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden md:table-cell">{paciente.telefono || '-'}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden lg:table-cell">{paciente.email || '-'}</TableCell>
-                        <TableCell className="text-xs sm:text-sm hidden sm:table-cell">{paciente.tipoSangre || paciente.tipo_sangre || '-'}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1 sm:gap-2">
+                        <TableCell className="text-gray-600">{paciente.cedula || '-'}</TableCell>
+                        <TableCell className="text-gray-600">
+                          <div className="flex items-center gap-1">
+                            <Phone className="w-3 h-3" />
+                            {paciente.telefono || '-'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-600">{paciente.genero || '-'}</TableCell>
+                        <TableCell className="text-gray-600">
+                          {paciente.fechaNacimiento ? (
+                            <div>
+                              <p className="font-semibold">{formatDateLong(paciente.fechaNacimiento).fecha}</p>
+                              <p className="text-xs text-gray-500 mt-0.5">{calcularEdad(paciente.fechaNacimiento)}</p>
+                            </div>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {paciente.tipoSangre ? (
+                            <Badge className="bg-red-100 text-red-700 border-red-200">{paciente.tipoSangre}</Badge>
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell className="text-gray-600 max-w-[150px] truncate">
+                          <div className="flex items-center gap-1">
+                            <MapPin className="w-3 h-3" />
+                            {paciente.direccion || '-'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            <p className="text-gray-600">Peso: <strong>{paciente.peso ? `${paciente.peso} kg` : '-'}</strong></p>
+                            <p className="text-gray-600">Altura: <strong>{paciente.altura ? `${paciente.altura} m` : '-'}</strong></p>
+                            <Badge className={`mt-1 ${getIMCColor(imc)}`}>
+                              IMC: {imc}
+                            </Badge>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-gray-600">
+                          {paciente.ultimaConsulta ? formatDateLong(paciente.ultimaConsulta).fecha : 'Sin consultas'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={paciente.estado === 'Activo' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-200'}>
+                            {paciente.estado || 'Activo'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-center gap-2">
                             <Button
                               size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(paciente)}
-                              className="h-8 w-8 p-0 sm:h-9 sm:w-9"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingPaciente(paciente);
+                                setShowForm(true);
+                              }}
+                              className="hover:bg-blue-50 hover:text-blue-600"
                             >
-                              <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <Edit className="w-4 h-4" />
                             </Button>
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0 sm:h-9 sm:w-9"
+                              variant="ghost"
                               onClick={() => handleDelete(paciente.id)}
+                              className="hover:bg-red-50 hover:text-red-600"
                             >
-                              <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
+                              <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

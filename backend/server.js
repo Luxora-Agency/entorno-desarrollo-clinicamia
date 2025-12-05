@@ -12,6 +12,11 @@ const departamentos = require('./routes/departamentos');
 const especialidades = require('./routes/especialidades');
 const usuarios = require('./routes/usuarios');
 const doctores = require('./routes/doctores');
+const categoriaExamen = require('./routes/categoriaExamen');
+const examenProcedimiento = require('./routes/examenProcedimiento');
+const categoriaProducto = require('./routes/categoriaProducto');
+const etiquetaProducto = require('./routes/etiquetaProducto');
+const productos = require('./routes/productos');
 
 const app = new Hono();
 
@@ -36,6 +41,10 @@ app.get('/', (c) => {
       especialidades: '/especialidades',
       usuarios: '/usuarios',
       doctores: '/doctores',
+      categoriasExamenes: '/categorias-examenes',
+      examenesProcedimientos: '/examenes-procedimientos',
+      categoriasProductos: '/categorias-productos',
+      etiquetasProductos: '/etiquetas-productos',
     }
   });
 });
@@ -58,6 +67,11 @@ app.route('/departamentos', departamentos);
 app.route('/especialidades', especialidades);
 app.route('/usuarios', usuarios);
 app.route('/doctores', doctores);
+app.route('/categorias-examenes', categoriaExamen);
+app.route('/examenes-procedimientos', examenProcedimiento);
+app.route('/categorias-productos', categoriaProducto);
+app.route('/etiquetas-productos', etiquetaProducto);
+app.route('/productos', productos);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
