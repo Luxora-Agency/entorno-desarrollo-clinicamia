@@ -203,6 +203,45 @@ class PacienteService {
 
     return true;
   }
+
+  /**
+   * Búsqueda rápida de pacientes por nombre, cédula o email
+   */
+  async search(query) {
+    if (!query || query.trim().length < 2) {
+      return [];
+    }
+
+    const searchTerm = query.trim();
+
+    const pacientes = await prisma.paciente.findMany({
+      where: {
+        activo: true,
+        OR: [
+          { nombre: { contains: searchTerm, mode: 'insensitive' } },
+          { apellido: { contains: searchTerm, mode: 'insensitive' } },
+          { cedula: { contains: searchTerm, mode: 'insensitive' } },
+          { email: { contains: searchTerm, mode: 'insensitive' } },
+        ],
+      },
+      take: 10,
+      orderBy: { nombre: 'asc' },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        cedula: true,
+        email: true,
+        telefono: true,
+        fechaNacimiento: true,
+        genero: true,
+        eps: true,
+        tipoSangre: true,
+      },
+    });
+
+    return pacientes;
+  }
 }
 
 module.exports = new PacienteService();
