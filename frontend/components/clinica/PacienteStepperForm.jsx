@@ -328,6 +328,13 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         const result = await response.json();
         const paciente = result.data || result;
         
+        // Subir documentos si hay alguno
+        if (documentos.length > 0) {
+          setUploadingDocuments(true);
+          await uploadDocuments(paciente.id, token, apiUrl);
+          setUploadingDocuments(false);
+        }
+        
         // Guardar datos del paciente para el modal
         setSavedPaciente({
           id: paciente.id,
