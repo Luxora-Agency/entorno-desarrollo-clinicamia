@@ -169,37 +169,25 @@ export default function CitasModule({ user }) {
     }
   };
 
-  const handleTipoServicioChange = (tipo) => {
-    setFormData({ 
-      ...formData, 
-      tipoServicio: tipo,
-      servicioId: '',
-    });
-    setSelectedServicio(null);
-  };
+  const handleEspecialidadChange = (especialidadId) => {
+    const especialidad = especialidades.find(e => e.id === especialidadId);
+    
+    if (especialidad) {
+      // Filtrar doctores que tengan esta especialidad
+      const doctoresConEspecialidad = doctores.filter(doctor => 
+        doctor.doctor?.especialidades?.some(esp => esp.especialidadId === especialidadId)
+      );
+      setDoctoresFiltrados(doctoresConEspecialidad);
 
-  const handleServicioChange = (servicioId) => {
-    let servicio;
-    if (formData.tipoServicio === 'especialidad') {
-      servicio = especialidades.find(e => e.id === servicioId);
-      if (servicio) {
-        setSelectedServicio({
-          nombre: servicio.titulo,
-          duracion: servicio.duracionMinutos,
-          costo: servicio.costoCOP,
-        });
-      }
-    } else {
-      servicio = examenesProcedimientos.find(e => e.id === servicioId);
-      if (servicio) {
-        setSelectedServicio({
-          nombre: servicio.nombre,
-          duracion: servicio.duracionMinutos,
-          costo: servicio.costoBase,
-        });
-      }
+      // Precargar duración y costo
+      setFormData({
+        ...formData,
+        especialidad_id: especialidadId,
+        doctor_id: '', // Reset doctor
+        duracion_minutos: especialidad.duracionMinutos || '',
+        costo: especialidad.costoCOP || '',
+      });
     }
-    setFormData({ ...formData, servicioId });
   };
 
   const resetForm = () => {
