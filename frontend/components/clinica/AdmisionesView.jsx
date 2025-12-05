@@ -63,6 +63,10 @@ export default function AdmisionesView({ user }) {
     );
   }
 
+  const handleEdit = () => {
+    router.push(`/?module=pacientes&editing=${pacienteId}`);
+  };
+
   if (loading) {
     return (
       <div className="p-8">
@@ -77,40 +81,64 @@ export default function AdmisionesView({ user }) {
     <div className="p-6 lg:p-8 bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">
-          Información del Paciente
+          Admisiones - Información del Paciente
         </h1>
 
         {paciente && (
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              {paciente.nombre} {paciente.apellido}
-            </h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-semibold text-gray-700">Documento:</span>
-                <span className="ml-2 text-gray-600">{paciente.cedula}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Email:</span>
-                <span className="ml-2 text-gray-600">{paciente.email}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Teléfono:</span>
-                <span className="ml-2 text-gray-600">{paciente.telefono}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">EPS:</span>
-                <span className="ml-2 text-gray-600">{paciente.eps || 'N/A'}</span>
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Panel Lateral del Paciente */}
+            <div className="lg:col-span-1">
+              <PanelPaciente paciente={paciente} onEdit={handleEdit} />
             </div>
 
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-sm text-blue-800 font-semibold">
-                🚧 Vista en desarrollo - FASE 3 en proceso
-              </p>
-              <p className="text-xs text-blue-700 mt-1">
-                Próximamente: Panel de paciente, tabs de información, citas, admisiones, movimientos, historia clínica y facturación.
-              </p>
+            {/* Contenido Principal con Tabs */}
+            <div className="lg:col-span-3">
+              <Tabs defaultValue="informacion" className="w-full">
+                <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto">
+                  <TabsTrigger value="informacion" className="text-xs lg:text-sm">
+                    Información
+                  </TabsTrigger>
+                  <TabsTrigger value="citas" className="text-xs lg:text-sm">
+                    Citas
+                  </TabsTrigger>
+                  <TabsTrigger value="admisiones" className="text-xs lg:text-sm">
+                    Admisiones
+                  </TabsTrigger>
+                  <TabsTrigger value="movimientos" className="text-xs lg:text-sm">
+                    Movimientos
+                  </TabsTrigger>
+                  <TabsTrigger value="historia" className="text-xs lg:text-sm">
+                    Historia
+                  </TabsTrigger>
+                  <TabsTrigger value="facturacion" className="text-xs lg:text-sm">
+                    Facturación
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="informacion" className="mt-6">
+                  <TabInformacion paciente={paciente} />
+                </TabsContent>
+
+                <TabsContent value="citas" className="mt-6">
+                  <TabCitas pacienteId={pacienteId} user={user} />
+                </TabsContent>
+
+                <TabsContent value="admisiones" className="mt-6">
+                  <TabAdmisiones pacienteId={pacienteId} user={user} />
+                </TabsContent>
+
+                <TabsContent value="movimientos" className="mt-6">
+                  <TabMovimientos pacienteId={pacienteId} user={user} />
+                </TabsContent>
+
+                <TabsContent value="historia" className="mt-6">
+                  <TabHistoria pacienteId={pacienteId} user={user} />
+                </TabsContent>
+
+                <TabsContent value="facturacion" className="mt-6">
+                  <TabFacturacion pacienteId={pacienteId} user={user} />
+                </TabsContent>
+              </Tabs>
             </div>
           </div>
         )}
