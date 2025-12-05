@@ -282,7 +282,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       <span>Categorías</span>
                     </button>
                   </div>
-                )}
+                </div>
 
                 {/* Órdenes Médicas - sin sub-items */}
                 <button
