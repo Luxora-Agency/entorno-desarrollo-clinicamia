@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, User, Phone, Shield, Activity, AlertCircle, Plus, X, Droplet, Scale, Ruler } from 'lucide-react';
+import { ArrowLeft, Check, User, Phone, Shield, Activity, AlertCircle, Plus, X, Droplet, Scale, Ruler, Upload, FileText, Trash2 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import epsData from '@/data/eps.json';
 import regimenesData from '@/data/regimenes.json';
