@@ -64,7 +64,8 @@ export default function AdmisionesView({ user }) {
   }
 
   const handleEdit = () => {
-    router.push(`/?module=pacientes&editing=${pacienteId}`);
+    // Necesitamos cambiar al módulo de pacientes en modo edición
+    window.location.href = `/?module=agregar-paciente&pacienteId=${pacienteId}`;
   };
 
   if (loading) {
@@ -79,67 +80,63 @@ export default function AdmisionesView({ user }) {
 
   return (
     <div className="p-6 lg:p-8 bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full">
         <h1 className="text-3xl font-bold text-gray-900 mb-6">
           Admisiones - Información del Paciente
         </h1>
 
         {paciente && (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            {/* Panel Lateral del Paciente */}
-            <div className="lg:col-span-1">
-              <PanelPaciente paciente={paciente} onEdit={handleEdit} />
-            </div>
+          <div className="space-y-6">
+            {/* Panel Superior del Paciente */}
+            <PanelPaciente paciente={paciente} onEdit={handleEdit} />
 
             {/* Contenido Principal con Tabs */}
-            <div className="lg:col-span-3">
-              <Tabs defaultValue="informacion" className="w-full">
-                <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto">
-                  <TabsTrigger value="informacion" className="text-xs lg:text-sm">
-                    Información
-                  </TabsTrigger>
-                  <TabsTrigger value="citas" className="text-xs lg:text-sm">
-                    Citas
-                  </TabsTrigger>
-                  <TabsTrigger value="admisiones" className="text-xs lg:text-sm">
-                    Admisiones
-                  </TabsTrigger>
-                  <TabsTrigger value="movimientos" className="text-xs lg:text-sm">
-                    Movimientos
-                  </TabsTrigger>
-                  <TabsTrigger value="historia" className="text-xs lg:text-sm">
-                    Historia
-                  </TabsTrigger>
-                  <TabsTrigger value="facturacion" className="text-xs lg:text-sm">
-                    Facturación
-                  </TabsTrigger>
-                </TabsList>
+            <Tabs defaultValue="informacion" className="w-full">
+              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto">
+                <TabsTrigger value="informacion" className="text-xs lg:text-sm">
+                  Información
+                </TabsTrigger>
+                <TabsTrigger value="citas" className="text-xs lg:text-sm">
+                  Citas
+                </TabsTrigger>
+                <TabsTrigger value="admisiones" className="text-xs lg:text-sm">
+                  Admisiones
+                </TabsTrigger>
+                <TabsTrigger value="movimientos" className="text-xs lg:text-sm">
+                  Movimientos
+                </TabsTrigger>
+                <TabsTrigger value="historia" className="text-xs lg:text-sm">
+                  Historia
+                </TabsTrigger>
+                <TabsTrigger value="facturacion" className="text-xs lg:text-sm">
+                  Facturación
+                </TabsTrigger>
+              </TabsList>
 
-                <TabsContent value="informacion" className="mt-6">
-                  <TabInformacion paciente={paciente} />
-                </TabsContent>
+              <TabsContent value="informacion" className="mt-6">
+                <TabInformacion paciente={paciente} />
+              </TabsContent>
 
-                <TabsContent value="citas" className="mt-6">
-                  <TabCitas pacienteId={pacienteId} user={user} />
-                </TabsContent>
+              <TabsContent value="citas" className="mt-6">
+                <TabCitas pacienteId={pacienteId} user={user} />
+              </TabsContent>
 
-                <TabsContent value="admisiones" className="mt-6">
-                  <TabAdmisiones pacienteId={pacienteId} user={user} />
-                </TabsContent>
+              <TabsContent value="admisiones" className="mt-6">
+                <TabAdmisiones pacienteId={pacienteId} user={user} />
+              </TabsContent>
 
-                <TabsContent value="movimientos" className="mt-6">
-                  <TabMovimientos pacienteId={pacienteId} user={user} />
-                </TabsContent>
+              <TabsContent value="movimientos" className="mt-6">
+                <TabMovimientos pacienteId={pacienteId} user={user} />
+              </TabsContent>
 
-                <TabsContent value="historia" className="mt-6">
-                  <TabHistoria pacienteId={pacienteId} user={user} />
-                </TabsContent>
+              <TabsContent value="historia" className="mt-6">
+                <TabHistoria pacienteId={pacienteId} user={user} />
+              </TabsContent>
 
-                <TabsContent value="facturacion" className="mt-6">
-                  <TabFacturacion pacienteId={pacienteId} user={user} />
-                </TabsContent>
-              </Tabs>
-            </div>
+              <TabsContent value="facturacion" className="mt-6">
+                <TabFacturacion pacienteId={pacienteId} user={user} />
+              </TabsContent>
+            </Tabs>
           </div>
         )}
       </div>
