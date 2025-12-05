@@ -19,6 +19,8 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   const [completedSteps, setCompletedSteps] = useState([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [savedPaciente, setSavedPaciente] = useState(null);
+  const [documentos, setDocumentos] = useState([]);
+  const [uploadingDocuments, setUploadingDocuments] = useState(false);
 
   // Form data
   const [formData, setFormData] = useState({
