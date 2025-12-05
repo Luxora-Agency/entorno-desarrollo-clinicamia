@@ -24,6 +24,11 @@ const habitacion = require('./routes/habitacion');
 const cama = require('./routes/cama');
 const admision = require('./routes/admision');
 const movimiento = require('./routes/movimiento');
+// Rutas de facturación y órdenes
+const ordenesMedicas = require('./routes/ordenesMedicas');
+const ordenesMedicamentos = require('./routes/ordenesMedicamentos');
+const facturas = require('./routes/facturas');
+const paquetesHospitalizacion = require('./routes/paquetesHospitalizacion');
 
 const app = new Hono();
 
