@@ -1048,7 +1048,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
             <ArrowLeft className="w-4 h-4 mr-2" />
             Anterior
           </Button>
-          {currentStep < 4 ? (
+          {currentStep < 5 ? (
             <Button
               type="button"
               onClick={handleNext}
@@ -1061,10 +1061,11 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
             <Button
               type="button"
               onClick={handleSubmit}
+              disabled={uploadingDocuments}
               className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 h-11"
             >
               <Check className="w-4 h-4 mr-2" />
-              Finalizar y Guardar
+              {uploadingDocuments ? 'Subiendo documentos...' : 'Finalizar y Guardar'}
             </Button>
           )}
         </div>
