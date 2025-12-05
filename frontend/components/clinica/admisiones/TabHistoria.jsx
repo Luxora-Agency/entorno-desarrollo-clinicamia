@@ -222,7 +222,7 @@ export default function TabHistoria({ pacienteId, paciente }) {
                       </p>
                     </div>
                   </div>
-                  <Separator className="my-3" />
+                  <hr className="my-3 border-gray-200" />
                   <div>
                     <p className="text-sm font-medium text-gray-700 mb-1">Motivo:</p>
                     <p className="text-sm text-gray-900">{cita.motivo}</p>
