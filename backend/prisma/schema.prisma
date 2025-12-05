@@ -343,3 +343,131 @@ model DocumentoPaciente {
   @@map("documentos_paciente")
 
 }
+
+// ===================================
+// MÓDULO DE HOSPITALIZACIÓN
+// ===================================
+
+model Unidad {
+  id              String        @id @default(uuid())
+  nombre          String        @unique
+  descripcion     String?
+  tipo            String        // UCI, Observación, Hospitalización General, Pediatría, etc.
+  capacidad       Int           @default(0)
+  activo          Boolean       @default(true)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relaciones
+  habitaciones    Habitacion[]
+  admisiones      Admision[]
+
+  @@map("unidades")
+}
+
+model Habitacion {
+  id              String        @id @default(uuid())
+  numero          String
+  unidadId        String        @map("unidad_id")
+  piso            Int?
+  capacidadCamas  Int           @default(1) @map("capacidad_camas")
+  activo          Boolean       @default(true)
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relaciones
+  unidad          Unidad        @relation(fields: [unidadId], references: [id], onDelete: Cascade)
+  camas           Cama[]
+
+  @@unique([numero, unidadId])
+  @@map("habitaciones")
+}
+
+model Cama {
+  id              String        @id @default(uuid())
+  numero          String
+  habitacionId    String        @map("habitacion_id")
+  estado          EstadoCama    @default(Disponible)
+  observaciones   String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relaciones
+  habitacion      Habitacion    @relation(fields: [habitacionId], references: [id], onDelete: Cascade)
+  admisiones      Admision[]
+
+  @@unique([numero, habitacionId])
+  @@map("camas")
+}
+
+model Admision {
+  id                    String            @id @default(uuid())
+  pacienteId            String            @map("paciente_id")
+  unidadId              String            @map("unidad_id")
+  camaId                String?           @map("cama_id")
+  fechaIngreso          DateTime          @map("fecha_ingreso") @default(now())
+  fechaEgreso           DateTime?         @map("fecha_egreso")
+  motivoIngreso         String            @map("motivo_ingreso")
+  diagnosticoIngreso    String            @map("diagnostico_ingreso")
+  diagnosticoEgreso     String?           @map("diagnostico_egreso")
+  estado                EstadoAdmision    @default(Activa)
+  observaciones         String?
+  responsableIngreso    String?           @map("responsable_ingreso") @db.Uuid
+  responsableEgreso     String?           @map("responsable_egreso") @db.Uuid
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+
+  // Relaciones
+  paciente              Paciente          @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  unidad                Unidad            @relation(fields: [unidadId], references: [id])
+  cama                  Cama?             @relation(fields: [camaId], references: [id])
+  movimientos           Movimiento[]
+
+  @@map("admisiones")
+}
+
+model Movimiento {
+  id                    String            @id @default(uuid())
+  admisionId            String            @map("admision_id")
+  tipo                  TipoMovimiento
+  unidadOrigenId        String?           @map("unidad_origen_id")
+  unidadDestinoId       String?           @map("unidad_destino_id")
+  camaOrigenId          String?           @map("cama_origen_id")
+  camaDestinoId         String?           @map("cama_destino_id")
+  motivo                String
+  observaciones         String?
+  responsable           String?           @db.Uuid
+  fechaMovimiento       DateTime          @default(now()) @map("fecha_movimiento")
+  createdAt             DateTime          @default(now()) @map("created_at")
+
+  // Relaciones
+  admision              Admision          @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+
+  @@map("movimientos")
+}
+
+// ===================================
+// ENUMS PARA HOSPITALIZACIÓN
+// ===================================
+
+enum EstadoCama {
+  Disponible
+  Ocupada
+  Mantenimiento
+  Reservada
+}
+
+enum EstadoAdmision {
+  Activa
+  Egresada
+  Cancelada
+}
+
+enum TipoMovimiento {
+  Ingreso
+  Traslado
+  CambioCama
+  CambioUnidad
+  Egreso
+
+}
