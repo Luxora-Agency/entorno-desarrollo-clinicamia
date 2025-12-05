@@ -122,6 +122,9 @@ model Paciente {
   citas                          Cita[]
   documentos                     DocumentoPaciente[]
   admisiones                     Admision[]
+  ordenesMedicas                 OrdenMedica[]
+  ordenesMedicamentos            OrdenMedicamento[]
+  facturas                       Factura[]
 
   @@map("pacientes")
 }
