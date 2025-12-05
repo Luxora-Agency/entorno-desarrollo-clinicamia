@@ -242,6 +242,27 @@ class PacienteService {
 
     return pacientes;
   }
+
+  /**
+   * Activar o inactivar un paciente
+   */
+  async toggleActivo(id) {
+    const paciente = await prisma.paciente.findUnique({
+      where: { id },
+      select: { id: true, activo: true, nombre: true, apellido: true },
+    });
+
+    if (!paciente) {
+      throw new NotFoundError('Paciente no encontrado');
+    }
+
+    const updated = await prisma.paciente.update({
+      where: { id },
+      data: { activo: !paciente.activo },
+    });
+
+    return updated;
+  }
 }
 
 module.exports = new PacienteService();
