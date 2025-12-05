@@ -401,11 +401,22 @@ export default function TabOrdenesMedicas({ pacienteId, paciente }) {
                     <TableRow key={orden.id}>
                       <TableCell>
                         <div>
-                          <p className="font-medium text-gray-900">
-                            {orden.examenProcedimiento?.nombre}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            {orden.examenProcedimiento?.tipo}
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium text-gray-900">
+                              {orden.examenProcedimiento?.nombre}
+                            </p>
+                            {orden.examenProcedimiento?.tipo === 'Examen' ? (
+                              <Badge className="bg-blue-100 text-blue-800 text-xs">
+                                Examen
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-purple-100 text-purple-800 text-xs">
+                                Procedimiento
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {orden.examenProcedimiento?.descripcion}
                           </p>
                         </div>
                       </TableCell>
