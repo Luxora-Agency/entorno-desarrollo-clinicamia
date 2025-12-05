@@ -43,6 +43,26 @@ class MovimientoService {
       orderBy: { fechaMovimiento: 'desc' },
     });
 
+    // Cargar información del usuario responsable para cada movimiento
+    for (const movimiento of movimientos) {
+      if (movimiento.responsable) {
+        try {
+          const usuario = await prisma.usuario.findUnique({
+            where: { id: movimiento.responsable },
+            select: { nombre: true, apellido: true, rol: true },
+          });
+          if (usuario) {
+            movimiento.responsableInfo = {
+              nombre: `${usuario.nombre} ${usuario.apellido}`,
+              rol: usuario.rol,
+            };
+          }
+        } catch (error) {
+          console.error('Error cargando usuario responsable:', error);
+        }
+      }
+    }
+
     return movimientos;
   }
 
