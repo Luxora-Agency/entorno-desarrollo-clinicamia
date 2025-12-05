@@ -44,6 +44,11 @@ export default function Dashboard({ user, onLogout }) {
         return <AdmisionesView user={user} />;
       case 'pacientes':
         return <PacientesModule user={user} />;
+      case 'agregar-paciente':
+        // Obtener pacienteId del query param si existe
+        const pacienteIdParam = searchParams.get('pacienteId');
+        // Aquí deberías cargar el paciente si existe el ID
+        return <div>Formulario de edición de paciente (en construcción)</div>;
       case 'citas':
         return <CitasModule user={user} />;
       case 'especialidades':
