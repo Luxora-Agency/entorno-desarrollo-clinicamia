@@ -313,10 +313,11 @@ export default function PacientesModule({ user }) {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => handleDelete(paciente.id)}
-                              className="hover:bg-red-50 hover:text-red-600"
+                              onClick={() => handleToggleActivo(paciente.id, paciente.activo)}
+                              className={paciente.activo ? "hover:bg-red-50 hover:text-red-600" : "hover:bg-green-50 hover:text-green-600"}
+                              title={paciente.activo ? "Inactivar paciente" : "Activar paciente"}
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Power className="w-4 h-4" />
                             </Button>
                           </div>
                         </TableCell>
