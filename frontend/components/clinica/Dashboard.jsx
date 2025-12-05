@@ -31,7 +31,38 @@ export default function Dashboard({ user, onLogout }) {
   useEffect(() => {
     const module = searchParams.get('module') || 'dashboard';
     setActiveModule(module);
+    
+    // Cargar paciente si está en modo edición
+    const pacienteId = searchParams.get('pacienteId');
+    if (module === 'agregar-paciente' && pacienteId) {
+      loadPaciente(pacienteId);
+    } else {
+      setEditingPaciente(null);
+    }
   }, [searchParams]);
+
+  const loadPaciente = async (id) => {
+    setLoadingPaciente(true);
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      
+      const response = await fetch(`${apiUrl}/pacientes/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setEditingPaciente(result.data?.paciente || result.data || result);
+      }
+    } catch (error) {
+      console.error('Error al cargar paciente:', error);
+    } finally {
+      setLoadingPaciente(false);
+    }
+  };
 
   // Función para cambiar de módulo y actualizar URL
   const changeModule = (module) => {
