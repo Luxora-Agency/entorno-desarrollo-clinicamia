@@ -526,7 +526,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       <span>Órdenes y Pedidos</span>
                     </button>
                   </div>
-                )}
+                </div>
               </div>
 
               {/* PROGRAMA MÍA PASS */}
