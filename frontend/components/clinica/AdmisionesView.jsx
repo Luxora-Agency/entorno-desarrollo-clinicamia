@@ -3,6 +3,14 @@
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import BuscadorPacientes from './admisiones/BuscadorPacientes';
+import PanelPaciente from './admisiones/PanelPaciente';
+import TabInformacion from './admisiones/TabInformacion';
+import TabCitas from './admisiones/TabCitas';
+import TabAdmisiones from './admisiones/TabAdmisiones';
+import TabMovimientos from './admisiones/TabMovimientos';
+import TabHistoria from './admisiones/TabHistoria';
+import TabFacturacion from './admisiones/TabFacturacion';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function AdmisionesView({ user }) {
   const router = useRouter();
