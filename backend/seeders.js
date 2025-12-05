@@ -542,6 +542,56 @@ async function seedHospitalizacion() {
   return { unidades: unidadesCreadas, habitaciones: habitacionesCreadas, camas: camasCreadas };
 }
 
+async function seedPaquetesHospitalizacion() {
+  console.log('💰 Creando paquetes de hospitalización...');
+  
+  const paquetes = [
+    {
+      nombre: 'UCI Adultos',
+      descripcion: 'Cuidados intensivos para adultos. Incluye: monitoreo 24/7, enfermería especializada, equipos de soporte vital.',
+      tipoUnidad: 'UCI',
+      precioDia: 2500000, // $2,500,000 COP
+      incluye: 'Habitación privada, monitoreo continuo, medicamentos básicos, alimentación, aseo, servicios de enfermería',
+      activo: true,
+    },
+    {
+      nombre: 'Observación General',
+      descripcion: 'Unidad de observación para pacientes estables. Incluye: vigilancia médica, enfermería.',
+      tipoUnidad: 'Observación',
+      precioDia: 800000, // $800,000 COP
+      incluye: 'Habitación compartida, monitoreo básico, alimentación, aseo, servicios de enfermería',
+      activo: true,
+    },
+    {
+      nombre: 'Hospitalización General',
+      descripcion: 'Hospitalización estándar. Incluye: habitación, alimentación, cuidados básicos.',
+      tipoUnidad: 'Hospitalización General',
+      precioDia: 500000, // $500,000 COP
+      incluye: 'Habitación compartida o privada, alimentación tres veces al día, aseo, servicios de enfermería',
+      activo: true,
+    },
+    {
+      nombre: 'Pediatría',
+      descripcion: 'Hospitalización pediátrica especializada. Incluye: cuidados pediátricos especializados.',
+      tipoUnidad: 'Pediatría',
+      precioDia: 600000, // $600,000 COP
+      incluye: 'Habitación con espacio para acompañante, alimentación especial, juegos, servicios de enfermería pediátrica',
+      activo: true,
+    },
+  ];
+
+  const paquetesCreados = [];
+  for (const paquete of paquetes) {
+    const created = await prisma.paqueteHospitalizacion.create({
+      data: paquete,
+    });
+    paquetesCreados.push(created);
+  }
+
+  console.log(`✅ ${paquetesCreados.length} paquetes de hospitalización creados`);
+  return paquetesCreados;
+}
+
 async function main() {
   try {
     console.log('🌱 Iniciando seeders...\n');
@@ -555,6 +605,7 @@ async function main() {
     const categoriasExamenes = await seedCategoriasExamenes();
     await seedExamenes(categoriasExamenes);
     await seedHospitalizacion();
+    await seedPaquetesHospitalizacion();
     // await seedFarmacia(); // Omitido por complejidad del schema
     
     console.log('\n✅ ¡Seeders completados exitosamente!');
