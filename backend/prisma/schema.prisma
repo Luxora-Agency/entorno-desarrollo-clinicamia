@@ -443,6 +443,10 @@ model Movimiento {
 
   // Relaciones
   admision              Admision          @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+  unidadOrigen          Unidad?           @relation("MovimientoUnidadOrigen", fields: [unidadOrigenId], references: [id])
+  unidadDestino         Unidad?           @relation("MovimientoUnidadDestino", fields: [unidadDestinoId], references: [id])
+  camaOrigen            Cama?             @relation("MovimientoCamaOrigen", fields: [camaOrigenId], references: [id])
+  camaDestino           Cama?             @relation("MovimientoCamaDestino", fields: [camaDestinoId], references: [id])
 
   @@map("movimientos")
 }
