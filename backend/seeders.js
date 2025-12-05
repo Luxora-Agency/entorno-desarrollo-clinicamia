@@ -12,6 +12,13 @@ async function clearDatabase() {
   console.log('🗑️  Limpiando datos existentes...');
   
   // Eliminar en orden para respetar relaciones
+  await prisma.pago.deleteMany();
+  await prisma.facturaItem.deleteMany();
+  await prisma.factura.deleteMany();
+  await prisma.ordenMedicamentoItem.deleteMany();
+  await prisma.ordenMedicamento.deleteMany();
+  await prisma.ordenMedica.deleteMany();
+  await prisma.paqueteHospitalizacion.deleteMany();
   await prisma.movimiento.deleteMany();
   await prisma.admision.deleteMany();
   await prisma.cama.deleteMany();
