@@ -62,116 +62,92 @@ export default function PanelPaciente({ paciente, onEdit }) {
           </div>
 
           {/* Información Básica - Grid Horizontal */}
-          <div className="flex-1 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 border-l-0 lg:border-l pl-0 lg:pl-6">
-          <div className="flex items-center gap-3 text-sm">
-            <Calendar className="w-4 h-4 text-gray-400" />
-            <div>
-              <span className="text-gray-600">Edad:</span>
-              <span className="ml-2 font-semibold text-gray-900">
+          <div className="flex-1 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 border-l-0 lg:border-l pl-0 lg:pl-6">
+            <div className="text-sm">
+              <div className="flex items-center gap-2 text-gray-600 mb-1">
+                <Calendar className="w-3 h-3" />
+                <span className="text-xs">Edad</span>
+              </div>
+              <p className="font-semibold text-gray-900">
                 {calcularEdad(paciente.fechaNacimiento)}
-              </span>
+              </p>
             </div>
-          </div>
 
-          <div className="flex items-center gap-3 text-sm">
-            <User className="w-4 h-4 text-gray-400" />
-            <div>
-              <span className="text-gray-600">Género:</span>
-              <span className="ml-2 font-semibold text-gray-900">
+            <div className="text-sm">
+              <div className="flex items-center gap-2 text-gray-600 mb-1">
+                <User className="w-3 h-3" />
+                <span className="text-xs">Género</span>
+              </div>
+              <p className="font-semibold text-gray-900">
                 {paciente.genero || 'N/A'}
-              </span>
+              </p>
             </div>
-          </div>
 
-          {paciente.telefono && (
-            <div className="flex items-center gap-3 text-sm">
-              <Phone className="w-4 h-4 text-gray-400" />
-              <div>
-                <span className="text-gray-600">Teléfono:</span>
-                <span className="ml-2 font-semibold text-gray-900">
+            {paciente.telefono && (
+              <div className="text-sm">
+                <div className="flex items-center gap-2 text-gray-600 mb-1">
+                  <Phone className="w-3 h-3" />
+                  <span className="text-xs">Teléfono</span>
+                </div>
+                <p className="font-semibold text-gray-900">
                   {paciente.telefono}
-                </span>
+                </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {paciente.email && (
-            <div className="flex items-center gap-3 text-sm">
-              <Mail className="w-4 h-4 text-gray-400" />
-              <div className="truncate">
-                <span className="text-gray-600">Email:</span>
-                <span className="ml-2 font-semibold text-gray-900 truncate">
-                  {paciente.email}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {paciente.eps && (
-            <div className="flex items-center gap-3 text-sm">
-              <Heart className="w-4 h-4 text-gray-400" />
-              <div>
-                <span className="text-gray-600">EPS:</span>
-                <span className="ml-2 font-semibold text-gray-900">
+            {paciente.eps && (
+              <div className="text-sm">
+                <div className="flex items-center gap-2 text-gray-600 mb-1">
+                  <Heart className="w-3 h-3" />
+                  <span className="text-xs">EPS</span>
+                </div>
+                <p className="font-semibold text-gray-900 truncate">
                   {paciente.eps}
-                </span>
+                </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {paciente.tipoSangre && (
-            <div className="flex items-center gap-3 text-sm">
-              <div className="w-4 h-4 flex items-center justify-center">
-                <div className="w-2 h-2 rounded-full bg-red-500"></div>
-              </div>
-              <div>
-                <span className="text-gray-600">Tipo de Sangre:</span>
-                <Badge className="ml-2 bg-red-100 text-red-700 border-red-200">
+            {paciente.tipoSangre && (
+              <div className="text-sm">
+                <div className="flex items-center gap-2 text-gray-600 mb-1">
+                  <div className="w-3 h-3 flex items-center justify-center">
+                    <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                  </div>
+                  <span className="text-xs">Sangre</span>
+                </div>
+                <Badge className="bg-red-100 text-red-700 border-red-200">
                   {paciente.tipoSangre}
                 </Badge>
               </div>
-            </div>
-          )}
+            )}
 
-          {paciente.direccion && (
-            <div className="flex items-start gap-3 text-sm">
-              <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <span className="text-gray-600">Dirección:</span>
-                <p className="font-semibold text-gray-900 break-words">
-                  {paciente.direccion}
+            {(paciente.peso || paciente.altura) && (
+              <div className="text-sm">
+                <div className="flex items-center gap-2 text-gray-600 mb-1">
+                  <Activity className="w-3 h-3" />
+                  <span className="text-xs">Vitales</span>
+                </div>
+                <p className="font-semibold text-gray-900 text-xs">
+                  {paciente.peso && `${paciente.peso} kg`}
+                  {paciente.peso && paciente.altura && ' / '}
+                  {paciente.altura && `${paciente.altura} m`}
                 </p>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Información Médica Resumida */}
-        {(paciente.peso || paciente.altura) && (
-          <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
-            <h4 className="text-xs font-semibold text-emerald-900 mb-2">
-              Datos Vitales
-            </h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {paciente.peso && (
-                <div>
-                  <span className="text-gray-600">Peso:</span>
-                  <span className="ml-1 font-semibold text-gray-900">
-                    {paciente.peso} kg
-                  </span>
-                </div>
-              )}
-              {paciente.altura && (
-                <div>
-                  <span className="text-gray-600">Altura:</span>
-                  <span className="ml-1 font-semibold text-gray-900">
-                    {paciente.altura} m
-                  </span>
-                </div>
-              )}
-            </div>
+            )}
           </div>
-        )}
+
+          {/* Botón Editar */}
+          <div className="flex items-center justify-end flex-shrink-0">
+            <Button
+              onClick={onEdit}
+              variant="outline"
+              className="border-emerald-600 text-emerald-700 hover:bg-emerald-50"
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Editar Paciente
+            </Button>
+          </div>
+        </div>
       </CardContent>
     </Card>
   );
