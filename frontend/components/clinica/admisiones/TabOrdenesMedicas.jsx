@@ -314,9 +314,26 @@ export default function TabOrdenesMedicas({ pacienteId, paciente }) {
                         <SelectValue placeholder="Seleccione..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {examenes.map((examen) => (
+                        <div className="px-2 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50">
+                          EXÁMENES
+                        </div>
+                        {examenes.filter(e => e.tipo === 'Examen').map((examen) => (
                           <SelectItem key={examen.id} value={examen.id}>
-                            {examen.nombre} - {formatCurrency(examen.costoBase)}
+                            <div className="flex items-center gap-2">
+                              <span className="text-blue-500">🔬</span>
+                              {examen.nombre} - {formatCurrency(examen.costoBase)}
+                            </div>
+                          </SelectItem>
+                        ))}
+                        <div className="px-2 py-1.5 text-xs font-semibold text-purple-600 bg-purple-50 mt-2">
+                          PROCEDIMIENTOS
+                        </div>
+                        {examenes.filter(e => e.tipo === 'Procedimiento').map((examen) => (
+                          <SelectItem key={examen.id} value={examen.id}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-purple-500">⚕️</span>
+                              {examen.nombre} - {formatCurrency(examen.costoBase)}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
