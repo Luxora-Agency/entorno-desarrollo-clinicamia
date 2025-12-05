@@ -73,6 +73,7 @@ app.route('/examenes-procedimientos', examenProcedimiento);
 app.route('/categorias-productos', categoriaProducto);
 app.route('/etiquetas-productos', etiquetaProducto);
 app.route('/productos', productos);
+app.route('/documentos-paciente', documentosPaciente);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
