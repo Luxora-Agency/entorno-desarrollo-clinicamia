@@ -249,6 +249,7 @@ model ExamenProcedimiento {
   updatedAt           DateTime          @updatedAt @map("updated_at")
 
   categoria           CategoriaExamen?  @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+  ordenesMedicas      OrdenMedica[]
 
   @@map("examenes_procedimientos")
 }
