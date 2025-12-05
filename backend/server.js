@@ -17,6 +17,7 @@ const examenProcedimiento = require('./routes/examenProcedimiento');
 const categoriaProducto = require('./routes/categoriaProducto');
 const etiquetaProducto = require('./routes/etiquetaProducto');
 const productos = require('./routes/productos');
+const documentosPaciente = require('./routes/documentosPaciente');
 
 const app = new Hono();
 
