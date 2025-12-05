@@ -362,20 +362,34 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
 
       if (response.ok) {
         const result = await response.json();
-        const paciente = result.data?.paciente || result.data || result;
         
-        console.log('Paciente creado:', paciente); // Debug
+        // La respuesta tiene esta estructura: result.data.paciente
+        let pacienteId = null;
+        let pacienteData = null;
+        
+        if (result.data && result.data.paciente) {
+          pacienteData = result.data.paciente;
+          pacienteId = result.data.paciente.id;
+        } else if (result.data && result.data.id) {
+          pacienteData = result.data;
+          pacienteId = result.data.id;
+        } else if (result.id) {
+          pacienteData = result;
+          pacienteId = result.id;
+        }
+        
+        console.log('Paciente guardado - ID:', pacienteId); // Debug
         
         // Subir documentos si hay alguno
-        if (documentos.length > 0 && paciente?.id) {
+        if (documentos.length > 0 && pacienteId) {
           setUploadingDocuments(true);
-          await uploadDocuments(paciente.id, token, apiUrl);
+          await uploadDocuments(pacienteId, token, apiUrl);
           setUploadingDocuments(false);
         }
         
         // Guardar datos del paciente para el modal
         setSavedPaciente({
-          id: paciente?.id,
+          id: pacienteId || (editingPaciente ? editingPaciente.id : null),
           nombre: `${formData.nombres} ${formData.apellidos}`
         });
         
