@@ -143,9 +143,12 @@ model Cita {
   updatedAt       DateTime     @updatedAt @map("updated_at")
   
   // Relaciones
-  paciente        Paciente     @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
-  doctor          Usuario      @relation("CitasDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
-  especialidad    Especialidad? @relation(fields: [especialidadId], references: [id])
+  paciente            Paciente          @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  doctor              Usuario           @relation("CitasDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  especialidad        Especialidad?     @relation(fields: [especialidadId], references: [id])
+  ordenesMedicas      OrdenMedica[]
+  ordenesMedicamentos OrdenMedicamento[]
+  itemsFactura        FacturaItem[]
 
   @@map("citas")
 }
