@@ -321,6 +321,7 @@ model Producto {
   // Relaciones
   categoria                   CategoriaProducto @relation(fields: [categoriaId], references: [id])
   etiquetas                   ProductoEtiqueta[]
+  ordenesItems                OrdenMedicamentoItem[]
 
   @@map("productos")
 }
