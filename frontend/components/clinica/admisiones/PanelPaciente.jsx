@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Edit, User, Phone, Mail, Heart, Calendar, MapPin } from 'lucide-react';
+import { Edit, User, Phone, Mail, Heart, Calendar, Activity } from 'lucide-react';
 
 export default function PanelPaciente({ paciente, onEdit }) {
   if (!paciente) return null;
@@ -19,15 +19,6 @@ export default function PanelPaciente({ paciente, onEdit }) {
       edad--;
     }
     return `${edad} años`;
-  };
-
-  const formatDate = (date) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
   };
 
   return (
