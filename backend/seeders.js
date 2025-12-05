@@ -12,6 +12,11 @@ async function clearDatabase() {
   console.log('🗑️  Limpiando datos existentes...');
   
   // Eliminar en orden para respetar relaciones
+  await prisma.movimiento.deleteMany();
+  await prisma.admision.deleteMany();
+  await prisma.cama.deleteMany();
+  await prisma.habitacion.deleteMany();
+  await prisma.unidad.deleteMany();
   await prisma.cita.deleteMany();
   await prisma.examenProcedimiento.deleteMany();
   await prisma.categoriaExamen.deleteMany();
