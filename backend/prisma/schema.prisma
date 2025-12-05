@@ -114,6 +114,7 @@ model Paciente {
   
   // Relaciones
   citas                          Cita[]
+  documentos                     DocumentoPaciente[]
 
   @@map("pacientes")
 }
