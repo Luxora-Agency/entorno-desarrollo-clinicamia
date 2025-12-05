@@ -167,10 +167,12 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                     <Stethoscope className="w-4 h-4" />
                     <span>Doctores</span>
                   </div>
-                  <ChevronDown className={`w-4 h-4 transition-transform ${isDoctoresOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isDoctoresOpen ? 'rotate-180' : ''}`} />
                 </button>
                 
-                {isDoctoresOpen && (
+                <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                  isDoctoresOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                }`}>
                   <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
                     <button
                       onClick={() => {
