@@ -1033,6 +1033,102 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                 </div>
               </div>
             )}
+
+            {/* PASO 5 - DOCUMENTOS */}
+            {currentStep === 5 && (
+              <div className="space-y-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <FileText className="w-6 h-6 text-blue-600" />
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Documentos del Paciente</h3>
+                    <p className="text-sm text-gray-600">Sube documentos importantes como historia clínica, exámenes, consentimientos, etc.</p>
+                  </div>
+                </div>
+
+                {/* Zona de subida */}
+                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:border-blue-400 hover:bg-blue-50 transition-all">
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                    Arrastra archivos aquí o haz clic para seleccionar
+                  </h4>
+                  <p className="text-sm text-gray-600 mb-4">
+                    Tamaño máximo por archivo: 10MB. Todos los formatos son aceptados.
+                  </p>
+                  <input
+                    type="file"
+                    multiple
+                    id="file-upload"
+                    className="hidden"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      files.forEach(file => {
+                        if (file.size > 10 * 1024 * 1024) {
+                          alert(`El archivo ${file.name} excede el tamaño máximo de 10MB`);
+                          return;
+                        }
+                        setDocumentos(prev => [...prev, { file, preview: URL.createObjectURL(file) }]);
+                      });
+                      e.target.value = '';
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    onClick={() => document.getElementById('file-upload').click()}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Seleccionar Archivos
+                  </Button>
+                </div>
+
+                {/* Lista de documentos */}
+                {documentos.length > 0 && (
+                  <div className="space-y-3">
+                    <h4 className="text-base font-semibold text-gray-900">
+                      Archivos seleccionados ({documentos.length})
+                    </h4>
+                    {documentos.map((doc, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-all"
+                      >
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">
+                              {doc.file.name}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {(doc.file.size / 1024).toFixed(2)} KB
+                            </p>
+                          </div>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            URL.revokeObjectURL(doc.preview);
+                            setDocumentos(prev => prev.filter((_, i) => i !== index));
+                          }}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {documentos.length === 0 && (
+                  <div className="text-center py-8 text-gray-500 text-sm">
+                    No hay documentos seleccionados. Puedes continuar sin subir documentos si lo deseas.
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
