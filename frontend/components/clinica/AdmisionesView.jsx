@@ -130,11 +130,11 @@ export default function AdmisionesView({ user }) {
               </TabsContent>
 
               <TabsContent value="historia" className="mt-6">
-                <TabHistoria pacienteId={pacienteId} user={user} />
+                <TabHistoria pacienteId={pacienteId} paciente={paciente} />
               </TabsContent>
 
               <TabsContent value="facturacion" className="mt-6">
-                <TabFacturacion pacienteId={pacienteId} user={user} />
+                <TabFacturacion pacienteId={pacienteId} paciente={paciente} />
               </TabsContent>
             </Tabs>
           </div>
