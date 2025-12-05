@@ -64,6 +64,11 @@ app.get('/', (c) => {
       camas: '/camas',
       admisiones: '/admisiones',
       movimientos: '/movimientos',
+      // Facturación y órdenes
+      ordenesMedicas: '/ordenes-medicas',
+      ordenesMedicamentos: '/ordenes-medicamentos',
+      facturas: '/facturas',
+      paquetesHospitalizacion: '/paquetes-hospitalizacion',
     }
   });
 });
