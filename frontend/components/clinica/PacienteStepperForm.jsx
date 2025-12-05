@@ -12,10 +12,13 @@ import { Textarea } from '@/components/ui/textarea';
 import epsData from '@/data/eps.json';
 import regimenesData from '@/data/regimenes.json';
 import colombiaData from '@/data/colombia.json';
+import SuccessModal from './SuccessModal';
 
 export default function PacienteStepperForm({ user, editingPaciente, onBack, onSuccess }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [savedPaciente, setSavedPaciente] = useState(null);
 
   // Form data
   const [formData, setFormData] = useState({
