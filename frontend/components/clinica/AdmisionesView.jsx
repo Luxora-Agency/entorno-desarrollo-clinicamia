@@ -94,7 +94,7 @@ export default function AdmisionesView({ user }) {
 
             {/* Contenido Principal con Tabs */}
             <Tabs defaultValue="informacion" className="w-full">
-              <TabsList className="grid w-full grid-cols-3 lg:grid-cols-6 h-auto">
+              <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto">
                 <TabsTrigger value="informacion" className="text-xs lg:text-sm">
                   Información
                 </TabsTrigger>
@@ -106,6 +106,12 @@ export default function AdmisionesView({ user }) {
                 </TabsTrigger>
                 <TabsTrigger value="movimientos" className="text-xs lg:text-sm">
                   Movimientos
+                </TabsTrigger>
+                <TabsTrigger value="ordenes-medicas" className="text-xs lg:text-sm">
+                  Órdenes Médicas
+                </TabsTrigger>
+                <TabsTrigger value="ordenes-medicamentos" className="text-xs lg:text-sm">
+                  Medicamentos
                 </TabsTrigger>
                 <TabsTrigger value="historia" className="text-xs lg:text-sm">
                   Historia
