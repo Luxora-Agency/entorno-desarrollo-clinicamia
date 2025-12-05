@@ -322,8 +322,17 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
       });
 
       if (response.ok) {
-        alert(editingPaciente ? 'Paciente actualizado exitosamente' : 'Paciente creado exitosamente');
-        onSuccess();
+        const result = await response.json();
+        const paciente = result.data || result;
+        
+        // Guardar datos del paciente para el modal
+        setSavedPaciente({
+          id: paciente.id,
+          nombre: `${formData.nombres} ${formData.apellidos}`
+        });
+        
+        // Mostrar modal de éxito
+        setShowSuccessModal(true);
       } else {
         const error = await response.json();
         alert(error.error || 'Error al guardar el paciente');
@@ -331,6 +340,14 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
     } catch (error) {
       console.error('Error:', error);
       alert('Error al guardar el paciente');
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowSuccessModal(false);
+    // Si el usuario cierra el modal sin elegir, ir a la lista por defecto
+    if (onSuccess) {
+      onSuccess();
     }
   };
 
