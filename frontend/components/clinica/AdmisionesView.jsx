@@ -137,6 +137,14 @@ export default function AdmisionesView({ user }) {
                 <TabMovimientos pacienteId={pacienteId} user={user} />
               </TabsContent>
 
+              <TabsContent value="ordenes-medicas" className="mt-6">
+                <TabOrdenesMedicas pacienteId={pacienteId} paciente={paciente} />
+              </TabsContent>
+
+              <TabsContent value="ordenes-medicamentos" className="mt-6">
+                <TabOrdenesMedicamentos pacienteId={pacienteId} paciente={paciente} />
+              </TabsContent>
+
               <TabsContent value="historia" className="mt-6">
                 <TabHistoria pacienteId={pacienteId} paciente={paciente} />
               </TabsContent>
