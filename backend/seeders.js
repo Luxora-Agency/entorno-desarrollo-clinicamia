@@ -451,6 +451,92 @@ async function seedCitas(pacientes, doctores, especialidades) {
   return created;
 }
 
+async function seedHospitalizacion() {
+  console.log('🏥 Seeding hospitalización...');
+
+  // Crear unidades
+  const unidades = [
+    {
+      id: crypto.randomUUID(),
+      nombre: 'UCI',
+      descripcion: 'Unidad de Cuidados Intensivos',
+      tipo: 'UCI',
+      capacidad: 20,
+      activo: true,
+    },
+    {
+      id: crypto.randomUUID(),
+      nombre: 'Hospitalización General',
+      descripcion: 'Área de hospitalización general',
+      tipo: 'Hospitalización',
+      capacidad: 50,
+      activo: true,
+    },
+    {
+      id: crypto.randomUUID(),
+      nombre: 'Observación',
+      descripcion: 'Sala de observación y emergencias',
+      tipo: 'Observación',
+      capacidad: 15,
+      activo: true,
+    },
+  ];
+
+  const unidadesCreadas = [];
+  for (const unidad of unidades) {
+    const created = await prisma.unidad.create({ data: unidad });
+    unidadesCreadas.push(created);
+  }
+  console.log(`✅ ${unidadesCreadas.length} unidades creadas`);
+
+  // Crear habitaciones
+  const habitaciones = [];
+  unidadesCreadas.forEach((unidad, index) => {
+    // 3 habitaciones por unidad
+    for (let i = 1; i <= 3; i++) {
+      habitaciones.push({
+        id: crypto.randomUUID(),
+        numero: `${(index + 1) * 100 + i}`,
+        unidadId: unidad.id,
+        piso: index + 1,
+        capacidadCamas: 2,
+        activo: true,
+      });
+    }
+  });
+
+  const habitacionesCreadas = [];
+  for (const habitacion of habitaciones) {
+    const created = await prisma.habitacion.create({ data: habitacion });
+    habitacionesCreadas.push(created);
+  }
+  console.log(`✅ ${habitacionesCreadas.length} habitaciones creadas`);
+
+  // Crear camas
+  const camas = [];
+  habitacionesCreadas.forEach((habitacion) => {
+    // 2 camas por habitación
+    for (let i = 1; i <= 2; i++) {
+      camas.push({
+        id: crypto.randomUUID(),
+        numero: `${habitacion.numero}-${String.fromCharCode(64 + i)}`, // 101-A, 101-B
+        habitacionId: habitacion.id,
+        estado: 'Disponible',
+        observaciones: null,
+      });
+    }
+  });
+
+  const camasCreadas = [];
+  for (const cama of camas) {
+    const created = await prisma.cama.create({ data: cama });
+    camasCreadas.push(created);
+  }
+  console.log(`✅ ${camasCreadas.length} camas creadas`);
+
+  return { unidades: unidadesCreadas, habitaciones: habitacionesCreadas, camas: camasCreadas };
+}
+
 async function main() {
   try {
     console.log('🌱 Iniciando seeders...\n');
@@ -463,6 +549,7 @@ async function main() {
     const pacientes = await seedPacientes();
     const categoriasExamenes = await seedCategoriasExamenes();
     await seedExamenes(categoriasExamenes);
+    await seedHospitalizacion();
     // await seedFarmacia(); // Omitido por complejidad del schema
     
     console.log('\n✅ ¡Seeders completados exitosamente!');
