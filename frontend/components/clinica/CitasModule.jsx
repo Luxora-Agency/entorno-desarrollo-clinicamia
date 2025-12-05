@@ -193,15 +193,16 @@ export default function CitasModule({ user }) {
   const resetForm = () => {
     setFormData({
       paciente_id: '',
+      especialidad_id: '',
       doctor_id: '',
-      tipoServicio: '',
-      servicioId: '',
       fecha: new Date().toISOString().split('T')[0],
       hora: '',
+      duracion_minutos: '',
+      costo: '',
       motivo: '',
       notas: '',
     });
-    setSelectedServicio(null);
+    setDoctoresFiltrados([]);
     setEditingCita(null);
   };
 
