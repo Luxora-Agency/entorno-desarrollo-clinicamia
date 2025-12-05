@@ -17,12 +17,15 @@ import FarmaciaModule from './FarmaciaModule';
 import CategoriasProductosModule from './CategoriasProductosModule';
 import EtiquetasProductosModule from './EtiquetasProductosModule';
 import AdmisionesView from './AdmisionesView';
+import PacienteStepperForm from './PacienteStepperForm';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeModule, setActiveModule] = useState('dashboard');
   const [editingDoctor, setEditingDoctor] = useState(null);
+  const [editingPaciente, setEditingPaciente] = useState(null);
+  const [loadingPaciente, setLoadingPaciente] = useState(false);
 
   // Sincronizar con la URL
   useEffect(() => {
