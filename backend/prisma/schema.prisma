@@ -478,5 +478,223 @@ enum TipoMovimiento {
   CambioCama
   CambioUnidad
   Egreso
+}
 
+// ===================================
+// MÓDULO DE FACTURACIÓN Y ÓRDENES
+// ===================================
+
+enum EstadoOrdenMedica {
+  Pendiente
+  EnProceso
+  Completada
+  Cancelada
+}
+
+enum PrioridadOrden {
+  Normal
+  Urgente
+}
+
+enum EstadoOrdenMedicamento {
+  Pendiente
+  Preparada
+  Despachada
+  Cancelada
+}
+
+enum EstadoFactura {
+  Pendiente
+  Parcial
+  Pagada
+  Cancelada
+  Vencida
+}
+
+enum TipoItemFactura {
+  Consulta
+  OrdenMedica
+  OrdenMedicamento
+  Hospitalizacion
+  Otro
+}
+
+enum MetodoPago {
+  Efectivo
+  Tarjeta
+  Transferencia
+  EPS
+  Otro
+}
+
+// Paquetes de hospitalización por tipo de unidad
+model PaqueteHospitalizacion {
+  id                String    @id @default(uuid())
+  nombre            String    // "UCI Adultos", "Hospitalización General", etc.
+  descripcion       String?
+  tipoUnidad        String    // Debe coincidir con Unidad.tipo
+  precioDia         Decimal   @map("precio_dia") @db.Decimal(10, 2)
+  incluye           String?   @db.Text // Descripción de lo que incluye
+  activo            Boolean   @default(true)
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@map("paquetes_hospitalizacion")
+}
+
+// Órdenes médicas (exámenes y procedimientos)
+model OrdenMedica {
+  id                        String              @id @default(uuid())
+  pacienteId                String              @map("paciente_id")
+  citaId                    String?             @map("cita_id")
+  admisionId                String?             @map("admision_id")
+  examenProcedimientoId     String              @map("examen_procedimiento_id") @db.Uuid
+  doctorId                  String              @map("doctor_id") @db.Uuid
+  estado                    EstadoOrdenMedica   @default(Pendiente)
+  prioridad                 PrioridadOrden      @default(Normal)
+  observaciones             String?             @db.Text
+  resultados                String?             @db.Text
+  archivoResultado          String?             @map("archivo_resultado")
+  precioAplicado            Decimal             @map("precio_aplicado") @db.Decimal(10, 2)
+  fechaOrden                DateTime            @default(now()) @map("fecha_orden")
+  fechaEjecucion            DateTime?           @map("fecha_ejecucion")
+  ejecutadoPor              String?             @map("ejecutado_por") @db.Uuid
+  createdAt                 DateTime            @default(now()) @map("created_at")
+  updatedAt                 DateTime            @updatedAt @map("updated_at")
+
+  paciente                  Paciente            @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  cita                      Cita?               @relation(fields: [citaId], references: [id])
+  admision                  Admision?           @relation(fields: [admisionId], references: [id])
+  examenProcedimiento       ExamenProcedimiento @relation(fields: [examenProcedimientoId], references: [id])
+  doctor                    Usuario             @relation("OrdenMedicaDoctor", fields: [doctorId], references: [id])
+  ejecutador                Usuario?            @relation("OrdenMedicaEjecutor", fields: [ejecutadoPor], references: [id])
+  itemsFactura              FacturaItem[]
+
+  @@map("ordenes_medicas")
+}
+
+// Órdenes de medicamentos
+model OrdenMedicamento {
+  id                String                    @id @default(uuid())
+  pacienteId        String                    @map("paciente_id")
+  citaId            String?                   @map("cita_id")
+  admisionId        String?                   @map("admision_id")
+  doctorId          String                    @map("doctor_id") @db.Uuid
+  estado            EstadoOrdenMedicamento    @default(Pendiente)
+  observaciones     String?                   @db.Text
+  recetaDigital     String?                   @map("receta_digital") @db.Text // Indicaciones generales
+  archivoReceta     String?                   @map("archivo_receta") // URL del PDF de receta
+  total             Decimal                   @db.Decimal(10, 2)
+  fechaOrden        DateTime                  @default(now()) @map("fecha_orden")
+  fechaDespacho     DateTime?                 @map("fecha_despacho")
+  despachadoPor     String?                   @map("despachado_por") @db.Uuid
+  createdAt         DateTime                  @default(now()) @map("created_at")
+  updatedAt         DateTime                  @updatedAt @map("updated_at")
+
+  paciente          Paciente                  @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  cita              Cita?                     @relation(fields: [citaId], references: [id])
+  admision          Admision?                 @relation(fields: [admisionId], references: [id])
+  doctor            Usuario                   @relation("OrdenMedicamentoDoctor", fields: [doctorId], references: [id])
+  despachador       Usuario?                  @relation("OrdenMedicamentoDespachador", fields: [despachadoPor], references: [id])
+  items             OrdenMedicamentoItem[]
+  itemsFactura      FacturaItem[]
+
+  @@map("ordenes_medicamentos")
+}
+
+// Items de una orden de medicamento
+model OrdenMedicamentoItem {
+  id                    String              @id @default(uuid())
+  ordenMedicamentoId    String              @map("orden_medicamento_id")
+  productoId            String              @map("producto_id")
+  cantidad              Int
+  precioUnitario        Decimal             @map("precio_unitario") @db.Decimal(10, 2)
+  descuento             Decimal             @default(0) @db.Decimal(10, 2)
+  subtotal              Decimal             @db.Decimal(10, 2)
+  indicaciones          String?             @db.Text // "1 tableta cada 8 horas por 7 días"
+  createdAt             DateTime            @default(now()) @map("created_at")
+
+  ordenMedicamento      OrdenMedicamento    @relation(fields: [ordenMedicamentoId], references: [id], onDelete: Cascade)
+  producto              Producto            @relation(fields: [productoId], references: [id])
+
+  @@map("ordenes_medicamentos_items")
+}
+
+// Facturas
+model Factura {
+  id                String          @id @default(uuid())
+  numero            String          @unique // Ej: "F-2025-00001"
+  pacienteId        String          @map("paciente_id")
+  estado            EstadoFactura   @default(Pendiente)
+  subtotal          Decimal         @db.Decimal(10, 2)
+  descuentos        Decimal         @default(0) @db.Decimal(10, 2)
+  impuestos         Decimal         @default(0) @db.Decimal(10, 2)
+  total             Decimal         @db.Decimal(10, 2)
+  saldoPendiente    Decimal         @map("saldo_pendiente") @db.Decimal(10, 2)
+  observaciones     String?         @db.Text
+  
+  // Información EPS
+  cubiertoPorEPS    Boolean         @default(false) @map("cubierto_por_eps")
+  epsAutorizacion   String?         @map("eps_autorizacion")
+  montoEPS          Decimal?        @map("monto_eps") @db.Decimal(10, 2)
+  montoPaciente     Decimal?        @map("monto_paciente") @db.Decimal(10, 2)
+  
+  fechaEmision      DateTime        @default(now()) @map("fecha_emision")
+  fechaVencimiento  DateTime?       @map("fecha_vencimiento")
+  creadaPor         String?         @map("creada_por") @db.Uuid
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  paciente          Paciente        @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  creador           Usuario?        @relation(fields: [creadaPor], references: [id])
+  items             FacturaItem[]
+  pagos             Pago[]
+
+  @@map("facturas")
+}
+
+// Items de factura
+model FacturaItem {
+  id                    String              @id @default(uuid())
+  facturaId             String              @map("factura_id")
+  tipo                  TipoItemFactura
+  descripcion           String
+  cantidad              Int                 @default(1)
+  precioUnitario        Decimal             @map("precio_unitario") @db.Decimal(10, 2)
+  descuento             Decimal             @default(0) @db.Decimal(10, 2)
+  subtotal              Decimal             @db.Decimal(10, 2)
+  
+  // Referencias opcionales según tipo
+  citaId                String?             @map("cita_id")
+  ordenMedicaId         String?             @map("orden_medica_id")
+  ordenMedicamentoId    String?             @map("orden_medicamento_id")
+  admisionId            String?             @map("admision_id")
+  
+  createdAt             DateTime            @default(now()) @map("created_at")
+
+  factura               Factura             @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  cita                  Cita?               @relation(fields: [citaId], references: [id])
+  ordenMedica           OrdenMedica?        @relation(fields: [ordenMedicaId], references: [id])
+  ordenMedicamento      OrdenMedicamento?   @relation(fields: [ordenMedicamentoId], references: [id])
+  admision              Admision?           @relation(fields: [admisionId], references: [id])
+
+  @@map("facturas_items")
+}
+
+// Pagos
+model Pago {
+  id                String        @id @default(uuid())
+  facturaId         String        @map("factura_id")
+  monto             Decimal       @db.Decimal(10, 2)
+  metodoPago        MetodoPago    @map("metodo_pago")
+  referencia        String?       // Número de transacción, cheque, etc.
+  observaciones     String?       @db.Text
+  fechaPago         DateTime      @default(now()) @map("fecha_pago")
+  registradoPor     String?       @map("registrado_por") @db.Uuid
+  createdAt         DateTime      @default(now()) @map("created_at")
+
+  factura           Factura       @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  registrador       Usuario?      @relation(fields: [registradoPor], references: [id])
+
+  @@map("pagos")
 }
