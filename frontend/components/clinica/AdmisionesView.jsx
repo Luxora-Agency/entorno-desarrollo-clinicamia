@@ -1,9 +1,11 @@
 'use client';
 
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import BuscadorPacientes from './admisiones/BuscadorPacientes';
 
 export default function AdmisionesView({ user }) {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const pacienteId = searchParams.get('pacienteId');
   const [paciente, setPaciente] = useState(null);
@@ -28,7 +30,7 @@ export default function AdmisionesView({ user }) {
 
         if (response.ok) {
           const result = await response.json();
-          setPaciente(result.data || result);
+          setPaciente(result.data?.paciente || result.data || result);
         }
       } catch (error) {
         console.error('Error al cargar paciente:', error);
@@ -40,13 +42,15 @@ export default function AdmisionesView({ user }) {
     fetchPaciente();
   }, [pacienteId]);
 
+  const handleSelectPaciente = (id) => {
+    router.push(`/?module=admisiones&pacienteId=${id}`);
+  };
+
+  // Mostrar buscador si no hay paciente seleccionado
   if (!pacienteId) {
     return (
-      <div className="p-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Vista de Admisiones</h1>
-          <p className="text-gray-600">No se ha seleccionado ningún paciente.</p>
-        </div>
+      <div className="p-6 lg:p-8 bg-gray-50 min-h-screen">
+        <BuscadorPacientes onSelectPaciente={handleSelectPaciente} />
       </div>
     );
   }
