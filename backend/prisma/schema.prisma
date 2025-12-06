@@ -487,6 +487,51 @@ model Movimiento {
   @@map("movimientos")
 }
 
+model Egreso {
+  id                       String                @id @default(uuid())
+  admisionId               String                @unique @map("admision_id")
+  fechaEgreso              DateTime              @default(now()) @map("fecha_egreso")
+  horaEgreso               DateTime              @default(now()) @map("hora_egreso")
+  diagnosticoSalida        String                @map("diagnostico_salida") // Código CIE-10/11
+  descripcionDiagnostico   String                @map("descripcion_diagnostico")
+  resumenClinico           String                @db.Text @map("resumen_clinico")
+  tratamientoDomiciliario  String?               @db.Text @map("tratamiento_domiciliario")
+  recomendaciones          String?               @db.Text
+  profesionalResponsableId String                @map("profesional_responsable_id") @db.Uuid
+  tipoEgreso               TipoEgreso            @map("tipo_egreso")
+  estadoPaciente           EstadoPacienteEgreso  @map("estado_paciente")
+  requiereControl          Boolean               @default(false) @map("requiere_control")
+  fechaControl             DateTime?             @map("fecha_control") @db.Date
+  observaciones            String?               @db.Text
+  firmaDigital             String?               @map("firma_digital") // Hash de la firma
+  createdAt                DateTime              @default(now()) @map("created_at")
+  updatedAt                DateTime              @updatedAt @map("updated_at")
+
+  // Relaciones
+  admision                 Admision              @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+
+  @@map("egresos")
+}
+
+model DocumentoPaciente {
+  id              String    @id @default(uuid())
+  pacienteId      String    @map("paciente_id")
+  nombreArchivo   String    @map("nombre_archivo")
+  tipoDocumento   String    @map("tipo_documento") // "cedula", "autorizacion", "historia", "resultado_examen", "otro"
+  rutaArchivo     String    @map("ruta_archivo")
+  tamanoBytes     Int       @map("tamano_bytes")
+  mimeType        String    @map("mime_type")
+  descripcion     String?
+  subidoPor       String    @map("subido_por") @db.Uuid
+  fechaSubida     DateTime  @default(now()) @map("fecha_subida")
+  activo          Boolean   @default(true)
+
+  // Relaciones
+  paciente        Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+
+  @@map("documentos_paciente")
+}
+
 // ===================================
 // ENUMS PARA HOSPITALIZACIÓN
 // ===================================
