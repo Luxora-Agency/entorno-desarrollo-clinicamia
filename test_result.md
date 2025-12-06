@@ -398,7 +398,11 @@ metadata:
   test_success_rate: "100%"
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Endpoints para Evoluciones Clínicas SOAP"
+    - "Endpoints para Signos Vitales"
+    - "Endpoints para Diagnósticos CIE-11"
+    - "Endpoints para Alertas Clínicas"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
