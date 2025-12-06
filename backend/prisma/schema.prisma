@@ -459,6 +459,7 @@ model Admision {
   evolucionesClinicas   EvolucionClinica[]
   signosVitales         SignoVital[]
   diagnosticosHCE       DiagnosticoHCE[]
+  egreso                Egreso?
 
   @@map("admisiones")
 }
