@@ -253,12 +253,88 @@ backend:
           Validaciones: campos requeridos, colores por defecto.
 
 frontend:
+  - task: "Módulo principal HCE con búsqueda de pacientes"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/clinica/HCEModule.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Implementado componente principal del módulo HCE siguiendo estructura de AdmisionesView.
+          Incluye buscador de pacientes, panel superior con info del paciente, y tabs para las 4 secciones.
+          Colores azul/índigo para diferenciarlo. Integrado en Dashboard y Sidebar.
+          Necesita testing funcional.
+
+  - task: "Tab Evoluciones SOAP"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/clinica/hce/TabEvolucionesSOAP.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Formulario completo SOAP (Subjetivo, Objetivo, Análisis, Plan) con validaciones.
+          Visualización de evoluciones previas en cards con identificación de profesional y firma digital.
+          Necesita testing de integración con backend.
+
+  - task: "Tab Signos Vitales con gráficas"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/clinica/hce/TabSignosVitales.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Formulario para registrar signos vitales (PA, FC, FR, temperatura, SpO2, peso, talla).
+          Gráficas de barras para tendencias de PA y FC (últimos 5 registros).
+          Cálculo automático de IMC. Necesita testing de visualización y backend.
+
+  - task: "Tab Diagnósticos CIE-11"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/clinica/hce/TabDiagnosticos.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Formulario con códigos CIE-11, incluyendo 10 diagnósticos comunes pre-cargados.
+          Clasificación por tipo (Principal, Secundario, Complicación, Presuntivo) y estado.
+          Resumen de diagnósticos activos. Necesita testing de integración.
+
+  - task: "Tab Alertas Clínicas"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/clinica/hce/TabAlertas.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Formulario para alertas (Alergia, Contraindicación, Riesgo Quirúrgico, Otro).
+          Sistema de severidad con colores (Baja, Media, Alta, Crítica).
+          Vista destacada de alertas activas y historial completo. Necesita testing.
+
   - task: "Integración de componentes de Farmacia en Dashboard"
     implemented: true
     working: "NA"
     file: "/app/frontend/components/clinica/Dashboard.jsx"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: false
     status_history:
       - working: "NA"
