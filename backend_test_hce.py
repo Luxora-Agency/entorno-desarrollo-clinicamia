@@ -453,7 +453,7 @@ class HCEBackendTester:
             alerta_data = {
                 "paciente_id": self.test_paciente_id,
                 "profesional_id": self.test_profesional_id,
-                "tipo_alerta": "Alergia",
+                "tipo_alerta": "AlergiaMedicamento",
                 "titulo": "Alergia a la penicilina",
                 "descripcion": "Paciente presenta alergia conocida a la penicilina con antecedente de reacción anafiláctica previa en 2020.",
                 "severidad": "Alta",
