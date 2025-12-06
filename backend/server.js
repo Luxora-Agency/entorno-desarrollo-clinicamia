@@ -128,6 +128,8 @@ app.route('/signos-vitales', signosVitales);
 app.route('/diagnosticos', diagnosticos);
 app.route('/alertas', alertas);
 app.route('/auditoria', auditoria);
+// Rutas de egresos
+app.route('/egresos', egresos);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
