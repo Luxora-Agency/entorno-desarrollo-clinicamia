@@ -83,6 +83,8 @@ app.get('/', (c) => {
       diagnosticos: '/diagnosticos',
       alertas: '/alertas',
       auditoria: '/auditoria',
+      // Egresos
+      egresos: '/egresos',
     }
   });
 });
