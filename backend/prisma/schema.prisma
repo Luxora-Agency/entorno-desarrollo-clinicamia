@@ -715,3 +715,257 @@ model Pago {
 
   @@map("pagos")
 }
+
+// ===================================
+// MÓDULO: HISTORIA CLÍNICA ELECTRÓNICA (HCE)
+// ===================================
+
+// Evoluciones Clínicas (Formato SOAP)
+model EvolucionClinica {
+  id                    String              @id @default(uuid())
+  pacienteId            String              @map("paciente_id")
+  admisionId            String?             @map("admision_id")
+  citaId                String?             @map("cita_id")
+  doctorId              String              @map("doctor_id") @db.Uuid
+  
+  // Estructura SOAP
+  subjetivo             String              @db.Text  // Síntomas relatados por el paciente
+  objetivo              String              @db.Text  // Hallazgos del examen físico
+  analisis              String              @db.Text  // Diagnóstico e interpretación
+  plan                  String              @db.Text  // Plan de tratamiento
+  
+  // Metadatos
+  tipoEvolucion         TipoEvolucion
+  fechaEvolucion        DateTime            @default(now()) @map("fecha_evolucion")
+  turno                 String?             // Mañana, Tarde, Noche
+  areaHospitalizacion   String?             @map("area_hospitalizacion") // UCI, Piso, etc.
+  
+  // Firma Digital
+  firmada               Boolean             @default(false)
+  firmaDigital          String?             @map("firma_digital") @db.Text
+  hashRegistro          String?             @map("hash_registro") // SHA-256
+  fechaFirma            DateTime?           @map("fecha_firma")
+  ipRegistro            String?             @map("ip_registro")
+  
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  // Relaciones
+  paciente              Paciente            @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  doctor                Usuario             @relation("EvolucionDoctor", fields: [doctorId], references: [id])
+  admision              Admision?           @relation(fields: [admisionId], references: [id])
+  cita                  Cita?               @relation(fields: [citaId], references: [id])
+  diagnosticos          DiagnosticoHCE[]
+  
+  @@map("evoluciones_clinicas")
+}
+
+// Signos Vitales
+model SignoVital {
+  id                    String    @id @default(uuid())
+  pacienteId            String    @map("paciente_id")
+  admisionId            String?   @map("admision_id")
+  registradoPor         String    @map("registrado_por") @db.Uuid
+  
+  // Signos vitales estándar
+  temperatura           Decimal?  @db.Decimal(4, 1)  // °C
+  presionSistolica      Int?      @map("presion_sistolica")  // mmHg
+  presionDiastolica     Int?      @map("presion_diastolica") // mmHg
+  frecuenciaCardiaca    Int?      @map("frecuencia_cardiaca") // bpm
+  frecuenciaRespiratoria Int?     @map("frecuencia_respiratoria") // rpm
+  saturacionOxigeno     Decimal?  @map("saturacion_oxigeno") @db.Decimal(5, 2) // %
+  
+  // Antropometría
+  peso                  Decimal?  @db.Decimal(6, 2)  // kg
+  talla                 Decimal?  @db.Decimal(5, 2)  // cm
+  imc                   Decimal?  @db.Decimal(5, 2)  // Calculado automáticamente
+  perimetroCefalico     Decimal?  @map("perimetro_cefalico") @db.Decimal(5, 2) // cm (pediátrico)
+  
+  // Control de dolor (Escala EVA 0-10)
+  escalaDolor           Int?      @map("escala_dolor")
+  
+  // Metadatos
+  turno                 String?   // Mañana, Tarde, Noche
+  fechaRegistro         DateTime  @default(now()) @map("fecha_registro")
+  observaciones         String?   @db.Text
+  
+  // Alertas generadas automáticamente
+  alertaGenerada        Boolean   @default(false) @map("alerta_generada")
+  
+  createdAt             DateTime  @default(now()) @map("created_at")
+
+  // Relaciones
+  paciente              Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  admision              Admision? @relation(fields: [admisionId], references: [id])
+  registrador           Usuario   @relation("SignoVitalRegistrador", fields: [registradoPor], references: [id])
+  
+  @@map("signos_vitales")
+}
+
+// Diagnósticos HCE (con código CIE-11)
+model DiagnosticoHCE {
+  id                    String              @id @default(uuid())
+  pacienteId            String              @map("paciente_id")
+  evolucionId           String?             @map("evolucion_id")
+  admisionId            String?             @map("admision_id")
+  doctorId              String              @map("doctor_id") @db.Uuid
+  
+  // Clasificación diagnóstica
+  codigoCIE11           String              @map("codigo_cie11")  // Ej: "2E60" o búsqueda texto
+  descripcionCIE11      String              @map("descripcion_cie11") @db.Text
+  tipoDiagnostico       TipoDiagnosticoHCE  @map("tipo_diagnostico")
+  estadoDiagnostico     EstadoDiagnosticoHCE @map("estado_diagnostico")
+  
+  // Si es diagnóstico diferencial
+  esDiferencial         Boolean             @default(false) @map("es_diferencial")
+  
+  // Detalles clínicos
+  observaciones         String?             @db.Text
+  fechaDiagnostico      DateTime            @default(now()) @map("fecha_diagnostico")
+  fechaResolucion       DateTime?           @map("fecha_resolucion")
+  
+  // Severidad según valoración clínica
+  severidad             SeveridadHCE?
+  
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+
+  // Relaciones
+  paciente              Paciente            @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  evolucion             EvolucionClinica?   @relation(fields: [evolucionId], references: [id])
+  admision              Admision?           @relation(fields: [admisionId], references: [id])
+  doctor                Usuario             @relation("DiagnosticoHCEDoctor", fields: [doctorId], references: [id])
+  
+  @@map("diagnosticos_hce")
+}
+
+// Alertas Clínicas
+model AlertaClinica {
+  id                    String        @id @default(uuid())
+  pacienteId            String        @map("paciente_id")
+  
+  // Tipo y contenido de la alerta
+  tipoAlerta            TipoAlertaHCE
+  severidad             SeveridadHCE
+  titulo                String
+  descripcion           String        @db.Text
+  
+  // Contexto y origen
+  origen                String?       // "Alergias", "Signos Vitales", "Medicamentos"
+  valorReferencia       String?       @map("valor_referencia")
+  
+  // Control de visibilidad
+  visiblePara           String[]      @map("visible_para")  // Array de roles: ["DOCTOR", "NURSE"]
+  colorAlerta           String        @default("red") @map("color_alerta")
+  iconoAlerta           String?       @map("icono_alerta")
+  
+  // Estado
+  activa                Boolean       @default(true)
+  reconocidaPor         String?       @map("reconocida_por") @db.Uuid
+  fechaReconocimiento   DateTime?     @map("fecha_reconocimiento")
+  
+  // Fechas
+  fechaAlerta           DateTime      @default(now()) @map("fecha_alerta")
+  fechaExpiracion       DateTime?     @map("fecha_expiracion")
+  
+  createdAt             DateTime      @default(now()) @map("created_at")
+
+  // Relaciones
+  paciente              Paciente      @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  reconocedor           Usuario?      @relation("AlertaReconocedor", fields: [reconocidaPor], references: [id])
+  
+  @@map("alertas_clinicas")
+}
+
+// Auditoría HCE (Trazabilidad completa)
+model AuditoriaHCE {
+  id                    String            @id @default(uuid())
+  
+  // Qué se modificó
+  entidad               String            // "EvolucionClinica", "DiagnosticoHCE", etc.
+  entidadId             String            @map("entidad_id")
+  accion                AccionAuditoriaHCE
+  
+  // Quién lo hizo
+  usuarioId             String            @map("usuario_id") @db.Uuid
+  nombreUsuario         String            @map("nombre_usuario")
+  rol                   String
+  
+  // Cuándo y dónde
+  fechaAccion           DateTime          @default(now()) @map("fecha_accion")
+  ipOrigen              String?           @map("ip_origen")
+  navegador             String?
+  dispositivo           String?
+  
+  // Qué cambió (JSON para flexibilidad)
+  valoresAnteriores     Json?             @map("valores_anteriores")
+  valoresNuevos         Json?             @map("valores_nuevos")
+  
+  // Firma digital del registro
+  hashRegistro          String            @map("hash_registro")  // SHA-256
+  
+  createdAt             DateTime          @default(now()) @map("created_at")
+
+  // Relaciones
+  usuario               Usuario           @relation("AuditoriaHCEUsuario", fields: [usuarioId], references: [id])
+  
+  @@map("auditoria_hce")
+}
+
+// ===================================
+// ENUMS PARA HCE
+// ===================================
+
+enum TipoEvolucion {
+  Ingreso
+  Seguimiento
+  Alta
+  Urgencia
+  Interconsulta
+  Prequirurgico
+  Postquirurgico
+}
+
+enum TipoDiagnosticoHCE {
+  Principal
+  Secundario
+  Complicacion
+  Comorbilidad
+  Diferencial
+}
+
+enum EstadoDiagnosticoHCE {
+  Activo
+  EnControl
+  Resuelto
+  Descartado
+}
+
+enum SeveridadHCE {
+  Leve
+  Moderada
+  Grave
+  Critica
+}
+
+enum TipoAlertaHCE {
+  AlergiaMedicamento
+  Intolerancia
+  RestriccionMovilidad
+  Aislamiento
+  RiesgoCaidas
+  Recordatorio
+  SignoVitalCritico
+  ResultadoCritico
+  InteraccionMedicamentosa
+}
+
+enum AccionAuditoriaHCE {
+  Creacion
+  Modificacion
+  Eliminacion
+  Visualizacion
+  Firma
+  Descarga
+  Impresion
+}
