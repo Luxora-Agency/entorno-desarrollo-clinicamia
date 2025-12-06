@@ -111,12 +111,72 @@ user_problem_statement: |
   AdmisionesView, con colores azul/índigo para diferenciarlo.
 
 backend:
+  - task: "Endpoints para Evoluciones Clínicas SOAP"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routes/evoluciones.js, /app/backend/services/evolucionClinica.service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Backend completo previamente implementado. Endpoints: GET /api/evoluciones, POST /api/evoluciones.
+          Modelo EvolucionClinica con campos SOAP (subjetivo, objetivo, analisis, plan) y firma digital.
+          Necesita testing con el nuevo frontend.
+
+  - task: "Endpoints para Signos Vitales"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routes/signos-vitales.js, /app/backend/services/signosVitales.service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Backend completo previamente implementado. Endpoints: GET /api/signos-vitales, POST /api/signos-vitales.
+          Modelo SignoVital con presión arterial, frecuencia cardíaca, temperatura, saturación O2, peso, talla.
+          Necesita testing con el nuevo frontend.
+
+  - task: "Endpoints para Diagnósticos CIE-11"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routes/diagnosticos.js, /app/backend/services/diagnosticoHCE.service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Backend completo previamente implementado. Endpoints: GET /api/diagnosticos, POST /api/diagnosticos.
+          Modelo Diagnostico con código CIE-11, descripción, tipo (Principal/Secundario/Complicacion/Presuntivo), estado.
+          Necesita testing con el nuevo frontend.
+
+  - task: "Endpoints para Alertas Clínicas"
+    implemented: true
+    working: "NA"
+    file: "/app/backend/routes/alertas.js, /app/backend/services/alertaClinica.service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Backend completo previamente implementado. Endpoints: GET /api/alertas, POST /api/alertas.
+          Modelo AlertaClinica con tipo (Alergia/Contraindicacion/RiesgoQuirurgico/Otro), severidad, estado.
+          Necesita testing con el nuevo frontend.
+
   - task: "Endpoints CRUD para Productos de Farmacia"
     implemented: true
     working: true
     file: "/app/backend/routes/productos.js, /app/backend/services/producto.service.js"
     stuck_count: 0
-    priority: "high"
+    priority: "medium"
     needs_retesting: false
     status_history:
       - working: "NA"
