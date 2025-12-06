@@ -103,9 +103,12 @@
 #====================================================================================================
 
 user_problem_statement: |
-  Sistema de gestión hospitalaria "Clínica Mía" - Se implementó el módulo de Farmacia con gestión de
-  productos farmacéuticos, categorías y etiquetas. El backend está completamente implementado con Prisma
-  y Hono.js. Se integraron los componentes frontend en el Dashboard para navegación completa del módulo.
+  Sistema de gestión hospitalaria "Clínica Mía" - NUEVA FUNCIONALIDAD: Se implementó el módulo de
+  Historia Clínica Electrónica (HCE) - Fase 1. Este módulo permite documentar la atención clínica
+  del paciente según estándares internacionales (SOAP, CIE-11). El backend fue completado previamente
+  y ahora se implementó la interfaz completa con 4 pestañas: Evoluciones SOAP, Signos Vitales (con 
+  gráficas), Diagnósticos CIE-11, y Alertas Clínicas. Siguiendo el mismo diseño y estructura de
+  AdmisionesView, con colores azul/índigo para diferenciarlo.
 
 backend:
   - task: "Endpoints CRUD para Productos de Farmacia"
