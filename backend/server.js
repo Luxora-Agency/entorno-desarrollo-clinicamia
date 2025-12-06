@@ -35,6 +35,8 @@ const signosVitales = require('./routes/signosVitales');
 const diagnosticos = require('./routes/diagnosticos');
 const alertas = require('./routes/alertas');
 const auditoria = require('./routes/auditoria');
+// Rutas de egresos
+const egresos = require('./routes/egresos');
 
 const app = new Hono();
 
