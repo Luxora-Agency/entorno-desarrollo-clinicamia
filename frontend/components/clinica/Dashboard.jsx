@@ -135,6 +135,8 @@ export default function Dashboard({ user, onLogout }) {
         return <HabitacionesModule user={user} />;
       case 'gestion-camas':
         return <CamasModule user={user} />;
+      case 'hce':
+        return <HCEModule user={user} />;
       default:
         return <DashboardHome user={user} />;
     }
