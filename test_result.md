@@ -137,11 +137,11 @@ backend:
 
   - task: "Endpoints para Signos Vitales"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/routes/signos-vitales.js, /app/backend/services/signosVitales.service.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -149,6 +149,15 @@ backend:
           Backend completo previamente implementado. Endpoints: GET /api/signos-vitales, POST /api/signos-vitales.
           Modelo SignoVital con presión arterial, frecuencia cardíaca, temperatura, saturación O2, peso, talla.
           Necesita testing con el nuevo frontend.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ TESTING COMPLETO - Endpoints funcionando correctamente:
+          - GET /signos-vitales?paciente_id={id}: Lista signos vitales ✅
+          - POST /signos-vitales: Creación de signos vitales con validaciones ✅
+          - GET /signos-vitales/grafica/{paciente_id}: Datos para gráficas ✅
+          Funcionalidades: cálculo automático de IMC, alertas automáticas por valores críticos.
+          Validaciones: campos numéricos, rangos de valores normales.
 
   - task: "Endpoints para Diagnósticos CIE-11"
     implemented: true
