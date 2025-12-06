@@ -131,6 +131,11 @@ model Paciente {
   ordenesMedicas                 OrdenMedica[]
   ordenesMedicamentos            OrdenMedicamento[]
   facturas                       Factura[]
+  // HCE
+  evolucionesClinicas            EvolucionClinica[]
+  signosVitales                  SignoVital[]
+  diagnosticosHCE                DiagnosticoHCE[]
+  alertasClinicas                AlertaClinica[]
 
   @@map("pacientes")
 }
