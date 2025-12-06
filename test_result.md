@@ -410,36 +410,51 @@ test_plan:
 agent_communication:
   - agent: "main"
     message: |
-      ✅ MÓDULO DE FARMACIA - BACKEND Y FRONTEND INTEGRADO
+      ✅ MÓDULO HCE (HISTORIA CLÍNICA ELECTRÓNICA) - FASE 1 FRONTEND COMPLETO
       
-      COMPLETADO:
-      1. Backend completo con Prisma + Hono.js:
-         - Modelos: ProductoFarmacia, CategoriaProducto, EtiquetaProducto
-         - Servicios y rutas para CRUD completo
-         - Relaciones entre productos, categorías y etiquetas
+      IMPLEMENTADO:
+      1. Backend (ya existente desde ciclo anterior):
+         - Modelos: EvolucionClinica, SignoVital, Diagnostico, AlertaClinica, AuditoriaHCE
+         - Servicios y rutas completos con validaciones
+         - Firma digital y auditoría implementada
+         - Endpoints: /api/evoluciones, /api/signos-vitales, /api/diagnosticos, /api/alertas
       
-      2. Frontend integrado en Dashboard:
-         - FarmaciaModule (productos)
-         - CategoriasProductosModule
-         - EtiquetasProductosModule
-         - Navegación configurada desde Sidebar
+      2. Frontend (NUEVO - recién implementado):
+         - HCEModule.jsx: Componente principal con búsqueda de pacientes y tabs
+         - BuscadorPacientesHCE.jsx: Búsqueda específica para HCE
+         - PanelPacienteHCE.jsx: Panel superior con info del paciente
+         - TabEvolucionesSOAP.jsx: Notas SOAP completas (4 campos)
+         - TabSignosVitales.jsx: Registro de vitales + gráficas de tendencias
+         - TabDiagnosticos.jsx: Gestión de diagnósticos CIE-11 con búsqueda rápida
+         - TabAlertas.jsx: Alertas clínicas con sistema de severidad
+         - Integrado en Dashboard.jsx (case 'hce')
+         - Menú añadido en Sidebar.jsx con colores azul/índigo distintivos
       
-      3. Base de datos:
-         - PostgreSQL corriendo en puerto 5432
-         - Migraciones aplicadas exitosamente
-         - Database: clinica_mia, Usuario: clinica_user
+      3. Diseño:
+         - Sigue exactamente la estructura de AdmisionesView
+         - Paleta azul/índigo (diferente a Admisiones que usa verde/teal)
+         - Componentes shadcn/ui consistentes
+         - Especifica claramente "Historia Clínica Electrónica (HCE)" en títulos
       
-      ENDPOINTS A TESTEAR (requieren JWT):
+      ENDPOINTS A TESTEAR (requieren JWT + paciente_id existente):
       1. POST /api/auth/login - Obtener token
-      2. GET /api/categorias-productos - Listar categorías
-      3. POST /api/categorias-productos - Crear categoría (nombre, descripcion, color)
-      4. GET /api/etiquetas-productos - Listar etiquetas
-      5. POST /api/etiquetas-productos - Crear etiqueta (nombre, color)
-      6. GET /api/productos - Listar productos
-      7. GET /api/productos/stats - Estadísticas de productos
-      8. POST /api/productos - Crear producto (nombre, descripcion, precio, stock, categoriaId, etc.)
-      9. PUT /api/productos/:id - Actualizar producto
-      10. DELETE /api/productos/:id - Eliminar producto
+      2. GET /api/pacientes/search?q=nombre - Buscar paciente para HCE
+      3. GET /api/evoluciones?paciente_id=XXX - Listar evoluciones SOAP
+      4. POST /api/evoluciones - Crear evolución (paciente_id, profesional_id, subjetivo, objetivo, analisis, plan)
+      5. GET /api/signos-vitales?paciente_id=XXX - Listar signos vitales
+      6. POST /api/signos-vitales - Crear signos vitales (PA, FC, FR, temperatura, SpO2, peso, talla)
+      7. GET /api/diagnosticos?paciente_id=XXX - Listar diagnósticos
+      8. POST /api/diagnosticos - Crear diagnóstico (codigo_cie11, descripcion, tipo, estado)
+      9. GET /api/alertas?paciente_id=XXX - Listar alertas clínicas
+      10. POST /api/alertas - Crear alerta (tipo, descripcion, severidad, estado)
+      
+      NOTAS PARA TESTING:
+      - Backend ya fue testeado en ciclo anterior y está funcional
+      - Necesita verificar integración frontend-backend para los 4 módulos HCE
+      - Verificar que las gráficas de signos vitales se rendericen correctamente
+      - Confirmar que los diagnósticos comunes pre-cargados funcionen
+      - Probar sistema de severidad en alertas
+      - Usar un paciente existente en la base de datos para las pruebas
       
       NOTA: roleMiddleware fue removido temporalmente durante debugging.
       
