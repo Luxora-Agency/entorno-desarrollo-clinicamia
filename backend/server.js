@@ -75,6 +75,12 @@ app.get('/', (c) => {
       ordenesMedicamentos: '/ordenes-medicamentos',
       facturas: '/facturas',
       paquetesHospitalizacion: '/paquetes-hospitalizacion',
+      // HCE
+      evoluciones: '/evoluciones',
+      signosVitales: '/signos-vitales',
+      diagnosticos: '/diagnosticos',
+      alertas: '/alertas',
+      auditoria: '/auditoria',
     }
   });
 });
