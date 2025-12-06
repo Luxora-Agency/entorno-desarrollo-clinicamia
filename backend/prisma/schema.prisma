@@ -61,6 +61,12 @@ model Usuario {
   ordenesMedicamentosComoDespachador OrdenMedicamento[] @relation("OrdenMedicamentoDespachador")
   facturasCreadas               Factura[]
   pagosRegistrados              Pago[]
+  // HCE
+  evolucionesClinicas           EvolucionClinica[]      @relation("EvolucionDoctor")
+  signosVitalesRegistrados      SignoVital[]            @relation("SignoVitalRegistrador")
+  diagnosticosHCE               DiagnosticoHCE[]        @relation("DiagnosticoHCEDoctor")
+  alertasReconocidas            AlertaClinica[]         @relation("AlertaReconocedor")
+  auditoriaHCE                  AuditoriaHCE[]          @relation("AuditoriaHCEUsuario")
 
   @@map("usuarios")
 }
