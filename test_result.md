@@ -161,11 +161,11 @@ backend:
 
   - task: "Endpoints para Diagnósticos CIE-11"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/routes/diagnosticos.js, /app/backend/services/diagnosticoHCE.service.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -173,6 +173,16 @@ backend:
           Backend completo previamente implementado. Endpoints: GET /api/diagnosticos, POST /api/diagnosticos.
           Modelo Diagnostico con código CIE-11, descripción, tipo (Principal/Secundario/Complicacion/Presuntivo), estado.
           Necesita testing con el nuevo frontend.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ TESTING COMPLETO - Endpoints funcionando correctamente:
+          - GET /diagnosticos?paciente_id={id}: Lista diagnósticos CIE-11 ✅
+          - POST /diagnosticos: Creación de diagnósticos con validaciones ✅
+          - GET /diagnosticos/:id: Obtener diagnóstico específico ✅
+          - GET /diagnosticos/principal/{paciente_id}: Diagnóstico principal activo ✅
+          Validaciones: código CIE-11, descripción, tipo y estado requeridos.
+          Funcionalidades: clasificación por tipo, estado, auditoría completa.
 
   - task: "Endpoints para Alertas Clínicas"
     implemented: true
