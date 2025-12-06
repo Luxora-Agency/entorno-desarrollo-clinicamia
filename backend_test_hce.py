@@ -456,7 +456,7 @@ class HCEBackendTester:
                 "tipo_alerta": "AlergiaMedicamento",
                 "titulo": "Alergia a la penicilina",
                 "descripcion": "Paciente presenta alergia conocida a la penicilina con antecedente de reacción anafiláctica previa en 2020.",
-                "severidad": "Alta",
+                "severidad": "Grave",
                 "origen": "Historia Clínica"
             }
             
