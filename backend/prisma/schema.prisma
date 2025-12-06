@@ -456,6 +456,9 @@ model Admision {
   ordenesMedicas        OrdenMedica[]
   ordenesMedicamentos   OrdenMedicamento[]
   itemsFactura          FacturaItem[]
+  evolucionesClinicas   EvolucionClinica[]
+  signosVitales         SignoVital[]
+  diagnosticosHCE       DiagnosticoHCE[]
 
   @@map("admisiones")
 }
