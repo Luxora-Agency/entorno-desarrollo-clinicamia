@@ -160,6 +160,7 @@ model Cita {
   ordenesMedicas      OrdenMedica[]
   ordenesMedicamentos OrdenMedicamento[]
   itemsFactura        FacturaItem[]
+  evolucionesClinicas EvolucionClinica[]
 
   @@map("citas")
 }
