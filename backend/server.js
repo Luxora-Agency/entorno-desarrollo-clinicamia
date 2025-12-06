@@ -114,6 +114,12 @@ app.route('/ordenes-medicas', ordenesMedicas);
 app.route('/ordenes-medicamentos', ordenesMedicamentos);
 app.route('/facturas', facturas);
 app.route('/paquetes-hospitalizacion', paquetesHospitalizacion);
+// Rutas de HCE
+app.route('/evoluciones', evoluciones);
+app.route('/signos-vitales', signosVitales);
+app.route('/diagnosticos', diagnosticos);
+app.route('/alertas', alertas);
+app.route('/auditoria', auditoria);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
