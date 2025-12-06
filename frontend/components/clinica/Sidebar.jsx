@@ -106,6 +106,21 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 <span>Admisiones</span>
               </button>
 
+              <button
+                onClick={() => {
+                  setActiveModule('hce');
+                  setIsOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeModule === 'hce'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <FileText className="w-4 h-4" />
+                <span>Historia Clínica (HCE)</span>
+              </button>
+
               {/* GESTIÓN MÉDICA */}
               <div className="pt-4 mt-4 border-t border-gray-100">
                 <div className="px-3 mb-2">
