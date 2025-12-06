@@ -29,6 +29,12 @@ const ordenesMedicas = require('./routes/ordenesMedicas');
 const ordenesMedicamentos = require('./routes/ordenesMedicamentos');
 const facturas = require('./routes/facturas');
 const paquetesHospitalizacion = require('./routes/paquetesHospitalizacion');
+// Rutas de HCE
+const evoluciones = require('./routes/evoluciones');
+const signosVitales = require('./routes/signosVitales');
+const diagnosticos = require('./routes/diagnosticos');
+const alertas = require('./routes/alertas');
+const auditoria = require('./routes/auditoria');
 
 const app = new Hono();
 
