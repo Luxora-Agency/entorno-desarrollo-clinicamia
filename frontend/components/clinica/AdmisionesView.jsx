@@ -114,6 +114,9 @@ export default function AdmisionesView({ user }) {
                 <TabsTrigger value="ordenes-medicamentos" className="text-xs lg:text-sm">
                   Medicamentos
                 </TabsTrigger>
+                <TabsTrigger value="egreso" className="text-xs lg:text-sm">
+                  Egreso
+                </TabsTrigger>
                 <TabsTrigger value="historia" className="text-xs lg:text-sm">
                   Historia
                 </TabsTrigger>
