@@ -13,7 +13,7 @@ import uuid
 # Configuration
 BASE_URL = "http://localhost:4000"
 TEST_USER = {
-    "email": "admin@clinica.com",
+    "email": "admin@clinicamia.com",
     "password": "admin123"
 }
 
