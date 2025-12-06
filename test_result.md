@@ -113,11 +113,11 @@ user_problem_statement: |
 backend:
   - task: "Endpoints para Evoluciones Clínicas SOAP"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/routes/evoluciones.js, /app/backend/services/evolucionClinica.service.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -125,6 +125,15 @@ backend:
           Backend completo previamente implementado. Endpoints: GET /api/evoluciones, POST /api/evoluciones.
           Modelo EvolucionClinica con campos SOAP (subjetivo, objetivo, analisis, plan) y firma digital.
           Necesita testing con el nuevo frontend.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ TESTING COMPLETO - Endpoints funcionando correctamente:
+          - GET /evoluciones?paciente_id={id}: Lista evoluciones SOAP ✅
+          - POST /evoluciones: Creación de evolución SOAP con validaciones ✅
+          - GET /evoluciones/:id: Obtener evolución específica ✅
+          Validaciones: campos SOAP requeridos (subjetivo, objetivo, analisis, plan).
+          Funcionalidades: firma digital, auditoría, relaciones con paciente y doctor.
 
   - task: "Endpoints para Signos Vitales"
     implemented: true
