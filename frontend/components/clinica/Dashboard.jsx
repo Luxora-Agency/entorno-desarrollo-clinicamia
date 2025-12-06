@@ -21,6 +21,7 @@ import PacienteStepperForm from './PacienteStepperForm';
 import UnidadesModule from './UnidadesModule';
 import HabitacionesModule from './HabitacionesModule';
 import CamasModule from './CamasModule';
+import HCEModule from './HCEModule';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
