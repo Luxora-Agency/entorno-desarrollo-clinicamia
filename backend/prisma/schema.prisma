@@ -512,6 +512,21 @@ enum TipoMovimiento {
   Egreso
 }
 
+enum TipoEgreso {
+  AltaMedica
+  Remision
+  Voluntario
+  Fallecimiento
+  Fuga
+}
+
+enum EstadoPacienteEgreso {
+  Mejorado
+  Estable
+  Complicado
+  Fallecido
+}
+
 // ===================================
 // MÓDULO DE FACTURACIÓN Y ÓRDENES
 // ===================================
