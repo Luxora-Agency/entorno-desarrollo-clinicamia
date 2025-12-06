@@ -21,6 +21,7 @@ export default function AdmisionesView({ user }) {
   const pacienteId = searchParams.get('pacienteId');
   const [paciente, setPaciente] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('informacion');
 
   useEffect(() => {
     const fetchPaciente = async () => {
