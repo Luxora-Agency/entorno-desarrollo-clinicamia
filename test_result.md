@@ -186,11 +186,11 @@ backend:
 
   - task: "Endpoints para Alertas Clínicas"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/routes/alertas.js, /app/backend/services/alertaClinica.service.js"
     stuck_count: 0
     priority: "high"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
@@ -198,6 +198,16 @@ backend:
           Backend completo previamente implementado. Endpoints: GET /api/alertas, POST /api/alertas.
           Modelo AlertaClinica con tipo (Alergia/Contraindicacion/RiesgoQuirurgico/Otro), severidad, estado.
           Necesita testing con el nuevo frontend.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ TESTING COMPLETO - Endpoints funcionando correctamente:
+          - GET /alertas?paciente_id={id}: Lista alertas clínicas ✅
+          - POST /alertas: Creación de alertas con validaciones ✅
+          - GET /alertas/:id: Obtener alerta específica ✅
+          - GET /alertas/activas/{paciente_id}: Alertas activas del paciente ✅
+          Validaciones: tipo de alerta (enum TipoAlertaHCE), severidad (enum SeveridadHCE).
+          Funcionalidades: sistema de colores por severidad, reconocimiento de alertas.
 
   - task: "Endpoints CRUD para Productos de Farmacia"
     implemented: true
