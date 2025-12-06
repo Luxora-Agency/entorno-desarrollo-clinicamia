@@ -95,7 +95,7 @@ export default function AdmisionesView({ user }) {
             <PanelPaciente paciente={paciente} onEdit={handleEdit} />
 
             {/* Contenido Principal con Tabs */}
-            <Tabs defaultValue="informacion" className="w-full">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
               <TabsList className="grid w-full grid-cols-4 lg:grid-cols-8 h-auto">
                 <TabsTrigger value="informacion" className="text-xs lg:text-sm">
                   Información
