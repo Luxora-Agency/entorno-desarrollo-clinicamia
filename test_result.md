@@ -103,12 +103,12 @@
 #====================================================================================================
 
 user_problem_statement: |
-  Sistema de gestión hospitalaria "Clínica Mía" - NUEVA FUNCIONALIDAD: Se implementó el módulo de
-  Historia Clínica Electrónica (HCE) - Fase 1. Este módulo permite documentar la atención clínica
-  del paciente según estándares internacionales (SOAP, CIE-11). El backend fue completado previamente
-  y ahora se implementó la interfaz completa con 4 pestañas: Evoluciones SOAP, Signos Vitales (con 
-  gráficas), Diagnósticos CIE-11, y Alertas Clínicas. Siguiendo el mismo diseño y estructura de
-  AdmisionesView, con colores azul/índigo para diferenciarlo.
+  Sistema de gestión hospitalaria "Clínica Mía" - SPRINT 1 EN PROGRESO: Completando módulo de Admisiones
+  según requerimientos. Se implementó el formulario de EGRESO HOSPITALARIO completo (backend + frontend)
+  con diagnóstico de salida CIE-10, resumen clínico, tratamiento domiciliario, recomendaciones, tipos de
+  egreso, control médico, y firma digital. El egreso actualiza automáticamente el estado de la admisión
+  y libera la cama. También se tiene backend de documentos de pacientes (ya existía). Pendiente: integrar
+  asignación simple de camas en admisiones.
 
 backend:
   - task: "Endpoints para Evoluciones Clínicas SOAP"
