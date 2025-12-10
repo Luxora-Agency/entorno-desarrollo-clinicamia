@@ -1,0 +1,87 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: clinica_mia_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: clinica_user
+      POSTGRES_PASSWORD: clinica_pass_2025
+      POSTGRES_DB: clinica_mia
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - clinica_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinica_user -d clinica_mia"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend (Hono.js)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clinica_mia_backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://clinica_user:clinica_pass_2025@postgres:5432/clinica_mia
+      JWT_SECRET: tu_secret_key_super_segura_aqui
+      PORT: 4000
+      NODE_ENV: production
+      FRONTEND_URL: http://localhost:3000
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - clinica_network
+    volumes:
+      - ./backend/prisma:/app/prisma
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000/api
+    container_name: clinica_mia_frontend
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api
+      NEXT_PUBLIC_BASE_URL: http://localhost:3000
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - clinica_network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  clinica_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
