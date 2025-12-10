@@ -46,6 +46,16 @@ async function seedUsuarios() {
   
   const usuarios = [
     {
+      nombre: 'SuperAdmin',
+      apellido: 'Master',
+      email: 'superadmin@clinicamia.com',
+      password: await bcrypt.hash('superadmin123', 10),
+      rol: 'SuperAdmin',
+      cedula: '1111111111',
+      telefono: '3001111111',
+      activo: true,
+    },
+    {
       nombre: 'Admin',
       apellido: 'Sistema',
       email: 'admin@clinicamia.com',
