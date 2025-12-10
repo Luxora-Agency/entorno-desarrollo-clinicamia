@@ -24,7 +24,6 @@ import CamasModule from './CamasModule';
 import HospitalizacionModule from './HospitalizacionModule';
 import HCEModule from './HCEModule';
 import EnfermeriaModule from './EnfermeriaModule';
-import EnfermeriaModuleEnhanced from './EnfermeriaModuleEnhanced';
 import LaboratorioModule from './LaboratorioModule';
 import ImagenologiaModule from './ImagenologiaModule';
 import UrgenciasModule from './UrgenciasModule';
@@ -149,7 +148,7 @@ export default function Dashboard({ user, onLogout }) {
       case 'hce':
         return <HCEModule user={user} />;
       case 'enfermeria':
-        return <EnfermeriaModuleEnhanced user={user} />;
+        return <EnfermeriaModule user={user} />;
       case 'laboratorio':
         return <LaboratorioModule user={user} />;
       case 'imagenologia':
