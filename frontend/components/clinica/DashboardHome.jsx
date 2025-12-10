@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import DashboardDoctor from './DashboardDoctor';
 import DashboardRecepcionista from './DashboardRecepcionista';
+import DashboardEnfermera from './DashboardEnfermera';
 
 export default function DashboardHome({ user }) {
   // Determinar el tipo de usuario
