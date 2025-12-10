@@ -12,28 +12,39 @@ export default function PlanesMiaPassModule() {
       id: 1,
       nombre: 'Plan Básico',
       descripcion: 'Plan básico con consultas mensuales',
-      precio: 29.99,
-      duracion: 30,
-      beneficios: ['2 consultas generales', 'Descuento 10% en medicamentos', 'Atención telefónica'],
-      activo: true
+      costo: 29.99,
+      duracion: 1,
+      color: '#10B981',
+      icono: 'medical-services',
+      activo: true,
+      destacado: false,
+      beneficios: ['2 consultas generales', 'Descuento 10% en medicamentos'],
+      descuentos: {
+        consultas: { tipo: 'porcentaje', valor: 10 },
+        examenes: { tipo: 'porcentaje', valor: 5 },
+        farmacia: { tipo: 'porcentaje', valor: 10 },
+        procedimientos: { tipo: 'porcentaje', valor: 0 }
+      },
+      itemsConsumibles: []
     },
     {
       id: 2,
       nombre: 'Plan Premium',
       descripcion: 'Plan premium con beneficios extendidos',
-      precio: 49.99,
-      duracion: 30,
-      beneficios: ['Consultas ilimitadas', 'Descuento 20% en medicamentos', 'Prioridad en citas', 'Exámenes de laboratorio'],
-      activo: true
-    },
-    {
-      id: 3,
-      nombre: 'Plan Familiar',
-      descripcion: 'Plan para toda la familia',
-      precio: 89.99,
-      duracion: 30,
-      beneficios: ['Hasta 4 miembros', 'Consultas ilimitadas', 'Descuento 25% en medicamentos', 'Chequeos preventivos'],
-      activo: true
+      costo: 49.99,
+      duracion: 1,
+      color: '#3B82F6',
+      icono: 'medical-services',
+      activo: true,
+      destacado: true,
+      beneficios: ['Consultas ilimitadas', 'Descuento 20% en medicamentos', 'Prioridad en citas'],
+      descuentos: {
+        consultas: { tipo: 'porcentaje', valor: 20 },
+        examenes: { tipo: 'porcentaje', valor: 15 },
+        farmacia: { tipo: 'porcentaje', valor: 20 },
+        procedimientos: { tipo: 'porcentaje', valor: 10 }
+      },
+      itemsConsumibles: []
     }
   ]);
 
@@ -43,10 +54,20 @@ export default function PlanesMiaPassModule() {
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
-    precio: '',
-    duracion: 30,
-    beneficios: '',
-    activo: true
+    costo: '',
+    duracion: 12,
+    color: '#3B82F6',
+    icono: 'medical-services',
+    activo: true,
+    destacado: false,
+    beneficios: [''],
+    descuentos: {
+      consultas: { tipo: 'porcentaje', valor: 0 },
+      examenes: { tipo: 'porcentaje', valor: 0 },
+      farmacia: { tipo: 'porcentaje', valor: 0 },
+      procedimientos: { tipo: 'porcentaje', valor: 0 }
+    },
+    itemsConsumibles: []
   });
 
   const filteredPlanes = planes.filter(plan =>
@@ -59,10 +80,20 @@ export default function PlanesMiaPassModule() {
     setFormData({
       nombre: '',
       descripcion: '',
-      precio: '',
-      duracion: 30,
-      beneficios: '',
-      activo: true
+      costo: '',
+      duracion: 12,
+      color: '#3B82F6',
+      icono: 'medical-services',
+      activo: true,
+      destacado: false,
+      beneficios: [''],
+      descuentos: {
+        consultas: { tipo: 'porcentaje', valor: 0 },
+        examenes: { tipo: 'porcentaje', valor: 0 },
+        farmacia: { tipo: 'porcentaje', valor: 0 },
+        procedimientos: { tipo: 'porcentaje', valor: 0 }
+      },
+      itemsConsumibles: []
     });
     setShowModal(true);
   };
@@ -72,10 +103,15 @@ export default function PlanesMiaPassModule() {
     setFormData({
       nombre: plan.nombre,
       descripcion: plan.descripcion,
-      precio: plan.precio,
+      costo: plan.costo,
       duracion: plan.duracion,
-      beneficios: plan.beneficios.join(', '),
-      activo: plan.activo
+      color: plan.color,
+      icono: plan.icono,
+      activo: plan.activo,
+      destacado: plan.destacado,
+      beneficios: plan.beneficios.length > 0 ? plan.beneficios : [''],
+      descuentos: plan.descuentos,
+      itemsConsumibles: plan.itemsConsumibles || []
     });
     setShowModal(true);
   };
@@ -89,10 +125,7 @@ export default function PlanesMiaPassModule() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const beneficiosArray = formData.beneficios
-      .split(',')
-      .map(b => b.trim())
-      .filter(b => b.length > 0);
+    const beneficiosFiltrados = formData.beneficios.filter(b => b.trim().length > 0);
 
     if (editingPlan) {
       setPlanes(planes.map(p => 
@@ -100,9 +133,9 @@ export default function PlanesMiaPassModule() {
           ? { 
               ...p, 
               ...formData, 
-              precio: parseFloat(formData.precio),
+              costo: parseFloat(formData.costo),
               duracion: parseInt(formData.duracion),
-              beneficios: beneficiosArray 
+              beneficios: beneficiosFiltrados
             }
           : p
       ));
@@ -110,9 +143,9 @@ export default function PlanesMiaPassModule() {
       const newPlan = {
         id: Math.max(...planes.map(p => p.id), 0) + 1,
         ...formData,
-        precio: parseFloat(formData.precio),
+        costo: parseFloat(formData.costo),
         duracion: parseInt(formData.duracion),
-        beneficios: beneficiosArray
+        beneficios: beneficiosFiltrados
       };
       setPlanes([...planes, newPlan]);
     }
@@ -124,6 +157,80 @@ export default function PlanesMiaPassModule() {
     setPlanes(planes.map(p => 
       p.id === id ? { ...p, activo: !p.activo } : p
     ));
+  };
+
+  const addBeneficio = () => {
+    setFormData({
+      ...formData,
+      beneficios: [...formData.beneficios, '']
+    });
+  };
+
+  const removeBeneficio = (index) => {
+    setFormData({
+      ...formData,
+      beneficios: formData.beneficios.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateBeneficio = (index, value) => {
+    const newBeneficios = [...formData.beneficios];
+    newBeneficios[index] = value;
+    setFormData({
+      ...formData,
+      beneficios: newBeneficios
+    });
+  };
+
+  const updateDescuento = (categoria, field, value) => {
+    setFormData({
+      ...formData,
+      descuentos: {
+        ...formData.descuentos,
+        [categoria]: {
+          ...formData.descuentos[categoria],
+          [field]: value
+        }
+      }
+    });
+  };
+
+  const addItemConsumible = () => {
+    setFormData({
+      ...formData,
+      itemsConsumibles: [
+        ...formData.itemsConsumibles,
+        {
+          tipo: 'Examen',
+          especialidad: 'Todos',
+          examen: 'Todos',
+          nombre: '',
+          costoOriginal: '',
+          costoConPlan: '',
+          cantidadIncluida: 1,
+          descripcion: ''
+        }
+      ]
+    });
+  };
+
+  const removeItemConsumible = (index) => {
+    setFormData({
+      ...formData,
+      itemsConsumibles: formData.itemsConsumibles.filter((_, i) => i !== index)
+    });
+  };
+
+  const updateItemConsumible = (index, field, value) => {
+    const newItems = [...formData.itemsConsumibles];
+    newItems[index] = {
+      ...newItems[index],
+      [field]: value
+    };
+    setFormData({
+      ...formData,
+      itemsConsumibles: newItems
+    });
   };
 
   return (
@@ -160,8 +267,14 @@ export default function PlanesMiaPassModule() {
       {/* Plans Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPlanes.map((plan) => (
-          <Card key={plan.id} className="p-6 hover:shadow-xl transition-shadow">
-            <div className="flex justify-between items-start mb-4">
+          <Card key={plan.id} className="p-6 hover:shadow-xl transition-shadow relative">
+            {plan.destacado && (
+              <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">
+                DESTACADO
+              </div>
+            )}
+            
+            <div className="flex justify-between items-start mb-4 mt-2">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">{plan.nombre}</h3>
                 <p className="text-sm text-gray-600 mt-1">{plan.descripcion}</p>
@@ -177,8 +290,10 @@ export default function PlanesMiaPassModule() {
 
             <div className="mb-4">
               <div className="flex items-baseline">
-                <span className="text-3xl font-bold text-emerald-600">${plan.precio}</span>
-                <span className="text-gray-600 ml-2">/ {plan.duracion} días</span>
+                <span className="text-3xl font-bold" style={{ color: plan.color }}>
+                  ${plan.costo}
+                </span>
+                <span className="text-gray-600 ml-2">/ {plan.duracion} {plan.duracion === 1 ? 'mes' : 'meses'}</span>
               </div>
             </div>
 
@@ -231,8 +346,8 @@ export default function PlanesMiaPassModule() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <Card className="w-full max-w-4xl my-8">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">
@@ -246,87 +361,334 @@ export default function PlanesMiaPassModule() {
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Información Básica */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nombre del Plan *
-                  </label>
-                  <Input
-                    type="text"
-                    value={formData.nombre}
-                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                    required
-                  />
-                </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Información Básica</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nombre del Plan *
+                      </label>
+                      <Input
+                        type="text"
+                        placeholder="Ej: Plan MiaPass Premium"
+                        value={formData.nombre}
+                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                        required
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Descripción *
-                  </label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    rows={3}
-                    value={formData.descripcion}
-                    onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                    required
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Costo *
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="150000"
+                        value={formData.costo}
+                        onChange={(e) => setFormData({ ...formData, costo: e.target.value })}
+                        required
+                      />
+                    </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Duración (meses) *
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={formData.duracion}
+                        onChange={(e) => setFormData({ ...formData, duracion: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Color
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="color"
+                          value={formData.color}
+                          onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                          className="w-20 h-10"
+                        />
+                        <Input
+                          type="text"
+                          value={formData.color}
+                          onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                          placeholder="#3B82F6"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Icono
+                      </label>
+                      <Input
+                        type="text"
+                        value={formData.icono}
+                        onChange={(e) => setFormData({ ...formData, icono: e.target.value })}
+                        placeholder="medical-services"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Precio (USD) *
+                      Descripción
                     </label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={formData.precio}
-                      onChange={(e) => setFormData({ ...formData, precio: e.target.value })}
-                      required
+                    <textarea
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      rows={3}
+                      value={formData.descripcion}
+                      onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+                      placeholder="Descripción detallada del plan..."
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Duración (días) *
+                  <div className="flex gap-4 mt-4">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.activo}
+                        onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
+                        className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Plan Activo</span>
                     </label>
-                    <Input
-                      type="number"
-                      value={formData.duracion}
-                      onChange={(e) => setFormData({ ...formData, duracion: e.target.value })}
-                      required
-                    />
+
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={formData.destacado}
+                        onChange={(e) => setFormData({ ...formData, destacado: e.target.checked })}
+                        className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Plan Destacado</span>
+                    </label>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Beneficios (separados por comas) *
-                  </label>
-                  <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    rows={4}
-                    value={formData.beneficios}
-                    onChange={(e) => setFormData({ ...formData, beneficios: e.target.value })}
-                    placeholder="Ej: Consultas ilimitadas, Descuento 20%, Prioridad en citas"
-                    required
-                  />
+                {/* Beneficios */}
+                <div className="border-t pt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Beneficios</h3>
+                    <Button
+                      type="button"
+                      onClick={addBeneficio}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Agregar Beneficio
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3">
+                    {formData.beneficios.map((beneficio, index) => (
+                      <div key={index} className="flex gap-2">
+                        <Input
+                          type="text"
+                          value={beneficio}
+                          onChange={(e) => updateBeneficio(index, e.target.value)}
+                          placeholder="Ej: Consultas ilimitadas"
+                          className="flex-1"
+                        />
+                        {formData.beneficios.length > 1 && (
+                          <Button
+                            type="button"
+                            onClick={() => removeBeneficio(index)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="activo"
-                    checked={formData.activo}
-                    onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                    className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                  />
-                  <label htmlFor="activo" className="ml-2 text-sm text-gray-700">
-                    Plan activo
-                  </label>
+                {/* Descuentos por Categoría */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Descuentos por Categoría</h3>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {['consultas', 'examenes', 'farmacia', 'procedimientos'].map((categoria) => (
+                      <div key={categoria} className="border rounded-lg p-4">
+                        <h4 className="font-medium text-gray-900 mb-3 capitalize">{categoria}</h4>
+                        <div className="space-y-2">
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Tipo</label>
+                            <select
+                              value={formData.descuentos[categoria].tipo}
+                              onChange={(e) => updateDescuento(categoria, 'tipo', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                              <option value="porcentaje">Porcentaje</option>
+                              <option value="valor">Valor Fijo</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Valor</label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={formData.descuentos[categoria].valor}
+                              onChange={(e) => updateDescuento(categoria, 'valor', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex gap-3 pt-4">
+                {/* Items Consumibles */}
+                <div className="border-t pt-6">
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Items Consumibles</h3>
+                    <Button
+                      type="button"
+                      onClick={addItemConsumible}
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Agregar Item
+                    </Button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {formData.itemsConsumibles.map((item, index) => (
+                      <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                        <div className="flex justify-between items-center mb-3">
+                          <h4 className="font-medium text-gray-900">Item {index + 1}</h4>
+                          <Button
+                            type="button"
+                            onClick={() => removeItemConsumible(index)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Tipo</label>
+                            <select
+                              value={item.tipo}
+                              onChange={(e) => updateItemConsumible(index, 'tipo', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                              <option value="Examen">Examen</option>
+                              <option value="Consulta">Consulta</option>
+                              <option value="Procedimiento">Procedimiento</option>
+                              <option value="Medicamento">Medicamento</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Especialidad</label>
+                            <select
+                              value={item.especialidad}
+                              onChange={(e) => updateItemConsumible(index, 'especialidad', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                              <option value="Todos">Todos</option>
+                              <option value="Cardiología">Cardiología</option>
+                              <option value="Neurología">Neurología</option>
+                              <option value="Pediatría">Pediatría</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Examen</label>
+                            <select
+                              value={item.examen}
+                              onChange={(e) => updateItemConsumible(index, 'examen', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                              <option value="Todos">Todos</option>
+                              <option value="Hemograma">Hemograma</option>
+                              <option value="Glucosa">Glucosa</option>
+                              <option value="Colesterol">Colesterol</option>
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <label className="block text-sm text-gray-600 mb-1">Nombre</label>
+                            <Input
+                              type="text"
+                              value={item.nombre}
+                              onChange={(e) => updateItemConsumible(index, 'nombre', e.target.value)}
+                              placeholder="Ej: Consulta de Cardiología"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Costo Original</label>
+                            <Input
+                              type="number"
+                              value={item.costoOriginal}
+                              onChange={(e) => updateItemConsumible(index, 'costoOriginal', e.target.value)}
+                              placeholder="100000"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Costo con Plan</label>
+                            <Input
+                              type="number"
+                              value={item.costoConPlan}
+                              onChange={(e) => updateItemConsumible(index, 'costoConPlan', e.target.value)}
+                              placeholder="50000"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm text-gray-600 mb-1">Cantidad Incluida</label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.cantidadIncluida}
+                              onChange={(e) => updateItemConsumible(index, 'cantidadIncluida', parseInt(e.target.value) || 1)}
+                            />
+                          </div>
+
+                          <div className="md:col-span-3">
+                            <label className="block text-sm text-gray-600 mb-1">Descripción</label>
+                            <textarea
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                              rows={2}
+                              value={item.descripcion}
+                              onChange={(e) => updateItemConsumible(index, 'descripcion', e.target.value)}
+                              placeholder="Descripción del item..."
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {formData.itemsConsumibles.length === 0 && (
+                      <p className="text-sm text-gray-500 text-center py-4">
+                        No hay items consumibles. Haz clic en "Agregar Item" para añadir uno.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-6 border-t">
                   <Button
                     type="button"
                     variant="outline"
