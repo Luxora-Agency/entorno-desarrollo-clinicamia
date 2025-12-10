@@ -13,15 +13,21 @@ import { Button } from '@/components/ui/button';
 
 export default function Sidebar({ user, activeModule, setActiveModule, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isDoctoresOpen, setIsDoctoresOpen] = useState(false);
+  const [isExamenesOpen, setIsExamenesOpen] = useState(false);
+  const [isFarmaciaOpen, setIsFarmaciaOpen] = useState(false);
+  const [isHospitalizacionOpen, setIsHospitalizacionOpen] = useState(false);
 
   // Configuración de permisos por rol
   const userRole = (user?.rol || 'Admin').toLowerCase();
   
   const rolePermissions = {
-    admin: ['*'], // Acceso a todo
-    'super_admin': ['*'],
-    superadmin: ['*'],
-    administrador: ['*'],
+    superadmin: ['*'], // SuperAdmin ve TODO
+    admin: [ // Admin ve opciones operativas principales
+      'dashboard', 'admisiones', 'pacientes', 'citas', 'hce', 
+      'enfermeria', 'farmacia', 'laboratorio', 'imagenologia', 
+      'urgencias', 'hospitalizacion', 'facturacion', 'quirofano', 'reportes'
+    ],
     doctor: ['dashboard', 'pacientes', 'hce', 'citas', 'laboratorio', 'imagenologia', 'urgencias'],
     recepcionista: ['dashboard', 'admisiones', 'pacientes', 'citas'],
     enfermera: ['dashboard', 'pacientes', 'hce', 'hospitalizacion'],
@@ -56,7 +62,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
       <aside
         className={`fixed md:sticky top-0 left-0 h-screen w-72 bg-white border-r border-gray-100 z-40 transform transition-transform duration-300 ease-in-out ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 shadow-xl md:shadow-none`}
+        } md:translate-x-0 shadow-xl md:shadow-none overflow-y-auto`}
       >
         <div className="flex flex-col h-full">
           {/* Header */}
@@ -86,7 +92,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto py-4 px-3">
+          <nav className="flex-1 py-4 px-3">
             <div className="space-y-1">
               {/* Panel - Todos tienen acceso */}
               {hasAccess('dashboard') && (
@@ -123,6 +129,85 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 </button>
               )}
 
+              {/* Doctores - SOLO SUPERADMIN */}
+              {userRole === 'superadmin' && (
+                <>
+                  <button
+                    onClick={() => setIsDoctoresOpen(!isDoctoresOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Stethoscope className="w-4 h-4" />
+                      <span>Doctores</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isDoctoresOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isDoctoresOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                      <button
+                        onClick={() => {
+                          setActiveModule('doctores');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'doctores'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Todos los Doctores</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('especialidades');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'especialidades'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Especialidades</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('departamentos');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'departamentos'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Departamentos</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('agregar-doctor');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'agregar-doctor'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Agregar Doctor</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {hasAccess('pacientes') && (
                 <button
                   onClick={() => {
@@ -155,6 +240,57 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                   <Calendar className="w-4 h-4" />
                   <span>Agenda/Citas</span>
                 </button>
+              )}
+
+              {/* Exámenes - SOLO SUPERADMIN */}
+              {userRole === 'superadmin' && (
+                <>
+                  <button
+                    onClick={() => setIsExamenesOpen(!isExamenesOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Beaker className="w-4 h-4" />
+                      <span>Exámenes</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isExamenesOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isExamenesOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                      <button
+                        onClick={() => {
+                          setActiveModule('examenes');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'examenes'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Todos</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('categorias-examenes');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'categorias-examenes'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Categorías</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
               )}
 
               {hasAccess('hce') && (
@@ -191,21 +327,73 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 </button>
               )}
 
-              {hasAccess('farmacia') && (
-                <button
-                  onClick={() => {
-                    setActiveModule('farmacia');
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    activeModule === 'farmacia'
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Pill className="w-4 h-4" />
-                  <span>Farmacia</span>
-                </button>
+              {/* Farmacia */}
+              {(hasAccess('farmacia') || userRole === 'superadmin') && (
+                <>
+                  <button
+                    onClick={() => setIsFarmaciaOpen(!isFarmaciaOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Pill className="w-4 h-4" />
+                      <span>Farmacia</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isFarmaciaOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isFarmaciaOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                      <button
+                        onClick={() => {
+                          setActiveModule('farmacia');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'farmacia'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Inventario</span>
+                      </button>
+                      {userRole === 'superadmin' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setActiveModule('categorias-productos');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'categorias-productos'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Categorías</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveModule('etiquetas-productos');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'etiquetas-productos'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Etiquetas</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
 
               {hasAccess('laboratorio') && (
@@ -259,21 +447,87 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 </button>
               )}
 
-              {hasAccess('hospitalizacion') && (
-                <button
-                  onClick={() => {
-                    setActiveModule('hospitalizacion');
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    activeModule === 'hospitalizacion'
-                      ? 'bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Building2 className="w-4 h-4" />
-                  <span>Mapa Hospitalización</span>
-                </button>
+              {/* Hospitalización */}
+              {(hasAccess('hospitalizacion') || userRole === 'superadmin') && (
+                <>
+                  <button
+                    onClick={() => setIsHospitalizacionOpen(!isHospitalizacionOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Building2 className="w-4 h-4" />
+                      <span>Hospitalización</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isHospitalizacionOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isHospitalizacionOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                      <button
+                        onClick={() => {
+                          setActiveModule('hospitalizacion');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'hospitalizacion'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Mapa de Camas</span>
+                      </button>
+                      {userRole === 'superadmin' && (
+                        <>
+                          <button
+                            onClick={() => {
+                              setActiveModule('unidades');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'unidades'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Unidades</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveModule('habitaciones');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'habitaciones'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Habitaciones</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setActiveModule('camas');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'camas'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Camas</span>
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </>
               )}
 
               {hasAccess('facturacion') && (
