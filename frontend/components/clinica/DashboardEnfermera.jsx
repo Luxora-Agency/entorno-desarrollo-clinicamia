@@ -4,19 +4,50 @@ import { useState, useEffect } from 'react';
 import { 
   Activity, Clock, User, AlertTriangle, CheckCircle, 
   Pill, ClipboardList, Calendar, TrendingUp, Users,
-  Eye, CheckCheck, XCircle, AlertCircle, Thermometer
+  Eye, CheckCheck, XCircle, AlertCircle, Thermometer,
+  Plus, Save, X, Edit, Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 export default function DashboardEnfermera({ user }) {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('pendientes');
+  const [showAdministrarModal, setShowAdministrarModal] = useState(false);
+  const [showSignosModal, setShowSignosModal] = useState(false);
+  const [showNotaModal, setShowNotaModal] = useState(false);
+  const [selectedMedicamento, setSelectedMedicamento] = useState(null);
+  const [selectedPaciente, setSelectedPaciente] = useState(null);
   
-  // Mock data para el dashboard de enfermería
+  // Form states
+  const [formSignos, setFormSignos] = useState({
+    presionArterial: '',
+    frecuenciaCardiaca: '',
+    frecuenciaRespiratoria: '',
+    temperatura: '',
+    saturacionO2: '',
+    observaciones: ''
+  });
+
+  const [formNota, setFormNota] = useState({
+    tipo: 'Evolución',
+    nota: ''
+  });
+
+  const [formAdministracion, setFormAdministracion] = useState({
+    observaciones: '',
+    reaccionAdversa: false
+  });
+  
+  // Mock data - pacientes asignados
   const [pacientesAsignados, setPacientesAsignados] = useState([
     {
       id: '1',
@@ -54,88 +85,64 @@ export default function DashboardEnfermera({ user }) {
       medicamentosPendientes: 3,
       alertas: ['Curación pendiente'],
     },
-    {
-      id: '4',
-      nombre: 'Carlos Rodríguez',
-      edad: 75,
-      habitacion: '304-B',
-      diagnostico: 'Insuficiencia cardíaca',
-      nivelComplejidad: 'Alta',
-      signosVitalesUltimo: '2025-01-15 15:30',
-      medicamentosHoy: 6,
-      medicamentosPendientes: 0,
-      alertas: [],
-    },
   ]);
 
   const [medicamentosPendientes, setMedicamentosPendientes] = useState([
     {
       id: 'MED-001',
+      pacienteId: '1',
       paciente: 'María González',
       habitacion: '301-A',
       medicamento: 'Paracetamol 500mg',
       dosis: '1 tableta',
       via: 'Oral',
       horaProgramada: '14:00',
-      tiempoRestante: '-30 min',
       estado: 'Atrasado',
       prioridad: 'Alta',
     },
     {
       id: 'MED-002',
+      pacienteId: '1',
       paciente: 'María González',
       habitacion: '301-A',
       medicamento: 'Amoxicilina 500mg',
       dosis: '1 cápsula',
       via: 'Oral',
       horaProgramada: '16:00',
-      tiempoRestante: '30 min',
       estado: 'Pendiente',
       prioridad: 'Media',
     },
     {
       id: 'MED-003',
+      pacienteId: '2',
       paciente: 'Pedro Jiménez',
       habitacion: '302-B',
       medicamento: 'Insulina NPH 100 UI/mL',
       dosis: '10 UI',
       via: 'Subcutánea',
       horaProgramada: '16:30',
-      tiempoRestante: '60 min',
       estado: 'Pendiente',
       prioridad: 'Alta',
-    },
-    {
-      id: 'MED-004',
-      paciente: 'Ana Martínez',
-      habitacion: '303-A',
-      medicamento: 'Tramadol 50mg',
-      dosis: '1 ampolla',
-      via: 'Intramuscular',
-      horaProgramada: '17:00',
-      tiempoRestante: '90 min',
-      estado: 'Pendiente',
-      prioridad: 'Media',
     },
   ]);
 
   const [signosVitalesPendientes, setSignosVitalesPendientes] = useState([
     {
       id: 'SV-001',
+      pacienteId: '1',
       paciente: 'María González',
       habitacion: '301-A',
       ultimoRegistro: '14:30',
       proximoRegistro: '16:00',
-      tiempoRestante: '30 min',
       estado: 'Programado',
     },
     {
       id: 'SV-002',
-      paciente: 'Carlos Rodríguez',
-      habitacion: '304-B',
-      ultimoRegistro: '15:30',
-      proximoRegistro: '17:30',
-      tiempoRestante: '120 min',
+      pacienteId: '3',
+      paciente: 'Ana Martínez',
+      habitacion: '303-A',
+      ultimoRegistro: '13:45',
+      proximoRegistro: '15:45',
       estado: 'Programado',
     },
   ]);
@@ -143,9 +150,10 @@ export default function DashboardEnfermera({ user }) {
   const [tareasDelTurno, setTareasDelTurno] = useState([
     {
       id: 'TAREA-001',
-      tipo: 'Curación',
+      pacienteId: '3',
       paciente: 'Ana Martínez',
       habitacion: '303-A',
+      tipo: 'Curación',
       descripcion: 'Curación herida quirúrgica post-apendicectomía',
       prioridad: 'Alta',
       horaProgramada: '16:00',
@@ -153,33 +161,133 @@ export default function DashboardEnfermera({ user }) {
     },
     {
       id: 'TAREA-002',
-      tipo: 'Movilización',
+      pacienteId: '1',
       paciente: 'María González',
       habitacion: '301-A',
+      tipo: 'Movilización',
       descripcion: 'Movilización en cama cada 2 horas',
       prioridad: 'Media',
       horaProgramada: '16:30',
       estado: 'Pendiente',
     },
+  ]);
+
+  const [notasEnfermeria, setNotasEnfermeria] = useState([
     {
-      id: 'TAREA-003',
-      tipo: 'Control',
-      paciente: 'Carlos Rodríguez',
-      habitacion: '304-B',
-      descripcion: 'Control de balance hídrico',
-      prioridad: 'Alta',
-      horaProgramada: '17:00',
-      estado: 'Pendiente',
+      id: 'NOTA-001',
+      pacienteId: '1',
+      paciente: 'María González',
+      fecha: new Date().toISOString(),
+      tipo: 'Evolución',
+      nota: 'Paciente alerta, orientada. Refiere mejoría de síntomas respiratorios.',
     },
   ]);
 
-  // Estadísticas del turno
+  // Estadísticas
   const stats = {
     pacientesAsignados: pacientesAsignados.length,
-    medicamentosPendientes: medicamentosPendientes.filter(m => m.estado === 'Pendiente' || m.estado === 'Atrasado').length,
+    medicamentosPendientes: medicamentosPendientes.filter(m => m.estado !== 'Administrado').length,
     signosVitalesPendientes: signosVitalesPendientes.length,
     tareasDelTurno: tareasDelTurno.filter(t => t.estado === 'Pendiente').length,
     alertasActivas: pacientesAsignados.reduce((acc, p) => acc + p.alertas.length, 0),
+  };
+
+  // Funciones de acción
+  const handleAdministrarMedicamento = () => {
+    if (!selectedMedicamento) return;
+    
+    setMedicamentosPendientes(prev => 
+      prev.map(m => 
+        m.id === selectedMedicamento.id 
+          ? { ...m, estado: 'Administrado' }
+          : m
+      )
+    );
+
+    // Actualizar conteo de medicamentos pendientes del paciente
+    setPacientesAsignados(prev =>
+      prev.map(p =>
+        p.id === selectedMedicamento.pacienteId
+          ? { ...p, medicamentosPendientes: Math.max(0, p.medicamentosPendientes - 1) }
+          : p
+      )
+    );
+
+    setShowAdministrarModal(false);
+    setSelectedMedicamento(null);
+    setFormAdministracion({ observaciones: '', reaccionAdversa: false });
+  };
+
+  const handleOmitirMedicamento = (medId) => {
+    setMedicamentosPendientes(prev => 
+      prev.map(m => 
+        m.id === medId 
+          ? { ...m, estado: 'Omitido' }
+          : m
+      )
+    );
+  };
+
+  const handleRegistrarSignos = () => {
+    const nuevoRegistro = {
+      id: `SV-${Date.now()}`,
+      pacienteId: selectedPaciente?.id,
+      paciente: selectedPaciente?.nombre,
+      habitacion: selectedPaciente?.habitacion,
+      fecha: new Date().toISOString(),
+      ...formSignos
+    };
+
+    // Actualizar último registro de signos vitales del paciente
+    setPacientesAsignados(prev =>
+      prev.map(p =>
+        p.id === selectedPaciente?.id
+          ? { ...p, signosVitalesUltimo: new Date().toLocaleString('es-CO') }
+          : p
+      )
+    );
+
+    // Remover de signos pendientes
+    setSignosVitalesPendientes(prev =>
+      prev.filter(sv => sv.pacienteId !== selectedPaciente?.id)
+    );
+
+    setShowSignosModal(false);
+    setSelectedPaciente(null);
+    setFormSignos({
+      presionArterial: '',
+      frecuenciaCardiaca: '',
+      frecuenciaRespiratoria: '',
+      temperatura: '',
+      saturacionO2: '',
+      observaciones: ''
+    });
+  };
+
+  const handleAgregarNota = () => {
+    const nuevaNota = {
+      id: `NOTA-${Date.now()}`,
+      pacienteId: selectedPaciente?.id,
+      paciente: selectedPaciente?.nombre,
+      fecha: new Date().toISOString(),
+      tipo: formNota.tipo,
+      nota: formNota.nota,
+    };
+
+    setNotasEnfermeria(prev => [nuevaNota, ...prev]);
+    setShowNotaModal(false);
+    setSelectedPaciente(null);
+    setFormNota({ tipo: 'Evolución', nota: '' });
+  };
+
+  const handleCompletarTarea = (tareaId) => {
+    setTareasDelTurno(prev =>
+      prev.map(t =>
+        t.id === tareaId
+          ? { ...t, estado: 'Completada' }
+          : t
+      )
+    );
   };
 
   const getComplejidadColor = (complejidad) => {
@@ -208,21 +316,6 @@ export default function DashboardEnfermera({ user }) {
       'Baja': 'bg-blue-100 text-blue-700 border-blue-300',
     };
     return colores[prioridad] || 'bg-gray-100 text-gray-700 border-gray-300';
-  };
-
-  const administrarMedicamento = (medId) => {
-    console.log('Administrar medicamento:', medId);
-    // En producción, aquí iría la lógica para administrar el medicamento
-  };
-
-  const registrarSignosVitales = (pacienteId) => {
-    console.log('Registrar signos vitales:', pacienteId);
-    // En producción, aquí iría la navegación al módulo de signos vitales
-  };
-
-  const verPaciente = (pacienteId) => {
-    console.log('Ver paciente:', pacienteId);
-    // En producción, aquí iría la navegación al perfil del paciente
   };
 
   return (
@@ -321,21 +414,25 @@ export default function DashboardEnfermera({ user }) {
 
       {/* Tabs principales */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4 bg-white shadow-md">
+        <TabsList className="grid w-full grid-cols-5 bg-white shadow-md">
           <TabsTrigger value="pendientes" className="data-[state=active]:bg-green-600 data-[state=active]:text-white">
             <Clock className="w-4 h-4 mr-2" />
             Pendientes
-          </TabsTrigger>
-          <TabsTrigger value="pacientes" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
-            <Users className="w-4 h-4 mr-2" />
-            Mis Pacientes
           </TabsTrigger>
           <TabsTrigger value="medicamentos" className="data-[state=active]:bg-yellow-600 data-[state=active]:text-white">
             <Pill className="w-4 h-4 mr-2" />
             Medicamentos
           </TabsTrigger>
-          <TabsTrigger value="tareas" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
+          <TabsTrigger value="signos" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white">
+            <Thermometer className="w-4 h-4 mr-2" />
+            Signos Vitales
+          </TabsTrigger>
+          <TabsTrigger value="notas" className="data-[state=active]:bg-purple-600 data-[state=active]:text-white">
             <ClipboardList className="w-4 h-4 mr-2" />
+            Notas
+          </TabsTrigger>
+          <TabsTrigger value="tareas" className="data-[state=active]:bg-teal-600 data-[state=active]:text-white">
+            <CheckCircle className="w-4 h-4 mr-2" />
             Tareas
           </TabsTrigger>
         </TabsList>
@@ -366,15 +463,15 @@ export default function DashboardEnfermera({ user }) {
                         <p className="text-sm text-gray-700 mt-1">
                           {med.medicamento} - {med.dosis} - {med.via}
                         </p>
-                        <p className="text-xs text-red-600 font-semibold mt-1">
-                          Programado: {med.horaProgramada} ({med.tiempoRestante})
-                        </p>
                       </div>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
                           className="bg-green-600 hover:bg-green-700"
-                          onClick={() => administrarMedicamento(med.id)}
+                          onClick={() => {
+                            setSelectedMedicamento(med);
+                            setShowAdministrarModal(true);
+                          }}
                         >
                           <CheckCircle className="w-4 h-4 mr-1" />
                           Administrar
@@ -382,7 +479,7 @@ export default function DashboardEnfermera({ user }) {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-gray-300"
+                          onClick={() => handleOmitirMedicamento(med.id)}
                         >
                           <XCircle className="w-4 h-4 mr-1" />
                           Omitir
@@ -404,123 +501,50 @@ export default function DashboardEnfermera({ user }) {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Habitación</TableHead>
-                    <TableHead>Último Registro</TableHead>
-                    <TableHead>Próximo Registro</TableHead>
-                    <TableHead>Tiempo Restante</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {signosVitalesPendientes.map((sv) => (
-                    <TableRow key={sv.id}>
-                      <TableCell className="font-medium">{sv.paciente}</TableCell>
-                      <TableCell>{sv.habitacion}</TableCell>
-                      <TableCell>{sv.ultimoRegistro}</TableCell>
-                      <TableCell>{sv.proximoRegistro}</TableCell>
-                      <TableCell>
-                        <Badge className="bg-blue-100 text-blue-700 border-blue-300">
-                          {sv.tiempoRestante}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700"
-                          onClick={() => registrarSignosVitales(sv.id)}
-                        >
-                          <CheckCheck className="w-4 h-4 mr-1" />
-                          Registrar
-                        </Button>
-                      </TableCell>
+              {signosVitalesPendientes.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No hay signos vitales pendientes</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Paciente</TableHead>
+                      <TableHead>Habitación</TableHead>
+                      <TableHead>Último Registro</TableHead>
+                      <TableHead>Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tab: Mis Pacientes */}
-        <TabsContent value="pacientes" className="space-y-4">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Pacientes Asignados en Este Turno
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {pacientesAsignados.map((paciente) => (
-                  <Card key={paciente.id} className="border-l-4 border-blue-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-semibold text-lg text-gray-900">{paciente.nombre}</h3>
-                            <Badge className={getComplejidadColor(paciente.nivelComplejidad)}>
-                              Complejidad {paciente.nivelComplejidad}
-                            </Badge>
-                            <span className="text-sm text-gray-600">{paciente.edad} años</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                              <p className="text-gray-600">Habitación: <span className="font-semibold text-gray-900">{paciente.habitacion}</span></p>
-                              <p className="text-gray-600">Diagnóstico: <span className="font-semibold text-gray-900">{paciente.diagnostico}</span></p>
-                            </div>
-                            <div>
-                              <p className="text-gray-600">Último registro SV: <span className="font-semibold text-gray-900">{paciente.signosVitalesUltimo}</span></p>
-                              <p className="text-gray-600">Medicamentos hoy: <span className="font-semibold text-gray-900">{paciente.medicamentosHoy}</span> (Pendientes: {paciente.medicamentosPendientes})</p>
-                            </div>
-                          </div>
-                          {paciente.alertas.length > 0 && (
-                            <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                              <div className="flex items-start gap-2">
-                                <AlertCircle className="w-4 h-4 text-yellow-600 mt-0.5" />
-                                <div>
-                                  <p className="font-semibold text-yellow-800 text-sm">Alertas:</p>
-                                  {paciente.alertas.map((alerta, idx) => (
-                                    <p key={idx} className="text-sm text-yellow-700">• {alerta}</p>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-2 ml-4">
+                  </TableHeader>
+                  <TableBody>
+                    {signosVitalesPendientes.map((sv) => (
+                      <TableRow key={sv.id}>
+                        <TableCell className="font-medium">{sv.paciente}</TableCell>
+                        <TableCell>{sv.habitacion}</TableCell>
+                        <TableCell>{sv.ultimoRegistro}</TableCell>
+                        <TableCell>
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => verPaciente(paciente.id)}
+                            className="bg-blue-600 hover:bg-blue-700"
+                            onClick={() => {
+                              const paciente = pacientesAsignados.find(p => p.id === sv.pacienteId);
+                              setSelectedPaciente(paciente);
+                              setShowSignosModal(true);
+                            }}
                           >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Ver Detalles
+                            <CheckCheck className="w-4 h-4 mr-1" />
+                            Registrar
                           </Button>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <Activity className="w-4 h-4 mr-1" />
-                            Registrar Nota
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* Tab: Medicamentos */}
         <TabsContent value="medicamentos" className="space-y-4">
-          <Card className="shadow-lg">
+          <Card className="shadow-xl">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Pill className="w-5 h-5" />
@@ -533,7 +557,6 @@ export default function DashboardEnfermera({ user }) {
                   <TableRow>
                     <TableHead>Hora</TableHead>
                     <TableHead>Paciente</TableHead>
-                    <TableHead>Hab.</TableHead>
                     <TableHead>Medicamento</TableHead>
                     <TableHead>Dosis</TableHead>
                     <TableHead>Vía</TableHead>
@@ -547,7 +570,6 @@ export default function DashboardEnfermera({ user }) {
                     <TableRow key={med.id} className={med.estado === 'Atrasado' ? 'bg-red-50' : ''}>
                       <TableCell className="font-semibold">{med.horaProgramada}</TableCell>
                       <TableCell>{med.paciente}</TableCell>
-                      <TableCell>{med.habitacion}</TableCell>
                       <TableCell>{med.medicamento}</TableCell>
                       <TableCell>{med.dosis}</TableCell>
                       <TableCell>{med.via}</TableCell>
@@ -562,21 +584,27 @@ export default function DashboardEnfermera({ user }) {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => administrarMedicamento(med.id)}
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </Button>
-                        </div>
+                        {med.estado !== 'Administrado' && med.estado !== 'Omitido' && (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => {
+                                setSelectedMedicamento(med);
+                                setShowAdministrarModal(true);
+                              }}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOmitirMedicamento(med.id)}
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -586,48 +614,353 @@ export default function DashboardEnfermera({ user }) {
           </Card>
         </TabsContent>
 
-        {/* Tab: Tareas */}
-        <TabsContent value="tareas" className="space-y-4">
-          <Card className="shadow-lg">
+        {/* Tab: Signos Vitales */}
+        <TabsContent value="signos" className="space-y-4">
+          <Card className="shadow-xl">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5" />
-                Tareas del Turno
-              </CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <Thermometer className="w-5 h-5" />
+                  Registro de Signos Vitales
+                </CardTitle>
+                <Button
+                  onClick={() => {
+                    setSelectedPaciente(pacientesAsignados[0]);
+                    setShowSignosModal(true);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nuevo Registro
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {tareasDelTurno.map((tarea) => (
-                  <div key={tarea.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Badge className={getPrioridadColor(tarea.prioridad)}>
-                            {tarea.prioridad}
-                          </Badge>
-                          <span className="font-semibold text-gray-900">{tarea.tipo}</span>
-                          <span className="text-sm text-gray-600">- {tarea.horaProgramada}</span>
-                        </div>
-                        <p className="text-sm text-gray-700 mb-1">
-                          <span className="font-semibold">{tarea.paciente}</span> ({tarea.habitacion})
-                        </p>
-                        <p className="text-sm text-gray-600">{tarea.descripcion}</p>
-                      </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {pacientesAsignados.map((paciente) => (
+                  <Card key={paciente.id} className="border-l-4 border-blue-500">
+                    <CardContent className="p-4">
+                      <h3 className="font-semibold text-gray-900 mb-2">{paciente.nombre}</h3>
+                      <p className="text-sm text-gray-600 mb-3">
+                        Habitación: {paciente.habitacion}
+                      </p>
+                      <p className="text-xs text-gray-500 mb-3">
+                        Último registro: {paciente.signosVitalesUltimo}
+                      </p>
                       <Button
                         size="sm"
-                        className="bg-green-600 hover:bg-green-700"
+                        className="w-full bg-blue-600 hover:bg-blue-700"
+                        onClick={() => {
+                          setSelectedPaciente(paciente);
+                          setShowSignosModal(true);
+                        }}
                       >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Completar
+                        <Thermometer className="w-4 h-4 mr-2" />
+                        Registrar
                       </Button>
-                    </div>
-                  </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Tab: Notas */}
+        <TabsContent value="notas" className="space-y-4">
+          <Card className="shadow-xl">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5" />
+                  Notas de Enfermería
+                </CardTitle>
+                <Button
+                  onClick={() => {
+                    setSelectedPaciente(pacientesAsignados[0]);
+                    setShowNotaModal(true);
+                  }}
+                  className="bg-purple-600 hover:bg-purple-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nueva Nota
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {notasEnfermeria.length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No hay notas registradas</p>
+              ) : (
+                <div className="space-y-4">
+                  {notasEnfermeria.map((nota) => (
+                    <Card key={nota.id} className="border-l-4 border-purple-500">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{nota.paciente}</h4>
+                            <p className="text-sm text-gray-600">
+                              {new Date(nota.fecha).toLocaleString('es-CO')}
+                            </p>
+                          </div>
+                          <Badge className="bg-purple-100 text-purple-700 border-purple-300">
+                            {nota.tipo}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-gray-700">{nota.nota}</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Tab: Tareas */}
+        <TabsContent value="tareas" className="space-y-4">
+          <Card className="shadow-xl">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" />
+                Tareas del Turno
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {tareasDelTurno.filter(t => t.estado === 'Pendiente').length === 0 ? (
+                <p className="text-center text-gray-500 py-8">No hay tareas pendientes</p>
+              ) : (
+                <div className="space-y-3">
+                  {tareasDelTurno.filter(t => t.estado === 'Pendiente').map((tarea) => (
+                    <div key={tarea.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <Badge className={getPrioridadColor(tarea.prioridad)}>
+                              {tarea.prioridad}
+                            </Badge>
+                            <span className="font-semibold text-gray-900">{tarea.tipo}</span>
+                            <span className="text-sm text-gray-600">- {tarea.horaProgramada}</span>
+                          </div>
+                          <p className="text-sm text-gray-700 mb-1">
+                            <span className="font-semibold">{tarea.paciente}</span> ({tarea.habitacion})
+                          </p>
+                          <p className="text-sm text-gray-600">{tarea.descripcion}</p>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleCompletarTarea(tarea.id)}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Completar
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Modal: Administrar Medicamento */}
+      <Dialog open={showAdministrarModal} onOpenChange={setShowAdministrarModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Administrar Medicamento</DialogTitle>
+          </DialogHeader>
+          {selectedMedicamento && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <p className="font-semibold text-gray-900">{selectedMedicamento.paciente}</p>
+                <p className="text-sm text-gray-600">{selectedMedicamento.habitacion}</p>
+                <p className="text-sm font-medium text-blue-700 mt-2">
+                  {selectedMedicamento.medicamento} - {selectedMedicamento.dosis}
+                </p>
+                <p className="text-xs text-gray-600">Vía: {selectedMedicamento.via}</p>
+              </div>
+              <div>
+                <Label>Observaciones</Label>
+                <Textarea
+                  placeholder="Observaciones sobre la administración..."
+                  value={formAdministracion.observaciones}
+                  onChange={(e) => setFormAdministracion(prev => ({ ...prev, observaciones: e.target.value }))}
+                  rows={3}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="reaccion"
+                  checked={formAdministracion.reaccionAdversa}
+                  onChange={(e) => setFormAdministracion(prev => ({ ...prev, reaccionAdversa: e.target.checked }))}
+                  className="rounded"
+                />
+                <Label htmlFor="reaccion" className="text-sm">Reportar reacción adversa</Label>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdministrarModal(false)}>
+              Cancelar
+            </Button>
+            <Button className="bg-green-600 hover:bg-green-700" onClick={handleAdministrarMedicamento}>
+              <CheckCircle className="w-4 h-4 mr-2" />
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Registrar Signos Vitales */}
+      <Dialog open={showSignosModal} onOpenChange={setShowSignosModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Registrar Signos Vitales</DialogTitle>
+          </DialogHeader>
+          {selectedPaciente && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="font-semibold text-gray-900">{selectedPaciente.nombre}</p>
+                <p className="text-sm text-gray-600">
+                  Habitación: {selectedPaciente.habitacion} - {selectedPaciente.diagnostico}
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Presión Arterial (mmHg)</Label>
+                  <Input
+                    placeholder="120/80"
+                    value={formSignos.presionArterial}
+                    onChange={(e) => setFormSignos(prev => ({ ...prev, presionArterial: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Frecuencia Cardíaca (lpm)</Label>
+                  <Input
+                    type="number"
+                    placeholder="72"
+                    value={formSignos.frecuenciaCardiaca}
+                    onChange={(e) => setFormSignos(prev => ({ ...prev, frecuenciaCardiaca: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Frecuencia Respiratoria (rpm)</Label>
+                  <Input
+                    type="number"
+                    placeholder="18"
+                    value={formSignos.frecuenciaRespiratoria}
+                    onChange={(e) => setFormSignos(prev => ({ ...prev, frecuenciaRespiratoria: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Temperatura (°C)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="36.5"
+                    value={formSignos.temperatura}
+                    onChange={(e) => setFormSignos(prev => ({ ...prev, temperatura: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label>Saturación O₂ (%)</Label>
+                  <Input
+                    type="number"
+                    placeholder="98"
+                    value={formSignos.saturacionO2}
+                    onChange={(e) => setFormSignos(prev => ({ ...prev, saturacionO2: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Observaciones</Label>
+                <Textarea
+                  placeholder="Observaciones adicionales..."
+                  rows={2}
+                  value={formSignos.observaciones}
+                  onChange={(e) => setFormSignos(prev => ({ ...prev, observaciones: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSignosModal(false)}>
+              Cancelar
+            </Button>
+            <Button className="bg-blue-600 hover:bg-blue-700" onClick={handleRegistrarSignos}>
+              <Save className="w-4 h-4 mr-2" />
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Nueva Nota */}
+      <Dialog open={showNotaModal} onOpenChange={setShowNotaModal}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Nueva Nota de Enfermería</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Paciente</Label>
+              <Select value={selectedPaciente?.id} onValueChange={(value) => {
+                const paciente = pacientesAsignados.find(p => p.id === value);
+                setSelectedPaciente(paciente);
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un paciente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {pacientesAsignados.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.nombre} - {p.habitacion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Tipo de Nota</Label>
+              <Select value={formNota.tipo} onValueChange={(value) => setFormNota(prev => ({ ...prev, tipo: value }))}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Evolución">Evolución</SelectItem>
+                  <SelectItem value="Procedimiento">Procedimiento</SelectItem>
+                  <SelectItem value="Observación">Observación</SelectItem>
+                  <SelectItem value="Evento Adverso">Evento Adverso</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Nota</Label>
+              <Textarea
+                placeholder="Escriba la nota de enfermería..."
+                rows={6}
+                value={formNota.nota}
+                onChange={(e) => setFormNota(prev => ({ ...prev, nota: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNotaModal(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              className="bg-purple-600 hover:bg-purple-700" 
+              onClick={handleAgregarNota}
+              disabled={!selectedPaciente || !formNota.nota}
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Guardar Nota
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
