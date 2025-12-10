@@ -989,6 +989,9 @@ video {
 .max-h-0 {
   max-height: 0px;
 }
+.max-h-\[600px\] {
+  max-height: 600px;
+}
 .min-h-0 {
   min-height: 0px;
 }
@@ -2462,6 +2465,10 @@ video {
 .bg-\[size\:20px_20px\] {
   background-size: 20px 20px;
 }
+.bg-clip-text {
+  -webkit-background-clip: text;
+          background-clip: text;
+}
 .fill-current {
   fill: currentColor;
 }
@@ -2718,6 +2725,9 @@ video {
 .font-semibold {
   font-weight: 600;
 }
+.uppercase {
+  text-transform: uppercase;
+}
 .capitalize {
   text-transform: capitalize;
 }
@@ -2739,6 +2749,9 @@ video {
 }
 .tracking-widest {
   letter-spacing: 0.1em;
+}
+.tracking-wider {
+  letter-spacing: 0.05em;
 }
 .text-accent-foreground {
   color: hsl(var(--accent-foreground));
@@ -3021,6 +3034,9 @@ video {
 .text-yellow-900 {
   --tw-text-opacity: 1;
   color: rgb(113 63 18 / var(--tw-text-opacity, 1));
+}
+.text-transparent {
+  color: transparent;
 }
 .underline-offset-4 {
   text-underline-offset: 4px;
