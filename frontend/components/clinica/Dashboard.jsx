@@ -149,7 +149,7 @@ export default function Dashboard({ user, onLogout }) {
       case 'hce':
         return <HCEModule user={user} />;
       case 'enfermeria':
-        return <EnfermeriaModule user={user} />;
+        return <EnfermeriaModuleEnhanced user={user} />;
       case 'laboratorio':
         return <LaboratorioModule user={user} />;
       case 'imagenologia':
