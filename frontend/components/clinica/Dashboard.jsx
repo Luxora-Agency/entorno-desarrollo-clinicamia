@@ -165,6 +165,16 @@ export default function Dashboard({ user, onLogout }) {
         return <QuirofanoModule user={user} />;
       case 'reportes':
         return <ReportesModule user={user} />;
+      // Módulos MiaPass
+      case 'planes-miapass':
+        return <PlanesMiaPassModule user={user} />;
+      case 'suscripciones-miapass':
+        return <SuscripcionesMiaPassModule user={user} />;
+      case 'suscriptores-miapass':
+        return <SuscriptoresMiaPassModule user={user} />;
+      // Órdenes Médicas
+      case 'ordenes-medicas':
+        return <OrdenesMedicasModule user={user} />;
       default:
         return <DashboardHome user={user} />;
     }
