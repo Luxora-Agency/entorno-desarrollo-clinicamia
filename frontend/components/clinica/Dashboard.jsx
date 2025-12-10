@@ -6,7 +6,7 @@ import Sidebar from './Sidebar';
 import DashboardHome from './DashboardHome';
 import AdmisionesModule from './AdmisionesModule';
 import PacientesModule from './PacientesModule';
-import CitasModule from './CitasModule';
+import CitasModuleRefactored from './CitasModuleRefactored';
 import EspecialidadesModule from './EspecialidadesModule';
 import DepartamentosModule from './DepartamentosModule';
 import DoctoresModule from './DoctoresModule';
@@ -21,7 +21,15 @@ import PacienteStepperForm from './PacienteStepperForm';
 import UnidadesModule from './UnidadesModule';
 import HabitacionesModule from './HabitacionesModule';
 import CamasModule from './CamasModule';
+import HospitalizacionModule from './HospitalizacionModule';
 import HCEModule from './HCEModule';
+import EnfermeriaModule from './EnfermeriaModule';
+import LaboratorioModule from './LaboratorioModule';
+import ImagenologiaModule from './ImagenologiaModule';
+import UrgenciasModule from './UrgenciasModule';
+import FacturacionModule from './FacturacionModule';
+import QuirofanoModule from './QuirofanoModule';
+import ReportesModule from './ReportesModule';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
@@ -99,7 +107,7 @@ export default function Dashboard({ user, onLogout }) {
           }}
         />;
       case 'citas':
-        return <CitasModule user={user} />;
+        return <CitasModuleRefactored user={user} />;
       case 'especialidades':
         return <EspecialidadesModule user={user} />;
       case 'departamentos':
@@ -135,8 +143,24 @@ export default function Dashboard({ user, onLogout }) {
         return <HabitacionesModule user={user} />;
       case 'gestion-camas':
         return <CamasModule user={user} />;
+      case 'hospitalizacion':
+        return <HospitalizacionModule user={user} />;
       case 'hce':
         return <HCEModule user={user} />;
+      case 'enfermeria':
+        return <EnfermeriaModule user={user} />;
+      case 'laboratorio':
+        return <LaboratorioModule user={user} />;
+      case 'imagenologia':
+        return <ImagenologiaModule user={user} />;
+      case 'urgencias':
+        return <UrgenciasModule user={user} />;
+      case 'facturacion':
+        return <FacturacionModule user={user} />;
+      case 'quirofano':
+        return <QuirofanoModule user={user} />;
+      case 'reportes':
+        return <ReportesModule user={user} />;
       default:
         return <DashboardHome user={user} />;
     }

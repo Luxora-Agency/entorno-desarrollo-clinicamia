@@ -9,12 +9,15 @@ class CitaService {
   /**
    * Obtener todas las citas
    */
-  async getAll({ page = 1, limit = 10, fecha = '', estado = '' }) {
+  async getAll({ page = 1, limit = 10, fecha = '', fechaDesde = '', estado = '', pacienteId = '', doctorId = '' }) {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {
       ...(fecha && { fecha: new Date(fecha) }),
+      ...(fechaDesde && { fecha: { gte: new Date(fechaDesde) } }),
       ...(estado && { estado }),
+      ...(pacienteId && { pacienteId }),
+      ...(doctorId && { doctorId }),
     };
 
     const [citas, total] = await Promise.all([
@@ -22,11 +25,18 @@ class CitaService {
         where,
         skip,
         take: parseInt(limit),
-        orderBy: [{ fecha: 'desc' }, { hora: 'desc' }],
+        orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
         include: {
-          paciente: { select: { nombre: true, apellido: true, cedula: true } },
-          doctor: { select: { nombre: true, apellido: true } },
-          especialidad: { select: { titulo: true } },
+          paciente: { select: { id: true, nombre: true, apellido: true, cedula: true, telefono: true, email: true } },
+          doctor: { 
+            select: { 
+              id: true,
+              usuario: {
+                select: { nombre: true, apellido: true }
+              }
+            } 
+          },
+          especialidad: { select: { id: true, nombre: true } },
         },
       }),
       prisma.cita.count({ where }),
@@ -35,11 +45,11 @@ class CitaService {
     // Formatear respuesta
     const citasFormateadas = citas.map(cita => ({
       ...cita,
-      paciente_nombre: cita.paciente.nombre,
-      paciente_apellido: cita.paciente.apellido,
-      paciente_cedula: cita.paciente.cedula,
-      doctor_nombre: cita.doctor.nombre,
-      doctor_apellido: cita.doctor.apellido,
+      doctor: cita.doctor ? {
+        id: cita.doctor.id,
+        nombre: cita.doctor.usuario?.nombre,
+        apellido: cita.doctor.usuario?.apellido,
+      } : null,
     }));
 
     return {

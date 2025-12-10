@@ -37,6 +37,15 @@ const alertas = require('./routes/alertas');
 const auditoria = require('./routes/auditoria');
 // Rutas de egresos
 const egresos = require('./routes/egresos');
+// Rutas de disponibilidad
+const disponibilidad = require('./routes/disponibilidad');
+// Rutas de interconsultas
+const interconsultas = require('./routes/interconsulta');
+// Rutas de procedimientos
+const procedimientos = require('./routes/procedimiento');
+// Rutas de prescripción médica (usa modelo Producto como vademécum)
+const prescripciones = require('./routes/prescripciones');
+const administraciones = require('./routes/administraciones');
 
 const app = new Hono();
 
@@ -85,6 +94,8 @@ app.get('/', (c) => {
       auditoria: '/auditoria',
       // Egresos
       egresos: '/egresos',
+      // Disponibilidad
+      disponibilidad: '/disponibilidad',
     }
   });
 });
@@ -132,6 +143,15 @@ app.route('/alertas', alertas);
 app.route('/auditoria', auditoria);
 // Rutas de egresos
 app.route('/egresos', egresos);
+// Rutas de disponibilidad
+app.route('/disponibilidad', disponibilidad);
+// Rutas de interconsultas
+app.route('/interconsultas', interconsultas);
+// Rutas de procedimientos
+app.route('/procedimientos', procedimientos);
+// Rutas de prescripción médica (medicamentos = productos)
+app.route('/prescripciones', prescripciones);
+app.route('/administraciones', administraciones);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;

@@ -1,261 +1,261 @@
 /**
- * Service de productos farmacéuticos
+ * Service de Productos/Medicamentos (Vademécum)
  */
 const prisma = require('../db/prisma');
-const { ValidationError } = require('../utils/errors');
-const { validateRequired } = require('../utils/validators');
+const { ValidationError, NotFoundError } = require('../utils/errors');
 
-const ProductoService = {
+class ProductoService {
   /**
-   * Obtener todos los productos
+   * Obtener todos los medicamentos con filtros y búsqueda
    */
-  async getAll(filters = {}) {
+  async getAll({ 
+    page = 1, 
+    limit = 50, 
+    search, 
+    activo,
+    controlado,
+    requiereReceta 
+  }) {
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+
     const where = {};
     
-    if (filters.activo !== undefined) {
-      where.activo = filters.activo === 'true';
-    }
-    
-    if (filters.categoriaId) {
-      where.categoriaId = filters.categoriaId;
-    }
-    
-    if (filters.search) {
+    // Filtro de búsqueda (nombre, principio activo)
+    if (search) {
       where.OR = [
-        { nombre: { contains: filters.search, mode: 'insensitive' } },
-        { sku: { contains: filters.search, mode: 'insensitive' } },
-        { descripcion: { contains: filters.search, mode: 'insensitive' } },
+        { nombre: { contains: search, mode: 'insensitive' } },
+        { principioActivo: { contains: search, mode: 'insensitive' } },
+        { descripcion: { contains: search, mode: 'insensitive' } },
       ];
     }
-
-    const productos = await prisma.producto.findMany({
-      where,
-      include: {
-        categoria: true,
-        etiquetas: {
-          include: {
-            etiqueta: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    return productos.map(prod => ({
-      ...prod,
-      etiquetas: prod.etiquetas.map(e => e.etiqueta),
-      cantidadDisponible: prod.cantidadTotal - prod.cantidadConsumida,
-      valorInventario: (prod.cantidadTotal - prod.cantidadConsumida) * prod.precioVenta,
-    }));
-  },
-
-  /**
-   * Obtener estadísticas
-   */
-  async getStats() {
-    const total = await prisma.producto.count();
-    const activos = await prisma.producto.count({ where: { activo: true } });
-    const inactivos = total - activos;
     
-    const productos = await prisma.producto.findMany({
-      select: {
-        cantidadTotal: true,
-        cantidadConsumida: true,
-        cantidadMinAlerta: true,
-        precioVenta: true,
-        requiereReceta: true,
-        activo: true,
-      }
-    });
+    if (activo !== undefined) where.activo = activo === 'true' || activo === true;
+    if (controlado !== undefined) where.controlado = controlado === 'true' || controlado === true;
+    if (requiereReceta !== undefined) where.requiereReceta = requiereReceta === 'true' || requiereReceta === true;
 
-    let valorInventario = 0;
-    let bajoStock = 0;
-    let requierenReceta = 0;
+    const [medicamentos, total] = await Promise.all([
+      prisma.producto.findMany({
+        where,
+        skip,
+        take: parseInt(limit),
+        orderBy: { nombre: 'asc' },
+      }),
+      prisma.producto.count({ where }),
+    ]);
 
-    productos.forEach(p => {
-      const disponible = p.cantidadTotal - p.cantidadConsumida;
-      valorInventario += disponible * p.precioVenta;
-      
-      if (disponible < p.cantidadMinAlerta && p.activo) {
-        bajoStock++;
-      }
-      
-      if (p.requiereReceta && p.activo) {
-        requierenReceta++;
-      }
-    });
-
-    return {
-      total,
-      activos,
-      inactivos,
-      valorInventario: parseFloat(valorInventario.toFixed(2)),
-      bajoStock,
-      requierenReceta,
-    };
-  },
+    // Retornar en formato plano para que success() lo envuelva correctamente
+    return medicamentos;
+  }
 
   /**
-   * Obtener un producto por ID
+   * Obtener medicamento por ID
    */
   async getById(id) {
-    const producto = await prisma.producto.findUnique({
+    const medicamento = await prisma.producto.findUnique({
       where: { id },
       include: {
-        categoria: true,
-        etiquetas: {
-          include: {
-            etiqueta: true
-          }
-        }
-      }
+        prescripciones: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
 
-    if (!producto) {
-      throw new ValidationError('Producto no encontrado');
+    if (!medicamento) {
+      throw new NotFoundError('Medicamento no encontrado');
     }
 
-    return {
-      ...producto,
-      etiquetas: producto.etiquetas.map(e => e.etiqueta),
-      cantidadDisponible: producto.cantidadTotal - producto.cantidadConsumida,
-    };
-  },
+    return medicamento;
+  }
 
   /**
-   * Crear un producto
+   * Crear medicamento/producto
    */
   async create(data) {
-    const missing = validateRequired(['nombre', 'categoriaId', 'sku', 'cantidadTotal', 'cantidadMinAlerta', 'precioVenta'], data);
-    if (missing) {
-      throw new ValidationError(`Campos requeridos: ${missing.join(', ')}`);
+    // Validaciones básicas
+    if (!data.nombre) {
+      throw new ValidationError('El nombre es requerido');
+    }
+    if (!data.sku) {
+      throw new ValidationError('El SKU es requerido');
+    }
+    if (!data.categoriaId) {
+      throw new ValidationError('La categoría es requerida');
     }
 
-    // Verificar SKU único
-    const existing = await prisma.producto.findUnique({ 
-      where: { sku: data.sku } 
-    });
-    
-    if (existing) {
-      throw new ValidationError('El SKU ya está registrado');
-    }
-
-    // Crear producto
     const producto = await prisma.producto.create({
       data: {
-        nombre: data.nombre,
-        categoriaId: data.categoriaId,
         sku: data.sku,
-        laboratorio: data.laboratorio,
+        nombre: data.nombre,
         descripcion: data.descripcion,
         principioActivo: data.principioActivo,
         concentracion: data.concentracion,
-        viaAdministracion: data.viaAdministracion,
         presentacion: data.presentacion,
-        registroSanitario: data.registroSanitario,
-        temperaturaAlmacenamiento: data.temperaturaAlmacenamiento,
-        requiereReceta: data.requiereReceta || false,
-        cantidadTotal: parseInt(data.cantidadTotal),
-        cantidadConsumida: parseInt(data.cantidadConsumida) || 0,
-        cantidadMinAlerta: parseInt(data.cantidadMinAlerta),
-        lote: data.lote,
-        fechaVencimiento: data.fechaVencimiento ? new Date(data.fechaVencimiento) : null,
-        precioVenta: parseFloat(data.precioVenta),
-        precioCompra: data.precioCompra ? parseFloat(data.precioCompra) : null,
-        activo: data.activo !== undefined ? data.activo : true,
-        imagenUrl: data.imagenUrl,
+        viaAdministracion: data.viaAdministracion,
+        requiereReceta: data.requiereReceta !== false,
+        categoriaId: data.categoriaId,
+        precioVenta: data.precioVenta || 0,
+        precioCompra: data.precioCompra || 0,
+        cantidadTotal: data.cantidadTotal || 0,
+        cantidadMinAlerta: data.cantidadMinAlerta || 10,
+        activo: data.activo !== false,
       },
     });
 
-    // Agregar etiquetas si existen
-    if (data.etiquetasIds && data.etiquetasIds.length > 0) {
-      await Promise.all(
-        data.etiquetasIds.map(etiquetaId =>
-          prisma.productoEtiqueta.create({
-            data: {
-              productoId: producto.id,
-              etiquetaId: etiquetaId,
-            }
-          })
-        )
-      );
-    }
-
-    return this.getById(producto.id);
-  },
+    return producto;
+  }
 
   /**
-   * Actualizar un producto
+   * Actualizar producto/medicamento
    */
   async update(id, data) {
-    await this.getById(id);
+    const producto = await this.getById(id);
 
-    const updateData = {};
-    
-    if (data.nombre) updateData.nombre = data.nombre;
-    if (data.categoriaId) updateData.categoriaId = data.categoriaId;
-    if (data.sku) updateData.sku = data.sku;
-    if (data.laboratorio !== undefined) updateData.laboratorio = data.laboratorio;
-    if (data.descripcion !== undefined) updateData.descripcion = data.descripcion;
-    if (data.principioActivo !== undefined) updateData.principioActivo = data.principioActivo;
-    if (data.concentracion !== undefined) updateData.concentracion = data.concentracion;
-    if (data.viaAdministracion !== undefined) updateData.viaAdministracion = data.viaAdministracion;
-    if (data.presentacion !== undefined) updateData.presentacion = data.presentacion;
-    if (data.registroSanitario !== undefined) updateData.registroSanitario = data.registroSanitario;
-    if (data.temperaturaAlmacenamiento !== undefined) updateData.temperaturaAlmacenamiento = data.temperaturaAlmacenamiento;
-    if (data.requiereReceta !== undefined) updateData.requiereReceta = data.requiereReceta;
-    if (data.cantidadTotal !== undefined) updateData.cantidadTotal = parseInt(data.cantidadTotal);
-    if (data.cantidadConsumida !== undefined) updateData.cantidadConsumida = parseInt(data.cantidadConsumida);
-    if (data.cantidadMinAlerta !== undefined) updateData.cantidadMinAlerta = parseInt(data.cantidadMinAlerta);
-    if (data.lote !== undefined) updateData.lote = data.lote;
-    if (data.fechaVencimiento !== undefined) updateData.fechaVencimiento = data.fechaVencimiento ? new Date(data.fechaVencimiento) : null;
-    if (data.precioVenta !== undefined) updateData.precioVenta = parseFloat(data.precioVenta);
-    if (data.precioCompra !== undefined) updateData.precioCompra = data.precioCompra ? parseFloat(data.precioCompra) : null;
-    if (data.activo !== undefined) updateData.activo = data.activo;
-    if (data.imagenUrl !== undefined) updateData.imagenUrl = data.imagenUrl;
-
-    const producto = await prisma.producto.update({
+    const updated = await prisma.producto.update({
       where: { id },
-      data: updateData,
+      data: {
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        principioActivo: data.principioActivo,
+        concentracion: data.concentracion,
+        presentacion: data.presentacion,
+        viaAdministracion: data.viaAdministracion,
+        requiereReceta: data.requiereReceta,
+        precioVenta: data.precioVenta,
+        precioCompra: data.precioCompra,
+        cantidadTotal: data.cantidadTotal,
+        cantidadMinAlerta: data.cantidadMinAlerta,
+        activo: data.activo,
+      },
     });
 
-    // Actualizar etiquetas si se proporcionan
-    if (data.etiquetasIds !== undefined) {
-      // Eliminar etiquetas existentes
-      await prisma.productoEtiqueta.deleteMany({
-        where: { productoId: id }
-      });
-      
-      // Agregar nuevas etiquetas
-      if (data.etiquetasIds.length > 0) {
-        await Promise.all(
-          data.etiquetasIds.map(etiquetaId =>
-            prisma.productoEtiqueta.create({
-              data: {
-                productoId: id,
-                etiquetaId: etiquetaId,
-              }
-            })
-          )
-        );
-      }
-    }
-
-    return this.getById(id);
-  },
+    return updated;
+  }
 
   /**
-   * Eliminar un producto
+   * Eliminar medicamento (soft delete)
    */
   async delete(id) {
     await this.getById(id);
 
-    await prisma.producto.delete({
+    const deleted = await prisma.producto.update({
       where: { id },
+      data: { activo: false },
     });
 
-    return { message: 'Producto eliminado correctamente' };
-  },
-};
+    return deleted;
+  }
 
-module.exports = ProductoService;
+  /**
+   * Verificar interacciones medicamentosas
+   */
+  async verificarInteracciones(medicamentosIds) {
+    const medicamentos = await prisma.producto.findMany({
+      where: {
+        id: { in: medicamentosIds },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        principioActivo: true,
+        descripcion: true,
+      },
+    });
+
+    const alertas = [];
+
+    // Verificar interacciones entre los medicamentos
+    for (let i = 0; i < medicamentos.length; i++) {
+      for (let j = i + 1; j < medicamentos.length; j++) {
+        const med1 = medicamentos[i];
+        const med2 = medicamentos[j];
+
+        // Verificar si med1 tiene interacciones con med2 (basado en descripción)
+        if (med1.descripcion && med2.principioActivo) {
+          if (med1.descripcion.toLowerCase().includes('interaccion') &&
+              med1.descripcion.toLowerCase().includes(med2.principioActivo.toLowerCase())) {
+            alertas.push({
+              tipo: 'interaccion',
+              medicamento1: med1.nombre,
+              medicamento2: med2.nombre,
+              mensaje: `Posible interacción entre ${med1.nombre} y ${med2.nombre}`,
+            });
+          }
+        }
+      }
+    }
+
+    return alertas;
+  }
+
+  /**
+   * Verificar alergias del paciente
+   */
+  async verificarAlergias(pacienteId, medicamentosIds) {
+    const paciente = await prisma.paciente.findUnique({
+      where: { id: pacienteId },
+      select: {
+        id: true,
+        nombre: true,
+        apellido: true,
+        alergias: true,
+        alertasClinicas: {
+          where: {
+            tipoAlerta: 'AlergiaMedicamento',
+          },
+        },
+      },
+    });
+
+    if (!paciente) {
+      throw new NotFoundError('Paciente no encontrado');
+    }
+
+    const medicamentos = await prisma.producto.findMany({
+      where: {
+        id: { in: medicamentosIds },
+      },
+      select: {
+        id: true,
+        nombre: true,
+        principioActivo: true,
+      },
+    });
+
+    const alertas = [];
+
+    // Verificar alergias del campo texto
+    if (paciente.alergias) {
+      medicamentos.forEach(med => {
+        if (paciente.alergias.toLowerCase().includes(med.nombre.toLowerCase()) ||
+            (med.principioActivo && paciente.alergias.toLowerCase().includes(med.principioActivo.toLowerCase()))) {
+          alertas.push({
+            tipo: 'alergia',
+            medicamento: med.nombre,
+            mensaje: `ALERTA: El paciente tiene alergia registrada a ${med.nombre}`,
+            severidad: 'alta',
+          });
+        }
+      });
+    }
+
+    // Verificar alertas clínicas formales
+    paciente.alertasClinicas.forEach(alerta => {
+      medicamentos.forEach(med => {
+        if (alerta.descripcion.toLowerCase().includes(med.nombre.toLowerCase()) ||
+            (med.principioActivo && alerta.descripcion.toLowerCase().includes(med.principioActivo.toLowerCase()))) {
+          alertas.push({
+            tipo: 'alergia',
+            medicamento: med.nombre,
+            mensaje: `ALERTA: ${alerta.titulo} - ${alerta.descripcion}`,
+            severidad: alerta.severidad || 'alta',
+          });
+        }
+      });
+    });
+
+    return alertas;
+  }
+}
+
+module.exports = new ProductoService();

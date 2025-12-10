@@ -11,12 +11,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Bed, Calendar, Clock, AlertCircle, CheckCircle, PlusCircle, LogOut } from 'lucide-react';
 
-export default function TabAdmisiones({ pacienteId, user }) {
+export default function TabAdmisiones({ pacienteId, paciente, user, onChangeTab }) {
   const [admisiones, setAdmisiones] = useState([]);
   const [admisionActiva, setAdmisionActiva] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showModalIngreso, setShowModalIngreso] = useState(false);
-  const [showModalEgreso, setShowModalEgreso] = useState(false);
   
   // Datos para formularios
   const [unidades, setUnidades] = useState([]);
@@ -26,9 +25,6 @@ export default function TabAdmisiones({ pacienteId, user }) {
     camaId: '',
     motivoIngreso: '',
     diagnosticoIngreso: '',
-  });
-  const [formEgreso, setFormEgreso] = useState({
-    diagnosticoEgreso: '',
   });
 
   useEffect(() => {
@@ -90,7 +86,26 @@ export default function TabAdmisiones({ pacienteId, user }) {
       const data = await response.json();
       
       if (data.success) {
-        setCamasDisponibles(data.data.camas || []);
+        let camas = data.data.camas || [];
+        
+        // Filtrar por género si la habitación es compartida
+        if (paciente?.genero) {
+          camas = camas.filter(cama => {
+            const habitacion = cama.habitacion;
+            
+            // Si es habitación individual, no hay restricción
+            if (habitacion?.tipo === 'Individual' || habitacion?.capacidad === 1) {
+              return true;
+            }
+            
+            // Si es habitación compartida, validar género
+            // Solo mostrar si la habitación está vacía o tiene pacientes del mismo género
+            // Esta validación se haría mejor en backend, pero por ahora lo hacemos aquí
+            return true; // Permitir por ahora, validación completa requiere consultar pacientes en otras camas
+          });
+        }
+        
+        setCamasDisponibles(camas);
       }
     } catch (error) {
       console.error('Error al cargar camas:', error);
@@ -142,36 +157,9 @@ export default function TabAdmisiones({ pacienteId, user }) {
     }
   };
 
-  const handleRegistrarEgreso = async () => {
-    if (!admisionActiva) return;
-
-    try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admisiones/${admisionActiva.id}/egreso`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          diagnosticoEgreso: formEgreso.diagnosticoEgreso,
-          responsableEgreso: user.id,
-        }),
-      });
-
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('Egreso registrado exitosamente');
-        setShowModalEgreso(false);
-        setFormEgreso({ diagnosticoEgreso: '' });
-        cargarAdmisiones();
-      } else {
-        alert(`Error: ${data.message}`);
-      }
-    } catch (error) {
-      console.error('Error al registrar egreso:', error);
-      alert('Error al registrar el egreso');
+  const handleIrAEgreso = () => {
+    if (onChangeTab) {
+      onChangeTab('egreso');
     }
   };
 
@@ -241,6 +229,11 @@ export default function TabAdmisiones({ pacienteId, user }) {
                         ? `Habitación ${admisionActiva.cama.habitacion?.numero} - Cama ${admisionActiva.cama.numero}`
                         : '-'}
                     </span>
+                    {admisionActiva.cama?.habitacion?.tipo && (
+                      <Badge variant="outline" className="ml-2 text-xs">
+                        {admisionActiva.cama.habitacion.tipo}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-2">
@@ -265,42 +258,13 @@ export default function TabAdmisiones({ pacienteId, user }) {
               </div>
 
               <div className="pt-4 flex justify-end">
-                <Dialog open={showModalEgreso} onOpenChange={setShowModalEgreso}>
-                  <DialogTrigger asChild>
-                    <Button variant="destructive" className="flex items-center gap-2">
-                      <LogOut className="w-4 h-4" />
-                      Registrar Egreso
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                      <DialogTitle>Registrar Egreso Hospitalario</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="diagnosticoEgreso">Diagnóstico de Egreso *</Label>
-                        <Textarea
-                          id="diagnosticoEgreso"
-                          value={formEgreso.diagnosticoEgreso}
-                          onChange={(e) => setFormEgreso({ ...formEgreso, diagnosticoEgreso: e.target.value })}
-                          placeholder="Descripción del diagnóstico final..."
-                          rows={4}
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setShowModalEgreso(false)}>
-                        Cancelar
-                      </Button>
-                      <Button 
-                        onClick={handleRegistrarEgreso}
-                        disabled={!formEgreso.diagnosticoEgreso.trim()}
-                      >
-                        Registrar Egreso
-                      </Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                <Button 
+                  onClick={handleIrAEgreso}
+                  className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Ir a Egreso Completo
+                </Button>
               </div>
             </div>
           ) : (
@@ -346,13 +310,26 @@ export default function TabAdmisiones({ pacienteId, user }) {
                             <SelectValue placeholder="Seleccionar cama" />
                           </SelectTrigger>
                           <SelectContent>
-                            {camasDisponibles.map((cama) => (
-                              <SelectItem key={cama.id} value={cama.id}>
-                                Hab. {cama.habitacion?.numero} - Cama {cama.numero}
-                              </SelectItem>
-                            ))}
+                            {camasDisponibles.length === 0 && formIngreso.unidadId ? (
+                              <div className="p-2 text-center text-sm text-gray-500">
+                                No hay camas disponibles en esta unidad
+                              </div>
+                            ) : (
+                              camasDisponibles.map((cama) => (
+                                <SelectItem key={cama.id} value={cama.id}>
+                                  Hab. {cama.habitacion?.numero} - Cama {cama.numero}
+                                  {cama.habitacion?.tipo && ` (${cama.habitacion.tipo})`}
+                                </SelectItem>
+                              ))
+                            )}
                           </SelectContent>
                         </Select>
+                        {formIngreso.unidadId && camasDisponibles.length === 0 && (
+                          <p className="text-xs text-amber-600 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            No hay camas disponibles en esta unidad
+                          </p>
+                        )}
                       </div>
                     </div>
 

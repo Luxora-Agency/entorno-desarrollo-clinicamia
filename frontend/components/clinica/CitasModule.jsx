@@ -35,10 +35,20 @@ export default function CitasModule({ user }) {
     notas: '',
   });
   const [doctoresFiltrados, setDoctoresFiltrados] = useState([]);
+  const [horariosDisponibles, setHorariosDisponibles] = useState([]);
+  const [loadingHorarios, setLoadingHorarios] = useState(false);
+  const [mensajeDisponibilidad, setMensajeDisponibilidad] = useState('');
 
   useEffect(() => {
     loadData();
   }, [selectedFecha]);
+
+  // Cargar horarios disponibles cuando cambia doctor o fecha
+  useEffect(() => {
+    if (formData.doctor_id && formData.fecha && !editingCita) {
+      cargarHorariosDisponibles(formData.doctor_id, formData.fecha);
+    }
+  }, [formData.doctor_id, formData.fecha]);
 
   const loadData = async () => {
     try {
@@ -87,10 +97,87 @@ export default function CitasModule({ user }) {
     }
   };
 
+  const cargarHorariosDisponibles = async (doctorId, fecha) => {
+    if (!doctorId || !fecha) {
+      setHorariosDisponibles([]);
+      setMensajeDisponibilidad('');
+      return;
+    }
+
+    setLoadingHorarios(true);
+    setMensajeDisponibilidad('');
+    
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const response = await fetch(`${apiUrl}/disponibilidad/${doctorId}?fecha=${fecha}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        if (!data.data.horarios_configurados) {
+          setMensajeDisponibilidad('⚠️ El doctor no tiene horarios configurados');
+          setHorariosDisponibles([]);
+        } else if (!data.data.bloques_del_dia) {
+          setMensajeDisponibilidad('⚠️ El doctor no tiene disponibilidad para esta fecha');
+          setHorariosDisponibles([]);
+        } else if (data.data.slots_disponibles.length === 0) {
+          setMensajeDisponibilidad('⚠️ No hay horarios disponibles para esta fecha');
+          setHorariosDisponibles([]);
+        } else {
+          setHorariosDisponibles(data.data.slots_disponibles);
+          setMensajeDisponibilidad(`✅ ${data.data.slots_disponibles.length} horarios disponibles`);
+        }
+      } else {
+        setMensajeDisponibilidad('❌ Error al cargar disponibilidad');
+        setHorariosDisponibles([]);
+      }
+    } catch (error) {
+      console.error('Error al cargar horarios:', error);
+      setMensajeDisponibilidad('❌ Error al cargar disponibilidad');
+      setHorariosDisponibles([]);
+    } finally {
+      setLoadingHorarios(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+    // Validar disponibilidad antes de guardar (solo para citas nuevas)
+    if (!editingCita && formData.doctor_id && formData.fecha && formData.hora) {
+      try {
+        const validacionRes = await fetch(`${apiUrl}/disponibilidad/validar`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            doctor_id: formData.doctor_id,
+            fecha: formData.fecha,
+            hora: formData.hora,
+            duracion_minutos: parseInt(formData.duracion_minutos) || 30,
+          }),
+        });
+
+        const validacionData = await validacionRes.json();
+        
+        if (!validacionData.success || !validacionData.disponible) {
+          alert(validacionData.message || 'El horario seleccionado ya no está disponible');
+          return;
+        }
+      } catch (error) {
+        console.error('Error al validar disponibilidad:', error);
+        alert('Error al validar disponibilidad del horario');
+        return;
+      }
+    }
 
     try {
       const url = editingCita
@@ -423,15 +510,66 @@ export default function CitasModule({ user }) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="hora" className="text-sm font-semibold text-gray-700 mb-2 block">Hora *</Label>
-                  <Input
-                    id="hora"
-                    type="time"
-                    value={formData.hora}
-                    onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
-                    required
-                    className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
-                  />
+                  <Label htmlFor="hora" className="text-sm font-semibold text-gray-700 mb-2 block">
+                    Hora {!editingCita && '*'}
+                  </Label>
+                  {editingCita ? (
+                    // Cuando se edita, permitir input manual
+                    <Input
+                      id="hora"
+                      type="time"
+                      value={formData.hora}
+                      onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
+                      required
+                      className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
+                    />
+                  ) : (
+                    // Cuando se crea nueva cita, usar selector de horarios disponibles
+                    <div>
+                      <Select 
+                        value={formData.hora} 
+                        onValueChange={(value) => setFormData({ ...formData, hora: value })}
+                        required
+                        disabled={!formData.doctor_id || !formData.fecha || loadingHorarios}
+                      >
+                        <SelectTrigger className="h-11 border-gray-300">
+                          <SelectValue placeholder={
+                            loadingHorarios 
+                              ? "Cargando horarios..." 
+                              : !formData.doctor_id 
+                              ? "Primero seleccione doctor" 
+                              : !formData.fecha 
+                              ? "Primero seleccione fecha"
+                              : "Seleccionar horario"
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {horariosDisponibles.length > 0 ? (
+                            horariosDisponibles.map((slot) => (
+                              <SelectItem key={slot.hora_inicio} value={slot.hora_inicio}>
+                                {slot.hora_inicio} - {slot.hora_fin}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-slots" disabled>
+                              No hay horarios disponibles
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      {mensajeDisponibilidad && (
+                        <p className={`text-xs mt-1 ${
+                          mensajeDisponibilidad.includes('✅') 
+                            ? 'text-emerald-600' 
+                            : mensajeDisponibilidad.includes('❌') 
+                            ? 'text-red-600'
+                            : 'text-amber-600'
+                        }`}>
+                          {mensajeDisponibilidad}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
               <div>

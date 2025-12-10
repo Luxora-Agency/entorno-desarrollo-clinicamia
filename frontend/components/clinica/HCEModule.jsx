@@ -8,6 +8,10 @@ import TabEvolucionesSOAP from './hce/TabEvolucionesSOAP';
 import TabSignosVitales from './hce/TabSignosVitales';
 import TabDiagnosticos from './hce/TabDiagnosticos';
 import TabAlertas from './hce/TabAlertas';
+import TabInterconsultas from './hce/TabInterconsultas';
+import TabProcedimientos from './hce/TabProcedimientos';
+import TabPrescripciones from './hce/TabPrescripciones';
+import TabTimeline from './hce/TabTimeline';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FileHeart } from 'lucide-react';
 
@@ -102,10 +106,13 @@ export default function HCEModule({ user }) {
             <PanelPacienteHCE paciente={paciente} />
 
             {/* Contenido Principal con Tabs */}
-            <Tabs defaultValue="evoluciones" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto bg-white border shadow-sm">
+            <Tabs defaultValue="timeline" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-7 h-auto bg-white border shadow-sm">
+                <TabsTrigger value="timeline" className="text-xs lg:text-sm data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
+                  Timeline
+                </TabsTrigger>
                 <TabsTrigger value="evoluciones" className="text-xs lg:text-sm data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
-                  Evoluciones SOAP
+                  Evoluciones
                 </TabsTrigger>
                 <TabsTrigger value="signos-vitales" className="text-xs lg:text-sm data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
                   Signos Vitales
@@ -114,9 +121,22 @@ export default function HCEModule({ user }) {
                   Diagnósticos
                 </TabsTrigger>
                 <TabsTrigger value="alertas" className="text-xs lg:text-sm data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
-                  Alertas Clínicas
+                  Alertas
+                </TabsTrigger>
+                <TabsTrigger value="interconsultas" className="text-xs lg:text-sm data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
+                  Interconsultas
+                </TabsTrigger>
+                <TabsTrigger value="procedimientos" className="text-xs lg:text-sm data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
+                  Procedimientos
+                </TabsTrigger>
+                <TabsTrigger value="prescripciones" className="text-xs lg:text-sm data-[state=active]:bg-green-100 data-[state=active]:text-green-700">
+                  Prescripciones
                 </TabsTrigger>
               </TabsList>
+
+              <TabsContent value="timeline" className="mt-6">
+                <TabTimeline pacienteId={pacienteId} admisionId={paciente?.admisionActual?.id} />
+              </TabsContent>
 
               <TabsContent value="evoluciones" className="mt-6">
                 <TabEvolucionesSOAP pacienteId={pacienteId} paciente={paciente} user={user} />
@@ -132,6 +152,18 @@ export default function HCEModule({ user }) {
 
               <TabsContent value="alertas" className="mt-6">
                 <TabAlertas pacienteId={pacienteId} paciente={paciente} user={user} />
+              </TabsContent>
+
+              <TabsContent value="interconsultas" className="mt-6">
+                <TabInterconsultas pacienteId={pacienteId} admisionId={paciente?.admisionActual?.id} user={user} />
+              </TabsContent>
+
+              <TabsContent value="procedimientos" className="mt-6">
+                <TabProcedimientos pacienteId={pacienteId} admisionId={paciente?.admisionActual?.id} user={user} />
+              </TabsContent>
+
+              <TabsContent value="prescripciones" className="mt-6">
+                <TabPrescripciones pacienteId={pacienteId} admisionId={paciente?.admisionActual?.id} user={user} />
               </TabsContent>
             </Tabs>
           </div>

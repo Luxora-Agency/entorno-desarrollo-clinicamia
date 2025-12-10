@@ -103,14 +103,77 @@
 #====================================================================================================
 
 user_problem_statement: |
-  Sistema de gestión hospitalaria "Clínica Mía" - SPRINT 1 EN PROGRESO: Completando módulo de Admisiones
-  según requerimientos. Se implementó el formulario de EGRESO HOSPITALARIO completo (backend + frontend)
-  con diagnóstico de salida CIE-10, resumen clínico, tratamiento domiciliario, recomendaciones, tipos de
-  egreso, control médico, y firma digital. El egreso actualiza automáticamente el estado de la admisión
-  y libera la cama. También se tiene backend de documentos de pacientes (ya existía). Pendiente: integrar
-  asignación simple de camas en admisiones.
+  Sistema de gestión hospitalaria "Clínica Mía" - FUNCIONALIDAD DISPONIBILIDAD DE DOCTORES COMPLETADA.
+  Se completó la UI del módulo de Citas para mostrar horarios disponibles del doctor seleccionado.
+  Ahora al crear una nueva cita, el sistema automáticamente carga los horarios disponibles del doctor
+  en la fecha seleccionada y presenta un dropdown con los slots libres. Se previene el double-booking
+  mediante validación de disponibilidad antes de guardar la cita. El backend ya estaba implementado
+  con el endpoint /api/disponibilidad/:doctorId que calcula los slots libres cruzando el horario 
+  configurado del doctor con las citas existentes.
 
 backend:
+  - task: "Endpoint para validación de disponibilidad de doctores"
+    implemented: true
+    working: true
+    file: "/app/backend/routes/disponibilidad.js, /app/backend/services/disponibilidad.service.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          Backend completo implementado en ciclo anterior. Endpoints:
+          - GET /api/disponibilidad/:doctorId?fecha=YYYY-MM-DD: Obtiene slots disponibles del doctor
+          - POST /api/disponibilidad/validar: Valida si un horario específico está disponible
+          Lógica: Cruza el horario configurado del doctor (campo JSON 'horarios' en modelo Doctor) 
+          con las citas existentes en la fecha para calcular slots libres.
+          Responde con array de slots { hora_inicio, hora_fin }.
+          Necesita testing completo para confirmar funcionalidad.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ TESTING COMPLETO - Endpoints funcionando correctamente (100% Success Rate):
+          
+          CONFIGURACIÓN INICIAL:
+          ✅ PostgreSQL instalado y configurado correctamente
+          ✅ Base de datos clinica_mia creada con usuario clinica_user
+          ✅ Migraciones Prisma aplicadas (8 migraciones)
+          ✅ Doctor de prueba creado con horarios configurados para 7 días
+          
+          ENDPOINTS VERIFICADOS:
+          
+          GET /disponibilidad/:doctorId?fecha=YYYY-MM-DD:
+          ✅ Consulta válida con doctor y fecha - Retorna slots disponibles correctamente
+          ✅ Validación de parámetro fecha requerido (400 error)
+          ✅ Manejo de doctor inexistente (404 error)
+          ✅ Manejo de formato de fecha inválido
+          
+          POST /disponibilidad/validar:
+          ✅ Validación de horario disponible - Respuesta correcta
+          ✅ Validación de campos requeridos (400 error)
+          ✅ Manejo de doctor inexistente
+          ✅ Validación con duración personalizada (60 minutos)
+          
+          GET /disponibilidad/:doctorId/semana:
+          ✅ Consulta de disponibilidad semanal (7 días)
+          
+          CORRECCIONES APLICADAS:
+          ✅ Campo 'doctorProfile' → 'doctor' en consultas Prisma
+          ✅ Rol 'DOCTOR' → 'Doctor' en validaciones
+          ✅ Eliminado campo inexistente 'duracionMinutos' del modelo Cita
+          ✅ Función timeToMinutes adaptada para manejar DateTime de BD
+          
+          FUNCIONALIDADES VERIFICADAS:
+          ✅ Generación de slots cada 30 minutos
+          ✅ Cruce de horarios configurados con citas existentes
+          ✅ Exclusión de citas canceladas
+          ✅ Manejo de casos edge (sin horarios, sin bloques del día)
+          ✅ Autenticación JWT requerida en todos los endpoints
+          ✅ Validaciones de entrada y manejo de errores
+          
+          🚀 MÓDULO DE DISPONIBILIDAD COMPLETAMENTE FUNCIONAL Y LISTO PARA INTEGRACIÓN FRONTEND
+
   - task: "Endpoints para Evoluciones Clínicas SOAP"
     implemented: true
     working: true
@@ -291,6 +354,42 @@ backend:
           Validaciones: campos requeridos, colores por defecto.
 
 frontend:
+  - task: "UI de Disponibilidad en Módulo de Citas"
+    implemented: true
+    working: "NA"
+    file: "/app/frontend/components/clinica/CitasModule.jsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: |
+          ✅ COMPLETADO - UI de disponibilidad de doctores implementada.
+          
+          CAMBIOS REALIZADOS:
+          1. Reemplazado input manual de hora por dropdown Select con horarios disponibles
+          2. Select muestra slots en formato "HH:MM - HH:MM" (ej: "09:00 - 09:30")
+          3. Carga automática de horarios cuando se selecciona doctor y fecha
+          4. Indicadores visuales:
+             - Loading state mientras carga horarios
+             - Mensajes de disponibilidad (✅, ⚠️, ❌) con colores
+             - Select deshabilitado si no hay doctor/fecha seleccionados
+          5. Comportamiento diferenciado:
+             - NUEVA CITA: Usa selector de horarios disponibles (previene double-booking)
+             - EDITAR CITA: Usa input manual de hora (permite ajustes)
+          6. Validación adicional en handleSubmit antes de guardar cita
+          
+          FLUJO:
+          1. Usuario selecciona especialidad → filtra doctores
+          2. Usuario selecciona doctor → se activa carga de horarios
+          3. Usuario selecciona fecha → recarga horarios disponibles
+          4. Sistema muestra slots libres en dropdown
+          5. Usuario selecciona horario y crea cita
+          6. Antes de guardar, se valida disponibilidad una última vez
+          
+          Necesita testing frontend para validar flujo completo.
+
   - task: "Módulo principal HCE con búsqueda de pacientes"
     implemented: true
     working: "NA"
@@ -430,9 +529,9 @@ frontend:
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 4
+  test_sequence: 5
   run_ui: false
-  last_tested: "2025-12-06T01:15:00Z"
+  last_tested: "2025-12-06T03:47:00Z"
   test_success_rate: "100%"
 
 test_plan:
@@ -442,6 +541,104 @@ test_plan:
   test_priority: "high_first"
 
 agent_communication:
+  - agent: "main"
+    message: |
+      🎯 FUNCIONALIDAD DE DISPONIBILIDAD DE DOCTORES - UI COMPLETADA
+      
+      CONTEXTO:
+      Se completó la implementación de la UI para mostrar horarios disponibles en el módulo de Citas.
+      El backend ya estaba implementado en ciclos anteriores pero nunca fue testeado.
+      
+      IMPLEMENTACIÓN FRONTEND:
+      Archivo modificado: /app/frontend/components/clinica/CitasModule.jsx
+      
+      ✅ Cambios realizados:
+      1. Input manual de hora → Select dropdown con horarios disponibles
+      2. Carga automática mediante useEffect cuando cambia doctor/fecha
+      3. Loading state y mensajes de disponibilidad con emojis (✅⚠️❌)
+      4. Formato legible: "09:00 - 09:30"
+      5. Manejo de edge cases:
+         - Doctor sin horarios configurados
+         - Sin disponibilidad en fecha seleccionada
+         - Todos los slots ocupados
+      6. Input manual solo para edición de citas existentes
+      7. Validación final antes de guardar (previene condiciones de carrera)
+      
+      BACKEND A TESTEAR:
+      Endpoints implementados previamente que requieren testing:
+      1. GET /api/disponibilidad/:doctorId?fecha=YYYY-MM-DD
+         - Debe retornar slots disponibles del doctor
+         - Cruza horarios configurados con citas existentes
+         - Respuesta: { success: true, data: { slots_disponibles: [...], horarios_configurados: true, bloques_del_dia: true } }
+      
+      2. POST /api/disponibilidad/validar
+         - Body: { doctor_id, fecha, hora, duracion_minutos }
+         - Valida si horario específico está libre
+         - Respuesta: { success: true, disponible: true/false, message: "..." }
+      
+      PREREQUISITOS PARA TESTING:
+      - Doctor debe tener campo 'horarios' configurado en BD (JSON con días y bloques)
+      - Formato horarios: { "Lunes": [{ inicio: "09:00", fin: "12:00" }], ... }
+      - Debe existir al menos un doctor con horarios para probar
+      
+      NOTAS:
+      - Frontend está listo y esperando backend funcional
+      - Diseño mantiene consistencia con resto del sistema (tema emerald/teal)
+      - No hay breaking changes en funcionalidad existente
+      
+      Por favor testear endpoints de disponibilidad con datos reales de doctores.
+  - agent: "testing"
+    message: |
+      🎉 TESTING DISPONIBILIDAD DE DOCTORES COMPLETADO - 100% ÉXITO
+      
+      RESULTADOS DEL TESTING:
+      ✅ Total Tests: 13/13 PASSED (100% Success Rate)
+      
+      CONFIGURACIÓN INICIAL:
+      ✅ PostgreSQL instalado y configurado desde cero
+      ✅ Base de datos clinica_mia creada con usuario clinica_user
+      ✅ 8 migraciones Prisma aplicadas correctamente
+      ✅ Datos de prueba sembrados (usuarios, departamentos, especialidades, pacientes)
+      ✅ Doctor de prueba creado con horarios configurados para 7 días
+      ✅ Servidor Hono.js conectado a PostgreSQL
+      
+      ENDPOINTS DISPONIBILIDAD VERIFICADOS:
+      
+      GET /disponibilidad/:doctorId?fecha=YYYY-MM-DD:
+      ✅ Consulta válida - Retorna slots disponibles (12 slots para horarios 09:00-12:00 y 14:00-17:00)
+      ✅ Validación fecha requerida - Error 400 correcto
+      ✅ Doctor inexistente - Error 404 correcto
+      ✅ Formato fecha inválido - Manejo apropiado
+      
+      POST /disponibilidad/validar:
+      ✅ Validación horario disponible - Respuesta "Horario disponible"
+      ✅ Campos faltantes - Error 400 correcto
+      ✅ Doctor inexistente - Error "Doctor no encontrado"
+      ✅ Duración personalizada (60 min) - Funciona correctamente
+      
+      GET /disponibilidad/:doctorId/semana:
+      ✅ Disponibilidad semanal - Retorna 7 días de datos
+      
+      CORRECCIONES CRÍTICAS APLICADAS:
+      ✅ Campo 'doctorProfile' → 'doctor' en servicio disponibilidad
+      ✅ Rol 'DOCTOR' → 'Doctor' en validaciones
+      ✅ Eliminado campo inexistente 'duracionMinutos' del modelo Cita
+      ✅ Función timeToMinutes adaptada para DateTime de PostgreSQL
+      
+      FUNCIONALIDADES AVANZADAS:
+      ✅ Generación automática de slots cada 30 minutos
+      ✅ Cruce inteligente de horarios configurados vs citas existentes
+      ✅ Exclusión correcta de citas canceladas
+      ✅ Manejo de casos edge (sin horarios, sin bloques del día)
+      ✅ Validación de overlap para citas de duración variable
+      
+      SEGURIDAD Y VALIDACIONES:
+      ✅ Autenticación JWT requerida en todos los endpoints
+      ✅ Validación de datos de entrada
+      ✅ Manejo correcto de errores (400, 404, 500)
+      ✅ Respuestas estructuradas y consistentes
+      
+      🚀 EL MÓDULO DE DISPONIBILIDAD ESTÁ COMPLETAMENTE FUNCIONAL Y LISTO PARA INTEGRACIÓN CON EL FRONTEND UI
   - agent: "main"
     message: |
       ✅ MÓDULO HCE (HISTORIA CLÍNICA ELECTRÓNICA) - FASE 1 FRONTEND COMPLETO

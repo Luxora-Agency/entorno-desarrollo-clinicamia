@@ -3,13 +3,39 @@
  */
 const { Hono } = require('hono');
 const camaService = require('../services/cama.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error } = require('../utils/response');
 
 const cama = new Hono();
 
 // Todas las rutas requieren autenticación
-cama.use('*', authMiddleware);
+cama.use('/*', authMiddleware);
+
+/**
+ * GET /camas/mapa - Obtener mapa completo de ocupación (para vista de hospitalización)
+ */
+cama.get('/mapa', async (c) => {
+  try {
+    const { unidadId } = c.req.query();
+    const mapa = await camaService.getMapaOcupacion(unidadId);
+    return c.json(success(mapa));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /camas/estadisticas - Obtener estadísticas de ocupación
+ */
+cama.get('/estadisticas', async (c) => {
+  try {
+    const { unidadId } = c.req.query();
+    const estadisticas = await camaService.getEstadisticas(unidadId);
+    return c.json(success(estadisticas));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
 
 /**
  * GET /camas/disponibles - Obtener camas disponibles
@@ -53,7 +79,7 @@ cama.get('/:id', async (c) => {
 /**
  * POST /camas - Crear una cama
  */
-cama.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+cama.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const cama = await camaService.create(data);
@@ -64,9 +90,23 @@ cama.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
 });
 
 /**
+ * PATCH /camas/:id/estado - Cambiar estado de una cama
+ */
+cama.patch('/:id/estado', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { estado, motivo } = await c.req.json();
+    const cama = await camaService.cambiarEstado(id, estado, motivo);
+    return c.json(success({ cama }, 'Estado de cama actualizado'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
  * PUT /camas/:id - Actualizar una cama
  */
-cama.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE']), async (c) => {
+cama.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -80,7 +120,7 @@ cama.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE']), as
 /**
  * DELETE /camas/:id - Eliminar una cama
  */
-cama.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+cama.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await camaService.delete(id);

@@ -27,7 +27,8 @@ enum Genero {
 enum EstadoCita {
   Programada
   Confirmada
-  EnConsulta
+  EnEspera
+  Atendiendo
   Completada
   Cancelada
   NoAsistio
@@ -67,6 +68,13 @@ model Usuario {
   diagnosticosHCE               DiagnosticoHCE[]        @relation("DiagnosticoHCEDoctor")
   alertasReconocidas            AlertaClinica[]         @relation("AlertaReconocedor")
   auditoriaHCE                  AuditoriaHCE[]          @relation("AuditoriaHCEUsuario")
+  interconsultasSolicitadas     Interconsulta[]         @relation("InterconsultasSolicitadas")
+  interconsultasRespondidas     Interconsulta[]         @relation("InterconsultasRespondidas")
+  procedimientosResponsable     Procedimiento[]         @relation("ProcedimientoResponsable")
+  procedimientosFirmados        Procedimiento[]         @relation("ProcedimientoFirma")
+  prescripcionesMedico          Prescripcion[]          @relation("PrescripcionMedico")
+  prescripcionesFirmadas        Prescripcion[]          @relation("PrescripcionFirma")
+  administracionesMedicamentos  AdministracionMedicamento[] @relation("AdministracionEnfermera")
 
   @@map("usuarios")
 }
@@ -136,6 +144,10 @@ model Paciente {
   signosVitales                  SignoVital[]
   diagnosticosHCE                DiagnosticoHCE[]
   alertasClinicas                AlertaClinica[]
+  interconsultas                 Interconsulta[]
+  procedimientos                 Procedimiento[]
+  prescripciones                 Prescripcion[]
+  administracionesMedicamentos   AdministracionMedicamento[]
 
   @@map("pacientes")
 }
@@ -334,6 +346,7 @@ model Producto {
   categoria                   CategoriaProducto @relation(fields: [categoriaId], references: [id])
   etiquetas                   ProductoEtiqueta[]
   ordenesItems                OrdenMedicamentoItem[]
+  prescripcionesMedicamentos  PrescripcionMedicamento[] @relation("PrescripcionProducto")
 
   @@map("productos")
 }
@@ -460,6 +473,9 @@ model Admision {
   signosVitales         SignoVital[]
   diagnosticosHCE       DiagnosticoHCE[]
   egreso                Egreso?
+  interconsultas        Interconsulta[]
+  procedimientos        Procedimiento[]
+  prescripciones        Prescripcion[]
 
   @@map("admisiones")
 }
@@ -1025,4 +1041,297 @@ enum AccionAuditoriaHCE {
   Firma
   Descarga
   Impresion
+}
+
+enum EstadoInterconsulta {
+  Solicitada
+  EnProceso
+  Respondida
+  Cancelada
+}
+
+enum PrioridadInterconsulta {
+  Baja
+  Media
+  Alta
+  Urgente
+}
+
+// Modelo de Interconsultas
+model Interconsulta {
+  id                    String                   @id @default(uuid())
+  admisionId            String
+  pacienteId            String
+  especialidadSolicitada String                  @db.VarChar(255)
+  medicoSolicitanteId   String                   @db.Uuid
+  medicoEspecialistaId  String?                  @db.Uuid
+  fechaSolicitud        DateTime                 @default(now())
+  fechaRespuesta        DateTime?
+  motivoConsulta        String                   @db.Text
+  antecedentesRelevantes String?                 @db.Text
+  examenesSolicitados   String?                  @db.Text
+  diagnosticoPresuntivo String?                  @db.Text
+  prioridad             PrioridadInterconsulta   @default(Media)
+  estado                EstadoInterconsulta      @default(Solicitada)
+  
+  // Respuesta del especialista
+  evaluacionEspecialista String?                 @db.Text
+  diagnosticoEspecialista String?                @db.Text
+  recomendaciones       String?                  @db.Text
+  requiereSeguimiento   Boolean                  @default(false)
+  fechaSeguimiento      DateTime?
+  observaciones         String?                  @db.Text
+  
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+  
+  // Relaciones
+  admision              Admision                 @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+  paciente              Paciente                 @relation(fields: [pacienteId], references: [id])
+  medicoSolicitante     Usuario                  @relation("InterconsultasSolicitadas", fields: [medicoSolicitanteId], references: [id])
+  medicoEspecialista    Usuario?                 @relation("InterconsultasRespondidas", fields: [medicoEspecialistaId], references: [id])
+  
+  @@index([admisionId])
+  @@index([pacienteId])
+  @@index([estado])
+  @@index([fechaSolicitud])
+  @@map("interconsultas")
+}
+
+enum TipoProcedimiento {
+  Diagnostico
+  Terapeutico
+  Quirurgico
+  Intervencionista
+  Rehabilitacion
+  Otro
+}
+
+enum EstadoProcedimiento {
+  Programado
+  EnProceso
+  Completado
+  Cancelado
+  Diferido
+}
+
+// Modelo de Procedimientos
+model Procedimiento {
+  id                    String                @id @default(uuid())
+  admisionId            String
+  pacienteId            String
+  medicoResponsableId   String                @db.Uuid
+  
+  // Información del procedimiento
+  nombre                String                @db.VarChar(255)
+  tipo                  TipoProcedimiento     @default(Terapeutico)
+  descripcion           String                @db.Text
+  indicacion            String                @db.Text
+  
+  // Programación
+  fechaProgramada       DateTime?
+  fechaRealizada        DateTime?
+  duracionEstimada      Int?                  // en minutos
+  duracionReal          Int?                  // en minutos
+  estado                EstadoProcedimiento   @default(Programado)
+  
+  // Ejecución
+  tecnicaUtilizada      String?               @db.Text
+  hallazgos             String?               @db.Text
+  complicaciones        String?               @db.Text
+  resultados            String?               @db.Text
+  
+  // Insumos y recursos
+  insumosUtilizados     String?               @db.Text
+  equipoMedico          String?               @db.Text
+  personalAsistente     String?               @db.Text
+  
+  // Seguimiento
+  recomendacionesPost   String?               @db.Text
+  cuidadosEspeciales    String?               @db.Text
+  observaciones         String?               @db.Text
+  
+  // Firma digital
+  firmaMedicoId         String?               @db.Uuid
+  fechaFirma            DateTime?
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  // Relaciones
+  admision              Admision              @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+  paciente              Paciente              @relation(fields: [pacienteId], references: [id])
+  medicoResponsable     Usuario               @relation("ProcedimientoResponsable", fields: [medicoResponsableId], references: [id])
+  medicoFirma           Usuario?              @relation("ProcedimientoFirma", fields: [firmaMedicoId], references: [id])
+  
+  @@index([admisionId])
+  @@index([pacienteId])
+  @@index([estado])
+  @@index([fechaProgramada])
+  @@index([fechaRealizada])
+  @@map("procedimientos")
+}
+
+// ============================================
+// MÓDULO DE PRESCRIPCIÓN MÉDICA
+// ============================================
+
+enum ViaPrescripcion {
+  Oral
+  Intravenosa
+  Intramuscular
+  Subcutanea
+  Topica
+  Inhalatoria
+  Rectal
+  Sublingual
+  Oftaelmica
+  Otica
+  Nasal
+  Otra
+}
+
+enum FrecuenciaPrescripcion {
+  Unica
+  Cada4Horas
+  Cada6Horas
+  Cada8Horas
+  Cada12Horas
+  Cada24Horas
+  PRN // Por razón necesaria
+  Continua
+  Otra
+}
+
+enum EstadoPrescripcion {
+  Activa
+  Suspendida
+  Completada
+  Cancelada
+}
+
+enum EstadoAdministracion {
+  Programada
+  Administrada
+  Omitida
+  Rechazada
+}
+
+// NOTA: Se usa el modelo Producto existente como catálogo de medicamentos
+// El modelo Producto ya tiene: principioActivo, concentracion, presentacion,
+// viaAdministracion, requiereReceta, laboratorio, etc.
+
+// Prescripción médica (receta)
+model Prescripcion {
+  id                    String                @id @default(uuid())
+  pacienteId            String
+  admisionId            String?
+  medicoId              String                @db.Uuid
+  
+  // Información de la prescripción
+  fechaPrescripcion     DateTime              @default(now())
+  fechaInicio           DateTime              @default(now())
+  fechaFin              DateTime?
+  diagnostico           String?               @db.Text
+  observaciones         String?               @db.Text
+  
+  estado                EstadoPrescripcion    @default(Activa)
+  
+  // Firma digital
+  firmaMedicoId         String?               @db.Uuid
+  fechaFirma            DateTime?
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  // Relaciones
+  paciente              Paciente              @relation(fields: [pacienteId], references: [id])
+  admision              Admision?             @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+  medico                Usuario               @relation("PrescripcionMedico", fields: [medicoId], references: [id])
+  medicoFirma           Usuario?              @relation("PrescripcionFirma", fields: [firmaMedicoId], references: [id])
+  medicamentos          PrescripcionMedicamento[]
+  
+  @@index([pacienteId])
+  @@index([admisionId])
+  @@index([estado])
+  @@index([fechaPrescripcion])
+  @@map("prescripciones")
+}
+
+// Medicamentos dentro de una prescripción
+model PrescripcionMedicamento {
+  id                    String                @id @default(uuid())
+  prescripcionId        String
+  productoId            String // Referencia a Producto (medicamento)
+  
+  // Indicación específica
+  dosis                 String                @db.VarChar(100) // "500mg", "1 tableta"
+  via                   ViaPrescripcion       @default(Oral)
+  frecuencia            FrecuenciaPrescripcion @default(Cada8Horas)
+  frecuenciaDetalle     String?               @db.VarChar(255) // "Cada 8 horas durante 7 días"
+  duracionDias          Int?
+  cantidadTotal         String?               @db.VarChar(50) // "30 tabletas"
+  
+  // Instrucciones
+  instrucciones         String?               @db.Text // "Tomar con alimentos", "No tomar con leche"
+  indicacionEspecial    String?               @db.Text // "Solo si hay dolor", "Suspender si hay rash"
+  
+  // Control
+  prn                   Boolean               @default(false) // Por razón necesaria
+  suspendido            Boolean               @default(false)
+  fechaSuspension       DateTime?
+  motivoSuspension      String?               @db.Text
+  
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  
+  // Relaciones
+  prescripcion          Prescripcion          @relation(fields: [prescripcionId], references: [id], onDelete: Cascade)
+  producto              Producto              @relation("PrescripcionProducto", fields: [productoId], references: [id])
+  administraciones      AdministracionMedicamento[]
+  
+  @@index([prescripcionId])
+  @@index([productoId])
+  @@map("prescripciones_medicamentos")
+}
+
+// Registro de administración de medicamentos (Enfermería)
+model AdministracionMedicamento {
+  id                            String                      @id @default(uuid())
+  prescripcionMedicamentoId     String
+  pacienteId                    String
+  
+  // Programación
+  fechaProgramada               DateTime
+  horaProgramada                String                      @db.VarChar(10) // "08:00", "14:00"
+  
+  // Administración
+  fechaAdministracion           DateTime?
+  administradoPor               String?                     @db.Uuid // Enfermera/o
+  estado                        EstadoAdministracion        @default(Programada)
+  
+  // Detalles
+  dosisAdministrada             String?                     @db.VarChar(100)
+  viaAdministrada               String?                     @db.VarChar(50)
+  observaciones                 String?                     @db.Text
+  reaccionAdversa               Boolean                     @default(false)
+  descripcionReaccion           String?                     @db.Text
+  
+  // Si fue omitida o rechazada
+  motivoOmision                 String?                     @db.Text
+  motivoRechazo                 String?                     @db.Text
+  
+  createdAt                     DateTime                    @default(now())
+  updatedAt                     DateTime                    @updatedAt
+  
+  // Relaciones
+  prescripcionMedicamento       PrescripcionMedicamento     @relation(fields: [prescripcionMedicamentoId], references: [id], onDelete: Cascade)
+  paciente                      Paciente                    @relation(fields: [pacienteId], references: [id])
+  enfermera                     Usuario?                    @relation("AdministracionEnfermera", fields: [administradoPor], references: [id])
+  
+  @@index([prescripcionMedicamentoId])
+  @@index([pacienteId])
+  @@index([fechaProgramada])
+  @@index([estado])
+  @@map("administraciones_medicamentos")
 }

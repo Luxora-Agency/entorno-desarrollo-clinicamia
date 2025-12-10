@@ -135,7 +135,12 @@ export default function AdmisionesView({ user }) {
               </TabsContent>
 
               <TabsContent value="admisiones" className="mt-6">
-                <TabAdmisiones pacienteId={pacienteId} user={user} />
+                <TabAdmisiones 
+                  pacienteId={pacienteId} 
+                  paciente={paciente}
+                  user={user} 
+                  onChangeTab={setActiveTab}
+                />
               </TabsContent>
 
               <TabsContent value="movimientos" className="mt-6">

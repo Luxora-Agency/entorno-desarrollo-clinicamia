@@ -64,11 +64,31 @@ async function seedUsuarios() {
       activo: true,
     },
     {
+      nombre: 'Laura',
+      apellido: 'Pérez',
+      email: 'doctor2@clinicamia.com',
+      password: await bcrypt.hash('doctor123', 10),
+      rol: 'Doctor',
+      cedula: '9876543210',
+      telefono: '3109876543',
+      activo: true,
+    },
+    {
       nombre: 'María',
       apellido: 'González',
       email: 'enfermera@clinicamia.com',
       password: await bcrypt.hash('enfermera123', 10),
       rol: 'Enfermera',
+      activo: true,
+    },
+    {
+      nombre: 'Ana',
+      apellido: 'Martínez',
+      email: 'recepcionista@clinicamia.com',
+      password: await bcrypt.hash('recepcion123', 10),
+      rol: 'Recepcionista',
+      cedula: '5544332211',
+      telefono: '3157894561',
       activo: true,
     },
   ];
@@ -143,31 +163,55 @@ async function seedEspecialidades(departamentos) {
 async function seedDoctores(especialidades, usuarios) {
   console.log('👨‍⚕️ Creando doctores...');
   
-  // Usar el usuario doctor que ya creamos
-  const usuarioDoctor = usuarios.find(u => u.rol === 'Doctor');
+  // Obtener los 2 usuarios doctores
+  const doctorUsuarios = usuarios.filter(u => u.rol === 'Doctor');
   
-  const doctores = [
-    {
-      nombre: 'Carlos',
-      apellido: 'Rodríguez',
-      cedula: '1234567890',
-      telefono: '3001234567',
-      email: 'doctor@clinicamia.com',
-      especialidadId: especialidades[0].id,
-      registroMedico: 'RM-001',
-      licenciaMedica: 'LM-12345',
-      usuarioId: usuarioDoctor.id,
+  const doctoresCreados = [];
+  
+  // Doctor 1 - Medicina General
+  const doctor1 = await prisma.doctor.create({
+    data: {
+      usuarioId: doctorUsuarios[0].id,
+      licenciaMedica: 'RM-12345',
+      universidad: 'Universidad Nacional de Colombia',
+      aniosExperiencia: 10,
+      biografia: 'Médico general con especialización en medicina interna',
     },
-  ];
-
-  const created = [];
-  for (const doc of doctores) {
-    const doctor = await prisma.doctor.create({ data: doc });
-    created.push(doctor);
+  });
+  
+  await prisma.doctorEspecialidad.create({
+    data: {
+      doctorId: doctor1.id,
+      especialidadId: especialidades[0].id,
+    },
+  });
+  
+  doctoresCreados.push(doctor1);
+  
+  // Doctor 2 - Pediatría
+  if (doctorUsuarios[1]) {
+    const doctor2 = await prisma.doctor.create({
+      data: {
+        usuarioId: doctorUsuarios[1].id,
+        licenciaMedica: 'RM-67890',
+        universidad: 'Universidad de los Andes',
+        aniosExperiencia: 8,
+        biografia: 'Pediatra especializada en atención infantil',
+      },
+    });
+    
+    await prisma.doctorEspecialidad.create({
+      data: {
+        doctorId: doctor2.id,
+        especialidadId: especialidades[1].id,
+      },
+    });
+    
+    doctoresCreados.push(doctor2);
   }
   
-  console.log(`✅ ${created.length} doctores creados`);
-  return created;
+  console.log(`✅ ${doctoresCreados.length} doctores creados con especialidades asignadas`);
+  return doctoresCreados;
 }
 
 async function seedPacientes() {
@@ -335,6 +379,8 @@ async function seedFarmacia() {
   const categorias = [
     { nombre: 'Analgésicos', descripcion: 'Medicamentos para el dolor', color: '#ef4444' },
     { nombre: 'Antibióticos', descripcion: 'Medicamentos antimicrobianos', color: '#3b82f6' },
+    { nombre: 'Antihipertensivos', descripcion: 'Control de presión arterial', color: '#f59e0b' },
+    { nombre: 'Antidiabéticos', descripcion: 'Control de diabetes', color: '#8b5cf6' },
     { nombre: 'Vitaminas', descripcion: 'Suplementos vitamínicos', color: '#10b981' },
   ];
 
@@ -351,6 +397,7 @@ async function seedFarmacia() {
     { nombre: 'Controlado', color: '#dc2626' },
     { nombre: 'Refrigerar', color: '#2563eb' },
     { nombre: 'Genérico', color: '#059669' },
+    { nombre: 'Alto Riesgo', color: '#f59e0b' },
   ];
 
   const etiquetasCreadas = [];
@@ -365,15 +412,17 @@ async function seedFarmacia() {
   const productos = [
     {
       sku: 'MED-001',
-      nombre: 'Acetaminofén 500mg',
+      nombre: 'Paracetamol 500mg',
+      principioActivo: 'Paracetamol',
+      concentracion: '500mg',
+      presentacion: 'Caja x 100 tabletas',
       descripcion: 'Analgésico y antipirético',
       precioVenta: 5000,
-      stock: 150,
-      cantidadTotal: 150,
-      stockMinimo: 30,
-      cantidadMinAlerta: 30,
-      unidadMedida: 'Tableta',
-      lote: 'LOT2024-001',
+      precioCompra: 3000,
+      cantidadTotal: 450,
+      cantidadConsumida: 0,
+      cantidadMinAlerta: 200,
+      lote: 'L2025-001',
       fechaVencimiento: new Date('2025-12-31'),
       categoriaId: categoriasCreadas[0].id,
       requiereReceta: false,
@@ -381,34 +430,122 @@ async function seedFarmacia() {
     {
       sku: 'MED-002',
       nombre: 'Amoxicilina 500mg',
+      principioActivo: 'Amoxicilina',
+      concentracion: '500mg',
+      presentacion: 'Caja x 21 cápsulas',
       descripcion: 'Antibiótico de amplio espectro',
-      precio: 15000,
-      precioVenta: 15000,
-      stock: 80,
-      cantidadTotal: 80,
-      stockMinimo: 20,
-      cantidadMinAlerta: 20,
-      unidadMedida: 'Cápsula',
-      lote: 'LOT2024-002',
-      fechaVencimiento: new Date('2025-06-30'),
+      precioVenta: 12000,
+      precioCompra: 7000,
+      cantidadTotal: 85,
+      cantidadConsumida: 15,
+      cantidadMinAlerta: 100,
+      lote: 'L2025-045',
+      fechaVencimiento: new Date('2025-08-15'),
       categoriaId: categoriasCreadas[1].id,
       requiereReceta: true,
     },
     {
       sku: 'MED-003',
-      nombre: 'Complejo B',
-      descripcion: 'Suplemento vitamínico del complejo B',
-      precio: 8000,
-      precioVenta: 8000,
-      stock: 120,
-      cantidadTotal: 120,
-      stockMinimo: 25,
-      cantidadMinAlerta: 25,
-      unidadMedida: 'Tableta',
-      lote: 'LOT2024-003',
-      fechaVencimiento: new Date('2026-03-31'),
+      nombre: 'Losartán 50mg',
+      principioActivo: 'Losartán',
+      concentracion: '50mg',
+      presentacion: 'Caja x 30 tabletas',
+      descripcion: 'Antihipertensivo',
+      precioVenta: 8500,
+      precioCompra: 5000,
+      cantidadTotal: 320,
+      cantidadConsumida: 0,
+      cantidadMinAlerta: 150,
+      lote: 'L2025-078',
+      fechaVencimiento: new Date('2026-03-20'),
       categoriaId: categoriasCreadas[2].id,
+      requiereReceta: true,
+    },
+    {
+      sku: 'MED-004',
+      nombre: 'Insulina Glargina 100 UI/mL',
+      principioActivo: 'Insulina Glargina',
+      concentracion: '100 UI/mL',
+      presentacion: 'Vial 10mL',
+      descripcion: 'Insulina de acción prolongada',
+      precioVenta: 45000,
+      precioCompra: 30000,
+      cantidadTotal: 25,
+      cantidadConsumida: 5,
+      cantidadMinAlerta: 30,
+      lote: 'L2025-112',
+      fechaVencimiento: new Date('2025-06-30'),
+      categoriaId: categoriasCreadas[3].id,
+      requiereReceta: true,
+      temperaturaAlmacenamiento: '2-8°C',
+    },
+    {
+      sku: 'MED-005',
+      nombre: 'Omeprazol 20mg',
+      principioActivo: 'Omeprazol',
+      concentracion: '20mg',
+      presentacion: 'Caja x 28 cápsulas',
+      descripcion: 'Inhibidor de la bomba de protones',
+      precioVenta: 6500,
+      precioCompra: 4000,
+      cantidadTotal: 510,
+      cantidadConsumida: 0,
+      cantidadMinAlerta: 200,
+      lote: 'L2025-089',
+      fechaVencimiento: new Date('2026-01-15'),
+      categoriaId: categoriasCreadas[0].id,
       requiereReceta: false,
+    },
+    {
+      sku: 'MED-006',
+      nombre: 'Salbutamol Inhalador 100mcg',
+      principioActivo: 'Salbutamol',
+      concentracion: '100mcg',
+      presentacion: 'Inhalador',
+      descripcion: 'Broncodilatador',
+      precioVenta: 8500,
+      precioCompra: 5500,
+      cantidadTotal: 42,
+      cantidadConsumida: 8,
+      cantidadMinAlerta: 50,
+      lote: 'L2025-156',
+      fechaVencimiento: new Date('2025-11-30'),
+      categoriaId: categoriasCreadas[0].id,
+      requiereReceta: true,
+    },
+    {
+      sku: 'MED-007',
+      nombre: 'Metformina 850mg',
+      principioActivo: 'Metformina',
+      concentracion: '850mg',
+      presentacion: 'Caja x 60 tabletas',
+      descripcion: 'Antidiabético oral',
+      precioVenta: 4000,
+      precioCompra: 2500,
+      cantidadTotal: 680,
+      cantidadConsumida: 20,
+      cantidadMinAlerta: 250,
+      lote: 'L2025-203',
+      fechaVencimiento: new Date('2026-04-10'),
+      categoriaId: categoriasCreadas[3].id,
+      requiereReceta: true,
+    },
+    {
+      sku: 'MED-008',
+      nombre: 'Diclofenaco 75mg Ampolla',
+      principioActivo: 'Diclofenaco',
+      concentracion: '75mg/3mL',
+      presentacion: 'Caja x 10 ampollas',
+      descripcion: 'Antiinflamatorio inyectable',
+      precioVenta: 23000,
+      precioCompra: 15000,
+      cantidadTotal: 15,
+      cantidadConsumida: 35,
+      cantidadMinAlerta: 50,
+      lote: 'L2025-134',
+      fechaVencimiento: new Date('2025-07-20'),
+      categoriaId: categoriasCreadas[0].id,
+      requiereReceta: true,
     },
   ];
 
@@ -423,33 +560,95 @@ async function seedFarmacia() {
   return { categorias: categoriasCreadas, etiquetas: etiquetasCreadas, productos: productosCreados };
 }
 
-async function seedCitas(pacientes, doctores, especialidades) {
+async function seedCitas(pacientes, doctores, especialidades, usuarios) {
   console.log('📅 Creando citas...');
   
+  const doctorUsuarios = usuarios.filter(u => u.rol === 'Doctor');
+  const hoy = new Date();
+  const manana = new Date();
+  manana.setDate(manana.getDate() + 1);
+  const ayer = new Date();
+  ayer.setDate(ayer.getDate() - 1);
+  
   const citas = [
+    // Citas para HOY con diferentes estados
     {
       pacienteId: pacientes[0].id,
-      doctorId: doctores[0].id,
+      doctorId: doctorUsuarios[0].id,
       especialidadId: especialidades[0].id,
-      fechaHora: new Date('2025-12-10T10:00:00'),
+      fecha: new Date(hoy),
+      hora: new Date('1970-01-01T08:00:00Z'),
       motivo: 'Control médico general',
-      estado: 'Programada',
+      estado: 'EnEspera',
+      notas: 'Paciente llegó temprano',
     },
     {
       pacienteId: pacientes[1].id,
-      doctorId: doctores[1].id,
-      especialidadId: especialidades[1].id,
-      fechaHora: new Date('2025-12-11T14:30:00'),
-      motivo: 'Control de crecimiento',
+      doctorId: doctorUsuarios[0].id,
+      especialidadId: especialidades[0].id,
+      fecha: new Date(hoy),
+      hora: new Date('1970-01-01T09:00:00Z'),
+      motivo: 'Dolor de cabeza recurrente',
       estado: 'Programada',
     },
     {
       pacienteId: pacientes[2].id,
-      doctorId: doctores[0].id,
+      doctorId: doctorUsuarios[0].id,
       especialidadId: especialidades[0].id,
-      fechaHora: new Date('2025-12-08T09:00:00'),
+      fecha: new Date(hoy),
+      hora: new Date('1970-01-01T10:00:00Z'),
       motivo: 'Control de hipertensión',
+      estado: 'Atendiendo',
+      notas: 'Consulta en progreso',
+    },
+    {
+      pacienteId: pacientes[0].id,
+      doctorId: doctorUsuarios[1] ? doctorUsuarios[1].id : doctorUsuarios[0].id,
+      especialidadId: especialidades[1].id,
+      fecha: new Date(hoy),
+      hora: new Date('1970-01-01T11:00:00Z'),
+      motivo: 'Consulta pediátrica - fiebre',
+      estado: 'Programada',
+    },
+    {
+      pacienteId: pacientes[1].id,
+      doctorId: doctorUsuarios[0].id,
+      especialidadId: especialidades[0].id,
+      fecha: new Date(hoy),
+      hora: new Date('1970-01-01T14:00:00Z'),
+      motivo: 'Revisión de resultados de laboratorio',
       estado: 'Completada',
+      notas: 'Paciente atendido exitosamente',
+    },
+    // Citas futuras
+    {
+      pacienteId: pacientes[2].id,
+      doctorId: doctorUsuarios[0].id,
+      especialidadId: especialidades[0].id,
+      fecha: new Date(manana),
+      hora: new Date('1970-01-01T10:00:00Z'),
+      motivo: 'Control post-operatorio',
+      estado: 'Programada',
+    },
+    {
+      pacienteId: pacientes[1].id,
+      doctorId: doctorUsuarios[1] ? doctorUsuarios[1].id : doctorUsuarios[0].id,
+      especialidadId: especialidades[1].id,
+      fecha: new Date(manana),
+      hora: new Date('1970-01-01T15:00:00Z'),
+      motivo: 'Control de crecimiento',
+      estado: 'Programada',
+    },
+    // Cita de ayer que no asistió
+    {
+      pacienteId: pacientes[2].id,
+      doctorId: doctorUsuarios[0].id,
+      especialidadId: especialidades[0].id,
+      fecha: new Date(ayer),
+      hora: new Date('1970-01-01T09:00:00Z'),
+      motivo: 'Control general',
+      estado: 'NoAsistio',
+      notas: 'Paciente no se presentó a la cita',
     },
   ];
 
@@ -459,7 +658,7 @@ async function seedCitas(pacientes, doctores, especialidades) {
     created.push(citaCreada);
   }
   
-  console.log(`✅ ${created.length} citas creadas`);
+  console.log(`✅ ${created.length} citas creadas (${citas.filter(c => c.fecha.toDateString() === new Date().toDateString()).length} para hoy)`);
   return created;
 }
 
@@ -608,14 +807,22 @@ async function main() {
     const usuarios = await seedUsuarios();
     const departamentos = await seedDepartamentos();
     const especialidades = await seedEspecialidades(departamentos);
+    const doctores = await seedDoctores(especialidades, usuarios);
     const pacientes = await seedPacientes();
     const categoriasExamenes = await seedCategoriasExamenes();
     await seedExamenes(categoriasExamenes);
+    await seedFarmacia();
     await seedHospitalizacion();
     await seedPaquetesHospitalizacion();
-    // await seedFarmacia(); // Omitido por complejidad del schema
+    await seedCitas(pacientes, doctores, especialidades, usuarios);
     
     console.log('\n✅ ¡Seeders completados exitosamente!');
+    console.log('\n📊 RESUMEN:');
+    console.log(`   👥 Usuarios: ${usuarios.length}`);
+    console.log(`   👨‍⚕️ Doctores: ${doctores.length}`);
+    console.log(`   🧑‍🤝‍🧑 Pacientes: ${pacientes.length}`);
+    console.log(`   🏥 Departamentos: ${departamentos.length}`);
+    console.log(`   ⚕️ Especialidades: ${especialidades.length}`);
     console.log('\n📋 Credenciales de acceso:');
     console.log('   Admin: admin@clinicamia.com / admin123');
     console.log('   Doctor: doctor@clinicamia.com / doctor123');

@@ -1,850 +1,661 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { 
+  Search, User, Calendar, Clock, Phone, Mail, AlertCircle,
+  UserCheck, XCircle, CheckCircle, Stethoscope, UserPlus,
+  FileText, Plus, Eye, ArrowRight
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
-import { 
-  Search, 
-  UserPlus, 
-  Calendar, 
-  Clock, 
-  User, 
-  Phone, 
-  Mail, 
-  Heart,
-  FileText,
-  CheckCircle2,
-  AlertCircle,
-  ClipboardList,
-  DollarSign
-} from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function AdmisionesModule({ user }) {
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchResult, setSearchResult] = useState(null);
-  const [searching, setSearching] = useState(false);
-  const [citasHoy, setCitasHoy] = useState([]);
-  const [showRegistroDialog, setShowRegistroDialog] = useState(false);
-  const [showCitaDialog, setShowCitaDialog] = useState(false);
-  const [registroStep, setRegistroStep] = useState(1);
-  const [doctores, setDoctores] = useState([]);
+  const [pacienteEncontrado, setPacienteEncontrado] = useState(null);
+  const [citasPaciente, setCitasPaciente] = useState([]);
+  const [buscando, setBuscando] = useState(false);
+  const [showAsignarDoctor, setShowAsignarDoctor] = useState(false);
+  const [showNuevaCita, setShowNuevaCita] = useState(false);
+  const [citaSeleccionada, setCitaSeleccionada] = useState(null);
+  const [doctoresDisponibles, setDoctoresDisponibles] = useState([]);
   const [especialidades, setEspecialidades] = useState([]);
-  const [examenesProcedimientos, setExamenesProcedimientos] = useState([]);
-  
-  const [registroForm, setRegistroForm] = useState({
-    nombre: '',
-    apellido: '',
-    cedula: '',
-    telefono: '',
-    tipoSangre: '',
-    fechaNacimiento: '',
-    genero: '',
-    email: '',
-    direccion: '',
-    alergias: '',
-    contactoEmergenciaNombre: '',
-    contactoEmergenciaTelefono: '',
-  });
 
-  const [citaForm, setCitaForm] = useState({
-    tipoServicio: '', // 'especialidad', 'examen', 'procedimiento'
-    servicioId: '',
-    fecha: new Date().toISOString().split('T')[0],
-    hora: '',
-    duracion: '',
-    costo: '',
-    motivo: '',
-    observaciones: '',
-  });
-
-  const handleSearch = async () => {
+  const buscarPaciente = async () => {
     if (!searchTerm.trim()) return;
     
-    setSearching(true);
+    setBuscando(true);
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      const response = await fetch(`${apiUrl}/pacientes?search=${searchTerm}&limit=1`, {
+      // Buscar paciente
+      const response = await fetch(`${apiUrl}/pacientes?search=${searchTerm}&limit=10`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      
       const data = await response.json();
       
       if (data.data && data.data.length > 0) {
         const paciente = data.data[0];
-        setSearchResult(paciente);
+        setPacienteEncontrado(paciente);
         
-        const today = new Date().toISOString().split('T')[0];
-        const citasRes = await fetch(`${apiUrl}/citas?fecha=${today}&limit=100`, {
+        // Cargar citas del paciente (hoy y futuras)
+        const hoy = new Date().toISOString().split('T')[0];
+        const citasResponse = await fetch(`${apiUrl}/citas?pacienteId=${paciente.id}&fechaDesde=${hoy}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const citasData = await citasRes.json();
-        const citasPaciente = citasData.data?.filter(c => c.paciente_id === paciente.id) || [];
-        setCitasHoy(citasPaciente);
+        
+        const citasData = await citasResponse.json();
+        setCitasPaciente(citasData.data || []);
       } else {
-        setSearchResult(null);
-        setCitasHoy([]);
+        setPacienteEncontrado(null);
+        setCitasPaciente([]);
       }
+    } catch (error) {
+      console.error('Error buscando paciente:', error);
+    }
+    setBuscando(false);
+  };
 
-      // Cargar datos para formulario de cita
-      const doctoresRes = await fetch(`${apiUrl}/usuarios/no-pacientes`, {
+  const loadDoctoresYEspecialidades = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      // Cargar doctores
+      const doctoresRes = await fetch(`${apiUrl}/doctores?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const doctoresData = await doctoresRes.json();
-      setDoctores(doctoresData.data?.usuarios || []);
-
+      setDoctoresDisponibles(doctoresData.data || []);
+      
+      // Cargar especialidades
       const especialidadesRes = await fetch(`${apiUrl}/especialidades?limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const especialidadesData = await especialidadesRes.json();
       setEspecialidades(especialidadesData.data || []);
-
-      const examenesRes = await fetch(`${apiUrl}/examenes-procedimientos?limit=100`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const examenesData = await examenesRes.json();
-      setExamenesProcedimientos(examenesData.data || []);
-      
     } catch (error) {
-      console.error('Error en búsqueda:', error);
-      alert('Error al buscar paciente');
-    } finally {
-      setSearching(false);
+      console.error('Error cargando datos:', error);
     }
   };
 
-  const handleTipoServicioChange = (tipo) => {
-    setCitaForm({ 
-      ...citaForm, 
-      tipoServicio: tipo,
-      servicioId: '',
-      duracion: '',
-      costo: '',
-    });
-  };
+  useEffect(() => {
+    loadDoctoresYEspecialidades();
+  }, []);
 
-  const handleServicioChange = (servicioId) => {
-    let servicio;
-    if (citaForm.tipoServicio === 'especialidad') {
-      servicio = especialidades.find(e => e.id === servicioId);
-      if (servicio) {
-        setCitaForm({
-          ...citaForm,
-          servicioId,
-          duracion: servicio.duracionMinutos?.toString() || '',
-          costo: servicio.costoCOP?.toString() || '',
-        });
-      }
-    } else {
-      servicio = examenesProcedimientos.find(e => e.id === servicioId);
-      if (servicio) {
-        setCitaForm({
-          ...citaForm,
-          servicioId,
-          duracion: servicio.duracionMinutos?.toString() || '',
-          costo: servicio.costoBase?.toString() || '',
-        });
-      }
-    }
-  };
-
-  const handleRegistroPaso1 = () => {
-    if (!registroForm.nombre || !registroForm.apellido || !registroForm.cedula || !registroForm.telefono) {
-      alert('Por favor completa todos los campos básicos');
-      return;
-    }
-    setRegistroStep(2);
-  };
-
-  const handleRegistroFinal = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
-      const response = await fetch(`${apiUrl}/pacientes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          nombre: registroForm.nombre,
-          apellido: registroForm.apellido,
-          cedula: registroForm.cedula,
-          telefono: registroForm.telefono,
-          tipo_sangre: registroForm.tipoSangre,
-          fecha_nacimiento: registroForm.fechaNacimiento,
-          genero: registroForm.genero,
-          email: registroForm.email,
-          direccion: registroForm.direccion,
-          alergias: registroForm.alergias,
-          contacto_emergencia_nombre: registroForm.contactoEmergenciaNombre,
-          contacto_emergencia_telefono: registroForm.contactoEmergenciaTelefono,
-        }),
-      });
-
-      if (response.ok) {
-        alert('✅ Paciente registrado exitosamente');
-        setShowRegistroDialog(false);
-        setRegistroStep(1);
-        setRegistroForm({
-          nombre: '',
-          apellido: '',
-          cedula: '',
-          telefono: '',
-          tipoSangre: '',
-          fechaNacimiento: '',
-          genero: '',
-          email: '',
-          direccion: '',
-          alergias: '',
-          contactoEmergenciaNombre: '',
-          contactoEmergenciaTelefono: '',
-        });
-        setSearchTerm(registroForm.cedula);
-        setTimeout(() => handleSearch(), 500);
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Error al registrar paciente');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al registrar paciente');
-    }
-  };
-
-  const handleAgendarCita = async () => {
-    if (!citaForm.tipoServicio || !citaForm.servicioId || !citaForm.fecha || !citaForm.hora) {
-      alert('Por favor completa todos los campos requeridos');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
-      const response = await fetch(`${apiUrl}/citas`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          paciente_id: searchResult.id,
-          doctor_id: user.id,
-          especialidad_id: citaForm.tipoServicio === 'especialidad' ? citaForm.servicioId : null,
-          fecha: citaForm.fecha,
-          hora: citaForm.hora,
-          motivo: citaForm.motivo || `${citaForm.tipoServicio}: ${getServicioNombre()}`,
-          notas: citaForm.observaciones,
-        }),
-      });
-
-      if (response.ok) {
-        alert('✅ Cita agendada exitosamente');
-        setShowCitaDialog(false);
-        setCitaForm({
-          tipoServicio: '',
-          servicioId: '',
-          fecha: new Date().toISOString().split('T')[0],
-          hora: '',
-          duracion: '',
-          costo: '',
-          motivo: '',
-          observaciones: '',
-        });
-        handleSearch();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Error al agendar cita');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al agendar cita');
-    }
-  };
-
-  const getServicioNombre = () => {
-    if (citaForm.tipoServicio === 'especialidad') {
-      const esp = especialidades.find(e => e.id === citaForm.servicioId);
-      return esp?.titulo || '';
-    } else {
-      const ex = examenesProcedimientos.find(e => e.id === citaForm.servicioId);
-      return ex?.nombre || '';
-    }
-  };
-
-  const handleCambiarEstadoCita = async (citaId, nuevoEstado) => {
+  const pasarAEspera = async (citaId) => {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
       const response = await fetch(`${apiUrl}/citas/${citaId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
+        method: 'PATCH',
+        headers: { 
           Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ estado: nuevoEstado }),
+        body: JSON.stringify({ estado: 'EnEspera' }),
       });
-
+      
       if (response.ok) {
-        alert(`✅ Estado actualizado a: ${nuevoEstado}`);
-        handleSearch();
-      } else {
-        const error = await response.json();
-        alert(error.error || 'Error al actualizar estado');
+        // Recargar citas
+        buscarPaciente();
+        alert('✅ Paciente pasado a lista de espera');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al actualizar estado');
+      alert('❌ Error al actualizar estado');
     }
   };
 
-  const getEstadoBadge = (estado) => {
-    const variants = {
-      'Programada': 'bg-blue-100 text-blue-800 border-blue-200',
-      'Confirmada': 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      'En Consulta': 'bg-amber-100 text-amber-800 border-amber-200',
-      'Completada': 'bg-teal-100 text-teal-800 border-teal-200',
-      'Cancelada': 'bg-red-100 text-red-800 border-red-200',
-      'No Asistió': 'bg-gray-100 text-gray-800 border-gray-200',
-    };
-    return variants[estado] || 'bg-gray-100 text-gray-800 border-gray-200';
+  const marcarNoAsistio = async (citaId) => {
+    if (!confirm('¿Está seguro de marcar esta cita como No Asistió?')) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const response = await fetch(`${apiUrl}/citas/${citaId}`, {
+        method: 'PATCH',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ estado: 'NoAsistio' }),
+      });
+      
+      if (response.ok) {
+        buscarPaciente();
+        alert('✅ Cita marcada como No Asistió');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('❌ Error al actualizar estado');
+    }
   };
 
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-    }).format(value);
+  const abrirAsignarDoctor = (cita) => {
+    setCitaSeleccionada(cita);
+    setShowAsignarDoctor(true);
   };
+
+  const confirmarAsignacionDoctor = async (doctorId) => {
+    if (!doctorId) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const response = await fetch(`${apiUrl}/citas/${citaSeleccionada.id}`, {
+        method: 'PATCH',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          doctorId: doctorId,
+          estado: 'EnEspera' // Automáticamente pasa a espera
+        }),
+      });
+      
+      if (response.ok) {
+        setShowAsignarDoctor(false);
+        buscarPaciente();
+        alert('✅ Doctor asignado y paciente en lista de espera');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('❌ Error al asignar doctor');
+    }
+  };
+
+  const limpiarBusqueda = () => {
+    setSearchTerm('');
+    setPacienteEncontrado(null);
+    setCitasPaciente([]);
+  };
+
+  const getEstadoBadge = (estado) => {
+    const estilos = {
+      Programada: 'bg-blue-100 text-blue-700 border-blue-300',
+      EnEspera: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+      Atendiendo: 'bg-green-100 text-green-700 border-green-300',
+      Completada: 'bg-gray-100 text-gray-700 border-gray-300',
+      NoAsistio: 'bg-red-100 text-red-700 border-red-300',
+      Cancelada: 'bg-orange-100 text-orange-700 border-orange-300',
+    };
+    
+    const labels = {
+      Programada: 'Programada',
+      EnEspera: 'En Espera',
+      Atendiendo: 'Atendiendo',
+      Completada: 'Completada',
+      NoAsistio: 'No Asistió',
+      Cancelada: 'Cancelada',
+    };
+    
+    return (
+      <Badge variant="outline" className={estilos[estado] || 'bg-gray-100'}>
+        {labels[estado] || estado}
+      </Badge>
+    );
+  };
+
+  const formatFecha = (fecha) => {
+    if (!fecha) return '';
+    const date = new Date(fecha);
+    return date.toLocaleDateString('es-CO', { 
+      weekday: 'short', 
+      day: '2-digit', 
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const formatHora = (hora) => {
+    if (!hora) return '';
+    const date = new Date(`1970-01-01T${hora}`);
+    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const esHoy = (fecha) => {
+    const hoy = new Date().toISOString().split('T')[0];
+    const fechaCita = new Date(fecha).toISOString().split('T')[0];
+    return hoy === fechaCita;
+  };
+
+  // Separar citas de hoy y futuras
+  const citasHoy = citasPaciente.filter(c => esHoy(c.fecha));
+  const citasFuturas = citasPaciente.filter(c => !esHoy(c.fecha));
 
   return (
-    <div className="p-6 lg:p-8 bg-white min-h-screen">
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-2.5 rounded-xl">
-            <ClipboardList className="w-6 h-6 text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-gray-900">Admisiones</h1>
+    <div className="p-6 space-y-6 bg-background">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
+            <UserCheck className="h-8 w-8 text-emerald-600" />
+            Admisiones
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Búsqueda de pacientes y gestión de llegadas
+          </p>
         </div>
-        <p className="text-gray-600 ml-14">Búsqueda rápida de pacientes y gestión de citas</p>
       </div>
 
-      <Card className="mb-6 shadow-md border-emerald-200">
-        <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 flex items-center gap-3 bg-gray-50 rounded-lg px-4 py-2">
-              <Search className="w-5 h-5 text-gray-400" />
-              <Input
-                placeholder="Buscar por cédula, nombre o apellido..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-                className="border-0 focus-visible:ring-0 bg-transparent h-10 text-lg"
-              />
+      {/* Buscador de Paciente */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="h-5 w-5" />
+            Buscar Paciente
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  placeholder="Ingrese cédula o nombre del paciente..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && buscarPaciente()}
+                  className="text-lg"
+                />
+              </div>
+              <Button 
+                onClick={buscarPaciente}
+                disabled={!searchTerm || buscando}
+                size="lg"
+                className="gap-2 px-8"
+              >
+                <Search className="h-5 w-5" />
+                {buscando ? 'Buscando...' : 'Buscar'}
+              </Button>
+              {pacienteEncontrado && (
+                <Button 
+                  onClick={limpiarBusqueda}
+                  variant="outline"
+                  size="lg"
+                >
+                  Limpiar
+                </Button>
+              )}
             </div>
-            <Button 
-              onClick={handleSearch}
-              disabled={searching || !searchTerm.trim()}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md h-14 px-8 font-semibold"
-            >
-              {searching ? 'Buscando...' : 'Buscar'}
-            </Button>
+
+            {/* Mensaje si no hay resultado y se buscó */}
+            {!buscando && searchTerm && !pacienteEncontrado && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium text-amber-900">Paciente no encontrado</p>
+                  <p className="text-sm text-amber-700 mt-1">
+                    No se encontró ningún paciente con esa cédula o nombre. 
+                    ¿Desea registrar un nuevo paciente?
+                  </p>
+                  <Button 
+                    size="sm" 
+                    className="mt-3 gap-2"
+                    onClick={() => window.location.href = '/?module=pacientes&action=new'}
+                  >
+                    <UserPlus className="h-4 w-4" />
+                    Registrar Nuevo Paciente
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {searchResult && (
-        <div className="space-y-6">
-          <Card className="shadow-md border-emerald-200">
-            <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-emerald-50 to-teal-50">
-              <CardTitle className="text-xl flex items-center gap-2">
-                <User className="w-5 h-5 text-emerald-600" />
-                Información del Paciente
+      {/* Información del Paciente Encontrado */}
+      {pacienteEncontrado && (
+        <>
+          {/* Tarjeta de Info del Paciente */}
+          <Card className="border-2 border-emerald-200 bg-emerald-50/50">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-emerald-600" />
+                  <span>Paciente Encontrado</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => window.location.href = `/?module=pacientes&id=${pacienteEncontrado.id}`}
+                  >
+                    <Eye className="h-4 w-4" />
+                    Ver Perfil Completo
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => window.location.href = `/?module=hce&pacienteId=${pacienteEncontrado.id}`}
+                  >
+                    <FileText className="h-4 w-4" />
+                    Historia Clínica
+                  </Button>
+                </div>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="bg-emerald-100 p-2 rounded-lg">
-                    <User className="w-5 h-5 text-emerald-600" />
-                  </div>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-600">Nombre Completo</Label>
+                  <p className="font-semibold text-lg text-gray-900">
+                    {pacienteEncontrado.nombre} {pacienteEncontrado.apellido}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-600">Cédula</Label>
+                  <p className="font-medium text-gray-900">{pacienteEncontrado.cedula}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-gray-500" />
                   <div>
-                    <p className="text-sm text-gray-500">Nombre Completo</p>
-                    <p className="font-semibold text-gray-900">{searchResult.nombre} {searchResult.apellido}</p>
+                    <Label className="text-xs text-gray-600">Teléfono</Label>
+                    <p className="font-medium text-gray-900">{pacienteEncontrado.telefono || 'No registrado'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-100 p-2 rounded-lg">
-                    <FileText className="w-5 h-5 text-blue-600" />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Mail className="h-4 w-4 text-gray-500" />
                   <div>
-                    <p className="text-sm text-gray-500">Cédula</p>
-                    <p className="font-semibold text-gray-900">{searchResult.cedula}</p>
+                    <Label className="text-xs text-gray-600">Email</Label>
+                    <p className="font-medium text-gray-900 text-sm">{pacienteEncontrado.email || 'No registrado'}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-purple-100 p-2 rounded-lg">
-                    <Phone className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Teléfono</p>
-                    <p className="font-semibold text-gray-900">{searchResult.telefono || 'N/A'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-orange-100 p-2 rounded-lg">
-                    <Mail className="w-5 h-5 text-orange-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-semibold text-gray-900">{searchResult.email || 'N/A'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="bg-red-100 p-2 rounded-lg">
-                    <Heart className="w-5 h-5 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Tipo de Sangre</p>
-                    <p className="font-semibold text-gray-900">{searchResult.tipoSangre || searchResult.tipo_sangre || 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-6 flex gap-3">
-                <Button 
-                  onClick={() => setShowCitaDialog(true)}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold"
-                >
-                  <Calendar className="w-4 h-4 mr-2" />
-                  Agendar Nueva Cita
-                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {citasHoy.length > 0 && (
-            <Card className="shadow-md border-emerald-200">
-              <CardHeader className="border-b border-gray-100 bg-gradient-to-r from-blue-50 to-cyan-50">
-                <CardTitle className="text-xl flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-blue-600" />
-                  Citas de Hoy ({citasHoy.length})
+          {/* Citas del Paciente */}
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Citas del Paciente
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {citasHoy.map((cita) => (
-                    <Card key={cita.id} className="border-2 border-gray-200 hover:border-emerald-300 transition-colors">
-                      <CardContent className="p-4">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <Clock className="w-5 h-5 text-emerald-600" />
-                              <span className="text-lg font-bold text-gray-900">{cita.hora}</span>
-                              <Badge className={`${getEstadoBadge(cita.estado)} border`}>
-                                {cita.estado}
-                              </Badge>
+                <Button
+                  className="gap-2"
+                  onClick={() => window.location.href = `/?module=citas&pacienteId=${pacienteEncontrado.id}&action=new`}
+                >
+                  <Plus className="h-4 w-4" />
+                  Agendar Nueva Cita
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {citasPaciente.length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-500 text-lg mb-2">No tiene citas programadas</p>
+                  <p className="text-gray-400 text-sm mb-4">Puede agendar una nueva cita para el paciente</p>
+                  <Button
+                    className="gap-2"
+                    onClick={() => window.location.href = `/?module=citas&pacienteId=${pacienteEncontrado.id}&action=new`}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Agendar Cita
+                  </Button>
+                </div>
+              ) : (
+                <Tabs defaultValue="hoy" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="hoy" className="gap-2">
+                      <Clock className="h-4 w-4" />
+                      Para Hoy ({citasHoy.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="futuras" className="gap-2">
+                      <Calendar className="h-4 w-4" />
+                      Futuras ({citasFuturas.length})
+                    </TabsTrigger>
+                  </TabsList>
+
+                  {/* Citas de Hoy */}
+                  <TabsContent value="hoy" className="space-y-4 mt-4">
+                    {citasHoy.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Clock className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p>No tiene citas para hoy</p>
+                      </div>
+                    ) : (
+                      citasHoy.map((cita) => (
+                        <div 
+                          key={cita.id}
+                          className={`border-2 rounded-lg p-4 transition-all ${
+                            cita.estado === 'EnEspera' ? 'border-yellow-300 bg-yellow-50' :
+                            cita.estado === 'Atendiendo' ? 'border-green-300 bg-green-50' :
+                            'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex flex-col md:flex-row justify-between gap-4">
+                            <div className="flex-1 space-y-3">
+                              {/* Hora y Estado */}
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-5 w-5 text-gray-500" />
+                                  <span className="font-bold text-2xl">{formatHora(cita.hora)}</span>
+                                </div>
+                                {getEstadoBadge(cita.estado)}
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+                                  HOY
+                                </Badge>
+                              </div>
+                              
+                              {/* Doctor */}
+                              <div className="flex items-center gap-2">
+                                <Stethoscope className="h-4 w-4 text-gray-500" />
+                                <span className="font-medium">
+                                  {cita.doctor ? 
+                                    `Dr. ${cita.doctor.nombre} ${cita.doctor.apellido}` : 
+                                    <span className="text-red-600">Sin doctor asignado</span>
+                                  }
+                                </span>
+                                {cita.especialidad && (
+                                  <>
+                                    <span className="text-gray-400">·</span>
+                                    <span className="text-gray-600">{cita.especialidad.nombre}</span>
+                                  </>
+                                )}
+                              </div>
+
+                              {/* Motivo */}
+                              <div className="text-sm">
+                                <span className="text-gray-500">Motivo:</span>{' '}
+                                <span className="text-gray-900">{cita.motivo}</span>
+                              </div>
+
+                              {cita.notas && (
+                                <div className="text-sm text-gray-600">
+                                  <span className="font-medium">Notas:</span> {cita.notas}
+                                </div>
+                              )}
                             </div>
-                            <p className="text-sm text-gray-600 mb-1">
-                              <span className="font-semibold">Doctor:</span> Dr. {cita.doctor_nombre} {cita.doctor_apellido}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-semibold">Motivo:</span> {cita.motivo}
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {cita.estado === 'Programada' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleCambiarEstadoCita(cita.id, 'Confirmada')}
-                                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                              >
-                                <CheckCircle2 className="w-4 h-4 mr-1" />
-                                Confirmar
-                              </Button>
-                            )}
-                            {cita.estado === 'Confirmada' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleCambiarEstadoCita(cita.id, 'En Consulta')}
-                                className="bg-amber-600 hover:bg-amber-700 text-white"
-                              >
-                                <Clock className="w-4 h-4 mr-1" />
-                                En Consulta
-                              </Button>
-                            )}
+
+                            {/* Acciones */}
+                            <div className="flex flex-col gap-2 min-w-[200px]">
+                              {/* Pasar a En Espera */}
+                              {cita.estado === 'Programada' && cita.doctorId && (
+                                <Button
+                                  onClick={() => pasarAEspera(cita.id)}
+                                  className="gap-2 bg-yellow-600 hover:bg-yellow-700 w-full"
+                                >
+                                  <UserCheck className="h-4 w-4" />
+                                  Pasar a Espera
+                                </Button>
+                              )}
+
+                              {/* Asignar Doctor */}
+                              {!cita.doctorId && cita.estado === 'Programada' && (
+                                <Button
+                                  onClick={() => abrirAsignarDoctor(cita)}
+                                  className="gap-2 bg-blue-600 hover:bg-blue-700 w-full"
+                                >
+                                  <Stethoscope className="h-4 w-4" />
+                                  Asignar Doctor
+                                </Button>
+                              )}
+
+                              {/* Estado En Espera */}
+                              {cita.estado === 'EnEspera' && (
+                                <div className="flex items-center justify-center gap-2 text-sm text-yellow-700 bg-yellow-100 p-3 rounded border border-yellow-300">
+                                  <CheckCircle className="h-4 w-4" />
+                                  En lista de espera
+                                </div>
+                              )}
+
+                              {/* Estado Atendiendo */}
+                              {cita.estado === 'Atendiendo' && (
+                                <div className="flex items-center justify-center gap-2 text-sm text-green-700 bg-green-100 p-3 rounded border border-green-300">
+                                  <CheckCircle className="h-4 w-4" />
+                                  En consulta ahora
+                                </div>
+                              )}
+
+                              {/* Marcar No Asistió */}
+                              {(cita.estado === 'Programada' || cita.estado === 'EnEspera') && (
+                                <Button
+                                  onClick={() => marcarNoAsistio(cita.id)}
+                                  variant="outline"
+                                  className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 w-full"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                  No Asistió
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                      ))
+                    )}
+                  </TabsContent>
 
-          {citasHoy.length === 0 && (
-            <Card className="shadow-md border-yellow-200 bg-yellow-50">
-              <CardContent className="p-6">
-                <div className="flex items-center gap-3 text-yellow-800">
-                  <AlertCircle className="w-6 h-6" />
-                  <p className="font-semibold">Este paciente no tiene citas programadas para hoy</p>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+                  {/* Citas Futuras */}
+                  <TabsContent value="futuras" className="space-y-4 mt-4">
+                    {citasFuturas.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <Calendar className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p>No tiene citas futuras programadas</p>
+                      </div>
+                    ) : (
+                      citasFuturas.map((cita) => (
+                        <div 
+                          key={cita.id}
+                          className="border rounded-lg p-4 hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex flex-col md:flex-row justify-between gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-gray-500" />
+                                  <span className="font-semibold">{formatFecha(cita.fecha)}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-gray-500" />
+                                  <span className="font-semibold">{formatHora(cita.hora)}</span>
+                                </div>
+                                {getEstadoBadge(cita.estado)}
+                              </div>
+                              
+                              <div className="flex items-center gap-2 text-sm">
+                                <Stethoscope className="h-4 w-4 text-gray-500" />
+                                <span>
+                                  {cita.doctor ? 
+                                    `Dr. ${cita.doctor.nombre} ${cita.doctor.apellido}` : 
+                                    <span className="text-red-600">Sin doctor asignado</span>
+                                  }
+                                </span>
+                                {cita.especialidad && (
+                                  <>
+                                    <span className="text-gray-400">·</span>
+                                    <span className="text-gray-600">{cita.especialidad.nombre}</span>
+                                  </>
+                                )}
+                              </div>
+
+                              <div className="text-sm text-gray-600">
+                                {cita.motivo}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              {!cita.doctorId && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => abrirAsignarDoctor(cita)}
+                                  className="gap-2"
+                                >
+                                  <Stethoscope className="h-4 w-4" />
+                                  Asignar Doctor
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </TabsContent>
+                </Tabs>
+              )}
+            </CardContent>
+          </Card>
+        </>
       )}
 
-      {searchTerm && !searching && !searchResult && (
-        <Card className="shadow-md border-gray-200">
-          <CardContent className="p-12 text-center">
-            <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">
-              Paciente no encontrado
-            </h3>
-            <p className="text-gray-600 mb-6">
-              No existe ningún paciente con "{searchTerm}"
-            </p>
-            <Button 
-              onClick={() => setShowRegistroDialog(true)}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Registrar Nuevo Paciente
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Dialog: Registro de Paciente */}
-      <Dialog open={showRegistroDialog} onOpenChange={setShowRegistroDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      {/* Dialog Asignar Doctor */}
+      <Dialog open={showAsignarDoctor} onOpenChange={setShowAsignarDoctor}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-xl flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-emerald-600" />
-              Registro de Paciente - Paso {registroStep} de 2
-            </DialogTitle>
+            <DialogTitle>Asignar Doctor a la Cita</DialogTitle>
           </DialogHeader>
-
-          {registroStep === 1 ? (
-            <div className="space-y-4">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-                <p className="text-sm text-emerald-800">
-                  <span className="font-semibold">Paso 1:</span> Ingresa los datos básicos del paciente
+          <div className="space-y-4 py-4">
+            {citaSeleccionada && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-blue-900">
+                  <strong>Cita:</strong> {formatFecha(citaSeleccionada.fecha)} a las {formatHora(citaSeleccionada.hora)}
+                </p>
+                <p className="text-sm text-blue-900">
+                  <strong>Especialidad:</strong> {citaSeleccionada.especialidad?.nombre}
                 </p>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="font-semibold">Nombre *</Label>
-                  <Input
-                    value={registroForm.nombre}
-                    onChange={(e) => setRegistroForm({ ...registroForm, nombre: e.target.value })}
-                    className="h-11"
-                  />
-                </div>
-                <div>
-                  <Label className="font-semibold">Apellido *</Label>
-                  <Input
-                    value={registroForm.apellido}
-                    onChange={(e) => setRegistroForm({ ...registroForm, apellido: e.target.value })}
-                    className="h-11"
-                  />
-                </div>
-                <div>
-                  <Label className="font-semibold">Cédula *</Label>
-                  <Input
-                    value={registroForm.cedula}
-                    onChange={(e) => setRegistroForm({ ...registroForm, cedula: e.target.value })}
-                    className="h-11"
-                  />
-                </div>
-                <div>
-                  <Label className="font-semibold">Teléfono *</Label>
-                  <Input
-                    value={registroForm.telefono}
-                    onChange={(e) => setRegistroForm({ ...registroForm, telefono: e.target.value })}
-                    className="h-11"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="font-semibold">Tipo de Sangre</Label>
-                  <Input
-                    value={registroForm.tipoSangre}
-                    onChange={(e) => setRegistroForm({ ...registroForm, tipoSangre: e.target.value })}
-                    placeholder="Ej: O+, A-, AB+"
-                    className="h-11"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 justify-end pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => {
-                    setShowRegistroDialog(false);
-                    setRegistroStep(1);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button 
-                  onClick={handleRegistroPaso1}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold"
-                >
-                  Siguiente
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <p className="text-sm text-blue-800">
-                  <span className="font-semibold">Paso 2:</span> Completa la información adicional (opcional)
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="font-semibold">Fecha de Nacimiento</Label>
-                  <Input
-                    type="date"
-                    value={registroForm.fechaNacimiento}
-                    onChange={(e) => setRegistroForm({ ...registroForm, fechaNacimiento: e.target.value })}
-                    className="h-11"
-                  />
-                </div>
-                <div>
-                  <Label className="font-semibold">Género</Label>
-                  <Select 
-                    value={registroForm.genero} 
-                    onValueChange={(value) => setRegistroForm({ ...registroForm, genero: value })}
-                  >
-                    <SelectTrigger className="h-11">
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Masculino">Masculino</SelectItem>
-                      <SelectItem value="Femenino">Femenino</SelectItem>
-                      <SelectItem value="Otro">Otro</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="col-span-2">
-                  <Label className="font-semibold">Email</Label>
-                  <Input
-                    type="email"
-                    value={registroForm.email}
-                    onChange={(e) => setRegistroForm({ ...registroForm, email: e.target.value })}
-                    className="h-11"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="font-semibold">Dirección</Label>
-                  <Input
-                    value={registroForm.direccion}
-                    onChange={(e) => setRegistroForm({ ...registroForm, direccion: e.target.value })}
-                    className="h-11"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <Label className="font-semibold">Alergias Conocidas</Label>
-                  <Textarea
-                    value={registroForm.alergias}
-                    onChange={(e) => setRegistroForm({ ...registroForm, alergias: e.target.value })}
-                    rows={2}
-                  />
-                </div>
-                <div>
-                  <Label className="font-semibold">Contacto de Emergencia</Label>
-                  <Input
-                    value={registroForm.contactoEmergenciaNombre}
-                    onChange={(e) => setRegistroForm({ ...registroForm, contactoEmergenciaNombre: e.target.value })}
-                    placeholder="Nombre"
-                    className="h-11"
-                  />
-                </div>
-                <div>
-                  <Label className="font-semibold">Teléfono de Emergencia</Label>
-                  <Input
-                    value={registroForm.contactoEmergenciaTelefono}
-                    onChange={(e) => setRegistroForm({ ...registroForm, contactoEmergenciaTelefono: e.target.value })}
-                    placeholder="Teléfono"
-                    className="h-11"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 justify-end pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setRegistroStep(1)}
-                >
-                  Atrás
-                </Button>
-                <Button 
-                  onClick={handleRegistroFinal}
-                  className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold"
-                >
-                  Registrar Paciente
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
 
-      {/* Dialog: Agendar Cita */}
-      <Dialog open={showCitaDialog} onOpenChange={setShowCitaDialog}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-600" />
-              Agendar Nueva Cita
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label className="font-semibold">Tipo de Servicio *</Label>
-              <Select 
-                value={citaForm.tipoServicio} 
-                onValueChange={handleTipoServicioChange}
-              >
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="Seleccionar tipo de servicio" />
+            <div className="space-y-2">
+              <Label>Seleccione un Doctor Disponible</Label>
+              <Select onValueChange={(value) => confirmarAsignacionDoctor(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione doctor..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="especialidad">Especialidad</SelectItem>
-                  <SelectItem value="examen">Examen</SelectItem>
-                  <SelectItem value="procedimiento">Procedimiento</SelectItem>
+                  {doctoresDisponibles.length === 0 ? (
+                    <div className="p-2 text-sm text-gray-500">No hay doctores disponibles</div>
+                  ) : (
+                    doctoresDisponibles.map((doctor) => (
+                      <SelectItem key={doctor.id} value={doctor.id}>
+                        Dr. {doctor.usuario?.nombre} {doctor.usuario?.apellido}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>
 
-            {citaForm.tipoServicio && (
-              <div>
-                <Label className="font-semibold">
-                  {citaForm.tipoServicio === 'especialidad' ? 'Especialidad' : 
-                   citaForm.tipoServicio === 'examen' ? 'Examen' : 'Procedimiento'} *
-                </Label>
-                <Select 
-                  value={citaForm.servicioId} 
-                  onValueChange={handleServicioChange}
-                >
-                  <SelectTrigger className="h-11">
-                    <SelectValue placeholder="Seleccionar..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {citaForm.tipoServicio === 'especialidad' ? (
-                      especialidades.map((esp) => (
-                        <SelectItem key={esp.id} value={esp.id}>
-                          {esp.titulo} - {formatCurrency(esp.costoCOP)}
-                        </SelectItem>
-                      ))
-                    ) : (
-                      examenesProcedimientos
-                        .filter(ex => ex.tipo === (citaForm.tipoServicio === 'examen' ? 'Examen' : 'Procedimiento'))
-                        .map((ex) => (
-                          <SelectItem key={ex.id} value={ex.id}>
-                            {ex.nombre} - {formatCurrency(ex.costoBase)}
-                          </SelectItem>
-                        ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="font-semibold">Fecha *</Label>
-                <Input
-                  type="date"
-                  value={citaForm.fecha}
-                  onChange={(e) => setCitaForm({ ...citaForm, fecha: e.target.value })}
-                  className="h-11"
-                />
-              </div>
-              <div>
-                <Label className="font-semibold">Hora *</Label>
-                <Input
-                  type="time"
-                  value={citaForm.hora}
-                  onChange={(e) => setCitaForm({ ...citaForm, hora: e.target.value })}
-                  className="h-11"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="font-semibold flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  Duración (minutos)
-                </Label>
-                <Input
-                  type="number"
-                  value={citaForm.duracion}
-                  onChange={(e) => setCitaForm({ ...citaForm, duracion: e.target.value })}
-                  className="h-11"
-                  placeholder="30"
-                />
-              </div>
-              <div>
-                <Label className="font-semibold flex items-center gap-1">
-                  <DollarSign className="w-4 h-4" />
-                  Costo (COP)
-                </Label>
-                <Input
-                  type="number"
-                  value={citaForm.costo}
-                  onChange={(e) => setCitaForm({ ...citaForm, costo: e.target.value })}
-                  className="h-11"
-                  placeholder="50000"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label className="font-semibold">Motivo de Consulta</Label>
-              <Textarea
-                value={citaForm.motivo}
-                onChange={(e) => setCitaForm({ ...citaForm, motivo: e.target.value })}
-                rows={2}
-                placeholder="Describe el motivo..."
-              />
-            </div>
-
-            <div>
-              <Label className="font-semibold">Observaciones</Label>
-              <Textarea
-                value={citaForm.observaciones}
-                onChange={(e) => setCitaForm({ ...citaForm, observaciones: e.target.value })}
-                rows={2}
-                placeholder="Observaciones adicionales..."
-              />
-            </div>
-
-            <div className="flex gap-3 justify-end pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowCitaDialog(false)}
-              >
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleAgendarCita}
-                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold"
-              >
-                Agendar Cita
-              </Button>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+              <p className="text-sm text-yellow-900">
+                <strong>Nota:</strong> Al asignar el doctor, el paciente pasará automáticamente a la lista de espera.
+              </p>
             </div>
           </div>
         </DialogContent>

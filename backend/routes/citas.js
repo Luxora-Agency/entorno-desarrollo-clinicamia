@@ -65,6 +65,20 @@ citas.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIS
 });
 
 /**
+ * PATCH /citas/:id - Actualizar parcialmente una cita (cambiar estado, asignar doctor, etc.)
+ */
+citas.patch('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']), async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const cita = await citaService.update(id, data);
+    return c.json(success({ cita }, 'Cita actualizada exitosamente'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
  * DELETE /citas/:id - Cancelar una cita
  */
 citas.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']), async (c) => {
