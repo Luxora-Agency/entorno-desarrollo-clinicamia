@@ -24,6 +24,7 @@ import CamasModule from './CamasModule';
 import HospitalizacionModule from './HospitalizacionModule';
 import HCEModule from './HCEModule';
 import EnfermeriaModule from './EnfermeriaModule';
+import EnfermeriaModuleEnhanced from './EnfermeriaModuleEnhanced';
 import LaboratorioModule from './LaboratorioModule';
 import ImagenologiaModule from './ImagenologiaModule';
 import UrgenciasModule from './UrgenciasModule';
