@@ -354,6 +354,25 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                           <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
                           <span>Inventario</span>
                         </button>
+                        
+                        {/* Órdenes Médicas - SuperAdmin y Admin */}
+                        {(userRole === 'superadmin' || userRole === 'admin') && (
+                          <button
+                            onClick={() => {
+                              setActiveModule('ordenes-medicas');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'ordenes-medicas'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Órdenes Médicas</span>
+                          </button>
+                        )}
+                        
                         {userRole === 'superadmin' && (
                           <>
                             <button
