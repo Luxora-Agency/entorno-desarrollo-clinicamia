@@ -584,8 +584,8 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 )}
               </div>
 
-              {/* PROGRAMA MÍA PASS - SOLO SUPERADMIN */}
-              {userRole === 'superadmin' && (
+              {/* PROGRAMA MÍA PASS */}
+              {(userRole === 'superadmin' || userRole === 'admin') && (
                 <div className="pt-4 mt-4 border-t border-gray-100">
                   <div className="px-3 mb-2">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Programa Mía Pass</p>
@@ -606,48 +606,57 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                     isMiaPassOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
                   }`}>
                     <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                      {/* Planes - Solo SuperAdmin */}
+                      {userRole === 'superadmin' && (
+                        <button
+                          onClick={() => {
+                            setActiveModule('planes-miapass');
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                            activeModule === 'planes-miapass'
+                              ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                          <span>Planes</span>
+                        </button>
+                      )}
+                      
+                      {/* Suscripciones - SuperAdmin y Admin */}
                       <button
                         onClick={() => {
-                          setActiveModule('planes');
+                          setActiveModule('suscripciones-miapass');
                           setIsOpen(false);
                         }}
                         className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                          activeModule === 'planes'
+                          activeModule === 'suscripciones-miapass'
                             ? 'bg-emerald-50 text-emerald-700 font-semibold'
                             : 'text-gray-600 hover:bg-gray-50'
                         }`}
                       >
                         <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                        <span>Planes</span>
+                        <span>Suscripciones</span>
                       </button>
-                      <button
-                        onClick={() => {
-                          setActiveModule('suscriptores-pass');
-                          setIsOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                          activeModule === 'suscriptores-pass'
-                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                            : 'text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                        <span>Suscriptores</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActiveModule('cupones');
-                          setIsOpen(false);
-                        }}
-                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                          activeModule === 'cupones'
-                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                            : 'text-gray-600 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                        <span>Cupones</span>
-                      </button>
+                      
+                      {/* Suscriptores - Solo SuperAdmin */}
+                      {userRole === 'superadmin' && (
+                        <button
+                          onClick={() => {
+                            setActiveModule('suscriptores-miapass');
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                            activeModule === 'suscriptores-miapass'
+                              ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                          <span>Suscriptores</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
