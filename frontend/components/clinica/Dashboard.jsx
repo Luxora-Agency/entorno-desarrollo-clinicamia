@@ -132,16 +132,16 @@ export default function Dashboard({ user, onLogout }) {
       // Módulos de Farmacia
       case 'farmacia':
         return <FarmaciaModule user={user} />;
-      case 'categorias-farmacia':
+      case 'categorias-productos':
         return <CategoriasProductosModule user={user} />;
-      case 'etiquetas-farmacia':
+      case 'etiquetas-productos':
         return <EtiquetasProductosModule user={user} />;
       // Módulos de Hospitalización
       case 'unidades':
         return <UnidadesModule user={user} />;
       case 'habitaciones':
         return <HabitacionesModule user={user} />;
-      case 'gestion-camas':
+      case 'camas':
         return <CamasModule user={user} />;
       case 'hospitalizacion':
         return <HospitalizacionModule user={user} />;
