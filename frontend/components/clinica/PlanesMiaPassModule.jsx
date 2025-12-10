@@ -346,21 +346,23 @@ export default function PlanesMiaPassModule() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <Card className="w-full max-w-4xl my-8">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  {editingPlan ? 'Editar Plan' : 'Nuevo Plan'}
-                </h2>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col">
+            {/* Header Fijo */}
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 flex-shrink-0">
+              <h2 className="text-2xl font-bold text-gray-900">
+                {editingPlan ? 'Editar Plan' : 'Nuevo Plan'}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
+            {/* Contenido Scrolleable */}
+            <div className="overflow-y-auto flex-1 p-6">
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Información Básica */}
                 <div>
