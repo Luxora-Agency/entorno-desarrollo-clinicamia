@@ -738,6 +738,10 @@ video {
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
 }
+.my-8 {
+  margin-top: 2rem;
+  margin-bottom: 2rem;
+}
 .-ml-4 {
   margin-left: -1rem;
 }
@@ -1559,6 +1563,12 @@ video {
 }
 .rounded-tl-sm {
   border-top-left-radius: calc(var(--radius) - 4px);
+}
+.rounded-bl-lg {
+  border-bottom-left-radius: var(--radius);
+}
+.rounded-tr-lg {
+  border-top-right-radius: var(--radius);
 }
 .border {
   border-width: 1px;
