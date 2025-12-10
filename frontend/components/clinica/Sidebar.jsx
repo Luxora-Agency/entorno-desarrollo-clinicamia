@@ -20,9 +20,11 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
   const rolePermissions = {
     admin: ['*'], // Acceso a todo
     'super_admin': ['*'],
-    doctor: ['dashboard', 'pacientes', 'hce', 'citas', 'enfermeria', 'laboratorio', 'imagenologia'],
+    superadmin: ['*'],
+    administrador: ['*'],
+    doctor: ['dashboard', 'pacientes', 'hce', 'citas', 'laboratorio', 'imagenologia', 'urgencias'],
     recepcionista: ['dashboard', 'admisiones', 'pacientes', 'citas'],
-    enfermera: ['dashboard', 'pacientes', 'hce', 'enfermeria', 'hospitalizacion'],
+    enfermera: ['dashboard', 'pacientes', 'hce', 'hospitalizacion'],
     pharmacist: ['dashboard', 'farmacia', 'pacientes'],
     lab_technician: ['dashboard', 'laboratorio', 'pacientes'],
   };
