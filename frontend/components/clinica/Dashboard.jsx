@@ -30,6 +30,10 @@ import UrgenciasModule from './UrgenciasModule';
 import FacturacionModule from './FacturacionModule';
 import QuirofanoModule from './QuirofanoModule';
 import ReportesModule from './ReportesModule';
+import PlanesMiaPassModule from './PlanesMiaPassModule';
+import SuscripcionesMiaPassModule from './SuscripcionesMiaPassModule';
+import SuscriptoresMiaPassModule from './SuscriptoresMiaPassModule';
+import OrdenesMedicasModule from './OrdenesMedicasModule';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
