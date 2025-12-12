@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const auditoriaService = require('../services/auditoria.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const auditoria = new Hono();
@@ -14,7 +14,7 @@ auditoria.use('*', authMiddleware);
 /**
  * GET /auditoria/entidad/:entidad/:entidad_id - Obtener auditoría de una entidad
  */
-auditoria.get('/entidad/:entidad/:entidad_id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+auditoria.get('/entidad/:entidad/:entidad_id', async (c) => {
   try {
     const { entidad, entidad_id } = c.req.param();
     const query = c.req.query();
@@ -29,7 +29,7 @@ auditoria.get('/entidad/:entidad/:entidad_id', roleMiddleware(['SUPER_ADMIN', 'A
 /**
  * GET /auditoria/paciente/:paciente_id - Obtener auditoría de un paciente
  */
-auditoria.get('/paciente/:paciente_id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+auditoria.get('/paciente/:paciente_id', async (c) => {
   try {
     const { paciente_id } = c.req.param();
     const query = c.req.query();
@@ -44,7 +44,7 @@ auditoria.get('/paciente/:paciente_id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 
 /**
  * GET /auditoria/usuario/:usuario_id - Obtener auditoría de un usuario
  */
-auditoria.get('/usuario/:usuario_id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+auditoria.get('/usuario/:usuario_id', async (c) => {
   try {
     const { usuario_id } = c.req.param();
     const query = c.req.query();

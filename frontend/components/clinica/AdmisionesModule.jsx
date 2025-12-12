@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { 
   Search, User, Calendar, Clock, Phone, Mail, AlertCircle,
   UserCheck, XCircle, CheckCircle, Stethoscope, UserPlus,
-  FileText, Plus, Eye, ArrowRight
+  FileText, Plus, Eye, ArrowRight, DollarSign
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,8 +14,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import FormularioCita from './FormularioCita';
+import { formatDate, formatTime, formatDateLong } from '@/services/formatters';
 
 export default function AdmisionesModule({ user }) {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [pacienteEncontrado, setPacienteEncontrado] = useState(null);
   const [citasPaciente, setCitasPaciente] = useState([]);
@@ -25,6 +29,9 @@ export default function AdmisionesModule({ user }) {
   const [citaSeleccionada, setCitaSeleccionada] = useState(null);
   const [doctoresDisponibles, setDoctoresDisponibles] = useState([]);
   const [especialidades, setEspecialidades] = useState([]);
+  const [showEditarPago, setShowEditarPago] = useState(false);
+  const [pagoEditando, setPagoEditando] = useState(null);
+  const [initialDataCita, setInitialDataCita] = useState({});
 
   const buscarPaciente = async () => {
     if (!searchTerm.trim()) return;
@@ -45,14 +52,36 @@ export default function AdmisionesModule({ user }) {
         const paciente = data.data[0];
         setPacienteEncontrado(paciente);
         
-        // Cargar citas del paciente (hoy y futuras)
+        // Cargar citas del paciente (hoy y futuras) con información de facturación
         const hoy = new Date().toISOString().split('T')[0];
         const citasResponse = await fetch(`${apiUrl}/citas?pacienteId=${paciente.id}&fechaDesde=${hoy}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         
         const citasData = await citasResponse.json();
-        setCitasPaciente(citasData.data || []);
+        const citas = citasData.data || [];
+        
+        // Cargar información de facturación para cada cita
+        const citasConFactura = await Promise.all(citas.map(async (cita) => {
+          try {
+            const facturaResponse = await fetch(`${apiUrl}/facturas?pacienteId=${paciente.id}&limit=100`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const facturaData = await facturaResponse.json();
+            
+            // Buscar factura relacionada con esta cita
+            const factura = facturaData.data?.find(f => 
+              f.items?.some(item => item.citaId === cita.id)
+            );
+            
+            return { ...cita, factura };
+          } catch (error) {
+            console.error('Error cargando factura:', error);
+            return cita;
+          }
+        }));
+        
+        setCitasPaciente(citasConFactura);
       } else {
         setPacienteEncontrado(null);
         setCitasPaciente([]);
@@ -107,11 +136,18 @@ export default function AdmisionesModule({ user }) {
       if (response.ok) {
         // Recargar citas
         buscarPaciente();
-        alert('✅ Paciente pasado a lista de espera');
+        toast({
+          title: "Éxito",
+          description: "Paciente pasado a lista de espera",
+        });
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('❌ Error al actualizar estado');
+      toast({
+        title: "Error",
+        description: "Error al actualizar estado",
+        variant: "destructive",
+      });
     }
   };
 
@@ -133,11 +169,73 @@ export default function AdmisionesModule({ user }) {
       
       if (response.ok) {
         buscarPaciente();
-        alert('✅ Cita marcada como No Asistió');
+        toast({
+          title: "Cita actualizada",
+          description: "Cita marcada como No Asistió",
+        });
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('❌ Error al actualizar estado');
+      toast({
+        title: "Error",
+        description: "Error al actualizar estado",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const actualizarFactura = async (facturaId, nuevoEstado, nuevoMetodo) => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const response = await fetch(`${apiUrl}/facturas/${facturaId}`, {
+        method: 'PUT',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          estado: nuevoEstado,
+          metodoPago: nuevoMetodo 
+        }),
+      });
+      
+      if (response.ok) {
+        buscarPaciente(); // Recargar datos
+        setShowEditarPago(false);
+        setPagoEditando(null);
+        toast({
+          title: "Éxito",
+          description: "Información de pago actualizada",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Error al actualizar factura",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        title: "Error",
+        description: "Error al actualizar pago",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const abrirEditarPago = (cita) => {
+    if (cita.factura) {
+      setPagoEditando({
+        citaId: cita.id,
+        facturaId: cita.factura.id,
+        estadoActual: cita.factura.estado,
+        total: cita.factura.total,
+        saldoPendiente: cita.factura.saldoPendiente,
+      });
+      setShowEditarPago(true);
     }
   };
 
@@ -168,11 +266,18 @@ export default function AdmisionesModule({ user }) {
       if (response.ok) {
         setShowAsignarDoctor(false);
         buscarPaciente();
-        alert('✅ Doctor asignado y paciente en lista de espera');
+        toast({
+          title: "Éxito",
+          description: "Doctor asignado y paciente en lista de espera",
+        });
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('❌ Error al asignar doctor');
+      toast({
+        title: "Error",
+        description: "Error al asignar doctor",
+        variant: "destructive",
+      });
     }
   };
 
@@ -182,8 +287,43 @@ export default function AdmisionesModule({ user }) {
     setCitasPaciente([]);
   };
 
+  const abrirFormularioNuevaCita = () => {
+    setInitialDataCita({
+      pacienteId: pacienteEncontrado?.id || '',
+      pacienteNombre: pacienteEncontrado ? `${pacienteEncontrado.nombre} ${pacienteEncontrado.apellido}` : ''
+    });
+    setShowNuevaCita(true);
+  };
+
+  const abrirFormularioEditarCita = (cita) => {
+    setInitialDataCita({
+      citaId: cita.id,
+      pacienteId: cita.pacienteId,
+      pacienteNombre: pacienteEncontrado ? `${pacienteEncontrado.nombre} ${pacienteEncontrado.apellido}` : '',
+      pacienteCedula: pacienteEncontrado?.cedula || '',
+      tipoCita: cita.tipoCita || 'Especialidad',
+      examenProcedimientoId: cita.examenProcedimientoId,
+      motivo: cita.motivo,
+      costo: cita.costo,
+      isEdit: true,
+    });
+    setShowNuevaCita(true);
+  };
+
+  const handleCitaSuccess = () => {
+    setShowNuevaCita(false);
+    setInitialDataCita({});
+    buscarPaciente(); // Recargar citas del paciente
+  };
+
+  const handleCitaCancel = () => {
+    setShowNuevaCita(false);
+    setInitialDataCita({});
+  };
+
   const getEstadoBadge = (estado) => {
     const estilos = {
+      PorAgendar: 'bg-purple-100 text-purple-700 border-purple-300',
       Programada: 'bg-blue-100 text-blue-700 border-blue-300',
       EnEspera: 'bg-yellow-100 text-yellow-700 border-yellow-300',
       Atendiendo: 'bg-green-100 text-green-700 border-green-300',
@@ -193,6 +333,7 @@ export default function AdmisionesModule({ user }) {
     };
     
     const labels = {
+      PorAgendar: 'Por Agendar',
       Programada: 'Programada',
       EnEspera: 'En Espera',
       Atendiendo: 'Atendiendo',
@@ -208,27 +349,51 @@ export default function AdmisionesModule({ user }) {
     );
   };
 
-  const formatFecha = (fecha) => {
-    if (!fecha) return '';
-    const date = new Date(fecha);
-    return date.toLocaleDateString('es-CO', { 
-      weekday: 'short', 
-      day: '2-digit', 
-      month: 'short',
-      year: 'numeric'
-    });
-  };
-
-  const formatHora = (hora) => {
-    if (!hora) return '';
-    const date = new Date(`1970-01-01T${hora}`);
-    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-  };
-
   const esHoy = (fecha) => {
     const hoy = new Date().toISOString().split('T')[0];
     const fechaCita = new Date(fecha).toISOString().split('T')[0];
     return hoy === fechaCita;
+  };
+
+  const getTipoCitaBadge = (cita) => {
+    if (cita.tipoCita === 'Especialidad' && cita.especialidad) {
+      return (
+        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+          Consulta: {cita.especialidad.titulo || cita.especialidad.nombre}
+        </Badge>
+      );
+    }
+    if (cita.tipoCita === 'Examen' && cita.examenProcedimiento) {
+      return (
+        <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-300">
+          Examen: {cita.examenProcedimiento.nombre}
+        </Badge>
+      );
+    }
+    if (cita.tipoCita === 'Procedimiento' && cita.examenProcedimiento) {
+      return (
+        <Badge variant="outline" className="bg-teal-50 text-teal-700 border-teal-300">
+          Procedimiento: {cita.examenProcedimiento.nombre}
+        </Badge>
+      );
+    }
+    return <Badge variant="outline">{cita.tipoCita}</Badge>;
+  };
+
+  const getEstadoPagoBadge = (factura) => {
+    if (!factura) return null;
+    
+    const estilos = {
+      Pendiente: 'bg-red-100 text-red-700 border-red-300',
+      Pagada: 'bg-green-100 text-green-700 border-green-300',
+      Parcial: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+    };
+    
+    return (
+      <Badge variant="outline" className={estilos[factura.estado] || 'bg-gray-100'}>
+        {factura.estado}
+      </Badge>
+    );
   };
 
   // Separar citas de hoy y futuras
@@ -303,7 +468,10 @@ export default function AdmisionesModule({ user }) {
                   <Button 
                     size="sm" 
                     className="mt-3 gap-2"
-                    onClick={() => window.location.href = '/?module=pacientes&action=new'}
+                    onClick={() => toast({
+                      title: "Información",
+                      description: "Redirigir a módulo de Pacientes para registrar nuevo paciente",
+                    })}
                   >
                     <UserPlus className="h-4 w-4" />
                     Registrar Nuevo Paciente
@@ -388,7 +556,7 @@ export default function AdmisionesModule({ user }) {
                 </CardTitle>
                 <Button
                   className="gap-2"
-                  onClick={() => window.location.href = `/?module=citas&pacienteId=${pacienteEncontrado.id}&action=new`}
+                  onClick={abrirFormularioNuevaCita}
                 >
                   <Plus className="h-4 w-4" />
                   Agendar Nueva Cita
@@ -403,7 +571,7 @@ export default function AdmisionesModule({ user }) {
                   <p className="text-gray-400 text-sm mb-4">Puede agendar una nueva cita para el paciente</p>
                   <Button
                     className="gap-2"
-                    onClick={() => window.location.href = `/?module=citas&pacienteId=${pacienteEncontrado.id}&action=new`}
+                    onClick={abrirFormularioNuevaCita}
                   >
                     <Plus className="h-4 w-4" />
                     Agendar Cita
@@ -441,33 +609,30 @@ export default function AdmisionesModule({ user }) {
                         >
                           <div className="flex flex-col md:flex-row justify-between gap-4">
                             <div className="flex-1 space-y-3">
-                              {/* Hora y Estado */}
-                              <div className="flex items-center gap-4">
+                              {/* Hora, Estado y Tipo de Cita */}
+                              <div className="flex flex-wrap items-center gap-2">
                                 <div className="flex items-center gap-2">
                                   <Clock className="h-5 w-5 text-gray-500" />
-                                  <span className="font-bold text-2xl">{formatHora(cita.hora)}</span>
+                                  <span className="font-bold text-2xl">{formatTime(cita.hora)}</span>
                                 </div>
                                 {getEstadoBadge(cita.estado)}
                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
                                   HOY
                                 </Badge>
+                                {getTipoCitaBadge(cita)}
                               </div>
                               
                               {/* Doctor */}
                               <div className="flex items-center gap-2">
                                 <Stethoscope className="h-4 w-4 text-gray-500" />
                                 <span className="font-medium">
-                                  {cita.doctor ? 
-                                    `Dr. ${cita.doctor.nombre} ${cita.doctor.apellido}` : 
+                                  {cita.doctor && cita.doctor.usuario ? 
+                                    `Dr. ${cita.doctor.usuario.nombre} ${cita.doctor.usuario.apellido}` : 
+                                    cita.doctorId ? 
+                                    'Doctor asignado' :
                                     <span className="text-red-600">Sin doctor asignado</span>
                                   }
                                 </span>
-                                {cita.especialidad && (
-                                  <>
-                                    <span className="text-gray-400">·</span>
-                                    <span className="text-gray-600">{cita.especialidad.nombre}</span>
-                                  </>
-                                )}
                               </div>
 
                               {/* Motivo */}
@@ -475,6 +640,35 @@ export default function AdmisionesModule({ user }) {
                                 <span className="text-gray-500">Motivo:</span>{' '}
                                 <span className="text-gray-900">{cita.motivo}</span>
                               </div>
+
+                              {/* Información de Facturación */}
+                              {cita.factura && (
+                                <div className="bg-gray-50 border border-gray-200 rounded p-3 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm font-semibold text-gray-700">Facturación</span>
+                                    {getEstadoPagoBadge(cita.factura)}
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2 text-sm">
+                                    <div>
+                                      <span className="text-gray-500">Total:</span>{' '}
+                                      <span className="font-medium">${parseFloat(cita.factura.total).toLocaleString()}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-gray-500">Saldo:</span>{' '}
+                                      <span className="font-medium text-red-600">${parseFloat(cita.factura.saldoPendiente).toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => abrirEditarPago(cita)}
+                                    className="w-full mt-2"
+                                  >
+                                    <DollarSign className="h-4 w-4 mr-2" />
+                                    Actualizar Pago
+                                  </Button>
+                                </div>
+                              )}
 
                               {cita.notas && (
                                 <div className="text-sm text-gray-600">
@@ -485,6 +679,17 @@ export default function AdmisionesModule({ user }) {
 
                             {/* Acciones */}
                             <div className="flex flex-col gap-2 min-w-[200px]">
+                              {/* Programar Cita PorAgendar */}
+                              {cita.estado === 'PorAgendar' && (
+                                <Button
+                                  onClick={() => abrirFormularioEditarCita(cita)}
+                                  className="gap-2 bg-purple-600 hover:bg-purple-700 w-full"
+                                >
+                                  <Calendar className="h-4 w-4" />
+                                  Programar Cita
+                                </Button>
+                              )}
+
                               {/* Pasar a En Espera */}
                               {cita.estado === 'Programada' && cita.doctorId && (
                                 <Button
@@ -559,11 +764,11 @@ export default function AdmisionesModule({ user }) {
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
                                   <Calendar className="h-4 w-4 text-gray-500" />
-                                  <span className="font-semibold">{formatFecha(cita.fecha)}</span>
+                                  <span className="font-semibold">{formatDate(cita.fecha)}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Clock className="h-4 w-4 text-gray-500" />
-                                  <span className="font-semibold">{formatHora(cita.hora)}</span>
+                                  <span className="font-semibold">{formatTime(cita.hora)}</span>
                                 </div>
                                 {getEstadoBadge(cita.estado)}
                               </div>
@@ -624,7 +829,7 @@ export default function AdmisionesModule({ user }) {
             {citaSeleccionada && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-blue-900">
-                  <strong>Cita:</strong> {formatFecha(citaSeleccionada.fecha)} a las {formatHora(citaSeleccionada.hora)}
+                  <strong>Cita:</strong> {formatDate(citaSeleccionada.fecha)} a las {formatTime(citaSeleccionada.hora)}
                 </p>
                 <p className="text-sm text-blue-900">
                   <strong>Especialidad:</strong> {citaSeleccionada.especialidad?.nombre}
@@ -658,6 +863,108 @@ export default function AdmisionesModule({ user }) {
               </p>
             </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Nueva Cita */}
+      <Dialog open={showNuevaCita} onOpenChange={setShowNuevaCita}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Agendar Nueva Cita</DialogTitle>
+          </DialogHeader>
+          <FormularioCita
+            initialData={initialDataCita}
+            onSuccess={handleCitaSuccess}
+            onCancel={handleCitaCancel}
+            doctores={doctoresDisponibles}
+            especialidades={especialidades}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Editar Pago */}
+      <Dialog open={showEditarPago} onOpenChange={setShowEditarPago}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-emerald-600" />
+              Actualizar Información de Pago
+            </DialogTitle>
+          </DialogHeader>
+          {pagoEditando && (
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-4 rounded border">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs text-gray-600">Total</Label>
+                    <p className="font-semibold text-lg">${parseFloat(pagoEditando.total).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-600">Saldo Pendiente</Label>
+                    <p className="font-semibold text-lg text-red-600">${parseFloat(pagoEditando.saldoPendiente).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <Label>Estado de Pago *</Label>
+                <Select 
+                  defaultValue={pagoEditando.estadoActual} 
+                  onValueChange={(value) => setPagoEditando({...pagoEditando, nuevoEstado: value})}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pendiente">Pendiente</SelectItem>
+                    <SelectItem value="Pagada">Pagado</SelectItem>
+                    <SelectItem value="Parcial">Pago Parcial</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label>Método de Pago</Label>
+                <Select 
+                  defaultValue="Efectivo" 
+                  onValueChange={(value) => setPagoEditando({...pagoEditando, nuevoMetodo: value})}
+                >
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Efectivo">Efectivo</SelectItem>
+                    <SelectItem value="Tarjeta">Tarjeta</SelectItem>
+                    <SelectItem value="Transferencia">Transferencia</SelectItem>
+                    <SelectItem value="EPS">EPS</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <Button 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => {
+                    setShowEditarPago(false);
+                    setPagoEditando(null);
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button 
+                  className="flex-1"
+                  onClick={() => actualizarFactura(
+                    pagoEditando.facturaId,
+                    pagoEditando.nuevoEstado || pagoEditando.estadoActual,
+                    pagoEditando.nuevoMetodo || 'Efectivo'
+                  )}
+                >
+                  Guardar
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

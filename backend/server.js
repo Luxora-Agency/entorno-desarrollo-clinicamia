@@ -8,9 +8,11 @@ const prisma = require('./db/prisma');
 const auth = require('./routes/auth');
 const pacientes = require('./routes/pacientes');
 const citas = require('./routes/citas');
+const agenda = require('./routes/agenda');
 const departamentos = require('./routes/departamentos');
 const especialidades = require('./routes/especialidades');
 const usuarios = require('./routes/usuarios');
+const roles = require('./routes/roles');
 const doctores = require('./routes/doctores');
 const categoriaExamen = require('./routes/categoriaExamen');
 const examenProcedimiento = require('./routes/examenProcedimiento');
@@ -46,6 +48,8 @@ const procedimientos = require('./routes/procedimiento');
 // Rutas de prescripción médica (usa modelo Producto como vademécum)
 const prescripciones = require('./routes/prescripciones');
 const administraciones = require('./routes/administraciones');
+// Rutas de consultas
+const consultas = require('./routes/consultas');
 
 const app = new Hono();
 
@@ -114,9 +118,11 @@ app.get('/health', async (c) => {
 app.route('/auth', auth);
 app.route('/pacientes', pacientes);
 app.route('/citas', citas);
+app.route('/agenda', agenda);
 app.route('/departamentos', departamentos);
 app.route('/especialidades', especialidades);
 app.route('/usuarios', usuarios);
+app.route('/roles', roles);
 app.route('/doctores', doctores);
 app.route('/categorias-examenes', categoriaExamen);
 app.route('/examenes-procedimientos', examenProcedimiento);
@@ -152,6 +158,8 @@ app.route('/procedimientos', procedimientos);
 // Rutas de prescripción médica (medicamentos = productos)
 app.route('/prescripciones', prescripciones);
 app.route('/administraciones', administraciones);
+// Rutas de consultas
+app.route('/consultas', consultas);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;

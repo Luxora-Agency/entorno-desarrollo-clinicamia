@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const signosVitalesService = require('../services/signosVitales.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const signosVitales = new Hono();
@@ -27,7 +27,7 @@ signosVitales.get('/', async (c) => {
 /**
  * POST /signos-vitales - Registrar signos vitales
  */
-signosVitales.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE']), async (c) => {
+signosVitales.post('/', async (c) => {
   try {
     const body = await c.req.json();
     const user = c.get('user');

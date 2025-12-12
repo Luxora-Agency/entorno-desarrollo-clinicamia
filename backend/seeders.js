@@ -37,6 +37,7 @@ async function clearDatabase() {
   await prisma.especialidad.deleteMany();
   await prisma.departamento.deleteMany();
   await prisma.usuario.deleteMany();
+  await prisma.rolePermiso.deleteMany();
   
   console.log('✅ Base de datos limpia');
 }
@@ -591,6 +592,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       motivo: 'Control médico general',
       estado: 'EnEspera',
       notas: 'Paciente llegó temprano',
+      costo: 50000,
     },
     {
       pacienteId: pacientes[1].id,
@@ -600,6 +602,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       hora: new Date('1970-01-01T09:00:00Z'),
       motivo: 'Dolor de cabeza recurrente',
       estado: 'Programada',
+      costo: 50000,
     },
     {
       pacienteId: pacientes[2].id,
@@ -610,6 +613,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       motivo: 'Control de hipertensión',
       estado: 'Atendiendo',
       notas: 'Consulta en progreso',
+      costo: 50000,
     },
     {
       pacienteId: pacientes[0].id,
@@ -619,6 +623,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       hora: new Date('1970-01-01T11:00:00Z'),
       motivo: 'Consulta pediátrica - fiebre',
       estado: 'Programada',
+      costo: 60000,
     },
     {
       pacienteId: pacientes[1].id,
@@ -629,6 +634,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       motivo: 'Revisión de resultados de laboratorio',
       estado: 'Completada',
       notas: 'Paciente atendido exitosamente',
+      costo: 50000,
     },
     // Citas futuras
     {
@@ -639,6 +645,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       hora: new Date('1970-01-01T10:00:00Z'),
       motivo: 'Control post-operatorio',
       estado: 'Programada',
+      costo: 70000,
     },
     {
       pacienteId: pacientes[1].id,
@@ -648,6 +655,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       hora: new Date('1970-01-01T15:00:00Z'),
       motivo: 'Control de crecimiento',
       estado: 'Programada',
+      costo: 60000,
     },
     // Cita de ayer que no asistió
     {
@@ -659,16 +667,64 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       motivo: 'Control general',
       estado: 'NoAsistio',
       notas: 'Paciente no se presentó a la cita',
+      costo: 50000,
     },
   ];
 
   const created = [];
+  let facturaCounter = 1;
+  
   for (const cita of citas) {
     const citaCreada = await prisma.cita.create({ data: cita });
     created.push(citaCreada);
+    
+    // Crear factura para citas completadas o atendiendo
+    if (cita.estado === 'Completada' || cita.estado === 'Atendiendo') {
+      const numeroFactura = `F-2025-${String(facturaCounter).padStart(5, '0')}`;
+      facturaCounter++;
+      
+      const factura = await prisma.factura.create({
+        data: {
+          numero: numeroFactura,
+          pacienteId: cita.pacienteId,
+          estado: cita.estado === 'Completada' ? 'Pagada' : 'Pendiente',
+          subtotal: cita.costo,
+          descuentos: 0,
+          impuestos: cita.costo * 0.19, // 19% IVA
+          total: cita.costo * 1.19,
+          saldoPendiente: cita.estado === 'Completada' ? 0 : cita.costo * 1.19,
+          cubiertoPorEPS: false,
+          creadaPor: doctorUsuarios[0].id,
+          items: {
+            create: [
+              {
+                tipo: 'Consulta',
+                descripcion: `Consulta ${cita.motivo}`,
+                cantidad: 1,
+                precioUnitario: cita.costo,
+                descuento: 0,
+                subtotal: cita.costo,
+                citaId: citaCreada.id,
+              }
+            ]
+          },
+          pagos: cita.estado === 'Completada' ? {
+            create: [
+              {
+                monto: cita.costo * 1.19,
+                metodoPago: 'Efectivo',
+                referencia: `PAG-${numeroFactura}`,
+                registradoPor: doctorUsuarios[0].id,
+              }
+            ]
+          } : undefined
+        }
+      });
+    }
   }
   
   console.log(`✅ ${created.length} citas creadas (${citas.filter(c => c.fecha.toDateString() === new Date().toDateString()).length} para hoy)`);
+  console.log(`✅ ${facturaCounter - 1} facturas creadas para citas completadas`);
   return created;
 }
 
@@ -808,6 +864,113 @@ async function seedPaquetesHospitalizacion() {
   return paquetesCreados;
 }
 
+async function seedPermisos() {
+  console.log('🔐 Creando permisos por rol...');
+  
+  const permisos = [
+    // SUPERADMIN - Acceso total a todos los módulos
+    { rol: 'superadmin', modulo: 'dashboard' },
+    { rol: 'superadmin', modulo: 'admisiones' },
+    { rol: 'superadmin', modulo: 'pacientes' },
+    { rol: 'superadmin', modulo: 'citas' },
+    { rol: 'superadmin', modulo: 'hce' },
+    { rol: 'superadmin', modulo: 'enfermeria' },
+    { rol: 'superadmin', modulo: 'farmacia' },
+    { rol: 'superadmin', modulo: 'laboratorio' },
+    { rol: 'superadmin', modulo: 'imagenologia' },
+    { rol: 'superadmin', modulo: 'urgencias' },
+    { rol: 'superadmin', modulo: 'hospitalizacion' },
+    { rol: 'superadmin', modulo: 'facturacion' },
+    { rol: 'superadmin', modulo: 'quirofano' },
+    { rol: 'superadmin', modulo: 'reportes' },
+    { rol: 'superadmin', modulo: 'doctores' },
+    { rol: 'superadmin', modulo: 'especialidades' },
+    { rol: 'superadmin', modulo: 'departamentos' },
+    { rol: 'superadmin', modulo: 'examenes' },
+    { rol: 'superadmin', modulo: 'categorias-examenes' },
+    { rol: 'superadmin', modulo: 'categorias-productos' },
+    { rol: 'superadmin', modulo: 'etiquetas-productos' },
+    { rol: 'superadmin', modulo: 'unidades' },
+    { rol: 'superadmin', modulo: 'habitaciones' },
+    { rol: 'superadmin', modulo: 'camas' },
+    { rol: 'superadmin', modulo: 'planes-miapass' },
+    { rol: 'superadmin', modulo: 'suscripciones-miapass' },
+    { rol: 'superadmin', modulo: 'suscriptores-miapass' },
+    { rol: 'superadmin', modulo: 'cupones-miapass' },
+    { rol: 'superadmin', modulo: 'ordenes-medicas' },
+    { rol: 'superadmin', modulo: 'tickets-soporte' },
+    { rol: 'superadmin', modulo: 'publicaciones' },
+    { rol: 'superadmin', modulo: 'usuarios-roles' },
+
+    // ADMIN - Permisos operativos principales
+    { rol: 'admin', modulo: 'dashboard' },
+    { rol: 'admin', modulo: 'admisiones' },
+    { rol: 'admin', modulo: 'pacientes' },
+    { rol: 'admin', modulo: 'citas' },
+    { rol: 'admin', modulo: 'hce' },
+    { rol: 'admin', modulo: 'enfermeria' },
+    { rol: 'admin', modulo: 'farmacia' },
+    { rol: 'admin', modulo: 'laboratorio' },
+    { rol: 'admin', modulo: 'imagenologia' },
+    { rol: 'admin', modulo: 'urgencias' },
+    { rol: 'admin', modulo: 'hospitalizacion' },
+    { rol: 'admin', modulo: 'facturacion' },
+    { rol: 'admin', modulo: 'quirofano' },
+    { rol: 'admin', modulo: 'reportes' },
+    { rol: 'admin', modulo: 'suscripciones-miapass' },
+    { rol: 'admin', modulo: 'cupones-miapass' },
+    { rol: 'admin', modulo: 'ordenes-medicas' },
+
+    // DOCTOR - Permisos médicos
+    { rol: 'doctor', modulo: 'dashboard' },
+    { rol: 'doctor', modulo: 'pacientes' },
+    { rol: 'doctor', modulo: 'hce' },
+    { rol: 'doctor', modulo: 'citas' },
+    { rol: 'doctor', modulo: 'laboratorio' },
+    { rol: 'doctor', modulo: 'imagenologia' },
+    { rol: 'doctor', modulo: 'urgencias' },
+
+    // RECEPCIONISTA - Permisos de recepción
+    { rol: 'recepcionista', modulo: 'dashboard' },
+    { rol: 'recepcionista', modulo: 'admisiones' },
+    { rol: 'recepcionista', modulo: 'pacientes' },
+    { rol: 'recepcionista', modulo: 'citas' },
+
+    // ENFERMERA - Permisos de enfermería
+    { rol: 'enfermera', modulo: 'dashboard' },
+    { rol: 'enfermera', modulo: 'pacientes' },
+    { rol: 'enfermera', modulo: 'hce' },
+    { rol: 'enfermera', modulo: 'hospitalizacion' },
+    { rol: 'enfermera', modulo: 'enfermeria' },
+
+    // FARMACEUTICO - Permisos de farmacia
+    { rol: 'farmaceutico', modulo: 'dashboard' },
+    { rol: 'farmaceutico', modulo: 'farmacia' },
+    { rol: 'farmaceutico', modulo: 'pacientes' },
+    { rol: 'farmaceutico', modulo: 'ordenes-medicas' },
+
+    // LABORATORISTA - Permisos de laboratorio
+    { rol: 'laboratorista', modulo: 'dashboard' },
+    { rol: 'laboratorista', modulo: 'laboratorio' },
+    { rol: 'laboratorista', modulo: 'pacientes' },
+  ];
+
+  let createdCount = 0;
+  for (const permiso of permisos) {
+    await prisma.rolePermiso.create({
+      data: {
+        rol: permiso.rol,
+        modulo: permiso.modulo,
+        acceso: true
+      }
+    });
+    createdCount++;
+  }
+
+  console.log(`✅ ${createdCount} permisos creados`);
+  return createdCount;
+}
+
 async function main() {
   try {
     console.log('🌱 Iniciando seeders...\n');
@@ -815,6 +978,7 @@ async function main() {
     await clearDatabase();
     
     const usuarios = await seedUsuarios();
+    await seedPermisos();
     const departamentos = await seedDepartamentos();
     const especialidades = await seedEspecialidades(departamentos);
     const doctores = await seedDoctores(especialidades, usuarios);
@@ -833,7 +997,9 @@ async function main() {
     console.log(`   🧑‍🤝‍🧑 Pacientes: ${pacientes.length}`);
     console.log(`   🏥 Departamentos: ${departamentos.length}`);
     console.log(`   ⚕️ Especialidades: ${especialidades.length}`);
+    console.log(`   🔐 Sistema de permisos configurado`);
     console.log('\n📋 Credenciales de acceso:');
+    console.log('   SuperAdmin: superadmin@clinicamia.com / superadmin123');
     console.log('   Admin: admin@clinicamia.com / admin123');
     console.log('   Doctor: doctor@clinicamia.com / doctor123');
     console.log('   Enfermera: enfermera@clinicamia.com / enfermera123');

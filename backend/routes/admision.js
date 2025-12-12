@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const admisionService = require('../services/admision.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error } = require('../utils/response');
 
 const admision = new Hono();
@@ -40,7 +40,7 @@ admision.get('/:id', async (c) => {
 /**
  * POST /admisiones - Crear una admisión (iniciar hospitalización)
  */
-admision.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+admision.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const admision = await admisionService.create(data);
@@ -53,7 +53,7 @@ admision.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c)
 /**
  * POST /admisiones/:id/egreso - Registrar egreso
  */
-admision.post('/:id/egreso', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+admision.post('/:id/administrar', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -67,7 +67,7 @@ admision.post('/:id/egreso', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']),
 /**
  * DELETE /admisiones/:id - Eliminar una admisión
  */
-admision.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+admision.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await admisionService.delete(id);

@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const especialidadService = require('../services/especialidad.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const especialidades = new Hono();
@@ -40,7 +40,7 @@ especialidades.get('/:id', async (c) => {
 /**
  * POST /especialidades - Crear una especialidad
  */
-especialidades.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+especialidades.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const especialidad = await especialidadService.create(data);
@@ -53,7 +53,7 @@ especialidades.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => 
 /**
  * PUT /especialidades/:id - Actualizar una especialidad
  */
-especialidades.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+especialidades.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -67,7 +67,7 @@ especialidades.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) =
 /**
  * DELETE /especialidades/:id - Eliminar una especialidad
  */
-especialidades.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+especialidades.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await especialidadService.delete(id);

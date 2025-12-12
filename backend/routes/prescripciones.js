@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const prescripcionService = require('../services/prescripcion.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error } = require('../utils/response');
 
 const prescripciones = new Hono();
@@ -65,7 +65,7 @@ prescripciones.get('/:id', async (c) => {
 /**
  * POST / - Crear prescripción (solo Doctor)
  */
-prescripciones.post('/', roleMiddleware(['DOCTOR']), async (c) => {
+prescripciones.post('/', async (c) => {
   try {
     const user = c.get('user');
     const data = await c.req.json();
@@ -85,7 +85,7 @@ prescripciones.post('/', roleMiddleware(['DOCTOR']), async (c) => {
 /**
  * POST /:id/suspender-producto - Suspender producto de una prescripción
  */
-prescripciones.post('/:prescripcionProductoId/suspender', roleMiddleware(['DOCTOR']), async (c) => {
+prescripciones.post('/:id/administrar', async (c) => {
   try {
     const user = c.get('user');
     const { prescripcionProductoId } = c.req.param();
@@ -106,7 +106,7 @@ prescripciones.post('/:prescripcionProductoId/suspender', roleMiddleware(['DOCTO
 /**
  * POST /:id/completar - Completar prescripción
  */
-prescripciones.post('/:id/completar', roleMiddleware(['DOCTOR']), async (c) => {
+prescripciones.post('/:id/administrar', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();
@@ -120,7 +120,7 @@ prescripciones.post('/:id/completar', roleMiddleware(['DOCTOR']), async (c) => {
 /**
  * POST /:id/cancelar - Cancelar prescripción
  */
-prescripciones.post('/:id/cancelar', roleMiddleware(['DOCTOR']), async (c) => {
+prescripciones.post('/:id/administrar', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();

@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const paqueteService = require('../services/paqueteHospitalizacion.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error } = require('../utils/response');
 
 const paquetesHospitalizacion = new Hono();
@@ -40,7 +40,7 @@ paquetesHospitalizacion.get('/:id', async (c) => {
 /**
  * POST /paquetes-hospitalizacion - Crear un nuevo paquete
  */
-paquetesHospitalizacion.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+paquetesHospitalizacion.post('/', async (c) => {
   try {
     const body = await c.req.json();
     const paquete = await paqueteService.create(body);
@@ -53,7 +53,7 @@ paquetesHospitalizacion.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), asyn
 /**
  * PUT /paquetes-hospitalizacion/:id - Actualizar un paquete
  */
-paquetesHospitalizacion.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+paquetesHospitalizacion.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const body = await c.req.json();
@@ -67,7 +67,7 @@ paquetesHospitalizacion.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), as
 /**
  * DELETE /paquetes-hospitalizacion/:id - Eliminar un paquete
  */
-paquetesHospitalizacion.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+paquetesHospitalizacion.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await paqueteService.delete(id);

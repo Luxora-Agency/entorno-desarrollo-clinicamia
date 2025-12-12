@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const habitacionService = require('../services/habitacion.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error } = require('../utils/response');
 
 const habitacion = new Hono();
@@ -40,7 +40,7 @@ habitacion.get('/:id', async (c) => {
 /**
  * POST /habitaciones - Crear una habitación
  */
-habitacion.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+habitacion.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const habitacion = await habitacionService.create(data);
@@ -53,7 +53,7 @@ habitacion.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
 /**
  * PUT /habitaciones/:id - Actualizar una habitación
  */
-habitacion.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+habitacion.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -67,7 +67,7 @@ habitacion.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
 /**
  * DELETE /habitaciones/:id - Eliminar una habitación
  */
-habitacion.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+habitacion.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await habitacionService.delete(id);

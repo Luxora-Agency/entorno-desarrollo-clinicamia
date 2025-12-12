@@ -64,18 +64,26 @@ class DoctorService {
     return this.obtenerPorId(doctor.id);
   }
 
-  async listar({ search = '', limit = 50, page = 1 }) {
+  async listar({ search = '', limit = 50, page = 1, usuarioId = '' }) {
     const skip = (page - 1) * limit;
     
-    const where = search ? {
-      usuario: {
+    const where = {};
+    
+    // Filtro por usuarioId
+    if (usuarioId) {
+      where.usuarioId = usuarioId;
+    }
+    
+    // Filtro por búsqueda
+    if (search) {
+      where.usuario = {
         OR: [
           { nombre: { contains: search, mode: 'insensitive' } },
           { apellido: { contains: search, mode: 'insensitive' } },
           { cedula: { contains: search } },
         ]
-      }
-    } : {};
+      };
+    }
 
     const [doctores, total] = await Promise.all([
       prisma.doctor.findMany({
@@ -111,8 +119,14 @@ class DoctorService {
     ]);
 
     const doctoresFormateados = doctores.map(doctor => ({
-      id: doctor.id,
-      ...doctor.usuario,
+      id: doctor.id, // ID del doctor (tabla doctores)
+      usuarioId: doctor.usuarioId, // ID del usuario asociado
+      nombre: doctor.usuario?.nombre,
+      apellido: doctor.usuario?.apellido,
+      cedula: doctor.usuario?.cedula,
+      email: doctor.usuario?.email,
+      telefono: doctor.usuario?.telefono,
+      activo: doctor.usuario?.activo,
       licenciaMedica: doctor.licenciaMedica,
       universidad: doctor.universidad,
       aniosExperiencia: doctor.aniosExperiencia,

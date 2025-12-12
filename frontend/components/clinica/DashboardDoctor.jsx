@@ -1,43 +1,89 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Calendar, Clock, User, Activity, CheckCircle, 
   AlertCircle, FileText, Stethoscope, Pill, ClipboardList,
   Eye, Play, CheckCheck
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// Componentes de formulario para consulta
+import FormularioSOAPConsulta from './consulta/FormularioSOAPConsulta';
+import FormularioSignosVitalesConsulta from './consulta/FormularioSignosVitalesConsulta';
+import FormularioDiagnosticoConsulta from './consulta/FormularioDiagnosticoConsulta';
+import FormularioAlertasConsulta from './consulta/FormularioAlertasConsulta';
+import FormularioProcedimientosExamenesConsulta from './consulta/FormularioProcedimientosExamenesConsulta';
+import FormularioPrescripcionesConsulta from './consulta/FormularioPrescripcionesConsulta';
 
 export default function DashboardDoctor({ user }) {
+  const { toast } = useToast();
+  const getFechaHoy = () => new Date().toISOString().split('T')[0];
+  
+  const [fechaSeleccionada, setFechaSeleccionada] = useState(getFechaHoy());
   const [citasHoy, setCitasHoy] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [citaActual, setCitaActual] = useState(null);
+  const [showModalAtencion, setShowModalAtencion] = useState(false);
   const [stats, setStats] = useState({
     enEspera: 0,
     atendiendo: 0,
     completadas: 0,
     total: 0,
   });
+  
+  // Estado para los datos de la consulta
+  const [consultaData, setConsultaData] = useState({
+    soap: null,
+    vitales: null,
+    diagnostico: null,
+    alertas: null,
+    procedimientos: null,
+    prescripciones: null,
+  });
+  
+  const [validacionForms, setValidacionForms] = useState({
+    soap: false,
+    vitales: true,
+    diagnostico: true,
+    alertas: true,
+    procedimientos: true,
+    prescripciones: true,
+  });
 
-  useEffect(() => {
-    loadCitasHoy();
-  }, []);
-
-  const loadCitasHoy = async () => {
+  const loadCitasHoy = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const hoy = new Date().toISOString().split('T')[0];
       
-      // Cargar citas del doctor para hoy
-      const response = await fetch(`${apiUrl}/citas?fecha=${hoy}&doctorId=${user.id}&limit=100`, {
+      console.log('🔍 Cargando citas con:');
+      console.log('  - fecha:', fechaSeleccionada);
+      console.log('  - doctorId (user.id):', user.id);
+      
+      if (!user.id) {
+        console.log('⚠️ user.id es null, no se pueden cargar citas');
+        setLoading(false);
+        return;
+      }
+      
+      // Cargar citas del doctor para la fecha seleccionada
+      const url = `${apiUrl}/citas?fecha=${fechaSeleccionada}&doctorId=${user.id}&limit=100`;
+      console.log('📡 URL citas:', url);
+      
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
       
       const data = await response.json();
+      console.log('📦 Respuesta citas:', data);
+      
       const citas = data.data || [];
+      console.log('✅ Total citas:', citas.length);
       
       setCitasHoy(citas);
       
@@ -51,10 +97,14 @@ export default function DashboardDoctor({ user }) {
       
       setLoading(false);
     } catch (error) {
-      console.error('Error loading citas:', error);
+      console.error('❌ Error loading citas:', error);
       setLoading(false);
     }
-  };
+  }, [fechaSeleccionada, user.id]);
+
+  useEffect(() => {
+    loadCitasHoy();
+  }, [fechaSeleccionada, loadCitasHoy]);
 
   const cambiarEstado = async (citaId, nuevoEstado) => {
     try {
@@ -105,9 +155,19 @@ export default function DashboardDoctor({ user }) {
   };
 
   const formatHora = (hora) => {
-    if (!hora) return '';
-    const date = new Date(`1970-01-01T${hora}`);
-    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    if (!hora) return 'Sin hora';
+    try {
+      // Si hora es una fecha completa ISO
+      if (hora.includes('T')) {
+        const date = new Date(hora);
+        return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      }
+      // Si es solo la hora (HH:MM:SS o HH:MM)
+      const [hours, minutes] = hora.split(':');
+      return `${hours}:${minutes}`;
+    } catch (e) {
+      return hora;
+    }
   };
 
   if (loading) {
@@ -125,11 +185,26 @@ export default function DashboardDoctor({ user }) {
     <div className="p-6 lg:p-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-          <Stethoscope className="h-8 w-8 text-blue-600" />
-          Bienvenido, Dr(a). {user?.nombre} {user?.apellido}
-        </h1>
-        <p className="text-gray-600">Panel de Consultas - {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+              <Stethoscope className="h-8 w-8 text-blue-600" />
+              Bienvenido, Dr(a). {user?.nombre} {user?.apellido}
+            </h1>
+            <p className="text-gray-600">Panel de Consultas</p>
+          </div>
+          
+          {/* Filtro de Fecha */}
+          <div className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-gray-600" />
+            <input
+              type="date"
+              value={fechaSeleccionada}
+              onChange={(e) => setFechaSeleccionada(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -264,12 +339,13 @@ export default function DashboardDoctor({ user }) {
                             {cita.estado === 'Atendiendo' && (
                               <Button
                                 size="sm"
-                                variant="default"
-                                onClick={() => abrirHistoriaClinica(cita.pacienteId, cita.id)}
-                                className="gap-1 bg-blue-600 hover:bg-blue-700"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => {
+                                  setCitaActual(cita);
+                                  setShowModalAtencion(true);
+                                }}
                               >
-                                <FileText className="h-4 w-4" />
-                                Continuar
+                                Continuar Atención
                               </Button>
                             )}
                           </div>
@@ -327,6 +403,202 @@ export default function DashboardDoctor({ user }) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de Atención - Formularios de Consulta */}
+      {showModalAtencion && citaActual && (
+        <Dialog open={showModalAtencion} onOpenChange={(open) => {
+          if (!open) {
+            // Reset al cerrar
+            setConsultaData({
+              soap: null,
+              vitales: null,
+              diagnostico: null,
+              alertas: null,
+              procedimientos: null,
+              prescripciones: null,
+            });
+            setValidacionForms({
+              soap: false,
+              vitales: true,
+              diagnostico: true,
+              alertas: true,
+              procedimientos: true,
+              prescripciones: true,
+            });
+          }
+          setShowModalAtencion(open);
+        }}>
+          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-2xl flex items-center gap-2">
+                <Stethoscope className="h-6 w-6 text-blue-600" />
+                Atención en Consulta - {citaActual.paciente?.nombre} {citaActual.paciente?.apellido}
+              </DialogTitle>
+              <p className="text-sm text-gray-600 mt-2">
+                Cédula: {citaActual.paciente?.cedula} | Cita: {citaActual.motivo}
+              </p>
+            </DialogHeader>
+
+            <Tabs defaultValue="soap" className="w-full mt-4">
+              <TabsList className="grid w-full grid-cols-6">
+                <TabsTrigger value="soap" className="flex items-center gap-1">
+                  <FileText className="h-4 w-4" />
+                  SOAP {!validacionForms.soap && <span className="ml-1 text-red-500">*</span>}
+                </TabsTrigger>
+                <TabsTrigger value="diagnostico" className="flex items-center gap-1">
+                  <ClipboardList className="h-4 w-4" />
+                  Diagnóstico
+                </TabsTrigger>
+                <TabsTrigger value="vitales" className="flex items-center gap-1">
+                  <Activity className="h-4 w-4" />
+                  Vitales
+                </TabsTrigger>
+                <TabsTrigger value="alertas" className="flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  Alertas
+                </TabsTrigger>
+                <TabsTrigger value="procedimientos" className="flex items-center gap-1">
+                  <Stethoscope className="h-4 w-4" />
+                  Procedimientos
+                </TabsTrigger>
+                <TabsTrigger value="prescripciones" className="flex items-center gap-1">
+                  <Pill className="h-4 w-4" />
+                  Prescripciones
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="soap" className="mt-4">
+                <FormularioSOAPConsulta
+                  data={consultaData.soap}
+                  onChange={(data, isValid) => {
+                    setConsultaData({ ...consultaData, soap: data });
+                    setValidacionForms({ ...validacionForms, soap: isValid });
+                  }}
+                />
+              </TabsContent>
+
+              <TabsContent value="diagnostico" className="mt-4">
+                <FormularioDiagnosticoConsulta
+                  data={consultaData.diagnostico}
+                  onChange={(data, isValid) => {
+                    setConsultaData({ ...consultaData, diagnostico: data });
+                    setValidacionForms({ ...validacionForms, diagnostico: isValid });
+                  }}
+                />
+              </TabsContent>
+
+              <TabsContent value="vitales" className="mt-4">
+                <FormularioSignosVitalesConsulta
+                  data={consultaData.vitales}
+                  onChange={(data, isValid) => {
+                    setConsultaData({ ...consultaData, vitales: data });
+                    setValidacionForms({ ...validacionForms, vitales: isValid });
+                  }}
+                />
+              </TabsContent>
+
+              <TabsContent value="alertas" className="mt-4">
+                <FormularioAlertasConsulta
+                  data={consultaData.alertas}
+                  onChange={(data, isValid) => {
+                    setConsultaData({ ...consultaData, alertas: data });
+                    setValidacionForms({ ...validacionForms, alertas: isValid });
+                  }}
+                />
+              </TabsContent>
+
+              <TabsContent value="procedimientos" className="mt-4">
+                <FormularioProcedimientosExamenesConsulta
+                  data={consultaData.procedimientos}
+                  onChange={(data, isValid) => {
+                    setConsultaData({ ...consultaData, procedimientos: data });
+                    setValidacionForms({ ...validacionForms, procedimientos: isValid });
+                  }}
+                />
+              </TabsContent>
+
+              <TabsContent value="prescripciones" className="mt-4">
+                <FormularioPrescripcionesConsulta
+                  data={consultaData.prescripciones}
+                  onChange={(data, isValid) => {
+                    setConsultaData({ ...consultaData, prescripciones: data });
+                    setValidacionForms({ ...validacionForms, prescripciones: isValid });
+                  }}
+                />
+              </TabsContent>
+            </Tabs>
+
+            {/* Botón para Finalizar Consulta */}
+            <div className="mt-6 flex justify-end gap-3 border-t pt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => setShowModalAtencion(false)}
+              >
+                Cerrar
+              </Button>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                disabled={!Object.values(validacionForms).every(v => v)}
+                onClick={async () => {
+                  if (!Object.values(validacionForms).every(v => v)) {
+                    toast({ description: '⚠️ Complete todos los campos obligatorios (SOAP) y los formularios que haya iniciado' });
+                    return;
+                  }
+                  
+                  if (!confirm('¿Confirmas que deseas finalizar esta consulta?')) {
+                    return;
+                  }
+                  
+                  try {
+                    const token = localStorage.getItem('token');
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+                    
+                    // Enviar todos los datos al endpoint
+                    const response = await fetch(`${apiUrl}/consultas/finalizar`, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        citaId: citaActual.id,
+                        pacienteId: citaActual.pacienteId,
+                        doctorId: user.id,
+                        ...consultaData,
+                      }),
+                    });
+                    
+                    if (response.ok) {
+                      toast({ title: 'Éxito', description: ' Consulta finalizada exitosamente' });
+                      setShowModalAtencion(false);
+                      setCitaActual(null);
+                      // Reset
+                      setConsultaData({
+                        soap: null,
+                        vitales: null,
+                        diagnostico: null,
+                        alertas: null,
+                        procedimientos: null,
+                        prescripciones: null,
+                      });
+                      loadCitasHoy();
+                    } else {
+                      const error = await response.json();
+                      alert(`❌ Error: ${error.message || 'No se pudo finalizar la consulta'}`);
+                    }
+                  } catch (error) {
+                    console.error('Error finalizando consulta:', error);
+                    toast({ title: 'Error', description: ' Error al finalizar la consulta', variant: 'destructive' });
+                  }
+                }}
+              >
+                <CheckCheck className="h-4 w-4 mr-2" />
+                Finalizar Consulta
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

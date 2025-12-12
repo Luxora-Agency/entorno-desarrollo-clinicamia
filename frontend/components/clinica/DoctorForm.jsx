@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import TimeBlockModal from './TimeBlockModal';
 
 export default function DoctorForm({ user, editingDoctor, onBack }) {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('basica');
   const [especialidades, setEspecialidades] = useState([]);
   const [selectedEspecialidades, setSelectedEspecialidades] = useState([]);
@@ -146,37 +148,37 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
     
     // Validación de campos obligatorios
     if (!formData.nombre?.trim()) {
-      alert('El nombre es obligatorio');
+      toast({ description: 'El nombre es obligatorio' });
       setActiveTab('basica');
       return;
     }
     
     if (!formData.apellido?.trim()) {
-      alert('El apellido es obligatorio');
+      toast({ description: 'El apellido es obligatorio' });
       setActiveTab('basica');
       return;
     }
     
     if (!formData.cedula?.trim()) {
-      alert('La cédula es obligatoria');
+      toast({ description: 'La cédula es obligatoria' });
       setActiveTab('basica');
       return;
     }
     
     if (!formData.email?.trim()) {
-      alert('El email es obligatorio');
+      toast({ description: 'El email es obligatorio' });
       setActiveTab('basica');
       return;
     }
     
     if (!formData.telefono?.trim()) {
-      alert('El teléfono es obligatorio');
+      toast({ description: 'El teléfono es obligatorio' });
       setActiveTab('basica');
       return;
     }
     
     if (selectedEspecialidades.length === 0) {
-      alert('Debe seleccionar al menos una especialidad');
+      toast({ description: 'Debe seleccionar al menos una especialidad' });
       setActiveTab('basica');
       return;
     }
@@ -217,7 +219,7 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
       }
     } catch (error) {
       console.error('Error saving doctor:', error);
-      alert('Error al guardar el doctor');
+      toast({ description: 'Error al guardar el doctor' });
     } finally {
       setLoading(false);
     }

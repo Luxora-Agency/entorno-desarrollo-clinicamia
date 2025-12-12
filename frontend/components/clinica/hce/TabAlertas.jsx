@@ -2,35 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Plus, 
-  AlertTriangle, 
-  AlertCircle,
+  AlertCircle, 
   Clock,
-  ShieldAlert,
-  Pill,
-  Siren,
-  XCircle
+  Calendar,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 
-export default function TabAlertas({ pacienteId, paciente, user }) {
+export default function TabAlertas({ pacienteId }) {
   const [alertas, setAlertas] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    tipo: 'Alergia',
-    descripcion: '',
-    severidad: 'Media',
-    estado: 'Activa',
-    observaciones: '',
-  });
 
   useEffect(() => {
     if (pacienteId) {
@@ -51,69 +34,20 @@ export default function TabAlertas({ pacienteId, paciente, user }) {
       
       if (response.ok) {
         const data = await response.json();
-        setAlertas(data.data || []);
+        // Ordenar: activas primero, luego por fecha
+        const sorted = (data.data || []).sort((a, b) => {
+          if (a.activa === b.activa) {
+            return new Date(b.createdAt) - new Date(a.createdAt);
+          }
+          return a.activa ? -1 : 1;
+        });
+        setAlertas(sorted);
       }
     } catch (error) {
       console.error('Error cargando alertas:', error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!formData.descripcion) {
-      alert('La descripción de la alerta es obligatoria');
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-
-      const payload = {
-        paciente_id: pacienteId,
-        profesional_id: user?.id,
-        tipo: formData.tipo,
-        descripcion: formData.descripcion,
-        severidad: formData.severidad,
-        estado: formData.estado,
-        observaciones: formData.observaciones,
-      };
-
-      const response = await fetch(`${apiUrl}/alertas`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (response.ok) {
-        setIsDialogOpen(false);
-        resetForm();
-        loadAlertas();
-        alert('Alerta clínica registrada exitosamente');
-      } else {
-        const error = await response.json();
-        alert(`Error: ${error.message || 'No se pudo guardar la alerta'}`);
-      }
-    } catch (error) {
-      console.error('Error al guardar alerta:', error);
-      alert('Error al guardar la alerta');
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      tipo: 'Alergia',
-      descripcion: '',
-      severidad: 'Media',
-      estado: 'Activa',
-      observaciones: '',
-    });
   };
 
   const formatDate = (dateString) => {
@@ -128,326 +62,191 @@ export default function TabAlertas({ pacienteId, paciente, user }) {
     });
   };
 
-  const getSeveridadColor = (severidad) => {
-    const colors = {
-      'Baja': 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      'Media': 'bg-orange-100 text-orange-700 border-orange-300',
-      'Alta': 'bg-red-100 text-red-700 border-red-300',
-      'Critica': 'bg-red-600 text-white border-red-700',
-    };
-    return colors[severidad] || 'bg-gray-100 text-gray-700 border-gray-300';
-  };
-
-  const getTipoIcon = (tipo) => {
-    const icons = {
-      'Alergia': <Pill className="w-5 h-5" />,
-      'Contraindicacion': <ShieldAlert className="w-5 h-5" />,
-      'RiesgoQuirurgico': <Siren className="w-5 h-5" />,
-      'Otro': <AlertCircle className="w-5 h-5" />,
-    };
-    return icons[tipo] || <AlertCircle className="w-5 h-5" />;
+  const getSeveridadConfig = (severidad) => {
+    switch (severidad) {
+      case 'Critica':
+        return { color: 'bg-red-100 text-red-700 border-red-300', icon: AlertTriangle, bgCard: 'bg-red-50 border-red-300' };
+      case 'Alta':
+        return { color: 'bg-orange-100 text-orange-700 border-orange-300', icon: AlertCircle, bgCard: 'bg-orange-50 border-orange-300' };
+      case 'Media':
+        return { color: 'bg-yellow-100 text-yellow-700 border-yellow-300', icon: AlertCircle, bgCard: 'bg-yellow-50 border-yellow-300' };
+      case 'Baja':
+        return { color: 'bg-blue-100 text-blue-700 border-blue-300', icon: Info, bgCard: 'bg-blue-50 border-blue-300' };
+      default:
+        return { color: 'bg-gray-100 text-gray-700 border-gray-300', icon: Info, bgCard: 'bg-gray-50 border-gray-300' };
+    }
   };
 
   const getTipoColor = (tipo) => {
-    const colors = {
-      'Alergia': 'text-red-600 bg-red-50',
-      'Contraindicacion': 'text-orange-600 bg-orange-50',
-      'RiesgoQuirurgico': 'text-purple-600 bg-purple-50',
-      'Otro': 'text-blue-600 bg-blue-50',
-    };
-    return colors[tipo] || 'text-gray-600 bg-gray-50';
+    switch (tipo) {
+      case 'Alergia':
+        return 'bg-red-100 text-red-700';
+      case 'Medicamento':
+        return 'bg-purple-100 text-purple-700';
+      case 'Clinica':
+        return 'bg-blue-100 text-blue-700';
+      case 'Riesgo':
+        return 'bg-orange-100 text-orange-700';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
   };
+
+  const alertasActivas = alertas.filter(a => a.activa);
+  const alertasInactivas = alertas.filter(a => !a.activa);
 
   return (
     <div className="space-y-6">
-      {/* Header con Botón */}
-      <Card className="border-2 border-red-200 bg-gradient-to-r from-red-50 to-white">
+      {/* Header */}
+      <Card className="border-2 border-orange-200 bg-gradient-to-r from-orange-50 to-white">
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 bg-red-600 rounded-lg">
-                <AlertTriangle className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <CardTitle className="text-2xl">Alertas Clínicas</CardTitle>
-                <p className="text-sm text-gray-600 mt-1">
-                  Alergias, contraindicaciones y riesgos del paciente
-                </p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-orange-600 rounded-lg">
+              <AlertCircle className="w-6 h-6 text-white" />
             </div>
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="bg-gradient-to-r from-red-600 to-orange-700 hover:from-red-700 hover:to-orange-800">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nueva Alerta
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-red-600" />
-                    Registrar Alerta Clínica
-                  </DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Información del Paciente */}
-                  <Card className="bg-red-50 border-red-200">
-                    <CardContent className="p-4">
-                      <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                          <span className="font-semibold">Paciente:</span> {paciente?.nombre} {paciente?.apellido}
-                        </div>
-                        <div>
-                          <span className="font-semibold">Profesional:</span> {user?.nombre} {user?.apellido}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Tipo y Severidad */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="tipo">Tipo de Alerta *</Label>
-                      <Select value={formData.tipo} onValueChange={(value) => setFormData({ ...formData, tipo: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Alergia">
-                            <div className="flex items-center gap-2">
-                              <Pill className="w-4 h-4" />
-                              Alergia
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="Contraindicacion">
-                            <div className="flex items-center gap-2">
-                              <ShieldAlert className="w-4 h-4" />
-                              Contraindicación
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="RiesgoQuirurgico">
-                            <div className="flex items-center gap-2">
-                              <Siren className="w-4 h-4" />
-                              Riesgo Quirúrgico
-                            </div>
-                          </SelectItem>
-                          <SelectItem value="Otro">
-                            <div className="flex items-center gap-2">
-                              <AlertCircle className="w-4 h-4" />
-                              Otro
-                            </div>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="severidad">Severidad *</Label>
-                      <Select value={formData.severidad} onValueChange={(value) => setFormData({ ...formData, severidad: value })}>
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Baja">Baja</SelectItem>
-                          <SelectItem value="Media">Media</SelectItem>
-                          <SelectItem value="Alta">Alta</SelectItem>
-                          <SelectItem value="Critica">Crítica</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Descripción */}
-                  <div>
-                    <Label htmlFor="descripcion">Descripción de la Alerta *</Label>
-                    <Input
-                      id="descripcion"
-                      value={formData.descripcion}
-                      onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                      placeholder="Ej: Alergia a la penicilina"
-                      required
-                    />
-                  </div>
-
-                  {/* Estado */}
-                  <div>
-                    <Label htmlFor="estado">Estado</Label>
-                    <Select value={formData.estado} onValueChange={(value) => setFormData({ ...formData, estado: value })}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Activa">Activa</SelectItem>
-                        <SelectItem value="Inactiva">Inactiva</SelectItem>
-                        <SelectItem value="Resuelta">Resuelta</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Observaciones */}
-                  <div>
-                    <Label htmlFor="observaciones">Observaciones</Label>
-                    <Textarea
-                      id="observaciones"
-                      value={formData.observaciones}
-                      onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                      rows={3}
-                      placeholder="Detalles adicionales sobre la alerta (reacciones previas, manejo recomendado, etc.)"
-                    />
-                  </div>
-
-                  {/* Alerta de Importancia */}
-                  <Card className="bg-amber-50 border-amber-300">
-                    <CardContent className="p-3 flex items-start gap-2">
-                      <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5" />
-                      <p className="text-xs text-amber-800">
-                        Las alertas clínicas son visibles en todo el sistema para prevenir eventos adversos.
-                        Asegúrate de incluir toda la información relevante.
-                      </p>
-                    </CardContent>
-                  </Card>
-
-                  {/* Botones */}
-                  <div className="flex justify-end gap-3">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setIsDialogOpen(false)}
-                    >
-                      Cancelar
-                    </Button>
-                    <Button 
-                      type="submit"
-                      className="bg-gradient-to-r from-red-600 to-orange-700 hover:from-red-700 hover:to-orange-800"
-                    >
-                      Guardar Alerta
-                    </Button>
-                  </div>
-                </form>
-              </DialogContent>
-            </Dialog>
+            <div>
+              <CardTitle className="text-2xl">Alertas Clínicas</CardTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                Registro de alertas médicas importantes del paciente (Solo Lectura)
+              </p>
+            </div>
           </div>
         </CardHeader>
       </Card>
 
-      {/* Alertas Activas Destacadas */}
-      {alertas.filter(a => a.estado === 'Activa').length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {alertas
-            .filter(a => a.estado === 'Activa')
-            .map((alerta) => (
-              <Card 
-                key={alerta.id}
-                className={`border-2 ${getSeveridadColor(alerta.severidad)} shadow-lg`}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg ${getTipoColor(alerta.tipo)}`}>
-                      {getTipoIcon(alerta.tipo)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <Badge className={`${getSeveridadColor(alerta.severidad)} border-2`}>
-                          {alerta.severidad}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs">
-                          {alerta.tipo}
-                        </Badge>
-                      </div>
-                      <h4 className="font-bold text-gray-900 mb-1">
-                        {alerta.descripcion}
-                      </h4>
-                      {alerta.observaciones && (
-                        <p className="text-xs text-gray-600 mb-2">
-                          {alerta.observaciones}
-                        </p>
-                      )}
-                      <div className="flex items-center gap-2 text-xs text-gray-500">
-                        <Clock className="w-3 h-3" />
-                        {formatDate(alerta.createdAt)}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+      {/* Stats */}
+      {!loading && alertas.length > 0 && (
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="border-2 border-red-200 bg-red-50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-8 w-8 text-red-600" />
+                <div>
+                  <p className="text-3xl font-bold text-red-700">{alertasActivas.length}</p>
+                  <p className="text-sm text-red-600">Alertas Activas</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-2 border-gray-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <Calendar className="h-8 w-8 text-gray-600" />
+                <div>
+                  <p className="text-3xl font-bold text-gray-700">{alertasInactivas.length}</p>
+                  <p className="text-sm text-gray-600">Historial</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
-      {/* Tabla de Todas las Alertas */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Historial de Alertas</CardTitle>
-        </CardHeader>
-        <CardContent className="p-6">
-          {loading ? (
+      {/* Timeline */}
+      {loading ? (
+        <Card>
+          <CardContent className="p-6">
             <p className="text-center text-gray-600 py-8">Cargando alertas...</p>
-          ) : alertas.length === 0 ? (
+          </CardContent>
+        </Card>
+      ) : alertas.length === 0 ? (
+        <Card>
+          <CardContent className="p-6">
             <div className="text-center py-12">
-              <AlertTriangle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <AlertCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">No hay alertas registradas</p>
               <p className="text-sm text-gray-500">
-                Haz clic en "Nueva Alerta" para registrar la primera alerta clínica
+                Las alertas se registran durante las consultas médicas
               </p>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {alertas.map((alerta) => (
-                <Card 
-                  key={alerta.id} 
-                  className={`border-l-4 ${
-                    alerta.estado === 'Activa' 
-                      ? 'border-l-red-500 bg-red-50/30' 
-                      : 'border-l-gray-300'
-                  }`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-start gap-3 flex-1">
-                        <div className={`p-2 rounded-lg ${getTipoColor(alerta.tipo)}`}>
-                          {getTipoIcon(alerta.tipo)}
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Badge className={`${getSeveridadColor(alerta.severidad)} border`}>
-                              {alerta.severidad}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {alerta.tipo}
-                            </Badge>
-                            {alerta.estado !== 'Activa' && (
-                              <Badge variant="outline" className="text-xs">
-                                <XCircle className="w-3 h-3 mr-1" />
-                                {alerta.estado}
-                              </Badge>
-                            )}
-                          </div>
-                          <h4 className="font-bold text-gray-900 mb-1">
-                            {alerta.descripcion}
-                          </h4>
-                          {alerta.observaciones && (
-                            <p className="text-sm text-gray-600 mb-2">
-                              {alerta.observaciones}
-                            </p>
-                          )}
-                          <div className="flex items-center gap-4 text-xs text-gray-500">
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {formatDate(alerta.createdAt)}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {/* Alertas Activas */}
+          {alertasActivas.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-red-700 mb-3 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5" />
+                Alertas Activas ({alertasActivas.length})
+              </h3>
+              <div className="space-y-3">
+                {alertasActivas.map((alerta) => {
+                  const severidadConfig = getSeveridadConfig(alerta.severidad);
+                  const IconComponent = severidadConfig.icon;
+                  return (
+                    <Card key={alerta.id} className={`border-2 ${severidadConfig.bgCard}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-white rounded-lg shadow">
+                              <IconComponent className="h-6 w-6 text-red-600" />
                             </div>
                             <div>
-                              Registrado por: {alerta.profesional?.nombre} {alerta.profesional?.apellido}
+                              <h4 className="font-bold text-lg text-gray-900">{alerta.titulo}</h4>
+                              <div className="flex gap-2 mt-1">
+                                <Badge className={getTipoColor(alerta.tipoAlerta)}>
+                                  {alerta.tipoAlerta}
+                                </Badge>
+                                <Badge className={severidadConfig.color}>
+                                  {alerta.severidad}
+                                </Badge>
+                              </div>
                             </div>
                           </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Clock className="w-4 h-4" />
+                            {formatDate(alerta.createdAt)}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                        <p className="text-gray-700 bg-white p-3 rounded border">
+                          {alerta.descripcion}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           )}
-        </CardContent>
-      </Card>
+
+          {/* Historial */}
+          {alertasInactivas.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Historial ({alertasInactivas.length})
+              </h3>
+              <div className="space-y-3">
+                {alertasInactivas.map((alerta) => {
+                  const severidadConfig = getSeveridadConfig(alerta.severidad);
+                  return (
+                    <Card key={alerta.id} className="border opacity-60">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{alerta.titulo}</h4>
+                            <div className="flex gap-2 mt-1">
+                              <Badge variant="outline" className="text-xs">{alerta.tipoAlerta}</Badge>
+                              <Badge variant="outline" className="text-xs">{alerta.severidad}</Badge>
+                              <Badge variant="outline" className="text-xs bg-gray-200">Inactiva</Badge>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">{alerta.descripcion}</p>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-gray-500">
+                            <Clock className="w-3 h-3" />
+                            {formatDate(alerta.createdAt)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

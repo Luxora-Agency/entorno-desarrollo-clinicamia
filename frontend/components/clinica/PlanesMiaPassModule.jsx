@@ -1,10 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Check, X } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 export default function PlanesMiaPassModule() {
   const [planes, setPlanes] = useState([
@@ -345,25 +346,12 @@ export default function PlanesMiaPassModule() {
       )}
 
       {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <Card className="w-full max-w-4xl max-h-[90vh] flex flex-col">
-            {/* Header Fijo */}
-            <div className="flex justify-between items-center p-6 border-b border-gray-200 flex-shrink-0">
-              <h2 className="text-2xl font-bold text-gray-900">
-                {editingPlan ? 'Editar Plan' : 'Nuevo Plan'}
-              </h2>
-              <button
-                onClick={() => setShowModal(false)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            {/* Contenido Scrolleable */}
-            <div className="overflow-y-auto flex-1 p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? 'Editar Plan' : 'Nuevo Plan'}</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Información Básica */}
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">Información Básica</h3>
@@ -690,27 +678,25 @@ export default function PlanesMiaPassModule() {
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-6 border-t">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setShowModal(false)}
-                    className="flex-1"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
-                  >
-                    {editingPlan ? 'Actualizar' : 'Crear'} Plan
-                  </Button>
-                </div>
-              </form>
+            <div className="flex gap-3 pt-6 border-t">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowModal(false)}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
+              >
+                {editingPlan ? 'Actualizar' : 'Crear'} Plan
+              </Button>
             </div>
-          </Card>
-        </div>
-      )}
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

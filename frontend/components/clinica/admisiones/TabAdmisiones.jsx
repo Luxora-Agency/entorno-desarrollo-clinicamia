@@ -290,7 +290,7 @@ export default function TabAdmisiones({ pacienteId, paciente, user, onChangeTab 
                             <SelectValue placeholder="Seleccionar unidad" />
                           </SelectTrigger>
                           <SelectContent>
-                            {unidades.map((unidad) => (
+                            {Array.isArray(unidades) && unidades.map((unidad) => (
                               <SelectItem key={unidad.id} value={unidad.id}>
                                 {unidad.nombre} ({unidad.tipo})
                               </SelectItem>

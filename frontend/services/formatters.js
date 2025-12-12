@@ -32,6 +32,23 @@ export const formatDate = (date) => {
 };
 
 /**
+ * Formatear fecha en formato largo (Lunes, 15 de enero de 2025)
+ */
+export const formatDateLong = (date) => {
+  if (!date) return '';
+  
+  const d = new Date(date);
+  const options = { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  };
+  
+  return d.toLocaleDateString('es-CO', options);
+};
+
+/**
  * Formatear fecha en formato ISO (YYYY-MM-DD)
  */
 export const formatDateISO = (date) => {
@@ -61,11 +78,20 @@ export const formatDateTime = (date) => {
 export const formatTime = (time) => {
   if (!time) return '';
   
-  // Si ya es un string en formato HH:MM, retornarlo
-  if (typeof time === 'string' && time.includes(':')) {
-    return time;
+  // Si es un timestamp ISO completo (con T), extraer la hora
+  if (typeof time === 'string' && time.includes('T')) {
+    const d = new Date(time);
+    const hours = String(d.getUTCHours()).padStart(2, '0');
+    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+    return `${hours}:${minutes}`;
   }
   
+  // Si ya es un string en formato HH:MM simple, retornarlo
+  if (typeof time === 'string' && /^\d{2}:\d{2}/.test(time)) {
+    return time.substring(0, 5); // Retornar solo HH:MM
+  }
+  
+  // Si es cualquier otro formato, intentar parsearlo
   const d = new Date(time);
   const hours = String(d.getHours()).padStart(2, '0');
   const minutes = String(d.getMinutes()).padStart(2, '0');

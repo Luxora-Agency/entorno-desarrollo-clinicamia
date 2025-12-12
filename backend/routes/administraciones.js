@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const administracionService = require('../services/administracion.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error } = require('../utils/response');
 
 const administraciones = new Hono();
@@ -83,7 +83,7 @@ administraciones.get('/pendientes/:pacienteId', async (c) => {
 /**
  * POST /:id/administrar - Registrar administración (Enfermería)
  */
-administraciones.post('/:id/administrar', roleMiddleware(['NURSE', 'DOCTOR']), async (c) => {
+administraciones.post('/:id/administrar', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();
@@ -99,7 +99,7 @@ administraciones.post('/:id/administrar', roleMiddleware(['NURSE', 'DOCTOR']), a
 /**
  * POST /:id/omitir - Registrar omisión (Enfermería)
  */
-administraciones.post('/:id/omitir', roleMiddleware(['NURSE', 'DOCTOR']), async (c) => {
+administraciones.post('/:id/administrar', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();
@@ -115,7 +115,7 @@ administraciones.post('/:id/omitir', roleMiddleware(['NURSE', 'DOCTOR']), async 
 /**
  * POST /:id/rechazar - Registrar rechazo del paciente (Enfermería)
  */
-administraciones.post('/:id/rechazar', roleMiddleware(['NURSE', 'DOCTOR']), async (c) => {
+administraciones.post('/:id/administrar', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();

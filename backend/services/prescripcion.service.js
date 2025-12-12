@@ -49,13 +49,11 @@ class PrescripcionService {
           },
           medicamentos: {
             include: {
-              medicamento: {
+              producto: {
                 select: {
                   id: true,
-                  nombreGenerico: true,
-                  nombreComercial: true,
-                  concentracion: true,
-                  formaFarmaceutica: true,
+                  nombre: true,
+                  descripcion: true,
                 },
               },
             },
@@ -99,7 +97,7 @@ class PrescripcionService {
         },
         medicamentos: {
           include: {
-            medicamento: true,
+            producto: true,
             administraciones: {
               orderBy: { fechaProgramada: 'desc' },
               take: 10,
@@ -187,7 +185,7 @@ class PrescripcionService {
         },
         medicamentos: {
           include: {
-            medicamento: true,
+            producto: true,
           },
         },
       },
@@ -371,7 +369,7 @@ class PrescripcionService {
             suspendido: false,
           },
           include: {
-            medicamento: true,
+            producto: true,
           },
         },
         medico: {

@@ -6,7 +6,7 @@ import Sidebar from './Sidebar';
 import DashboardHome from './DashboardHome';
 import AdmisionesModule from './AdmisionesModule';
 import PacientesModule from './PacientesModule';
-import CitasModuleRefactored from './CitasModuleRefactored';
+import CitasModule from './CitasModule';
 import EspecialidadesModule from './EspecialidadesModule';
 import DepartamentosModule from './DepartamentosModule';
 import DoctoresModule from './DoctoresModule';
@@ -22,6 +22,7 @@ import UnidadesModule from './UnidadesModule';
 import HabitacionesModule from './HabitacionesModule';
 import CamasModule from './CamasModule';
 import HospitalizacionModule from './HospitalizacionModule';
+import AdmisionesHospitalizacionModule from './AdmisionesHospitalizacionModule';
 import HCEModule from './HCEModule';
 import EnfermeriaModule from './EnfermeriaModule';
 import LaboratorioModule from './LaboratorioModule';
@@ -33,7 +34,10 @@ import ReportesModule from './ReportesModule';
 import PlanesMiaPassModule from './PlanesMiaPassModule';
 import SuscripcionesMiaPassModule from './SuscripcionesMiaPassModule';
 import SuscriptoresMiaPassModule from './SuscriptoresMiaPassModule';
+import CuponesMiaPassModule from './CuponesMiaPassModule';
 import OrdenesMedicasModule from './OrdenesMedicasModule';
+import UsuariosRolesModule from './UsuariosRolesModule';
+import DashboardRecepcionistaNew from './DashboardRecepcionistaNew';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
@@ -89,9 +93,13 @@ export default function Dashboard({ user, onLogout }) {
   const renderModule = () => {
     switch (activeModule) {
       case 'dashboard':
+        // Dashboard personalizado según rol
+        if (user.rol === 'Recepcionista') {
+          return <DashboardRecepcionistaNew user={user} />;
+        }
         return <DashboardHome user={user} />;
       case 'admisiones':
-        return <AdmisionesView user={user} />;
+        return <AdmisionesModule user={user} />;
       case 'pacientes':
         return <PacientesModule user={user} />;
       case 'agregar-paciente':
@@ -111,7 +119,7 @@ export default function Dashboard({ user, onLogout }) {
           }}
         />;
       case 'citas':
-        return <CitasModuleRefactored user={user} />;
+        return <CitasModule user={user} />;
       case 'especialidades':
         return <EspecialidadesModule user={user} />;
       case 'departamentos':
@@ -141,6 +149,8 @@ export default function Dashboard({ user, onLogout }) {
       case 'etiquetas-productos':
         return <EtiquetasProductosModule user={user} />;
       // Módulos de Hospitalización
+      case 'admisiones-hospitalizacion':
+        return <AdmisionesHospitalizacionModule user={user} />;
       case 'unidades':
         return <UnidadesModule user={user} />;
       case 'habitaciones':
@@ -172,9 +182,14 @@ export default function Dashboard({ user, onLogout }) {
         return <SuscripcionesMiaPassModule user={user} />;
       case 'suscriptores-miapass':
         return <SuscriptoresMiaPassModule user={user} />;
+      case 'cupones-miapass':
+        return <CuponesMiaPassModule user={user} />;
       // Órdenes Médicas
       case 'ordenes-medicas':
         return <OrdenesMedicasModule user={user} />;
+      // Configuración
+      case 'usuarios-roles':
+        return <UsuariosRolesModule user={user} />;
       default:
         return <DashboardHome user={user} />;
     }

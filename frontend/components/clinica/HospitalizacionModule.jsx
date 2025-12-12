@@ -189,7 +189,7 @@ export default function HospitalizacionModule({ user }) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las Unidades</SelectItem>
-              {unidades.map((unidad) => (
+              {Array.isArray(unidades) && unidades.map((unidad) => (
                 <SelectItem key={unidad.id} value={unidad.id}>
                   {unidad.nombre}
                 </SelectItem>

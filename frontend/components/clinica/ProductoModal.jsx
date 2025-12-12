@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { X, Upload, Image as ImageIcon } from 'lucide-react';
 
 export default function ProductoModal({ isOpen, onClose, editingProducto, onSuccess }) {
+  const { toast } = useToast();
   const [categorias, setCategorias] = useState([]);
   const [etiquetas, setEtiquetas] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -187,31 +189,31 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
     
     // Validaciones
     if (!formData.nombre.trim()) {
-      alert('El nombre es obligatorio');
+      toast({ description: 'El nombre es obligatorio' });
       return;
     }
     if (!formData.categoriaId) {
-      alert('La categoría es obligatoria');
+      toast({ description: 'La categoría es obligatoria' });
       return;
     }
     if (!formData.sku.trim()) {
-      alert('El SKU es obligatorio');
+      toast({ description: 'El SKU es obligatorio' });
       return;
     }
     if (!formData.descripcion?.trim()) {
-      alert('La descripción es obligatoria');
+      toast({ description: 'La descripción es obligatoria' });
       return;
     }
     if (!formData.cantidadTotal) {
-      alert('La cantidad total es obligatoria');
+      toast({ description: 'La cantidad total es obligatoria' });
       return;
     }
     if (!formData.cantidadMinAlerta) {
-      alert('La cantidad mínima de alerta es obligatoria');
+      toast({ description: 'La cantidad mínima de alerta es obligatoria' });
       return;
     }
     if (!formData.precioVenta) {
-      alert('El precio de venta es obligatorio');
+      toast({ description: 'El precio de venta es obligatorio' });
       return;
     }
 
@@ -253,7 +255,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
       }
     } catch (error) {
       console.error('Error saving producto:', error);
-      alert('Error al guardar el producto');
+      toast({ description: 'Error al guardar el producto' });
     } finally {
       setLoading(false);
     }

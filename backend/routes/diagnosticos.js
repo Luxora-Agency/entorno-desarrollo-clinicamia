@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const diagnosticoService = require('../services/diagnosticoHCE.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const diagnosticos = new Hono();
@@ -53,7 +53,7 @@ diagnosticos.get('/principal/:paciente_id', async (c) => {
 /**
  * POST /diagnosticos - Crear nuevo diagnóstico
  */
-diagnosticos.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+diagnosticos.post('/', async (c) => {
   try {
     const body = await c.req.json();
     const user = c.get('user');
@@ -69,7 +69,7 @@ diagnosticos.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async
 /**
  * PUT /diagnosticos/:id - Actualizar diagnóstico
  */
-diagnosticos.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+diagnosticos.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const body = await c.req.json();

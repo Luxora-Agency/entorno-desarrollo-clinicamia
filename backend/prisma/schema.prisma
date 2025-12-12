@@ -25,6 +25,7 @@ enum Genero {
 }
 
 enum EstadoCita {
+  PorAgendar    // Cuando doctor solicita procedimiento/examen sin fecha/hora
   Programada
   Confirmada
   EnEspera
@@ -153,26 +154,37 @@ model Paciente {
 }
 
 model Cita {
-  id              String       @id @default(uuid())
-  pacienteId      String       @map("paciente_id")
-  doctorId        String       @map("doctor_id") @db.Uuid
-  especialidadId  String?      @map("especialidad_id") @db.Uuid
-  fecha           DateTime     @db.Date
-  hora            DateTime     @db.Time
-  motivo          String
-  estado          EstadoCita   @default(Programada)
-  notas           String?
-  createdAt       DateTime     @default(now()) @map("created_at")
-  updatedAt       DateTime     @updatedAt @map("updated_at")
+  id                      String                @id @default(uuid())
+  pacienteId              String                @map("paciente_id")
+  doctorId                String?               @map("doctor_id") @db.Uuid // Opcional para citas PorAgendar
+  admisionId              String?               @map("admision_id") // Opcional - vincula cita con admisión hospitalaria
+  especialidadId          String?               @map("especialidad_id") @db.Uuid
+  examenProcedimientoId   String?               @map("examen_procedimiento_id") @db.Uuid
+  tipoCita                String?               @default("Especialidad") @map("tipo_cita") @db.VarChar(50) // 'Especialidad', 'Examen', 'Procedimiento', 'Interconsulta'
+  fecha                   DateTime?             @db.Date // Opcional para citas PorAgendar
+  hora                    DateTime?             @db.Time // Opcional para citas PorAgendar
+  duracionMinutos         Int?                  @default(30) @map("duracion_minutos")
+  costo                   Decimal               @default(0) @db.Decimal(10, 2) // Default 0 para PorAgendar
+  motivo                  String
+  estado                  EstadoCita            @default(PorAgendar) // Default cuando doctor solicita
+  prioridad               String?               @default("Media") @db.VarChar(50) // Baja, Media, Alta, Urgente
+  notas                   String?
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @updatedAt @map("updated_at")
   
   // Relaciones
-  paciente            Paciente          @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
-  doctor              Usuario           @relation("CitasDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
-  especialidad        Especialidad?     @relation(fields: [especialidadId], references: [id])
-  ordenesMedicas      OrdenMedica[]
-  ordenesMedicamentos OrdenMedicamento[]
-  itemsFactura        FacturaItem[]
-  evolucionesClinicas EvolucionClinica[]
+  paciente                Paciente              @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  doctor                  Usuario?              @relation("CitasDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  admision                Admision?             @relation(fields: [admisionId], references: [id], onDelete: SetNull)
+  especialidad            Especialidad?         @relation(fields: [especialidadId], references: [id])
+  examenProcedimiento     ExamenProcedimiento?  @relation(fields: [examenProcedimientoId], references: [id])
+  ordenesMedicas          OrdenMedica[]
+  ordenesMedicamentos     OrdenMedicamento[]
+  itemsFactura            FacturaItem[]
+  evolucionesClinicas     EvolucionClinica[]
+  signosVitales           SignoVital[]
+  procedimientos          Procedimiento[]
+  prescripciones          Prescripcion[]
 
   @@map("citas")
 }
@@ -274,6 +286,7 @@ model ExamenProcedimiento {
 
   categoria           CategoriaExamen?  @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
   ordenesMedicas      OrdenMedica[]
+  citas               Cita[]
 
   @@map("examenes_procedimientos")
 }
@@ -465,6 +478,7 @@ model Admision {
   paciente              Paciente          @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
   unidad                Unidad            @relation(fields: [unidadId], references: [id])
   cama                  Cama?             @relation(fields: [camaId], references: [id])
+  citas                 Cita[]            // Citas vinculadas a la admisión (procedimientos, interconsultas)
   movimientos           Movimiento[]
   ordenesMedicas        OrdenMedica[]
   ordenesMedicamentos   OrdenMedicamento[]
@@ -838,6 +852,7 @@ model SignoVital {
   id                    String    @id @default(uuid())
   pacienteId            String    @map("paciente_id")
   admisionId            String?   @map("admision_id")
+  citaId                String?   @map("cita_id")
   registradoPor         String    @map("registrado_por") @db.Uuid
   
   // Signos vitales estándar
@@ -870,6 +885,7 @@ model SignoVital {
   // Relaciones
   paciente              Paciente  @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
   admision              Admision? @relation(fields: [admisionId], references: [id])
+  cita                  Cita?     @relation(fields: [citaId], references: [id])
   registrador           Usuario   @relation("SignoVitalRegistrador", fields: [registradoPor], references: [id])
   
   @@map("signos_vitales")
@@ -1118,7 +1134,8 @@ enum EstadoProcedimiento {
 // Modelo de Procedimientos
 model Procedimiento {
   id                    String                @id @default(uuid())
-  admisionId            String
+  admisionId            String?
+  citaId                String?
   pacienteId            String
   medicoResponsableId   String                @db.Uuid
   
@@ -1159,7 +1176,8 @@ model Procedimiento {
   updatedAt             DateTime              @updatedAt
   
   // Relaciones
-  admision              Admision              @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+  admision              Admision?             @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+  cita                  Cita?                 @relation(fields: [citaId], references: [id])
   paciente              Paciente              @relation(fields: [pacienteId], references: [id])
   medicoResponsable     Usuario               @relation("ProcedimientoResponsable", fields: [medicoResponsableId], references: [id])
   medicoFirma           Usuario?              @relation("ProcedimientoFirma", fields: [firmaMedicoId], references: [id])
@@ -1226,6 +1244,7 @@ model Prescripcion {
   id                    String                @id @default(uuid())
   pacienteId            String
   admisionId            String?
+  citaId                String?
   medicoId              String                @db.Uuid
   
   // Información de la prescripción
@@ -1247,6 +1266,7 @@ model Prescripcion {
   // Relaciones
   paciente              Paciente              @relation(fields: [pacienteId], references: [id])
   admision              Admision?             @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+  cita                  Cita?                 @relation(fields: [citaId], references: [id])
   medico                Usuario               @relation("PrescripcionMedico", fields: [medicoId], references: [id])
   medicoFirma           Usuario?              @relation("PrescripcionFirma", fields: [firmaMedicoId], references: [id])
   medicamentos          PrescripcionMedicamento[]
@@ -1335,3 +1355,22 @@ model AdministracionMedicamento {
   @@index([estado])
   @@map("administraciones_medicamentos")
 }
+
+// Modelo de permisos por rol
+model RolePermiso {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rol       String   @db.VarChar(50)
+  modulo    String   @db.VarChar(100)
+  acceso    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  @@unique([rol, modulo])
+  @@map("role_permisos")
+}
+
+// Campos adicionales para citas mejoradas (agregar al modelo Cita)
+// tipoCita: 'Especialidad', 'Examen', 'Procedimiento'
+// examenProcedimientoId: referencia si es examen o procedimiento
+// duracionMinutos: duración estimada
+// costo: costo de la consulta

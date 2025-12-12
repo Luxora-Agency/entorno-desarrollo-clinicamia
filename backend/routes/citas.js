@@ -3,13 +3,16 @@
  */
 const { Hono } = require('hono');
 const citaService = require('../services/cita.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware, permissionMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const citas = new Hono();
 
 // Todas las rutas requieren autenticación
 citas.use('*', authMiddleware);
+
+// Todas las rutas requieren permiso al módulo 'citas'
+citas.use('*', permissionMiddleware('citas'));
 
 /**
  * GET /citas - Obtener todas las citas
@@ -40,7 +43,7 @@ citas.get('/:id', async (c) => {
 /**
  * POST /citas - Crear una cita
  */
-citas.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']), async (c) => {
+citas.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const cita = await citaService.create(data);
@@ -53,7 +56,7 @@ citas.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST'
 /**
  * PUT /citas/:id - Actualizar una cita
  */
-citas.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']), async (c) => {
+citas.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -67,7 +70,7 @@ citas.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIS
 /**
  * PATCH /citas/:id - Actualizar parcialmente una cita (cambiar estado, asignar doctor, etc.)
  */
-citas.patch('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']), async (c) => {
+citas.patch('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -81,7 +84,7 @@ citas.patch('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTION
 /**
  * DELETE /citas/:id - Cancelar una cita
  */
-citas.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']), async (c) => {
+citas.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await citaService.cancel(id);

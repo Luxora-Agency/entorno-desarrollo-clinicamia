@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,7 @@ import {
 import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function FacturacionModule({ user }) {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('facturas');
   const [showNewFactura, setShowNewFactura] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -491,7 +493,7 @@ export default function FacturacionModule({ user }) {
 function FormularioNuevaFactura({ onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Factura creada exitosamente (mockup)');
+    toast({ description: 'Factura creada exitosamente (mockup)' });
     onClose();
   };
 

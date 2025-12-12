@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const movimientoService = require('../services/movimiento.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error } = require('../utils/response');
 
 const movimiento = new Hono();
@@ -40,7 +40,7 @@ movimiento.get('/:id', async (c) => {
 /**
  * POST /movimientos - Crear un movimiento (traslado)
  */
-movimiento.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE']), async (c) => {
+movimiento.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const movimiento = await movimientoService.create(data);
@@ -53,7 +53,7 @@ movimiento.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE'])
 /**
  * DELETE /movimientos/:id - Eliminar un movimiento
  */
-movimiento.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+movimiento.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await movimientoService.delete(id);

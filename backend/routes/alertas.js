@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const alertaService = require('../services/alertaClinica.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const alertas = new Hono();
@@ -53,7 +53,7 @@ alertas.get('/activas/:paciente_id', async (c) => {
 /**
  * POST /alertas - Crear nueva alerta
  */
-alertas.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE']), async (c) => {
+alertas.post('/', async (c) => {
   try {
     const body = await c.req.json();
     const user = c.get('user');
@@ -85,7 +85,7 @@ alertas.post('/:id/reconocer', async (c) => {
 /**
  * DELETE /alertas/:id - Eliminar alerta
  */
-alertas.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+alertas.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const user = c.get('user');

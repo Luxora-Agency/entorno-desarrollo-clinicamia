@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const pacienteService = require('../services/paciente.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const pacientes = new Hono();
@@ -53,7 +53,7 @@ pacientes.get('/:id', async (c) => {
 /**
  * POST /pacientes - Crear un paciente
  */
-pacientes.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']), async (c) => {
+pacientes.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const paciente = await pacienteService.create(data);
@@ -66,7 +66,7 @@ pacientes.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTION
 /**
  * PUT /pacientes/:id - Actualizar un paciente
  */
-pacientes.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTIONIST']), async (c) => {
+pacientes.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -80,7 +80,7 @@ pacientes.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'RECEPTI
 /**
  * DELETE /pacientes/:id - Eliminar un paciente (soft delete)
  */
-pacientes.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+pacientes.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await pacienteService.delete(id);
@@ -93,7 +93,7 @@ pacientes.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => 
 /**
  * PATCH /pacientes/:id/toggle-activo - Activar o inactivar un paciente
  */
-pacientes.patch('/:id/toggle-activo', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+pacientes.patch('/:id/toggle-activo', async (c) => {
   try {
     const { id } = c.req.param();
     const paciente = await pacienteService.toggleActivo(id);

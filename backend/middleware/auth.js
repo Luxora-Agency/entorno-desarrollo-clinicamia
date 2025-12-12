@@ -3,6 +3,9 @@
  */
 const { verifyToken } = require('../utils/auth');
 const { error } = require('../utils/response');
+const { PrismaClient } = require('@prisma/client');
+
+const prisma = new PrismaClient();
 
 /**
  * Middleware para verificar token JWT
@@ -31,7 +34,7 @@ const authMiddleware = async (c, next) => {
 };
 
 /**
- * Middleware para verificar roles
+ * Middleware para verificar roles (DEPRECADO - usar permissionMiddleware)
  */
 const roleMiddleware = (allowedRoles = []) => {
   return async (c, next) => {
@@ -53,7 +56,57 @@ const roleMiddleware = (allowedRoles = []) => {
   };
 };
 
+/**
+ * Middleware para verificar permisos basado en la tabla role_permisos
+ * Este es el nuevo middleware recomendado que consulta la base de datos
+ * 
+ * @param {string} modulo - Nombre del módulo a verificar (ej: 'citas', 'pacientes', 'usuarios')
+ * @returns {Function} Middleware function
+ * 
+ * @example
+ * // En tus rutas:
+ * citas.post('/', permissionMiddleware('citas'), async (c) => { ... });
+ * pacientes.get('/', permissionMiddleware('pacientes'), async (c) => { ... });
+ */
+const permissionMiddleware = (modulo) => {
+  return async (c, next) => {
+    try {
+      const user = c.get('user');
+      
+      if (!user) {
+        return c.json(error('Usuario no autenticado'), 401);
+      }
+
+      // Normalizar el rol a minúsculas para comparación case-insensitive
+      const rolNormalizado = user.rol.toLowerCase();
+
+      // Consultar permisos en la base de datos (case-insensitive)
+      const permiso = await prisma.rolePermiso.findFirst({
+        where: {
+          rol: {
+            equals: rolNormalizado,
+            mode: 'insensitive'
+          },
+          modulo: modulo,
+        }
+      });
+
+      // Si no existe el permiso o acceso es false, denegar
+      if (!permiso || !permiso.acceso) {
+        return c.json(error('No tiene permisos para acceder a este módulo'), 403);
+      }
+
+      // El usuario tiene permiso, continuar
+      await next();
+    } catch (err) {
+      console.error('Error en permissionMiddleware:', err);
+      return c.json(error('Error al verificar permisos'), 500);
+    }
+  };
+};
+
 module.exports = {
   authMiddleware,
-  roleMiddleware,
+  roleMiddleware, // Mantener para compatibilidad con rutas antiguas
+  permissionMiddleware, // Nuevo middleware recomendado
 };

@@ -1,427 +1,344 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Card, CardContent } from '@/components/ui/card';
+import { useEffect, useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  Activity, 
-  Stethoscope, 
-  AlertTriangle, 
-  FileText, 
-  Pill,
   Clock,
+  FileText,
+  Activity,
+  ClipboardList,
+  AlertCircle,
+  Stethoscope,
+  Pill,
   Calendar,
-  User,
-  TrendingUp,
-  CheckCircle,
-  XCircle
+  Filter
 } from 'lucide-react';
-import { apiGet } from '@/services/api';
-import { formatDateTime, formatDate } from '@/services/formatters';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-const TIPOS_EVENTO = {
-  evolucion: {
-    label: 'Evolución Clínica',
-    icon: FileText,
-    color: 'bg-blue-100 text-blue-800 border-blue-300',
-    iconBg: 'bg-blue-500',
-  },
-  signoVital: {
-    label: 'Signos Vitales',
-    icon: Activity,
-    color: 'bg-green-100 text-green-800 border-green-300',
-    iconBg: 'bg-green-500',
-  },
-  diagnostico: {
-    label: 'Diagnóstico',
-    icon: Stethoscope,
-    color: 'bg-purple-100 text-purple-800 border-purple-300',
-    iconBg: 'bg-purple-500',
-  },
-  alerta: {
-    label: 'Alerta Clínica',
-    icon: AlertTriangle,
-    color: 'bg-red-100 text-red-800 border-red-300',
-    iconBg: 'bg-red-500',
-  },
-  interconsulta: {
-    label: 'Interconsulta',
-    icon: User,
-    color: 'bg-indigo-100 text-indigo-800 border-indigo-300',
-    iconBg: 'bg-indigo-500',
-  },
-  procedimiento: {
-    label: 'Procedimiento',
-    icon: Pill,
-    color: 'bg-amber-100 text-amber-800 border-amber-300',
-    iconBg: 'bg-amber-500',
-  },
-  admision: {
-    label: 'Admisión',
-    icon: Calendar,
-    color: 'bg-teal-100 text-teal-800 border-teal-300',
-    iconBg: 'bg-teal-500',
-  },
-  egreso: {
-    label: 'Egreso',
-    icon: CheckCircle,
-    color: 'bg-gray-100 text-gray-800 border-gray-300',
-    iconBg: 'bg-gray-500',
-  },
-};
-
-export default function TabTimeline({ pacienteId, admisionId }) {
+export default function TabTimeline({ pacienteId }) {
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filtroTipo, setFiltroTipo] = useState('todos');
-  const [filtroFecha, setFiltroFecha] = useState('todos'); // 7dias, 30dias, 90dias, todos
 
   useEffect(() => {
     if (pacienteId) {
-      cargarTimeline();
+      loadEventos();
     }
-  }, [pacienteId, admisionId]);
+  }, [pacienteId]);
 
-  const cargarTimeline = async () => {
-    setLoading(true);
+  const loadEventos = async () => {
     try {
-      // Cargar todos los eventos en paralelo
-      const [
-        evolucionesRes,
-        signosVitalesRes,
-        diagnosticosRes,
-        alertasRes,
-        interconsultasRes,
-        procedimientosRes,
-        admisionesRes,
-      ] = await Promise.all([
-        apiGet('/evoluciones', { pacienteId, admisionId: admisionId || undefined }),
-        apiGet('/signos-vitales', { pacienteId, admisionId: admisionId || undefined }),
-        apiGet('/diagnosticos', { pacienteId, admisionId: admisionId || undefined }),
-        apiGet('/alertas', { pacienteId }),
-        apiGet('/interconsultas', { pacienteId, admisionId: admisionId || undefined }),
-        apiGet('/procedimientos', { pacienteId, admisionId: admisionId || undefined }),
-        apiGet('/admisiones', { pacienteId }),
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      // Cargar datos de todos los módulos en paralelo
+      const [evoluciones, signos, diagnosticos, alertas, procedimientos, prescripciones] = await Promise.all([
+        fetch(`${apiUrl}/evoluciones?paciente_id=${pacienteId}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.ok ? r.json() : { data: [] }),
+        
+        fetch(`${apiUrl}/signos-vitales?paciente_id=${pacienteId}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.ok ? r.json() : { data: [] }),
+        
+        fetch(`${apiUrl}/diagnosticos?paciente_id=${pacienteId}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.ok ? r.json() : { data: [] }),
+        
+        fetch(`${apiUrl}/alertas?paciente_id=${pacienteId}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.ok ? r.json() : { data: [] }),
+        
+        fetch(`${apiUrl}/procedimientos?paciente_id=${pacienteId}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.ok ? r.json() : { data: [] }),
+        
+        fetch(`${apiUrl}/prescripciones?paciente_id=${pacienteId}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.ok ? r.json() : { data: [] }),
       ]);
 
-      // Consolidar todos los eventos (manejando diferentes formatos de respuesta)
-      const todosEventos = [
-        ...(Array.isArray(evolucionesRes.data) ? evolucionesRes.data : evolucionesRes.data?.evoluciones || []).map(e => ({
+      // Mapear todo a eventos unificados
+      const eventosUnificados = [
+        ...(evoluciones.data || []).map(e => ({
+          ...e,
           tipo: 'evolucion',
-          fecha: e.fecha,
-          titulo: 'Evolución Clínica',
-          descripcion: e.subjetivo,
-          doctor: `Dr. ${e.doctor?.nombre} ${e.doctor?.apellido}`,
-          data: e,
+          fecha: e.createdAt,
+          titulo: 'Evolución SOAP',
+          descripcion: e.subjetivo?.substring(0, 100) + '...',
         })),
-        ...(signosVitalesRes.data || []).map(s => ({
-          tipo: 'signoVital',
-          fecha: s.fecha,
+        ...(signos.data || []).map(s => ({
+          ...s,
+          tipo: 'signos',
+          fecha: s.createdAt,
           titulo: 'Signos Vitales',
-          descripcion: `PA: ${s.presionArterialSistolica}/${s.presionArterialDiastolica}, FC: ${s.frecuenciaCardiaca}, Temp: ${s.temperatura}°C`,
-          doctor: s.registradoPor ? `${s.registradoPor.nombre} ${s.registradoPor.apellido}` : '',
-          data: s,
+          descripcion: `Temperatura: ${s.temperatura || 'N/A'}°C, PA: ${s.presionSistolica || '--'}/${s.presionDiastolica || '--'}`,
         })),
-        ...(diagnosticosRes.data || []).map(d => ({
+        ...(diagnosticos.data || []).map(d => ({
+          ...d,
           tipo: 'diagnostico',
-          fecha: d.fechaDiagnostico,
+          fecha: d.createdAt,
           titulo: 'Diagnóstico',
-          descripcion: `${d.codigoCIE11} - ${d.descripcion}`,
-          doctor: `Dr. ${d.doctor?.nombre} ${d.doctor?.apellido}`,
-          data: d,
+          descripcion: `${d.codigoCIE11} - ${d.descripcionCIE11}`,
         })),
-        ...(alertasRes.data || []).map(a => ({
+        ...(alertas.data || []).map(a => ({
+          ...a,
           tipo: 'alerta',
           fecha: a.createdAt,
-          titulo: `Alerta ${a.tipo}`,
+          titulo: `Alerta: ${a.titulo}`,
           descripcion: a.descripcion,
-          doctor: '',
-          data: a,
         })),
-        ...(interconsultasRes.data || []).map(i => ({
-          tipo: 'interconsulta',
-          fecha: i.fechaSolicitud,
-          titulo: `Interconsulta - ${i.especialidadSolicitada}`,
-          descripcion: i.motivoConsulta,
-          doctor: `Dr. ${i.medicoSolicitante?.nombre} ${i.medicoSolicitante?.apellido}`,
-          data: i,
-        })),
-        ...(procedimientosRes.data || []).map(p => ({
+        ...(procedimientos.data || []).map(p => ({
+          ...p,
           tipo: 'procedimiento',
-          fecha: p.fechaProgramada || p.createdAt,
-          titulo: p.nombre,
-          descripcion: p.descripcion,
-          doctor: `Dr. ${p.medicoResponsable?.nombre} ${p.medicoResponsable?.apellido}`,
-          data: p,
+          fecha: p.fechaRealizada || p.createdAt,
+          titulo: 'Procedimiento',
+          descripcion: p.nombre,
         })),
-        ...(admisionesRes.data?.admisiones || []).map(a => ({
-          tipo: 'admision',
-          fecha: a.fechaIngreso,
-          titulo: 'Admisión Hospitalaria',
-          descripcion: a.motivoIngreso,
-          doctor: '',
-          data: a,
+        ...(prescripciones.data || []).map(p => ({
+          ...p,
+          tipo: 'prescripcion',
+          fecha: p.createdAt,
+          titulo: 'Prescripción Médica',
+          descripcion: `${p.medicamentos?.length || 0} medicamento(s)`,
         })),
-        ...(admisionesRes.data?.admisiones || [])
-          .filter(a => a.egreso)
-          .map(a => ({
-            tipo: 'egreso',
-            fecha: a.egreso.fechaEgreso,
-            titulo: `Egreso - ${a.egreso.tipoEgreso}`,
-            descripcion: a.egreso.diagnosticoEgreso,
-            doctor: '',
-            data: a.egreso,
-          })),
       ];
 
       // Ordenar por fecha descendente
-      todosEventos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+      const ordenados = eventosUnificados.sort((a, b) => 
+        new Date(b.fecha) - new Date(a.fecha)
+      );
 
-      setEventos(todosEventos);
+      setEventos(ordenados);
     } catch (error) {
-      console.error('Error al cargar timeline:', error);
+      console.error('Error cargando eventos:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const filtrarEventos = () => {
-    let eventosFiltrados = [...eventos];
-
-    // Filtrar por tipo
-    if (filtroTipo !== 'todos') {
-      eventosFiltrados = eventosFiltrados.filter(e => e.tipo === filtroTipo);
-    }
-
-    // Filtrar por fecha
-    if (filtroFecha !== 'todos') {
-      const ahora = new Date();
-      const diasAtras = {
-        '7dias': 7,
-        '30dias': 30,
-        '90dias': 90,
-      }[filtroFecha];
-
-      if (diasAtras) {
-        const fechaLimite = new Date(ahora.getTime() - diasAtras * 24 * 60 * 60 * 1000);
-        eventosFiltrados = eventosFiltrados.filter(e => new Date(e.fecha) >= fechaLimite);
-      }
-    }
-
-    return eventosFiltrados;
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('es-CO', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
-  const eventosFiltrados = filtrarEventos();
+  const getEventoConfig = (tipo) => {
+    switch (tipo) {
+      case 'evolucion':
+        return { icon: FileText, color: 'bg-blue-100 text-blue-700', borderColor: 'border-blue-300' };
+      case 'signos':
+        return { icon: Activity, color: 'bg-purple-100 text-purple-700', borderColor: 'border-purple-300' };
+      case 'diagnostico':
+        return { icon: ClipboardList, color: 'bg-pink-100 text-pink-700', borderColor: 'border-pink-300' };
+      case 'alerta':
+        return { icon: AlertCircle, color: 'bg-orange-100 text-orange-700', borderColor: 'border-orange-300' };
+      case 'procedimiento':
+        return { icon: Stethoscope, color: 'bg-indigo-100 text-indigo-700', borderColor: 'border-indigo-300' };
+      case 'prescripcion':
+        return { icon: Pill, color: 'bg-teal-100 text-teal-700', borderColor: 'border-teal-300' };
+      default:
+        return { icon: Calendar, color: 'bg-gray-100 text-gray-700', borderColor: 'border-gray-300' };
+    }
+  };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
-  }
+  const eventosFiltrados = filtroTipo === 'todos' 
+    ? eventos 
+    : eventos.filter(e => e.tipo === filtroTipo);
 
   return (
     <div className="space-y-6">
-      {/* Header y Filtros */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900">Timeline Clínico</h3>
-          <p className="text-sm text-gray-500">Historia cronológica completa del paciente</p>
-        </div>
-
-        <div className="flex gap-3 w-full sm:w-auto">
-          <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Tipo de evento" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los eventos</SelectItem>
-              {Object.entries(TIPOS_EVENTO).map(([key, { label }]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={filtroFecha} onValueChange={setFiltroFecha}>
-            <SelectTrigger className="w-[150px]">
-              <SelectValue placeholder="Período" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todo el historial</SelectItem>
-              <SelectItem value="7dias">Últimos 7 días</SelectItem>
-              <SelectItem value="30dias">Últimos 30 días</SelectItem>
-              <SelectItem value="90dias">Últimos 90 días</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* Contador de eventos */}
-      <div className="flex gap-2">
-        <Badge variant="outline" className="text-sm">
-          {eventosFiltrados.length} evento{eventosFiltrados.length !== 1 ? 's' : ''}
-        </Badge>
-      </div>
+      {/* Header */}
+      <Card className="border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-white">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-cyan-600 rounded-lg">
+                <Calendar className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl">Timeline Clínico Integrado</CardTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Vista cronológica unificada de todos los eventos médicos del paciente
+                </p>
+              </div>
+            </div>
+            
+            {/* Filtro */}
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-600" />
+              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos los eventos</SelectItem>
+                  <SelectItem value="evolucion">Evoluciones SOAP</SelectItem>
+                  <SelectItem value="signos">Signos Vitales</SelectItem>
+                  <SelectItem value="diagnostico">Diagnósticos</SelectItem>
+                  <SelectItem value="alerta">Alertas</SelectItem>
+                  <SelectItem value="procedimiento">Procedimientos</SelectItem>
+                  <SelectItem value="prescripcion">Prescripciones</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
 
       {/* Timeline */}
-      {eventosFiltrados.length === 0 ? (
+      {loading ? (
         <Card>
-          <CardContent className="py-12 text-center text-gray-500">
-            <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-            <p>No hay eventos registrados</p>
+          <CardContent className="p-6">
+            <p className="text-center text-gray-600 py-8">Cargando timeline...</p>
+          </CardContent>
+        </Card>
+      ) : eventosFiltrados.length === 0 ? (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center py-12">
+              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">No hay eventos registrados</p>
+              <p className="text-sm text-gray-500">
+                Los eventos aparecerán aquí a medida que se registren durante las consultas
+              </p>
+            </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="relative">
-          {/* Línea vertical del timeline */}
-          <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-
-          {/* Eventos */}
-          <div className="space-y-6">
-            {eventosFiltrados.map((evento, index) => {
-              const tipoEvento = TIPOS_EVENTO[evento.tipo];
-              const Icon = tipoEvento.icon;
-
-              return (
-                <div key={`${evento.tipo}-${index}`} className="relative pl-16">
-                  {/* Icono del evento */}
-                  <div className={`absolute left-0 flex items-center justify-center w-12 h-12 rounded-full ${tipoEvento.iconBg}`}>
-                    <Icon className="w-6 h-6 text-white" />
-                  </div>
-
-                  {/* Contenido del evento */}
-                  <Card className="hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <Badge className={tipoEvento.color}>
-                              {tipoEvento.label}
-                            </Badge>
-                            <span className="text-sm text-gray-500">
-                              {formatDateTime(evento.fecha)}
-                            </span>
-                          </div>
-                          <h4 className="font-semibold text-gray-900 mb-1">{evento.titulo}</h4>
-                          <p className="text-sm text-gray-600 mb-2">{evento.descripcion}</p>
-                          {evento.doctor && (
-                            <p className="text-xs text-gray-500">{evento.doctor}</p>
-                          )}
-                        </div>
-
-                        {/* Estado específico por tipo */}
-                        {evento.tipo === 'interconsulta' && evento.data.estado && (
-                          <Badge variant="outline" className="text-xs">
-                            {evento.data.estado}
-                          </Badge>
-                        )}
-                        {evento.tipo === 'procedimiento' && evento.data.estado && (
-                          <Badge variant="outline" className="text-xs">
-                            {evento.data.estado}
-                          </Badge>
-                        )}
-                        {evento.tipo === 'diagnostico' && evento.data.tipo && (
-                          <Badge variant="outline" className="text-xs">
-                            {evento.data.tipo}
-                          </Badge>
-                        )}
-                        {evento.tipo === 'alerta' && evento.data.severidad && (
-                          <Badge 
-                            className={
-                              evento.data.severidad === 'Critica' ? 'bg-red-100 text-red-800' :
-                              evento.data.severidad === 'Alta' ? 'bg-orange-100 text-orange-800' :
-                              evento.data.severidad === 'Media' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-blue-100 text-blue-800'
-                            }
-                          >
-                            {evento.data.severidad}
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Detalles adicionales según el tipo */}
-                      {evento.tipo === 'signoVital' && evento.data && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-4 gap-2 text-xs">
-                          <div>
-                            <span className="text-gray-500">PA:</span>
-                            <span className="ml-1 font-medium">{evento.data.presionArterialSistolica}/{evento.data.presionArterialDiastolica}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">FC:</span>
-                            <span className="ml-1 font-medium">{evento.data.frecuenciaCardiaca}</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">Temp:</span>
-                            <span className="ml-1 font-medium">{evento.data.temperatura}°C</span>
-                          </div>
-                          <div>
-                            <span className="text-gray-500">SpO2:</span>
-                            <span className="ml-1 font-medium">{evento.data.saturacionOxigeno}%</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {evento.tipo === 'evolucion' && evento.data && (
-                        <div className="mt-3 pt-3 border-t border-gray-100">
-                          <div className="grid grid-cols-2 gap-3 text-xs">
-                            {evento.data.objetivo && (
-                              <div>
-                                <p className="text-gray-500 mb-1">Objetivo:</p>
-                                <p className="text-gray-700">{evento.data.objetivo}</p>
-                              </div>
-                            )}
-                            {evento.data.plan && (
-                              <div>
-                                <p className="text-gray-500 mb-1">Plan:</p>
-                                <p className="text-gray-700">{evento.data.plan}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              );
-            })}
+        <div className="space-y-4">
+          {/* Stats */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="p-3 text-center">
+                <FileText className="h-6 w-6 text-blue-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-blue-700">
+                  {eventos.filter(e => e.tipo === 'evolucion').length}
+                </p>
+                <p className="text-xs text-blue-600">SOAP</p>
+              </CardContent>
+            </Card>
+            <Card className="border-purple-200 bg-purple-50">
+              <CardContent className="p-3 text-center">
+                <Activity className="h-6 w-6 text-purple-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-purple-700">
+                  {eventos.filter(e => e.tipo === 'signos').length}
+                </p>
+                <p className="text-xs text-purple-600">Vitales</p>
+              </CardContent>
+            </Card>
+            <Card className="border-pink-200 bg-pink-50">
+              <CardContent className="p-3 text-center">
+                <ClipboardList className="h-6 w-6 text-pink-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-pink-700">
+                  {eventos.filter(e => e.tipo === 'diagnostico').length}
+                </p>
+                <p className="text-xs text-pink-600">Dx</p>
+              </CardContent>
+            </Card>
+            <Card className="border-orange-200 bg-orange-50">
+              <CardContent className="p-3 text-center">
+                <AlertCircle className="h-6 w-6 text-orange-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-orange-700">
+                  {eventos.filter(e => e.tipo === 'alerta').length}
+                </p>
+                <p className="text-xs text-orange-600">Alertas</p>
+              </CardContent>
+            </Card>
+            <Card className="border-indigo-200 bg-indigo-50">
+              <CardContent className="p-3 text-center">
+                <Stethoscope className="h-6 w-6 text-indigo-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-indigo-700">
+                  {eventos.filter(e => e.tipo === 'procedimiento').length}
+                </p>
+                <p className="text-xs text-indigo-600">Proc</p>
+              </CardContent>
+            </Card>
+            <Card className="border-teal-200 bg-teal-50">
+              <CardContent className="p-3 text-center">
+                <Pill className="h-6 w-6 text-teal-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-teal-700">
+                  {eventos.filter(e => e.tipo === 'prescripcion').length}
+                </p>
+                <p className="text-xs text-teal-600">Rx</p>
+              </CardContent>
+            </Card>
           </div>
-        </div>
-      )}
 
-      {/* Resumen de estadísticas */}
-      {eventosFiltrados.length > 0 && (
-        <Card className="bg-gray-50">
-          <CardContent className="p-4">
-            <h4 className="text-sm font-semibold text-gray-700 mb-3">Resumen del Timeline</h4>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {Object.entries(
-                eventosFiltrados.reduce((acc, e) => {
-                  acc[e.tipo] = (acc[e.tipo] || 0) + 1;
-                  return acc;
-                }, {})
-              ).map(([tipo, count]) => {
-                const tipoEvento = TIPOS_EVENTO[tipo];
-                const Icon = tipoEvento.icon;
+          {/* Timeline de eventos */}
+          <div className="relative">
+            {/* Línea vertical del timeline */}
+            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+
+            <div className="space-y-4">
+              {eventosFiltrados.map((evento, index) => {
+                const config = getEventoConfig(evento.tipo);
+                const IconComponent = config.icon;
+                
                 return (
-                  <div key={tipo} className="flex items-center gap-2">
-                    <div className={`p-2 rounded-lg ${tipoEvento.iconBg}`}>
-                      <Icon className="w-4 h-4 text-white" />
+                  <div key={`${evento.tipo}-${evento.id}-${index}`} className="relative flex gap-4">
+                    {/* Círculo en la línea */}
+                    <div className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full ${config.color} flex items-center justify-center border-4 border-white shadow`}>
+                      <IconComponent className="h-5 w-5" />
                     </div>
-                    <div>
-                      <p className="text-xs text-gray-500">{tipoEvento.label}</p>
-                      <p className="text-lg font-semibold text-gray-900">{count}</p>
-                    </div>
+
+                    {/* Card del evento */}
+                    <Card className={`flex-1 border-2 ${config.borderColor} hover:shadow-md transition-shadow`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <h4 className="font-semibold text-gray-900">{evento.titulo}</h4>
+                            <Badge className={`${config.color} mt-1 text-xs`}>
+                              {evento.tipo.charAt(0).toUpperCase() + evento.tipo.slice(1)}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-600">
+                            <Clock className="h-4 w-4" />
+                            {formatDate(evento.fecha)}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-700 mt-2">{evento.descripcion}</p>
+                        {evento.profesional?.nombre && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Por: {evento.profesional.nombre} {evento.profesional.apellido}
+                          </p>
+                        )}
+                        {evento.doctor?.nombre && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Por: Dr. {evento.doctor.nombre} {evento.doctor.apellido}
+                          </p>
+                        )}
+                        {evento.medicoResponsable?.nombre && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Por: Dr. {evento.medicoResponsable.nombre} {evento.medicoResponsable.apellido}
+                          </p>
+                        )}
+                        {evento.medico?.nombre && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Por: Dr. {evento.medico.nombre} {evento.medico.apellido}
+                          </p>
+                        )}
+                        {evento.registrador?.nombre && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Por: {evento.registrador.nombre} {evento.registrador.apellido}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
                 );
               })}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
     </div>
   );

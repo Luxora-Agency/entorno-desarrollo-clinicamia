@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const unidadService = require('../services/unidad.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error } = require('../utils/response');
 
 const unidad = new Hono();
@@ -40,7 +40,7 @@ unidad.get('/:id', async (c) => {
 /**
  * POST /unidades - Crear una unidad
  */
-unidad.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+unidad.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const unidad = await unidadService.create(data);
@@ -53,7 +53,7 @@ unidad.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
 /**
  * PUT /unidades/:id - Actualizar una unidad
  */
-unidad.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+unidad.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -67,7 +67,7 @@ unidad.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
 /**
  * DELETE /unidades/:id - Eliminar una unidad
  */
-unidad.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+unidad.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await unidadService.delete(id);

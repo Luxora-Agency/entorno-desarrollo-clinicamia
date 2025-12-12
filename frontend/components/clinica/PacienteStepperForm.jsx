@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +16,7 @@ import colombiaData from '@/data/colombia.json';
 import SuccessModal from './SuccessModal';
 
 export default function PacienteStepperForm({ user, editingPaciente, onBack, onSuccess }) {
+  const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -198,11 +200,11 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
 
   const handleNext = () => {
     if (currentStep === 1 && !validateStep1()) {
-      alert('Por favor complete todos los campos obligatorios del Paso 1');
+      toast({ description: 'Por favor complete todos los campos obligatorios del Paso 1' });
       return;
     }
     if (currentStep === 2 && !validateStep2()) {
-      alert('Por favor complete todos los campos obligatorios del Paso 2 y al menos un contacto de emergencia');
+      toast({ description: 'Por favor complete todos los campos obligatorios del Paso 2 y al menos un contacto de emergencia' });
       return;
     }
     
@@ -303,7 +305,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
       }
     } catch (error) {
       console.error('Error al subir documentos:', error);
-      alert('Hubo un error al subir algunos documentos. El paciente se guardó correctamente.');
+      toast({ description: 'Hubo un error al subir algunos documentos. El paciente se guardó correctamente.' });
     }
   };
 
@@ -401,7 +403,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al guardar el paciente');
+      toast({ description: 'Error al guardar el paciente' });
     }
   };
 

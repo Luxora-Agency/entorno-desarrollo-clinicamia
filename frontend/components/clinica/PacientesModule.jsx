@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2, Users, Phone, Mail, Calendar, MapPin, Activity, Power } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Users, Phone, Mail, Calendar, MapPin, Activity, Power, Eye } from 'lucide-react';
 import { formatDateLong } from '@/lib/dateUtils';
 import PacienteStepperForm from './PacienteStepperForm';
+import VerPaciente from './VerPaciente';
 
 export default function PacientesModule({ user }) {
   const [pacientes, setPacientes] = useState([]);
@@ -16,6 +17,7 @@ export default function PacientesModule({ user }) {
   const [search, setSearch] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingPaciente, setEditingPaciente] = useState(null);
+  const [viewingPaciente, setViewingPaciente] = useState(null);
 
   useEffect(() => {
     if (!showForm) {
@@ -105,6 +107,15 @@ export default function PacientesModule({ user }) {
     if (valor < 30) return 'bg-yellow-100 text-yellow-700';
     return 'bg-red-100 text-red-700';
   };
+
+  if (viewingPaciente) {
+    return (
+      <VerPaciente
+        pacienteId={viewingPaciente}
+        onBack={() => setViewingPaciente(null)}
+      />
+    );
+  }
 
   if (showForm) {
     return (
@@ -299,6 +310,15 @@ export default function PacientesModule({ user }) {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => setViewingPaciente(paciente.id)}
+                              className="hover:bg-emerald-50 hover:text-emerald-600"
+                              title="Ver detalles del paciente"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"

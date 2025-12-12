@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react';
 
 export default function AdmisionesModule({ user }) {
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [searching, setSearching] = useState(false);
@@ -113,7 +115,7 @@ export default function AdmisionesModule({ user }) {
       
     } catch (error) {
       console.error('Error en búsqueda:', error);
-      alert('Error al buscar paciente');
+      toast({ description: 'Error al buscar paciente' });
     } finally {
       setSearching(false);
     }
@@ -156,7 +158,7 @@ export default function AdmisionesModule({ user }) {
 
   const handleRegistroPaso1 = () => {
     if (!registroForm.nombre || !registroForm.apellido || !registroForm.cedula || !registroForm.telefono) {
-      alert('Por favor completa todos los campos básicos');
+      toast({ description: 'Por favor completa todos los campos básicos' });
       return;
     }
     setRegistroStep(2);
@@ -190,7 +192,7 @@ export default function AdmisionesModule({ user }) {
       });
 
       if (response.ok) {
-        alert('✅ Paciente registrado exitosamente');
+        toast({ title: 'Éxito', description: ' Paciente registrado exitosamente' });
         setShowRegistroDialog(false);
         setRegistroStep(1);
         setRegistroForm({
@@ -215,13 +217,13 @@ export default function AdmisionesModule({ user }) {
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al registrar paciente');
+      toast({ description: 'Error al registrar paciente' });
     }
   };
 
   const handleAgendarCita = async () => {
     if (!citaForm.tipoServicio || !citaForm.servicioId || !citaForm.fecha || !citaForm.hora) {
-      alert('Por favor completa todos los campos requeridos');
+      toast({ description: 'Por favor completa todos los campos requeridos' });
       return;
     }
 
@@ -247,7 +249,7 @@ export default function AdmisionesModule({ user }) {
       });
 
       if (response.ok) {
-        alert('✅ Cita agendada exitosamente');
+        toast({ title: 'Éxito', description: ' Cita agendada exitosamente' });
         setShowCitaDialog(false);
         setCitaForm({
           tipoServicio: '',
@@ -266,7 +268,7 @@ export default function AdmisionesModule({ user }) {
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al agendar cita');
+      toast({ description: 'Error al agendar cita' });
     }
   };
 
@@ -303,7 +305,7 @@ export default function AdmisionesModule({ user }) {
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al actualizar estado');
+      toast({ description: 'Error al actualizar estado' });
     }
   };
 

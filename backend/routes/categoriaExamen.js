@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const categoriaExamenService = require('../services/categoriaExamen.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const categoriaExamen = new Hono();

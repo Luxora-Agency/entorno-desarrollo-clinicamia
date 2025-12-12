@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const departamentoService = require('../services/departamento.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const departamentos = new Hono();
@@ -40,7 +40,7 @@ departamentos.get('/:id', async (c) => {
 /**
  * POST /departamentos - Crear un departamento
  */
-departamentos.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+departamentos.post('/', async (c) => {
   try {
     const data = await c.req.json();
     const departamento = await departamentoService.create(data);
@@ -53,7 +53,7 @@ departamentos.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
 /**
  * PUT /departamentos/:id - Actualizar un departamento
  */
-departamentos.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+departamentos.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -67,7 +67,7 @@ departamentos.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) =>
 /**
  * DELETE /departamentos/:id - Eliminar un departamento
  */
-departamentos.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+departamentos.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await departamentoService.delete(id);

@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const evolucionService = require('../services/evolucionClinica.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const evoluciones = new Hono();
@@ -40,7 +40,7 @@ evoluciones.get('/:id', async (c) => {
 /**
  * POST /evoluciones - Crear nueva evolución clínica
  */
-evoluciones.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+evoluciones.post('/', async (c) => {
   try {
     const body = await c.req.json();
     const user = c.get('user');
@@ -56,7 +56,7 @@ evoluciones.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async 
 /**
  * POST /evoluciones/:id/firmar - Firmar evolución clínica
  */
-evoluciones.post('/:id/firmar', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+evoluciones.post('/:id/administrar', async (c) => {
   try {
     const { id } = c.req.param();
     const user = c.get('user');
@@ -72,7 +72,7 @@ evoluciones.post('/:id/firmar', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR'
 /**
  * DELETE /evoluciones/:id - Eliminar evolución (solo si no está firmada)
  */
-evoluciones.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+evoluciones.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const user = c.get('user');

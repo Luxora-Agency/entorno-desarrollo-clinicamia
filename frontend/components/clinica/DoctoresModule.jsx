@@ -6,16 +6,19 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2, UserCog, Phone, Mail } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Plus, Search, Edit, Trash2, UserCog, Phone, Mail, Clock } from 'lucide-react';
 
 export default function DoctoresModule({ user, onEdit, onAdd }) {
   const [doctores, setDoctores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [editingHorarios, setEditingHorarios] = useState(null);
+  const [horarios, setHorarios] = useState({});
 
   useEffect(() => {
     loadDoctores();
-  }, [search]);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadDoctores = async () => {
     try {
@@ -31,6 +34,36 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
     } finally {
       setLoading(false);
     }
+  };
+
+  const filteredDoctores = doctores.filter(doctor =>
+    `${doctor.nombre} ${doctor.apellido} ${doctor.cedula} ${doctor.email}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
+
+  // Obtener resumen de próximos 3 días de horarios
+  const getResumenHorarios = (horarios) => {
+    if (!horarios || Object.keys(horarios).length === 0) return 'Sin horarios';
+    
+    const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const hoy = new Date();
+    const proximos3Dias = [];
+    
+    for (let i = 0; i < 3; i++) {
+      const fecha = new Date(hoy);
+      fecha.setDate(hoy.getDate() + i);
+      const fechaStr = fecha.toISOString().split('T')[0];
+      
+      if (horarios[fechaStr] && Array.isArray(horarios[fechaStr]) && horarios[fechaStr].length > 0) {
+        const horariosDelDia = horarios[fechaStr];
+        const diaNombre = diasSemana[fecha.getDay()].substring(0, 3);
+        const horarioTexto = horariosDelDia.map(h => `${h.inicio}-${h.fin}`).join(', ');
+        proximos3Dias.push(`${diaNombre}: ${horarioTexto}`);
+      }
+    }
+    
+    return proximos3Dias.length > 0 ? proximos3Dias.join(' | ') : 'Sin horarios próximos';
   };
 
   const handleDelete = async (id) => {
@@ -86,12 +119,12 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
       {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">Lista de Doctores ({doctores.length})</CardTitle>
+          <CardTitle className="text-lg sm:text-xl">Lista de Doctores ({filteredDoctores.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <p className="text-center py-8 text-gray-500 text-sm sm:text-base">Cargando...</p>
-          ) : doctores.length === 0 ? (
+          ) : filteredDoctores.length === 0 ? (
             <div className="text-center py-12">
               <UserCog className="w-16 h-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500 text-sm sm:text-base mb-4">No hay doctores registrados</p>
@@ -109,13 +142,14 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
                       <TableHead className="text-xs sm:text-sm">Doctor</TableHead>
                       <TableHead className="text-xs sm:text-sm hidden md:table-cell">Cédula</TableHead>
                       <TableHead className="text-xs sm:text-sm">Especialidades</TableHead>
+                      <TableHead className="text-xs sm:text-sm hidden xl:table-cell">Horarios</TableHead>
                       <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Contacto</TableHead>
                       <TableHead className="text-xs sm:text-sm">Estado</TableHead>
                       <TableHead className="text-right text-xs sm:text-sm">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {doctores.map((doctor) => (
+                    {filteredDoctores.map((doctor) => (
                       <TableRow key={doctor.id}>
                         <TableCell className="font-medium text-xs sm:text-sm">
                           <div className="flex items-center gap-3">
@@ -139,6 +173,20 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
                             {doctor.especialidades?.length > 2 && (
                               <Badge variant="outline" className="text-xs">+{doctor.especialidades.length - 2}</Badge>
                             )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs sm:text-sm hidden xl:table-cell">
+                          <div 
+                            onClick={() => onEdit(doctor)}
+                            className="cursor-pointer hover:bg-blue-50 p-2 rounded transition-colors"
+                          >
+                            <div className="flex items-center gap-1 text-blue-600 mb-1">
+                              <Clock className="w-3 h-3" />
+                              <span className="text-xs font-medium">Horarios</span>
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {getResumenHorarios(doctor.horarios)}
+                            </div>
                           </div>
                         </TableCell>
                         <TableCell className="text-xs sm:text-sm hidden lg:table-cell">
@@ -191,6 +239,107 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal Editar Horarios */}
+      <Dialog open={!!editingHorarios} onOpenChange={() => setEditingHorarios(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Horarios de Atención - Dr. {editingHorarios?.nombre} {editingHorarios?.apellido}
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(dia => (
+              <div key={dia} className="p-4 border rounded-lg">
+                <div className="flex items-center justify-between mb-3">
+                  <label className="font-medium text-gray-900">{dia}</label>
+                  <input
+                    type="checkbox"
+                    checked={!!horarios[dia]}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setHorarios({...horarios, [dia]: {inicio: '08:00', fin: '17:00'}});
+                      } else {
+                        const newHorarios = {...horarios};
+                        delete newHorarios[dia];
+                        setHorarios(newHorarios);
+                      }
+                    }}
+                    className="w-4 h-4"
+                  />
+                </div>
+                {horarios[dia] && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-sm text-gray-600">Hora Inicio</label>
+                      <input
+                        type="time"
+                        value={horarios[dia]?.inicio || '08:00'}
+                        onChange={(e) => setHorarios({
+                          ...horarios,
+                          [dia]: {...horarios[dia], inicio: e.target.value}
+                        })}
+                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600">Hora Fin</label>
+                      <input
+                        type="time"
+                        value={horarios[dia]?.fin || '17:00'}
+                        onChange={(e) => setHorarios({
+                          ...horarios,
+                          [dia]: {...horarios[dia], fin: e.target.value}
+                        })}
+                        className="w-full mt-1 px-3 py-2 border rounded-md"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                onClick={() => setEditingHorarios(null)}
+                variant="outline"
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={async () => {
+                  try {
+                    const token = localStorage.getItem('token');
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+                    const response = await fetch(`${apiUrl}/doctores/${editingHorarios.id}`, {
+                      method: 'PUT',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                      },
+                      body: JSON.stringify({ horarios })
+                    });
+                    
+                    if (response.ok) {
+                      alert('Horarios actualizados correctamente');
+                      setEditingHorarios(null);
+                      loadDoctores();
+                    }
+                  } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al actualizar horarios');
+                  }
+                }}
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600"
+              >
+                Guardar Horarios
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const ordenMedicaService = require('../services/ordenMedica.service');
-const { authMiddleware, roleMiddleware } = require('../middleware/auth');
+const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
 const ordenesMedicas = new Hono();
@@ -40,7 +40,7 @@ ordenesMedicas.get('/:id', async (c) => {
 /**
  * POST /ordenes-medicas - Crear una nueva orden médica
  */
-ordenesMedicas.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+ordenesMedicas.post('/', async (c) => {
   try {
     const body = await c.req.json();
     const orden = await ordenMedicaService.create(body);
@@ -53,7 +53,7 @@ ordenesMedicas.post('/', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), asy
 /**
  * PUT /ordenes-medicas/:id - Actualizar una orden médica
  */
-ordenesMedicas.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'LAB_TECHNICIAN']), async (c) => {
+ordenesMedicas.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const body = await c.req.json();
@@ -67,7 +67,7 @@ ordenesMedicas.put('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NU
 /**
  * POST /ordenes-medicas/:id/completar - Completar una orden médica
  */
-ordenesMedicas.post('/:id/completar', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR', 'NURSE', 'LAB_TECHNICIAN']), async (c) => {
+ordenesMedicas.post('/:id/administrar', async (c) => {
   try {
     const { id } = c.req.param();
     const body = await c.req.json();
@@ -82,7 +82,7 @@ ordenesMedicas.post('/:id/completar', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'D
 /**
  * POST /ordenes-medicas/:id/cancelar - Cancelar una orden médica
  */
-ordenesMedicas.post('/:id/cancelar', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DOCTOR']), async (c) => {
+ordenesMedicas.post('/:id/administrar', async (c) => {
   try {
     const { id } = c.req.param();
     const body = await c.req.json();
@@ -96,7 +96,7 @@ ordenesMedicas.post('/:id/cancelar', roleMiddleware(['SUPER_ADMIN', 'ADMIN', 'DO
 /**
  * DELETE /ordenes-medicas/:id - Eliminar una orden médica
  */
-ordenesMedicas.delete('/:id', roleMiddleware(['SUPER_ADMIN', 'ADMIN']), async (c) => {
+ordenesMedicas.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();
     await ordenMedicaService.delete(id);
