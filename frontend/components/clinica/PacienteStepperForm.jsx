@@ -13,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import epsData from '@/data/eps.json';
 import regimenesData from '@/data/regimenes.json';
 import colombiaData from '@/data/colombia.json';
+import { ESTADO_CIVIL, NIVEL_EDUCACION, TIPO_USUARIO, ARL_COLOMBIA } from '@/constants/pacientes';
 import SuccessModal from './SuccessModal';
 
 export default function PacienteStepperForm({ user, editingPaciente, onBack, onSuccess }) {
