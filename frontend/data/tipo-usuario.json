@@ -1,8 +1,0 @@
-[
-  { "value": "particular", "label": "Particular" },
-  { "value": "eps", "label": "EPS" },
-  { "value": "empresa", "label": "Empresa" },
-  { "value": "poliza", "label": "Póliza" },
-  { "value": "prepagada", "label": "Medicina Prepagada" },
-  { "value": "convenio", "label": "Convenio Especial" }
-]

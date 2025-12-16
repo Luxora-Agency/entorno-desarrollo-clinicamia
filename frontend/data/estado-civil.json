@@ -1,8 +1,0 @@
-[
-  { "value": "soltero", "label": "Soltero(a)" },
-  { "value": "casado", "label": "Casado(a)" },
-  { "value": "union_libre", "label": "Unión Libre" },
-  { "value": "divorciado", "label": "Divorciado(a)" },
-  { "value": "separado", "label": "Separado(a)" },
-  { "value": "viudo", "label": "Viudo(a)" }
-]
