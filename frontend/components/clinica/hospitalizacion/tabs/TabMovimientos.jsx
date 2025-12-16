@@ -39,7 +39,7 @@ export default function TabMovimientos({ admision, movimientos, onReload }) {
   const cargarUnidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/unidades?activo=true', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades?activo=true`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -54,7 +54,7 @@ export default function TabMovimientos({ admision, movimientos, onReload }) {
   const cargarCamas = async (unidadId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/camas/disponibles?unidadId=${unidadId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles?unidadId=${unidadId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -78,7 +78,7 @@ export default function TabMovimientos({ admision, movimientos, onReload }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/movimientos', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

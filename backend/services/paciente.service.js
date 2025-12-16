@@ -13,7 +13,7 @@ class PacienteService {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {
-      activo: true,
+      // activo: true,
       ...(search && {
         OR: [
           { nombre: { contains: search, mode: 'insensitive' } },
@@ -30,7 +30,7 @@ class PacienteService {
         take: parseInt(limit),
         orderBy: { createdAt: 'desc' },
       }),
-      prisma.paciente.count({ where }),
+      prisma.paciente.count({where:{...where,activo:true} }),
     ]);
 
     return {
@@ -122,9 +122,6 @@ class PacienteService {
         medicamentosActuales: data.medicamentos_actuales,
         antecedentesQuirurgicos: data.antecedentes_quirurgicos,
         
-        // Compatibilidad con datos antiguos
-        contactoEmergenciaNombre: data.contacto_emergencia_nombre,
-        contactoEmergenciaTelefono: data.contacto_emergencia_telefono,
       },
     });
 
@@ -178,10 +175,6 @@ class PacienteService {
     if (data.medicamentos_actuales !== undefined) updateData.medicamentosActuales = data.medicamentos_actuales;
     if (data.antecedentes_quirurgicos !== undefined) updateData.antecedentesQuirurgicos = data.antecedentes_quirurgicos;
     
-    // Compatibilidad
-    if (data.contacto_emergencia_nombre !== undefined) updateData.contactoEmergenciaNombre = data.contacto_emergencia_nombre;
-    if (data.contacto_emergencia_telefono !== undefined) updateData.contactoEmergenciaTelefono = data.contacto_emergencia_telefono;
-
     const paciente = await prisma.paciente.update({
       where: { id },
       data: updateData,
@@ -258,7 +251,7 @@ class PacienteService {
 
     const updated = await prisma.paciente.update({
       where: { id },
-      data: { activo: !paciente.activo },
+      data: { activo: !paciente.activo,estado:paciente.estado=='Activo' ? 'Inactivo':'Activo' },
     });
 
     return updated;

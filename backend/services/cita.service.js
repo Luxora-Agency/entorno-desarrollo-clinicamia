@@ -182,11 +182,11 @@ class CitaService {
         where: {
           doctorId: data.doctor_id,
           fecha: parseSimpleDate(data.fecha),
-          hora: new Date(`1970-01-01T${data.hora}`),
+          hora: new Date(`1970-01-01T${data.hora}Z`),
           estado: { notIn: ['Cancelada', 'NoAsistio'] },
         },
       });
-
+ 
       if (conflicto) {
         throw new ValidationError('El doctor ya tiene una cita programada en ese horario');
       }
@@ -204,7 +204,7 @@ class CitaService {
           examenProcedimientoId: data.examen_procedimiento_id || null,
           tipoCita: data.tipo_cita || 'Especialidad',
           fecha: parseSimpleDate(data.fecha),
-          hora: new Date(`1970-01-01T${data.hora}`),
+          hora:  new Date(`1970-01-01T${data.hora}Z`),
           duracionMinutos: data.duracion_minutos || 30,
           costo: parseFloat(data.costo),
           motivo: data.motivo || null,
@@ -238,7 +238,7 @@ class CitaService {
     // Construir datos de actualización
     const updateData = {};
     if (data.fecha) updateData.fecha = parseSimpleDate(data.fecha);
-    if (data.hora) updateData.hora = new Date(`1970-01-01T${data.hora}`);
+    if (data.hora) updateData.hora = new Date(`1970-01-01T${data.hora}Z`);
     if (data.motivo) updateData.motivo = data.motivo;
     if (data.notas !== undefined) updateData.notas = data.notas;
     if (data.estado) updateData.estado = data.estado;

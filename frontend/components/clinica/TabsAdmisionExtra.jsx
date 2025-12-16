@@ -52,7 +52,7 @@ export function TabMedicamentos({ admision, medicamentos, onReload }) {
   const cargarProductos = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/productos?activo=true&limit=200', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos?activo=true&limit=200`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -78,7 +78,7 @@ export function TabMedicamentos({ admision, medicamentos, onReload }) {
       const token = localStorage.getItem('token');
       const producto = productos.find(p => p.id === medicamentoData.productoId);
 
-      const response = await fetch('/api/ordenes-medicamentos', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ordenes-medicamentos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -128,7 +128,7 @@ export function TabMedicamentos({ admision, medicamentos, onReload }) {
   const cambiarEstadoMedicamento = async (itemId, nuevoEstado) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/ordenes-medicamentos/items/${itemId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ordenes-medicamentos/items/${itemId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -375,7 +375,7 @@ export function TabInterconsultas({ admision, interconsultas, onReload }) {
   const cargarEspecialidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/especialidades', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/especialidades`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -401,7 +401,7 @@ export function TabInterconsultas({ admision, interconsultas, onReload }) {
       const token = localStorage.getItem('token');
       
       // Crear cita PorAgendar
-      const response = await fetch('/api/citas', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

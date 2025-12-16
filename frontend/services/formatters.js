@@ -42,7 +42,8 @@ export const formatDateLong = (date) => {
     weekday: 'long', 
     year: 'numeric', 
     month: 'long', 
-    day: 'numeric' 
+    day: 'numeric',
+    timeZone:'UTC'
   };
   
   return d.toLocaleDateString('es-CO', options);
@@ -65,10 +66,11 @@ export const formatDateTime = (date) => {
   if (!date) return '';
   
   const d = new Date(date);
-  const dateStr = formatDate(d);
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  
+ const dateStr = d.toLocaleDateString('es-CO', { timeZone: 'UTC' });
+
+  const hours = String(d.getUTCHours()).padStart(2, '0');
+  const minutes = String(d.getUTCMinutes()).padStart(2, '0');
+
   return `${dateStr} ${hours}:${minutes}`;
 };
 

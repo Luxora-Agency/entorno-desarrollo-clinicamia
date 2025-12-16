@@ -82,7 +82,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admisiones', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -110,7 +110,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
   const cargarUnidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/unidades?activo=true', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades?activo=true`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -135,7 +135,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/pacientes?search=${termino}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pacientes?search=${termino}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -151,8 +151,8 @@ export default function AdmisionesHospitalizacionModule({ user }) {
     try {
       const token = localStorage.getItem('token');
       const url = unidadId 
-        ? `/api/camas/disponibles?unidadId=${unidadId}`
-        : '/api/camas/disponibles';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles?unidadId=${unidadId}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles`;
       
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -254,7 +254,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
 
       console.log('📤 Enviando datos de admisión:', payload);
 
-      const response = await fetch('/api/admisiones', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -913,7 +913,7 @@ function DetalleAdmisionModal({ admision, onClose }) {
     
     try {
       // Cargar procedimientos
-      const procRes = await fetch(`/api/procedimientos?admisionId=${admision.id}`, {
+      const procRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/procedimientos?admisionId=${admision.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const procData = await procRes.json();
@@ -922,7 +922,7 @@ function DetalleAdmisionModal({ admision, onClose }) {
       }
 
       // Cargar medicamentos (órdenes de medicamentos)
-      const medRes = await fetch(`/api/ordenes-medicamentos?admision_id=${admision.id}`, {
+      const medRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ordenes-medicamentos?admision_id=${admision.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const medData = await medRes.json();
@@ -932,7 +932,7 @@ function DetalleAdmisionModal({ admision, onClose }) {
       }
 
       // Cargar interconsultas
-      const interRes = await fetch(`/api/interconsultas?admisionId=${admision.id}`, {
+      const interRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/interconsultas?admisionId=${admision.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const interData = await interRes.json();
@@ -941,7 +941,7 @@ function DetalleAdmisionModal({ admision, onClose }) {
       }
 
       // Cargar movimientos
-      const movRes = await fetch(`/api/movimientos?admisionId=${admision.id}`, {
+      const movRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos?admisionId=${admision.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const movData = await movRes.json();
@@ -1126,7 +1126,7 @@ function TabMovimientos({ admision, movimientos, onReload }) {
   const cargarUnidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/unidades?activo=true', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades?activo=true`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -1139,7 +1139,7 @@ function TabMovimientos({ admision, movimientos, onReload }) {
   const cargarCamas = async (unidadId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/camas/disponibles?unidadId=${unidadId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles?unidadId=${unidadId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -1164,7 +1164,7 @@ function TabMovimientos({ admision, movimientos, onReload }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/movimientos', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1399,7 +1399,7 @@ function TabProcedimientos({ admision, procedimientos, onReload }) {
   const cargarServicios = async (tipo) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/examenes-procedimientos?tipo=${tipo}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/examenes-procedimientos?tipo=${tipo}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -1428,7 +1428,7 @@ function TabProcedimientos({ admision, procedimientos, onReload }) {
       const token = localStorage.getItem('token');
       const servicio = servicios.find(s => s.id === servicioSeleccionado);
       
-      const response = await fetch('/api/procedimientos', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/procedimientos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1597,7 +1597,7 @@ function TabMedicamentos({ admision, medicamentos, onReload }) {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/productos?search=${termino}&tipo=Medicamento&activo=true`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos?search=${termino}&tipo=Medicamento&activo=true`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -1634,7 +1634,7 @@ function TabMedicamentos({ admision, medicamentos, onReload }) {
       const producto = productos.find(p => p.id === medicamentoData.productoId);
       
       const user = JSON.parse(localStorage.getItem('user') || '{}');
-      const response = await fetch('/api/ordenes-medicamentos', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ordenes-medicamentos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1881,7 +1881,7 @@ function TabInterconsultas({ admision, interconsultas, onReload }) {
   const cargarEspecialidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/especialidades', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/especialidades`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -1902,7 +1902,7 @@ function TabInterconsultas({ admision, interconsultas, onReload }) {
   const cargarDoctoresPorEspecialidad = async (especialidad) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/doctores?especialidad=${especialidad}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctores?especialidad=${especialidad}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -1938,7 +1938,7 @@ function TabInterconsultas({ admision, interconsultas, onReload }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/interconsultas', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/interconsultas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2141,7 +2141,7 @@ function TabEgreso({ admision, onClose }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/egresos', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/egresos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2388,7 +2388,7 @@ function TabFacturacion({ admision, procedimientos, medicamentos, interconsultas
       const token = localStorage.getItem('token');
       
       // Crear o actualizar factura consolidada
-      const response = await fetch('/api/facturas', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/facturas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

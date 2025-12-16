@@ -5,7 +5,7 @@
 require('dotenv').config();
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
-
+const crypto = require("crypto");
 const prisma = new PrismaClient();
 
 async function clearDatabase() {
@@ -590,7 +590,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       fecha: new Date(hoy),
       hora: new Date('1970-01-01T08:00:00Z'),
       motivo: 'Control médico general',
-      estado: 'EnEspera',
+      estado: 'Programada',
       notas: 'Paciente llegó temprano',
       costo: 50000,
     },
@@ -611,7 +611,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
       fecha: new Date(hoy),
       hora: new Date('1970-01-01T10:00:00Z'),
       motivo: 'Control de hipertensión',
-      estado: 'Atendiendo',
+      estado: 'Programada',
       notas: 'Consulta en progreso',
       costo: 50000,
     },
@@ -679,7 +679,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
     created.push(citaCreada);
     
     // Crear factura para citas completadas o atendiendo
-    if (cita.estado === 'Completada' || cita.estado === 'Atendiendo') {
+    if (cita.estado === 'Completada' || cita.estado === 'Atendiendo' || cita.estado === 'Programada') {
       const numeroFactura = `F-2025-${String(facturaCounter).padStart(5, '0')}`;
       facturaCounter++;
       
@@ -690,9 +690,9 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
           estado: cita.estado === 'Completada' ? 'Pagada' : 'Pendiente',
           subtotal: cita.costo,
           descuentos: 0,
-          impuestos: cita.costo * 0.19, // 19% IVA
-          total: cita.costo * 1.19,
-          saldoPendiente: cita.estado === 'Completada' ? 0 : cita.costo * 1.19,
+          // impuestos: cita.costo * 0.19, // 19% IVA
+          total: cita.costo,
+          saldoPendiente: cita.estado === 'Completada' ? 0 : cita.costo,
           cubiertoPorEPS: false,
           creadaPor: doctorUsuarios[0].id,
           items: {
@@ -711,7 +711,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
           pagos: cita.estado === 'Completada' ? {
             create: [
               {
-                monto: cita.costo * 1.19,
+                monto: cita.costo,
                 metodoPago: 'Efectivo',
                 referencia: `PAG-${numeroFactura}`,
                 registradoPor: doctorUsuarios[0].id,

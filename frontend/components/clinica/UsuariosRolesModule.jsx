@@ -73,21 +73,21 @@ export default function UsuariosRolesModule() {
     setLoading(true);
     try {
       // Cargar usuarios
-      const resUsuarios = await fetch('/api/usuarios');
+      const resUsuarios = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/usuarios`);
       const dataUsuarios = await resUsuarios.json();
       if (dataUsuarios.success) {
         setUsuarios(dataUsuarios.data);
       }
 
       // Cargar roles
-      const resRoles = await fetch('/api/roles/lista');
+      const resRoles = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles/lista`);
       const dataRoles = await resRoles.json();
       if (dataRoles.success) {
         setRoles(dataRoles.data);
       }
 
       // Cargar permisos
-      const resPermisos = await fetch('/api/roles/permisos');
+      const resPermisos = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles/permisos`);
       const dataPermisos = await resPermisos.json();
       if (dataPermisos.success) {
         setPermisos(dataPermisos.data);
@@ -134,8 +134,8 @@ export default function UsuariosRolesModule() {
     
     try {
       const url = editingUsuario 
-        ? `/api/usuarios/${editingUsuario.id}`
-        : '/api/usuarios';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/usuarios/${editingUsuario.id}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/usuarios`;
       
       const method = editingUsuario ? 'PUT' : 'POST';
       
@@ -167,7 +167,7 @@ export default function UsuariosRolesModule() {
 
   const handleToggleActivo = async (id) => {
     try {
-      const res = await fetch(`/api/usuarios/${id}/toggle-activo`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/usuarios/${id}/toggle-activo`, {
         method: 'PUT'
       });
 
@@ -188,7 +188,7 @@ export default function UsuariosRolesModule() {
     if (!confirm('¿Está seguro de eliminar este usuario?')) return;
 
     try {
-      const res = await fetch(`/api/usuarios/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/usuarios/${id}`, {
         method: 'DELETE'
       });
 
@@ -212,7 +212,7 @@ export default function UsuariosRolesModule() {
     const nuevoAcceso = permisoActual ? !permisoActual.acceso : true;
 
     try {
-      const res = await fetch('/api/roles/permisos', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles/permisos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rol, modulo, acceso: nuevoAcceso })

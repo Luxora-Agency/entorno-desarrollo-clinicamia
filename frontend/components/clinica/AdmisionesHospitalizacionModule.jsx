@@ -64,7 +64,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
   const cargarAdmisiones = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admisiones', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -115,7 +115,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/pacientes?search=${termino}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pacientes?search=${termino}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -135,7 +135,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
   const cargarUnidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/unidades?activo=true', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades?activo=true`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -161,8 +161,8 @@ export default function AdmisionesHospitalizacionModule({ user }) {
     try {
       const token = localStorage.getItem('token');
       const url = unidadId 
-        ? `/api/camas/disponibles?unidadId=${unidadId}`
-        : '/api/camas/disponibles';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles?unidadId=${unidadId}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles`;
       
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -262,7 +262,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
         responsableIngreso: user?.id || null,
       };
 
-      const response = await fetch('/api/admisiones', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -309,7 +309,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
     
     try {
       // Cargar movimientos
-      const movRes = await fetch(`/api/movimientos?admisionId=${admision.id}`, {
+      const movRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos?admisionId=${admision.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const movData = await movRes.json();
@@ -318,7 +318,7 @@ export default function AdmisionesHospitalizacionModule({ user }) {
       }
 
       // Cargar ordenes médicas (procedimientos)
-      const procRes = await fetch(`/api/ordenes-medicas?admision_id=${admision.id}`, {
+      const procRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ordenes-medicas?admision_id=${admision.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const procData = await procRes.json();

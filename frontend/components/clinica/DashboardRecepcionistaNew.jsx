@@ -52,7 +52,7 @@ export default function DashboardRecepcionistaNew({ user }) {
   const cargarDoctores = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/agenda/doctores', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agenda/doctores`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -71,7 +71,7 @@ export default function DashboardRecepcionistaNew({ user }) {
       
       // Si hay doctor seleccionado, cargar bloques
       if (doctorSeleccionado) {
-        const resB = await fetch(`/api/agenda/bloques/${doctorSeleccionado}?fecha=${fechaSeleccionada}`, {
+        const resB = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agenda/bloques/${doctorSeleccionado}?fecha=${fechaSeleccionada}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const dataB = await resB.json();
@@ -86,8 +86,8 @@ export default function DashboardRecepcionistaNew({ user }) {
 
       // Cargar citas
       const url = doctorSeleccionado 
-        ? `/api/agenda/citas?fecha=${fechaSeleccionada}&doctorId=${doctorSeleccionado}`
-        : `/api/agenda/citas?fecha=${fechaSeleccionada}`;
+        ? `${process.env.NEXT_PUBLIC_API_URL}/agenda/citas?fecha=${fechaSeleccionada}&doctorId=${doctorSeleccionado}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/agenda/citas?fecha=${fechaSeleccionada}`;
       
       const resC = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` }
@@ -149,8 +149,8 @@ export default function DashboardRecepcionistaNew({ user }) {
   const handleEstadoChange = async (citaId, nuevoEstado) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/citas/${citaId}`, {
-        method: 'PATCH',
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas/estado/${citaId}`, {
+        method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -187,8 +187,8 @@ export default function DashboardRecepcionistaNew({ user }) {
   const handleAsignarDoctor = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/citas/${citaAsignar.id}`, {
-        method: 'PATCH',
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas/estado/${citaAsignar.id}`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`

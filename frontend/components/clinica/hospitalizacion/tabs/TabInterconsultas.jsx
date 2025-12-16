@@ -35,7 +35,7 @@ export default function TabInterconsultas({ admision, onReload }) {
   const cargarEspecialidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/especialidades', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/especialidades`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -50,7 +50,7 @@ export default function TabInterconsultas({ admision, onReload }) {
   const cargarCitasPorAgendar = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/citas?pacienteId=${admision.pacienteId}&estado=PorAgendar&tipoCita=Interconsulta`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas?pacienteId=${admision.pacienteId}&estado=PorAgendar&tipoCita=Interconsulta`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await response.json();
@@ -82,7 +82,7 @@ export default function TabInterconsultas({ admision, onReload }) {
       const especialidadSeleccionada = especialidades.find(e => e.id === interconsultaData.especialidad);
       const costoInterconsulta = especialidadSeleccionada?.costoCOP || 50000; // Default si no tiene costo
       
-      const response = await fetch('/api/citas', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

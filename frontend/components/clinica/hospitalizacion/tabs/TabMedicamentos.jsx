@@ -57,7 +57,7 @@ export default function TabMedicamentos({ admision, onReload }) {
   const cargarProductos = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/productos?activo=true&limit=200', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/productos?activo=true&limit=200`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -74,7 +74,7 @@ export default function TabMedicamentos({ admision, onReload }) {
   const cargarPrescripciones = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/prescripciones?pacienteId=${admision.pacienteId}&admisionId=${admision.id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prescripciones?pacienteId=${admision.pacienteId}&admisionId=${admision.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -115,7 +115,7 @@ export default function TabMedicamentos({ admision, onReload }) {
       const user = JSON.parse(localStorage.getItem('user') || '{}');
 
       // 1. Crear Prescripción (receta)
-      const prescripcionResponse = await fetch('/api/prescripciones', {
+      const prescripcionResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/prescripciones`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -143,7 +143,7 @@ export default function TabMedicamentos({ admision, onReload }) {
       if (!prescripcionResponse.ok) throw new Error('Error al crear prescripción');
 
       // 2. Crear OrdenMedicamento (para farmacia)
-      const ordenResponse = await fetch('/api/ordenes-medicamentos', {
+      const ordenResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ordenes-medicamentos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -93,7 +93,7 @@ pacientes.delete('/:id', async (c) => {
 /**
  * PATCH /pacientes/:id/toggle-activo - Activar o inactivar un paciente
  */
-pacientes.patch('/:id/toggle-activo', async (c) => {
+pacientes.post('/:id/toggle-activo', async (c) => {
   try {
     const { id } = c.req.param();
     const paciente = await pacienteService.toggleActivo(id);

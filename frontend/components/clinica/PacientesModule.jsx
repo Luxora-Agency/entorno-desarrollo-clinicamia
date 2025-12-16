@@ -68,7 +68,7 @@ export default function PacientesModule({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       const response = await fetch(`${apiUrl}/pacientes/${id}/toggle-activo`, {
-        method: 'PATCH',
+        method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
       
@@ -304,8 +304,8 @@ export default function PacientesModule({ user }) {
                           {paciente.ultimaConsulta ? formatDateLong(paciente.ultimaConsulta).fecha : 'Sin consultas'}
                         </TableCell>
                         <TableCell>
-                          <Badge className={paciente.estado === 'Activo' ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-200'}>
-                            {paciente.estado || 'Activo'}
+                          <Badge className={paciente.activo ? 'bg-green-100 text-green-700 border-green-200' : 'bg-gray-100 text-gray-700 border-gray-200'}>
+                            {paciente.activo ? 'Activo' : 'Inactivo'}
                           </Badge>
                         </TableCell>
                         <TableCell>

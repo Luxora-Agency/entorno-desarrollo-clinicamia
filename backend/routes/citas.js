@@ -6,6 +6,7 @@ const citaService = require('../services/cita.service');
 const { authMiddleware, permissionMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
+
 const citas = new Hono();
 
 // Todas las rutas requieren autenticación
@@ -70,7 +71,7 @@ citas.put('/:id', async (c) => {
 /**
  * PATCH /citas/:id - Actualizar parcialmente una cita (cambiar estado, asignar doctor, etc.)
  */
-citas.patch('/:id', async (c) => {
+citas.post('/estado/:id', async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();

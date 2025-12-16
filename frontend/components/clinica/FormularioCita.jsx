@@ -91,10 +91,10 @@ export default function FormularioCita({
       const headers = { Authorization: `Bearer ${token}` };
 
       const [espRes, exaRes, pacRes, docRes] = await Promise.all([
-        fetch('/api/especialidades?limit=100', { headers }),
-        fetch('/api/examenes-procedimientos?limit=100', { headers }),
-        fetch('/api/pacientes?limit=100', { headers }),
-        fetch('/api/doctores?limit=100', { headers })
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/especialidades?limit=100`, { headers }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/examenes-procedimientos?limit=100`, { headers }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/pacientes?limit=100`, { headers }),
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctores?limit=100`, { headers })
       ]);
 
       const espData = await espRes.json();
@@ -179,7 +179,7 @@ export default function FormularioCita({
         
         if (doctorSeleccionado) {
           console.log('🔍 Consultando bloques para doctor:', doctorSeleccionado.nombre, 'ID:', doctorSeleccionado.id);
-          const res = await fetch(`/api/agenda/bloques/${doctorSeleccionado.id}?fecha=${formData.fecha}`, {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/agenda/bloques/${doctorSeleccionado.id}?fecha=${formData.fecha}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           const data = await res.json();
@@ -206,7 +206,7 @@ export default function FormularioCita({
         console.log('🔍 Consultando bloques para', doctoresFiltrados.length, 'doctores');
         
         const promesas = doctoresFiltrados.map(doc =>
-          fetch(`/api/agenda/bloques/${doc.id}?fecha=${formData.fecha}`, {
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/agenda/bloques/${doc.id}?fecha=${formData.fecha}`, {
             headers: { Authorization: `Bearer ${token}` }
           }).then(r => r.json()).then(data => {
             // La estructura es: { success: true, data: { bloques: { doctor, fecha, bloques: [...] } } }
@@ -365,7 +365,7 @@ export default function FormularioCita({
       const citaId = editingCita?.id || initialData?.citaId;
       const isEditing = !!editingCita || initialData?.isEdit;
       
-      const url = isEditing && citaId ? `/api/citas/${citaId}` : '/api/citas';
+      const url = isEditing && citaId ? `${process.env.NEXT_PUBLIC_API_URL}/citas/${citaId}` : `${process.env.NEXT_PUBLIC_API_URL}/citas`;
       const method = isEditing && citaId ? 'PUT' : 'POST';
 
       const res = await fetch(url, {

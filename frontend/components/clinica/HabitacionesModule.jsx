@@ -33,7 +33,7 @@ export default function HabitacionesModule({ user }) {
   const cargarHabitaciones = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/habitaciones', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/habitaciones`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -51,7 +51,7 @@ export default function HabitacionesModule({ user }) {
   const cargarUnidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/unidades?activo=true', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades?activo=true`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -69,7 +69,7 @@ export default function HabitacionesModule({ user }) {
     
     try {
       const token = localStorage.getItem('token');
-      const url = editingHabitacion ? `/api/habitaciones/${editingHabitacion.id}` : '/api/habitaciones';
+      const url = editingHabitacion ? `${process.env.NEXT_PUBLIC_API_URL}/habitaciones/${editingHabitacion.id}` : `${process.env.NEXT_PUBLIC_API_URL}/habitaciones`;
       const method = editingHabitacion ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -118,7 +118,7 @@ export default function HabitacionesModule({ user }) {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/habitaciones/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/habitaciones/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

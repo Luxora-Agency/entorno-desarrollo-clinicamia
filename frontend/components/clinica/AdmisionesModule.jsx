@@ -124,8 +124,8 @@ export default function AdmisionesModule({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      const response = await fetch(`${apiUrl}/citas/${citaId}`, {
-        method: 'PATCH',
+      const response = await fetch(`${apiUrl}/citas/estado/${citaId}`, {
+        method: 'POST',
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -158,8 +158,8 @@ export default function AdmisionesModule({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      const response = await fetch(`${apiUrl}/citas/${citaId}`, {
-        method: 'PATCH',
+      const response = await fetch(`${apiUrl}/citas/estado/${citaId}`, {
+        method: 'POST',
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -251,8 +251,8 @@ export default function AdmisionesModule({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      const response = await fetch(`${apiUrl}/citas/${citaSeleccionada.id}`, {
-        method: 'PATCH',
+      const response = await fetch(`${apiUrl}/citas/estado/${citaSeleccionada.id}`, {
+        method: 'POST',
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',

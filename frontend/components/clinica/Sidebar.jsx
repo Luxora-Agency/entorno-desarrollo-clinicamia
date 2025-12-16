@@ -28,7 +28,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
   useEffect(() => {
     const cargarPermisos = async () => {
       try {
-        const res = await fetch(`/api/roles/permisos/${userRole}`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles/permisos/${userRole}`);
         const data = await res.json();
         
         if (data.success) {

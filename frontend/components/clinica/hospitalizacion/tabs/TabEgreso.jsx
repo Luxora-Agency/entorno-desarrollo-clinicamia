@@ -55,7 +55,7 @@ export default function TabEgreso({ admision, onReload }) {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admisiones/${admision.id}/administrar`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones/${admision.id}/administrar`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

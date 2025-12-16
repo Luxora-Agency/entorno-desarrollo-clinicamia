@@ -92,7 +92,7 @@ cama.post('/', async (c) => {
 /**
  * PATCH /camas/:id/estado - Cambiar estado de una cama
  */
-cama.patch('/:id/estado', async (c) => {
+cama.post('/:id/estado', async (c) => {
   try {
     const { id } = c.req.param();
     const { estado, motivo } = await c.req.json();

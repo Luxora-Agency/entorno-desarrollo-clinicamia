@@ -41,7 +41,7 @@ export default function CitasModule() {
   const cargarDoctores = async () => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch('/api/doctores', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/doctores`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
@@ -66,7 +66,7 @@ export default function CitasModule() {
       if (filtros.doctorId && filtros.doctorId !== 'todos') params.append('doctorId', filtros.doctorId);
       params.append('limit', '100');
 
-      const citasRes = await fetch(`/api/citas?${params.toString()}`, { headers });
+      const citasRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas?${params.toString()}`, { headers });
       const citasData = await citasRes.json();
 
       if (citasData.success) {
@@ -75,7 +75,7 @@ export default function CitasModule() {
         // Cargar información de facturación para cada cita
         const citasConFactura = await Promise.all(citas.map(async (cita) => {
           try {
-            const facturaResponse = await fetch(`/api/facturas?limit=100`, { headers });
+            const facturaResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/facturas?limit=100`, { headers });
             const facturaData = await facturaResponse.json();
             
             // Buscar factura relacionada con esta cita
@@ -140,7 +140,7 @@ export default function CitasModule() {
   const handlePagoChange = async (facturaId, campo, valor) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/facturas/${facturaId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/facturas/${facturaId}`, {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
@@ -178,8 +178,8 @@ export default function CitasModule() {
   const handleEstadoChange = async (citaId, nuevoEstado) => {
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/citas/${citaId}`, {
-        method: 'PATCH',
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas/estado/${citaId}`, {
+        method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -218,7 +218,7 @@ export default function CitasModule() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`/api/citas/${id}`, { 
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas/${id}`, { 
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -363,6 +363,7 @@ export default function CitasModule() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos los estados</SelectItem>
+                <SelectItem value="PorAgendar">PorAgendar</SelectItem>
                 <SelectItem value="Programada">Programada</SelectItem>
                 <SelectItem value="Confirmada">Confirmada</SelectItem>
                 <SelectItem value="EnEspera">En Espera</SelectItem>

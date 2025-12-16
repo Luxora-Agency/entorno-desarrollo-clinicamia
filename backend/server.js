@@ -163,11 +163,13 @@ app.route('/consultas', consultas);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
+const HOST = process.env.HOST || '0.0.0.0';
 
-console.log(`🚀 Servidor Hono.js con Prisma iniciado en puerto ${PORT}`);
+console.log(`🚀 Servidor Hono.js con Prisma iniciado en ${HOST}:${PORT}`);
 serve({
   fetch: app.fetch,
   port: PORT,
+  hostname: HOST,
 });
 
 module.exports = app;

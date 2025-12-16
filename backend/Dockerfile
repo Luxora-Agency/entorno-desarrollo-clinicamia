@@ -28,8 +28,8 @@ FROM node:18-alpine AS runner
 
 WORKDIR /app
 
-# Instalar dependencias de runtime para Prisma
-RUN apk add --no-cache openssl
+# Instalar dependencias de runtime para Prisma y healthcheck
+RUN apk add --no-cache openssl curl
 
 # Crear usuario no-root para seguridad
 RUN addgroup --system --gid 1001 nodejs && \
@@ -43,15 +43,16 @@ COPY --chown=honojs:nodejs . .
 
 # Variables de entorno
 ENV NODE_ENV=production
-ENV PORT=4000
+ENV PORT=3000
+ENV HOST=0.0.0.0
 
 USER honojs
 
-EXPOSE 4000
+EXPOSE 3000
 
-# Healthcheck
+# Healthcheck usando curl (requerido por Coolify)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:4000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD curl -f http://localhost:3000/health || exit 1
 
-# Script de inicio que ejecuta migraciones y luego inicia el servidor
-CMD ["sh", "-c", "npx prisma migrate deploy && node server.js"]
+# Usar db push en lugar de migrate deploy para bases de datos existentes
+CMD ["sh", "-c", "npx prisma db push --skip-generate && node server.js"]

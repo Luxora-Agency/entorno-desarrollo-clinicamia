@@ -122,10 +122,6 @@ model Paciente {
   medicamentosActuales           String?   @map("medicamentos_actuales")
   antecedentesQuirurgicos        String?   @map("antecedentes_quirurgicos")
   
-  // Mantener compatibilidad (deprecado)
-  contactoEmergenciaNombre       String?   @map("contacto_emergencia_nombre")
-  contactoEmergenciaTelefono     String?   @map("contacto_emergencia_telefono")
-  
   // Estado
   estado                         String    @default("Activo")
   ultimaConsulta                 DateTime? @map("ultima_consulta") @db.Date

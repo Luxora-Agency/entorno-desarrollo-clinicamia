@@ -68,7 +68,7 @@ export default function TabEgreso({ pacienteId, paciente, user }) {
       const token = localStorage.getItem('token');
       
       // Cargar admisión activa
-      const admisionesRes = await fetch(`/api/admisiones?pacienteId=${pacienteId}`, {
+      const admisionesRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones?pacienteId=${pacienteId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const admisionesData = await admisionesRes.json();
@@ -79,7 +79,7 @@ export default function TabEgreso({ pacienteId, paciente, user }) {
         
         // Si hay admisión activa, verificar si tiene egreso
         if (activa) {
-          const egresoRes = await fetch(`/api/egresos/admision/${activa.id}`, {
+          const egresoRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/egresos/admision/${activa.id}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const egresoData = await egresoRes.json();
@@ -124,7 +124,7 @@ export default function TabEgreso({ pacienteId, paciente, user }) {
         profesional_responsable_id: user?.id,
       };
 
-      const response = await fetch('/api/egresos', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/egresos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

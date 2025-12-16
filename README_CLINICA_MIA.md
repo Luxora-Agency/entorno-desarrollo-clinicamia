@@ -5,7 +5,7 @@ Sistema integral de gestión hospitalaria desarrollado con **Next.js**, **Hono.j
 ## 🚀 Tecnologías
 
 ### Frontend
-- **Next.js 14** - Framework React con App Router
+- **Next.js 16** - Framework React con App Router
 - **React 18** - Biblioteca UI
 - **Tailwind CSS** - Estilos
 - **shadcn/ui** - Componentes UI
@@ -14,7 +14,7 @@ Sistema integral de gestión hospitalaria desarrollado con **Next.js**, **Hono.j
 ### Backend
 - **Hono.js** - Framework web ultra-rápido
 - **Node.js** - Runtime
-- **PostgreSQL 15** - Base de datos
+- **PostgreSQL 17** - Base de datos
 - **JWT** - Autenticación
 - **bcrypt** - Encriptación de contraseñas
 

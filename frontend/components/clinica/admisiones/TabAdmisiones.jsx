@@ -37,7 +37,7 @@ export default function TabAdmisiones({ pacienteId, paciente, user, onChangeTab 
   const cargarAdmisiones = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/admisiones?pacienteId=${pacienteId}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones?pacienteId=${pacienteId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -60,7 +60,7 @@ export default function TabAdmisiones({ pacienteId, paciente, user, onChangeTab 
   const cargarUnidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/unidades?activo=true', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades?activo=true`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -77,8 +77,8 @@ export default function TabAdmisiones({ pacienteId, paciente, user, onChangeTab 
     try {
       const token = localStorage.getItem('token');
       const url = unidadId 
-        ? `/api/camas/disponibles?unidadId=${unidadId}`
-        : '/api/camas/disponibles';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles?unidadId=${unidadId}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles`;
       
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -120,7 +120,7 @@ export default function TabAdmisiones({ pacienteId, paciente, user, onChangeTab 
   const handleIniciarAdmision = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/admisiones', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

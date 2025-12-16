@@ -49,7 +49,7 @@ export default function TabMovimientos({ pacienteId, user }) {
       const token = localStorage.getItem('token');
       
       // Cargar admisiones del paciente para obtener movimientos
-      const respAdmisiones = await fetch(`/api/admisiones?pacienteId=${pacienteId}`, {
+      const respAdmisiones = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/admisiones?pacienteId=${pacienteId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const dataAdmisiones = await respAdmisiones.json();
@@ -61,7 +61,7 @@ export default function TabMovimientos({ pacienteId, user }) {
         // Obtener todos los movimientos de todas las admisiones
         const todosMovimientos = [];
         for (const admision of admisionesData) {
-          const respMovimientos = await fetch(`/api/movimientos?admisionId=${admision.id}`, {
+          const respMovimientos = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos?admisionId=${admision.id}`, {
             headers: { Authorization: `Bearer ${token}` },
           });
           const dataMovimientos = await respMovimientos.json();
@@ -85,7 +85,7 @@ export default function TabMovimientos({ pacienteId, user }) {
       }
       
       // Cargar unidades para el modal
-      const respUnidades = await fetch('/api/unidades?activo=true', {
+      const respUnidades = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades?activo=true`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const dataUnidades = await respUnidades.json();
@@ -104,8 +104,8 @@ export default function TabMovimientos({ pacienteId, user }) {
     try {
       const token = localStorage.getItem('token');
       const url = unidadId 
-        ? `/api/camas/disponibles?unidadId=${unidadId}`
-        : '/api/camas/disponibles';
+        ? `${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles?unidadId=${unidadId}`
+        : `${process.env.NEXT_PUBLIC_API_URL}/camas/disponibles`;
       
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -136,7 +136,7 @@ export default function TabMovimientos({ pacienteId, user }) {
         return;
       }
       
-      const response = await fetch('/api/movimientos', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/movimientos`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

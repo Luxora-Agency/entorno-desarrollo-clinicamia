@@ -34,7 +34,7 @@ export default function CamasModule({ user }) {
   const cargarCamas = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/camas', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/camas`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -52,7 +52,7 @@ export default function CamasModule({ user }) {
   const cargarHabitaciones = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/habitaciones', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/habitaciones`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -70,7 +70,7 @@ export default function CamasModule({ user }) {
     
     try {
       const token = localStorage.getItem('token');
-      const url = editingCama ? `/api/camas/${editingCama.id}` : '/api/camas';
+      const url = editingCama ? `${process.env.NEXT_PUBLIC_API_URL}/camas/${editingCama.id}` : `${process.env.NEXT_PUBLIC_API_URL}/camas`;
       const method = editingCama ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -114,7 +114,7 @@ export default function CamasModule({ user }) {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/camas/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/camas/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

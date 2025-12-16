@@ -32,7 +32,7 @@ export default function UnidadesModule({ user }) {
   const cargarUnidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/unidades', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -52,7 +52,7 @@ export default function UnidadesModule({ user }) {
     
     try {
       const token = localStorage.getItem('token');
-      const url = editingUnidad ? `/api/unidades/${editingUnidad.id}` : '/api/unidades';
+      const url = editingUnidad ? `${process.env.NEXT_PUBLIC_API_URL}/unidades/${editingUnidad.id}` : `${process.env.NEXT_PUBLIC_API_URL}/unidades`;
       const method = editingUnidad ? 'PUT' : 'POST';
       
       const response = await fetch(url, {
@@ -100,7 +100,7 @@ export default function UnidadesModule({ user }) {
     
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/unidades/${id}`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

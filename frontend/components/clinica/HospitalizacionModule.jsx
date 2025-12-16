@@ -55,10 +55,10 @@ export default function HospitalizacionModule({ user }) {
       const unidadParam = unidadSeleccionada !== 'all' ? `?unidadId=${unidadSeleccionada}` : '';
       
       const [mapaRes, statsRes] = await Promise.all([
-        fetch(`/api/camas/mapa${unidadParam}`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/camas/mapa${unidadParam}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
-        fetch(`/api/camas/estadisticas${unidadParam}`, {
+        fetch(`${process.env.NEXT_PUBLIC_API_URL}/camas/estadisticas${unidadParam}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
       ]);
@@ -86,7 +86,7 @@ export default function HospitalizacionModule({ user }) {
   const cargarUnidades = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/unidades', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/unidades`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -102,8 +102,8 @@ export default function HospitalizacionModule({ user }) {
   const handleCambiarEstado = async (camaId, nuevoEstado) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/camas/${camaId}/estado`, {
-        method: 'PATCH',
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/camas/${camaId}/estado`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,

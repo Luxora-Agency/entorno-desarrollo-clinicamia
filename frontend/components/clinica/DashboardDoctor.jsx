@@ -111,8 +111,8 @@ export default function DashboardDoctor({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      await fetch(`${apiUrl}/citas/${citaId}`, {
-        method: 'PATCH',
+      await fetch(`${apiUrl}/citas/estado/${citaId}`, {
+        method: 'POST',
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',

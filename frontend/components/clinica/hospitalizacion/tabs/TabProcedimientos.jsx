@@ -32,7 +32,7 @@ export default function TabProcedimientos({ admision, procedimientos, onReload }
   const cargarServicios = async (tipo) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/examenes-procedimientos?tipo=${tipo}&estado=Activo&limit=100`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/examenes-procedimientos?tipo=${tipo}&estado=Activo&limit=100`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -90,7 +90,7 @@ export default function TabProcedimientos({ admision, procedimientos, onReload }
       });
 
       // 1. Crear OrdenMedica (registro del procedimiento ordenado)
-      const ordenResponse = await fetch('/api/ordenes-medicas', {
+      const ordenResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/ordenes-medicas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -114,7 +114,7 @@ export default function TabProcedimientos({ admision, procedimientos, onReload }
 
       // 2. Crear Cita con estado PorAgendar (para que recepción la agende)
       const fechaHoy = new Date();
-      const citaResponse = await fetch('/api/citas', {
+      const citaResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
