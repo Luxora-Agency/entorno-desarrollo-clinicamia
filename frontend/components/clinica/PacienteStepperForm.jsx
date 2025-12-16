@@ -588,6 +588,28 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         />
                       </div>
                     )}
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Estado Civil</Label>
+                      <Select value={formData.estadoCivil} onValueChange={(value) => setFormData({ ...formData, estadoCivil: value })}>
+                        <SelectTrigger className="h-11 mt-2">
+                          <SelectValue placeholder="Seleccionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ESTADO_CIVIL.map(estado => (
+                            <SelectItem key={estado.value} value={estado.value}>{estado.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Ocupación</Label>
+                      <Input
+                        value={formData.ocupacion}
+                        onChange={(e) => setFormData({ ...formData, ocupacion: e.target.value })}
+                        className="h-11 mt-2"
+                        placeholder="Ej: Médico, Ingeniero, Estudiante..."
+                      />
+                    </div>
                   </div>
                 </div>
 
