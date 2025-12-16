@@ -891,6 +891,100 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                   </div>
                 </div>
 
+                {/* Información de Convenios y ARL */}
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Convenios y Aseguramiento Laboral</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Tipo de Usuario</Label>
+                      <Select value={formData.tipoUsuario} onValueChange={(value) => setFormData({ ...formData, tipoUsuario: value })}>
+                        <SelectTrigger className="h-11 mt-2">
+                          <SelectValue placeholder="Seleccionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TIPO_USUARIO.map(tipo => (
+                            <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Convenio</Label>
+                      <Input
+                        value={formData.convenio}
+                        onChange={(e) => setFormData({ ...formData, convenio: e.target.value })}
+                        className="h-11 mt-2"
+                        placeholder="Nombre del convenio o plan"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">ARL (Riesgos Laborales)</Label>
+                      <Select value={formData.arl} onValueChange={(value) => setFormData({ ...formData, arl: value })}>
+                        <SelectTrigger className="h-11 mt-2">
+                          <SelectValue placeholder="Seleccionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {ARL_COLOMBIA.map(arl => (
+                            <SelectItem key={arl.codigo} value={arl.nombre}>{arl.nombre}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Número de Carnet / Póliza</Label>
+                      <Input
+                        value={formData.carnetPoliza}
+                        onChange={(e) => setFormData({ ...formData, carnetPoliza: e.target.value })}
+                        className="h-11 mt-2"
+                        placeholder="Ej: POL-123456"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Información de Referencia */}
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Información de Referencia (Opcional)</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Referido Por</Label>
+                      <Input
+                        value={formData.referidoPor}
+                        onChange={(e) => setFormData({ ...formData, referidoPor: e.target.value })}
+                        className="h-11 mt-2"
+                        placeholder="Ej: Dr. Juan Pérez"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Nombre de Quien Refiere</Label>
+                      <Input
+                        value={formData.nombreRefiere}
+                        onChange={(e) => setFormData({ ...formData, nombreRefiere: e.target.value })}
+                        className="h-11 mt-2"
+                        placeholder="Nombre completo"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Tipo de Paciente</Label>
+                      <Input
+                        value={formData.tipoPaciente}
+                        onChange={(e) => setFormData({ ...formData, tipoPaciente: e.target.value })}
+                        className="h-11 mt-2"
+                        placeholder="Ej: Empleado, Particular, VIP"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Categoría</Label>
+                      <Input
+                        value={formData.categoria}
+                        onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
+                        className="h-11 mt-2"
+                        placeholder="Categoría del paciente"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {(formData.epsAseguradora || formData.regimenAfiliacion) && (
                   <Card className="bg-gray-50 border-2 border-gray-200">
                     <CardContent className="p-4">
