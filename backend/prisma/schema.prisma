@@ -90,6 +90,7 @@ model Paciente {
   cedula                         String    @unique
   fechaNacimiento                DateTime? @map("fecha_nacimiento") @db.Date
   genero                         String?
+  estadoCivil                    String?   @map("estado_civil")
   
   // Ubicación y Residencia
   paisNacimiento                 String?   @map("pais_nacimiento")
@@ -112,6 +113,21 @@ model Paciente {
   nivelSisben                    String?   @map("nivel_sisben")
   numeroAutorizacion             String?   @map("numero_autorizacion")
   fechaAfiliacion                DateTime? @map("fecha_afiliacion") @db.Date
+  convenio                       String?
+  carnetPoliza                   String?   @map("carnet_poliza")
+  arl                            String?
+  
+  // Información Demográfica y Laboral
+  ocupacion                      String?
+  nivelEducacion                 String?   @map("nivel_educacion")
+  empleadorActual                String?   @map("empleador_actual")
+  tipoUsuario                    String?   @map("tipo_usuario")
+  
+  // Información de Referencia
+  referidoPor                    String?   @map("referido_por")
+  nombreRefiere                  String?   @map("nombre_refiere")
+  tipoPaciente                   String?   @map("tipo_paciente")
+  categoria                      String?
   
   // Información Médica
   tipoSangre                     String?   @map("tipo_sangre")
