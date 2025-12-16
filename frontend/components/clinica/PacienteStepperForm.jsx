@@ -35,16 +35,20 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
     fechaNacimiento: '',
     generoBiologico: '',
     otroGenero: '',
+    estadoCivil: '',
+    ocupacion: '',
     paisNacimiento: 'Colombia',
     departamento: '',
     municipio: '',
     barrioVereda: '',
     direccionCompleta: '',
     
-    // Paso 2: Contacto
+    // Paso 2: Contacto y Datos Adicionales
     telefonoCelular: '',
     correoElectronico: '',
     contactosEmergencia: [{ nombre: '', telefono: '', parentesco: '' }],
+    nivelEducacion: '',
+    empleadorActual: '',
     
     // Paso 3: Aseguramiento
     epsAseguradora: '',
@@ -53,6 +57,14 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
     nivelSisben: '',
     numeroAutorizacion: '',
     fechaAfiliacion: '',
+    convenio: '',
+    arl: '',
+    carnetPoliza: '',
+    tipoUsuario: '',
+    referidoPor: '',
+    nombreRefiere: '',
+    tipoPaciente: '',
+    categoria: '',
     
     // Paso 4: Información Médica
     tipoSangre: '',
