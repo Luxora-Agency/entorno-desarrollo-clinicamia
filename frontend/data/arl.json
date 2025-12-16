@@ -1,0 +1,47 @@
+[
+  {
+    "codigo": "ARL001",
+    "nombre": "SURA ARL",
+    "nit": "800144331-1"
+  },
+  {
+    "codigo": "ARL002",
+    "nombre": "Positiva Compañía de Seguros",
+    "nit": "800160527-3"
+  },
+  {
+    "codigo": "ARL003",
+    "nombre": "Seguros Bolívar",
+    "nit": "860002400-7"
+  },
+  {
+    "codigo": "ARL004",
+    "nombre": "AXA COLPATRIA",
+    "nit": "860006011-9"
+  },
+  {
+    "codigo": "ARL005",
+    "nombre": "Liberty Seguros",
+    "nit": "860011153-6"
+  },
+  {
+    "codigo": "ARL006",
+    "nombre": "La Equidad Seguros",
+    "nit": "860026029-8"
+  },
+  {
+    "codigo": "ARL007",
+    "nombre": "Mapfre Seguros",
+    "nit": "860009518-1"
+  },
+  {
+    "codigo": "ARL008",
+    "nombre": "Seguros de Vida Alfa",
+    "nit": "860002180-6"
+  },
+  {
+    "codigo": "ARL009",
+    "nombre": "Aurora ARL (Antes Colmena)",
+    "nit": "800037800-0"
+  }
+]
