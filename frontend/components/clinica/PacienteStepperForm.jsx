@@ -776,6 +776,35 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                     </Button>
                   )}
                 </div>
+
+                {/* Información Adicional */}
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Información Adicional</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Nivel de Educación</Label>
+                      <Select value={formData.nivelEducacion} onValueChange={(value) => setFormData({ ...formData, nivelEducacion: value })}>
+                        <SelectTrigger className="h-11 mt-2">
+                          <SelectValue placeholder="Seleccionar..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {NIVEL_EDUCACION.map(nivel => (
+                            <SelectItem key={nivel.value} value={nivel.value}>{nivel.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-semibold text-gray-700">Empleador Actual</Label>
+                      <Input
+                        value={formData.empleadorActual}
+                        onChange={(e) => setFormData({ ...formData, empleadorActual: e.target.value })}
+                        className="h-11 mt-2"
+                        placeholder="Nombre de la empresa o institución"
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
 
