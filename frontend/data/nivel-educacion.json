@@ -1,0 +1,15 @@
+[
+  { "value": "ninguno", "label": "Ninguno" },
+  { "value": "preescolar", "label": "Preescolar" },
+  { "value": "primaria_incompleta", "label": "Primaria Incompleta" },
+  { "value": "primaria_completa", "label": "Primaria Completa" },
+  { "value": "bachillerato_incompleto", "label": "Bachillerato Incompleto" },
+  { "value": "bachillerato_completo", "label": "Bachillerato Completo" },
+  { "value": "tecnico", "label": "Técnico" },
+  { "value": "tecnologo", "label": "Tecnólogo" },
+  { "value": "universitario_incompleto", "label": "Universitario Incompleto" },
+  { "value": "universitario_completo", "label": "Universitario Completo" },
+  { "value": "postgrado", "label": "Postgrado" },
+  { "value": "maestria", "label": "Maestría" },
+  { "value": "doctorado", "label": "Doctorado" }
+]
