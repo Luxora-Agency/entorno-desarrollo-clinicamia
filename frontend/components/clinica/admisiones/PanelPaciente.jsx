@@ -4,9 +4,9 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Edit, User, Phone, Mail, Heart, Calendar, Activity } from 'lucide-react';
+import { Edit, User, Phone, Mail, Heart, Calendar, Activity, FileHeart } from 'lucide-react';
 
-export default function PanelPaciente({ paciente, onEdit }) {
+export default function PanelPaciente({ paciente, onEdit, onGoToHCE }) {
   if (!paciente) return null;
 
   const calcularEdad = (fechaNacimiento) => {
