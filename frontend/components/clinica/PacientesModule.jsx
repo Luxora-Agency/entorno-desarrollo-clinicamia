@@ -313,7 +313,7 @@ export default function PacientesModule({ user }) {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => setViewingPaciente(paciente.id)}
+                              onClick={() => router.push(`?module=pacientes&pacienteId=${paciente.id}`)}
                               className="hover:bg-emerald-50 hover:text-emerald-600"
                               title="Ver detalles del paciente"
                             >
