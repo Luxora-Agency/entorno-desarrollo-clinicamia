@@ -589,7 +589,7 @@ export default function DashboardEnfermera({ user }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {medicamentosPendientes.map((med) => (
+                  {medicamentosProgramados.map((med) => (
                     <TableRow key={med.id} className={med.estado === 'Atrasado' ? 'bg-red-50' : ''}>
                       <TableCell className="font-semibold">{med.horaProgramada}</TableCell>
                       <TableCell>{med.paciente}</TableCell>
