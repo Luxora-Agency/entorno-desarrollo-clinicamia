@@ -645,7 +645,7 @@ function FormularioTriaje({ onClose, onSuccess, user }) {
                   key={cat}
                   type="button"
                   variant={formData.categoria_manchester === cat ? 'default' : 'outline'}
-                  className={formData.categoria_manchester === cat ? getCategoriaColor(cat) : ''}
+                  className={formData.categoria_manchester === cat ? getCategoriaColorLocal(cat) : ''}
                   onClick={() => handleCategoriaChange(cat)}
                 >
                   {cat}
