@@ -1116,8 +1116,8 @@ function ModalDisposicion({ open, onClose, atencion, tipo, onSuccess, user }) {
                     </SelectTrigger>
                     <SelectContent>
                       {doctores.map(doc => (
-                        <SelectItem key={doc.usuario.id} value={doc.usuario.id}>
-                          Dr. {doc.usuario.nombre} {doc.usuario.apellido}
+                        <SelectItem key={doc.usuarioId} value={doc.usuarioId}>
+                          Dr. {doc.nombre} {doc.apellido}
                         </SelectItem>
                       ))}
                     </SelectContent>
