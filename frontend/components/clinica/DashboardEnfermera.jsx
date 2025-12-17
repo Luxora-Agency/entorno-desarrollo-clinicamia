@@ -279,91 +279,173 @@ export default function DashboardEnfermera({ user }) {
   };
 
   // Funciones de acción
-  const handleAdministrarMedicamento = () => {
+  const handleAdministrarMedicamento = async () => {
     if (!selectedMedicamento) return;
     
-    setMedicamentosPendientes(prev => 
-      prev.map(m => 
-        m.id === selectedMedicamento.id 
-          ? { ...m, estado: 'Administrado' }
-          : m
-      )
-    );
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-    // Actualizar conteo de medicamentos pendientes del paciente
-    setPacientesAsignados(prev =>
-      prev.map(p =>
-        p.id === selectedMedicamento.pacienteId
-          ? { ...p, medicamentosPendientes: Math.max(0, p.medicamentosPendientes - 1) }
-          : p
-      )
-    );
+      const response = await fetch(`${apiUrl}/administraciones/${selectedMedicamento.id}/administrar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          dosis_administrada: formAdministracion.dosis_administrada,
+          via_administrada: formAdministracion.via_administrada,
+          observaciones: formAdministracion.observaciones,
+          reaccion_adversa: formAdministracion.reaccion_adversa,
+          descripcion_reaccion: formAdministracion.descripcion_reaccion,
+        }),
+      });
 
-    setShowAdministrarModal(false);
-    setSelectedMedicamento(null);
-    setFormAdministracion({ observaciones: '', reaccionAdversa: false });
+      if (response.ok) {
+        toast({ description: 'Medicamento administrado correctamente' });
+        loadDashboardData();
+        setShowAdministrarModal(false);
+        setSelectedMedicamento(null);
+        setFormAdministracion({
+          dosis_administrada: '',
+          via_administrada: '',
+          observaciones: '',
+          reaccion_adversa: false,
+          descripcion_reaccion: '',
+        });
+      } else {
+        const error = await response.json();
+        toast({ description: error.message || 'Error al administrar medicamento', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({ description: 'Error al administrar medicamento', variant: 'destructive' });
+    }
   };
 
-  const handleOmitirMedicamento = (medId) => {
-    setMedicamentosPendientes(prev => 
-      prev.map(m => 
-        m.id === medId 
-          ? { ...m, estado: 'Omitido' }
-          : m
-      )
-    );
+  const handleOmitirMedicamento = async (medId, motivo) => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const response = await fetch(`${apiUrl}/administraciones/${medId}/omitir`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ motivo: motivo || 'Omitido por enfermería' }),
+      });
+
+      if (response.ok) {
+        toast({ description: 'Medicamento omitido' });
+        loadDashboardData();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
   };
 
-  const handleRegistrarSignos = () => {
-    const nuevoRegistro = {
-      id: `SV-${Date.now()}`,
-      pacienteId: selectedPaciente?.id,
-      paciente: selectedPaciente?.nombre,
-      habitacion: selectedPaciente?.habitacion,
-      fecha: new Date().toISOString(),
-      ...formSignos
-    };
+  const handleRegistrarSignos = async () => {
+    if (!selectedPaciente) return;
 
-    // Actualizar último registro de signos vitales del paciente
-    setPacientesAsignados(prev =>
-      prev.map(p =>
-        p.id === selectedPaciente?.id
-          ? { ...p, signosVitalesUltimo: new Date().toLocaleString('es-CO') }
-          : p
-      )
-    );
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-    // Remover de signos pendientes
-    setSignosVitalesPendientes(prev =>
-      prev.filter(sv => sv.pacienteId !== selectedPaciente?.id)
-    );
+      const response = await fetch(`${apiUrl}/signos-vitales`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          paciente_id: selectedPaciente.pacienteId,
+          admision_id: selectedPaciente.id,
+          registrado_por: user.id,
+          temperatura: formSignos.temperatura ? parseFloat(formSignos.temperatura) : null,
+          presion_sistolica: formSignos.presionSistolica ? parseInt(formSignos.presionSistolica) : null,
+          presion_diastolica: formSignos.presionDiastolica ? parseInt(formSignos.presionDiastolica) : null,
+          frecuencia_cardiaca: formSignos.frecuenciaCardiaca ? parseInt(formSignos.frecuenciaCardiaca) : null,
+          frecuencia_respiratoria: formSignos.frecuenciaRespiratoria ? parseInt(formSignos.frecuenciaRespiratoria) : null,
+          saturacion_oxigeno: formSignos.saturacionOxigeno ? parseFloat(formSignos.saturacionOxigeno) : null,
+          peso: formSignos.peso ? parseFloat(formSignos.peso) : null,
+          talla: formSignos.talla ? parseFloat(formSignos.talla) : null,
+          escala_dolor: formSignos.escalaDolor ? parseInt(formSignos.escalaDolor) : null,
+          observaciones: formSignos.observaciones,
+        }),
+      });
 
-    setShowSignosModal(false);
-    setSelectedPaciente(null);
-    setFormSignos({
-      presionArterial: '',
-      frecuenciaCardiaca: '',
-      frecuenciaRespiratoria: '',
-      temperatura: '',
-      saturacionO2: '',
-      observaciones: ''
-    });
+      if (response.ok) {
+        toast({ description: 'Signos vitales registrados correctamente' });
+        setShowSignosModal(false);
+        setSelectedPaciente(null);
+        setFormSignos({
+          temperatura: '',
+          presionSistolica: '',
+          presionDiastolica: '',
+          frecuenciaCardiaca: '',
+          frecuenciaRespiratoria: '',
+          saturacionOxigeno: '',
+          peso: '',
+          talla: '',
+          escalaDolor: 0,
+          observaciones: ''
+        });
+      } else {
+        const error = await response.json();
+        toast({ description: error.message || 'Error al registrar signos vitales', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({ description: 'Error al registrar signos vitales', variant: 'destructive' });
+    }
   };
 
-  const handleAgregarNota = () => {
-    const nuevaNota = {
-      id: `NOTA-${Date.now()}`,
-      pacienteId: selectedPaciente?.id,
-      paciente: selectedPaciente?.nombre,
-      fecha: new Date().toISOString(),
-      tipo: formNota.tipo,
-      nota: formNota.nota,
-    };
+  const handleAgregarNota = async () => {
+    if (!selectedPaciente || !formNota.contenido) return;
 
-    setNotasEnfermeria(prev => [nuevaNota, ...prev]);
-    setShowNotaModal(false);
-    setSelectedPaciente(null);
-    setFormNota({ tipo: 'Evolución', nota: '' });
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const response = await fetch(`${apiUrl}/notas-enfermeria`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          admision_id: selectedPaciente.id,
+          paciente_id: selectedPaciente.pacienteId,
+          enfermera_id: user.id,
+          tipo_nota: formNota.tipo_nota,
+          titulo: formNota.titulo,
+          contenido: formNota.contenido,
+          turno: turnoActual,
+          requiere_seguimiento: formNota.requiere_seguimiento,
+        }),
+      });
+
+      if (response.ok) {
+        toast({ description: 'Nota registrada correctamente' });
+        loadDashboardData();
+        setShowNotaModal(false);
+        setSelectedPaciente(null);
+        setFormNota({
+          tipo_nota: 'Evolucion',
+          titulo: '',
+          contenido: '',
+          requiere_seguimiento: false,
+        });
+      } else {
+        const error = await response.json();
+        toast({ description: error.message || 'Error al registrar nota', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({ description: 'Error al registrar nota', variant: 'destructive' });
+    }
   };
 
   const handleCompletarTarea = (tareaId) => {
