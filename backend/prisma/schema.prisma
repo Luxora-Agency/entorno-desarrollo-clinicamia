@@ -1387,6 +1387,63 @@ model AdministracionMedicamento {
   @@map("administraciones_medicamentos")
 }
 
+// Asignación de enfermeras a pisos/unidades
+model AsignacionEnfermeria {
+  id              String              @id @default(uuid())
+  enfermeraId     String              @map("enfermera_id") @db.Uuid
+  unidadId        String              @map("unidad_id")
+  piso            Int?                // Número de piso (puede ser null si es toda la unidad)
+  turno           TurnoEnfermeria
+  fechaInicio     DateTime            @default(now()) @map("fecha_inicio")
+  fechaFin        DateTime?           @map("fecha_fin") // null = asignación activa
+  activo          Boolean             @default(true)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  
+  // Relaciones
+  enfermera       Usuario             @relation("EnfermeraAsignaciones", fields: [enfermeraId], references: [id], onDelete: Cascade)
+  unidad          Unidad              @relation(fields: [unidadId], references: [id])
+  
+  @@index([enfermeraId])
+  @@index([unidadId])
+  @@index([activo])
+  @@map("asignaciones_enfermeria")
+}
+
+// Notas de enfermería (separadas de evoluciones médicas)
+model NotaEnfermeria {
+  id              String              @id @default(uuid())
+  admisionId      String              @map("admision_id")
+  pacienteId      String              @map("paciente_id")
+  enfermeraId     String              @map("enfermera_id") @db.Uuid
+  
+  // Contenido de la nota
+  tipoNota        TipoNotaEnfermeria  @map("tipo_nota")
+  titulo          String?             @db.VarChar(255)
+  contenido       String              @db.Text
+  
+  // Contexto
+  turno           TurnoEnfermeria
+  fechaHora       DateTime            @default(now()) @map("fecha_hora")
+  
+  // Prioridad y seguimiento
+  requiereSeguimiento Boolean         @default(false) @map("requiere_seguimiento")
+  seguimientoPor  String?             @map("seguimiento_por") // Médico, Enfermera jefe, etc.
+  
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  
+  // Relaciones
+  admision        Admision            @relation(fields: [admisionId], references: [id], onDelete: Cascade)
+  paciente        Paciente            @relation(fields: [pacienteId], references: [id])
+  enfermera       Usuario             @relation("NotasEnfermera", fields: [enfermeraId], references: [id])
+  
+  @@index([admisionId])
+  @@index([pacienteId])
+  @@index([enfermeraId])
+  @@index([fechaHora])
+  @@map("notas_enfermeria")
+}
+
 // Modelo de permisos por rol
 model RolePermiso {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
