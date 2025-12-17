@@ -128,11 +128,6 @@ export default function DashboardEnfermera({ user }) {
     }
   };
 
-  const [formAdministracion, setFormAdministracion] = useState({
-    observaciones: '',
-    reaccionAdversa: false
-  });
-  
   // Mock data - pacientes asignados
   const [pacientesAsignados, setPacientesAsignados] = useState([
     {
