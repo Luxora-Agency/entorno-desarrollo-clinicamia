@@ -78,6 +78,8 @@ model Usuario {
   administracionesMedicamentos  AdministracionMedicamento[] @relation("AdministracionEnfermera")
   urgenciasMedico               AtencionUrgencia[]      @relation("UrgenciaMedico")
   urgenciasEnfermera            AtencionUrgencia[]      @relation("UrgenciaEnfermera")
+  asignacionesEnfermeria        AsignacionEnfermeria[]  @relation("EnfermeraAsignaciones")
+  notasEnfermeria               NotaEnfermeria[]        @relation("NotasEnfermera")
 
   @@map("usuarios")
 }
@@ -164,6 +166,7 @@ model Paciente {
   prescripciones                 Prescripcion[]
   administracionesMedicamentos   AdministracionMedicamento[]
   atencionesUrgencias            AtencionUrgencia[]
+  notasEnfermeria                NotaEnfermeria[]
 
   @@map("pacientes")
 }
@@ -432,6 +435,7 @@ model Unidad {
   admisiones             Admision[]
   movimientosOrigen      Movimiento[]  @relation("MovimientoUnidadOrigen")
   movimientosDestino     Movimiento[]  @relation("MovimientoUnidadDestino")
+  asignacionesEnfermeria AsignacionEnfermeria[]
 
   @@map("unidades")
 }
@@ -507,6 +511,7 @@ model Admision {
   procedimientos        Procedimiento[]
   prescripciones        Prescripcion[]
   atencionesUrgencias   AtencionUrgencia[]
+  notasEnfermeria       NotaEnfermeria[]
 
   @@map("admisiones")
 }
