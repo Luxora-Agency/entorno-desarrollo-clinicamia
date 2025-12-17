@@ -473,7 +473,7 @@ export default function DashboardEnfermera({ user }) {
               </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-3">
-                  {medicamentosPendientes.filter(m => m.estado === 'Atrasado').map((med) => (
+                  {medicamentosProgramados.filter(m => m.estado === 'Atrasado').map((med) => (
                     <div key={med.id} className="flex items-center justify-between p-4 bg-red-50 rounded-lg border border-red-200">
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
