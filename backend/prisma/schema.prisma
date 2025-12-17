@@ -76,6 +76,8 @@ model Usuario {
   prescripcionesMedico          Prescripcion[]          @relation("PrescripcionMedico")
   prescripcionesFirmadas        Prescripcion[]          @relation("PrescripcionFirma")
   administracionesMedicamentos  AdministracionMedicamento[] @relation("AdministracionEnfermera")
+  urgenciasMedico               AtencionUrgencia[]      @relation("UrgenciaMedico")
+  urgenciasEnfermera            AtencionUrgencia[]      @relation("UrgenciaEnfermera")
 
   @@map("usuarios")
 }
