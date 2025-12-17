@@ -325,8 +325,7 @@ export default function PacientesModule({ user }) {
                               size="sm"
                               variant="ghost"
                               onClick={() => {
-                                setEditingPaciente(paciente);
-                                setShowForm(true);
+                                router.push(`?module=agregar-paciente&pacienteId=${paciente.id}`);
                               }}
                               className="hover:bg-blue-50 hover:text-blue-600"
                             >
