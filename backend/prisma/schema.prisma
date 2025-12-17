@@ -163,6 +163,7 @@ model Paciente {
   procedimientos                 Procedimiento[]
   prescripciones                 Prescripcion[]
   administracionesMedicamentos   AdministracionMedicamento[]
+  atencionesUrgencias            AtencionUrgencia[]
 
   @@map("pacientes")
 }
@@ -199,6 +200,7 @@ model Cita {
   signosVitales           SignoVital[]
   procedimientos          Procedimiento[]
   prescripciones          Prescripcion[]
+  atencionesUrgencias     AtencionUrgencia[]
 
   @@map("citas")
 }
@@ -504,6 +506,7 @@ model Admision {
   interconsultas        Interconsulta[]
   procedimientos        Procedimiento[]
   prescripciones        Prescripcion[]
+  atencionesUrgencias   AtencionUrgencia[]
 
   @@map("admisiones")
 }
