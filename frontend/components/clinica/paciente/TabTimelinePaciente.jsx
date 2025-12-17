@@ -77,13 +77,13 @@ export default function TabTimelinePaciente({ pacienteId }) {
           tipo: 'signos',
           fecha: s.createdAt,
           titulo: 'Signos Vitales',
-          descripcion: `Temp: ${s.temperatura || 'N/A'}°C, PA: ${s.presionSistolica || '--'}/${s.presionDiastolica || '--'}`,
+          descripcion: `Temp: ${s.temperatura || 'N/A'}C, PA: ${s.presionSistolica || '--'}/${s.presionDiastolica || '--'}`,
         })),
         ...(diagnosticos.data || []).map(d => ({
           ...d,
           tipo: 'diagnostico',
           fecha: d.createdAt,
-          titulo: 'Diagnóstico',
+          titulo: 'Diagnostico',
           descripcion: `${d.codigoCIE11} - ${d.descripcionCIE11}`,
         })),
         ...(alertas.data || []).map(a => ({
