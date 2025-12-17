@@ -34,6 +34,8 @@ export default function DashboardEnfermera({ user }) {
   const [medicamentosProgramados, setMedicamentosProgramados] = useState([]);
   const [notasEnfermeria, setNotasEnfermeria] = useState([]);
   const [turnoActual, setTurnoActual] = useState('Tarde');
+  const [signosVitalesPendientes, setSignosVitalesPendientes] = useState([]);
+  const [tareasDelTurno, setTareasDelTurno] = useState([]);
   
   // Form states
   const [formSignos, setFormSignos] = useState({
