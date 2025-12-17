@@ -2,23 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, FileHeart } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import PanelPaciente from './admisiones/PanelPaciente';
 import TabInformacion from './admisiones/TabInformacion';
-import TabCitas from './admisiones/TabCitas';
-import TabAdmisiones from './admisiones/TabAdmisiones';
-import TabMovimientos from './admisiones/TabMovimientos';
-import TabHistoria from './admisiones/TabHistoria';
-import TabFacturacion from './admisiones/TabFacturacion';
-import TabOrdenesMedicas from './admisiones/TabOrdenesMedicas';
-import TabOrdenesMedicamentos from './admisiones/TabOrdenesMedicamentos';
-import TabEgreso from './admisiones/TabEgreso';
+import TabCitasPaciente from './paciente/TabCitasPaciente';
+import TabExamenesProcedimientosPaciente from './paciente/TabExamenesProcedimientosPaciente';
+import TabHospitalizacionesPaciente from './paciente/TabHospitalizacionesPaciente';
+import TabTimelinePaciente from './paciente/TabTimelinePaciente';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function VerPaciente({ pacienteId, onBack, user }) {
+  const router = useRouter();
   const [paciente, setPaciente] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('informacion');
+  const [activeTab, setActiveTab] = useState('timeline');
 
   useEffect(() => {
     const fetchPaciente = async () => {
@@ -52,8 +50,11 @@ export default function VerPaciente({ pacienteId, onBack, user }) {
   }, [pacienteId]);
 
   const handleEdit = () => {
-    // Redirigir al módulo de edición de paciente
-    window.location.href = `/?module=agregar-paciente&pacienteId=${pacienteId}`;
+    router.push(`?module=agregar-paciente&pacienteId=${pacienteId}`);
+  };
+
+  const handleGoToHCE = () => {
+    router.push(`?module=hce&pacienteId=${pacienteId}`);
   };
 
   if (loading) {
@@ -103,79 +104,54 @@ export default function VerPaciente({ pacienteId, onBack, user }) {
 
         <div className="space-y-6">
           {/* Panel Superior del Paciente */}
-          <PanelPaciente paciente={paciente} onEdit={handleEdit} />
+          <PanelPaciente 
+            paciente={paciente} 
+            onEdit={handleEdit}
+            onGoToHCE={handleGoToHCE}
+          />
 
           {/* Contenido Principal con Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-4 lg:grid-cols-9 h-auto">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto">
+              <TabsTrigger value="timeline" className="text-xs lg:text-sm">
+                Timeline HCE
+              </TabsTrigger>
               <TabsTrigger value="informacion" className="text-xs lg:text-sm">
                 Información
               </TabsTrigger>
               <TabsTrigger value="citas" className="text-xs lg:text-sm">
-                Citas
+                Citas Médicas
               </TabsTrigger>
-              <TabsTrigger value="admisiones" className="text-xs lg:text-sm">
-                Admisiones
+              <TabsTrigger value="examenes" className="text-xs lg:text-sm">
+                Exámenes y Procedimientos
               </TabsTrigger>
-              <TabsTrigger value="movimientos" className="text-xs lg:text-sm">
-                Movimientos
-              </TabsTrigger>
-              <TabsTrigger value="ordenes-medicas" className="text-xs lg:text-sm">
-                Órdenes Médicas
-              </TabsTrigger>
-              <TabsTrigger value="ordenes-medicamentos" className="text-xs lg:text-sm">
-                Medicamentos
-              </TabsTrigger>
-              <TabsTrigger value="egreso" className="text-xs lg:text-sm">
-                Egreso
-              </TabsTrigger>
-              <TabsTrigger value="historia" className="text-xs lg:text-sm">
-                Historia
-              </TabsTrigger>
-              <TabsTrigger value="facturacion" className="text-xs lg:text-sm">
-                Facturación
+              <TabsTrigger value="hospitalizaciones" className="text-xs lg:text-sm">
+                Hospitalizaciones
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="timeline" className="mt-6">
+              <TabTimelinePaciente pacienteId={pacienteId} />
+            </TabsContent>
 
             <TabsContent value="informacion" className="mt-6">
               <TabInformacion paciente={paciente} />
             </TabsContent>
 
             <TabsContent value="citas" className="mt-6">
-              <TabCitas pacienteId={pacienteId} user={user} />
+              <TabCitasPaciente pacienteId={pacienteId} user={user} />
             </TabsContent>
 
-            <TabsContent value="admisiones" className="mt-6">
-              <TabAdmisiones 
+            <TabsContent value="examenes" className="mt-6">
+              <TabExamenesProcedimientosPaciente pacienteId={pacienteId} user={user} />
+            </TabsContent>
+
+            <TabsContent value="hospitalizaciones" className="mt-6">
+              <TabHospitalizacionesPaciente 
                 pacienteId={pacienteId} 
                 paciente={paciente}
-                user={user} 
-                onChangeTab={setActiveTab}
+                user={user}
               />
-            </TabsContent>
-
-            <TabsContent value="movimientos" className="mt-6">
-              <TabMovimientos pacienteId={pacienteId} user={user} />
-            </TabsContent>
-
-            <TabsContent value="ordenes-medicas" className="mt-6">
-              <TabOrdenesMedicas pacienteId={pacienteId} paciente={paciente} />
-            </TabsContent>
-
-            <TabsContent value="ordenes-medicamentos" className="mt-6">
-              <TabOrdenesMedicamentos pacienteId={pacienteId} paciente={paciente} />
-            </TabsContent>
-
-            <TabsContent value="egreso" className="mt-6">
-              <TabEgreso pacienteId={pacienteId} paciente={paciente} user={user} />
-            </TabsContent>
-
-            <TabsContent value="historia" className="mt-6">
-              <TabHistoria pacienteId={pacienteId} paciente={paciente} />
-            </TabsContent>
-
-            <TabsContent value="facturacion" className="mt-6">
-              <TabFacturacion pacienteId={pacienteId} paciente={paciente} />
             </TabsContent>
           </Tabs>
         </div>
