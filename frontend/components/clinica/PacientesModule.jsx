@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +13,7 @@ import PacienteStepperForm from './PacienteStepperForm';
 import VerPaciente from './VerPaciente';
 
 export default function PacientesModule({ user }) {
+  const router = useRouter();
   const [pacientes, setPacientes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
