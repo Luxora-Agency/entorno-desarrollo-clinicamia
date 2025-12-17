@@ -151,7 +151,7 @@ export default function PacientesModule({ user }) {
           <p className="text-gray-600 ml-14">Administra los pacientes de la clínica</p>
         </div>
         <Button 
-          onClick={() => setShowForm(true)}
+          onClick={() => router.push('?module=agregar-paciente')}
           className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md w-full sm:w-auto h-11 font-semibold"
         >
           <Plus className="w-4 h-4 mr-2" />
