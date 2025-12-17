@@ -38,7 +38,6 @@ export default function TabTimelinePaciente({ pacienteId }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-      // Cargar datos de todos los módulos en paralelo
       const [evoluciones, signos, diagnosticos, alertas, procedimientos, prescripciones] = await Promise.all([
         fetch(`${apiUrl}/evoluciones?paciente_id=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
@@ -65,7 +64,6 @@ export default function TabTimelinePaciente({ pacienteId }) {
         }).then(r => r.ok ? r.json() : { data: [] }),
       ]);
 
-      // Mapear todo a eventos unificados
       const eventosUnificados = [
         ...(evoluciones.data || []).map(e => ({
           ...e,
@@ -79,7 +77,7 @@ export default function TabTimelinePaciente({ pacienteId }) {
           tipo: 'signos',
           fecha: s.createdAt,
           titulo: 'Signos Vitales',
-          descripcion: `Temperatura: ${s.temperatura || 'N/A'}°C, PA: ${s.presionSistolica || '--'}/${s.presionDiastolica || '--'}`,
+          descripcion: `Temp: ${s.temperatura || 'N/A'}°C, PA: ${s.presionSistolica || '--'}/${s.presionDiastolica || '--'}`,
         })),
         ...(diagnosticos.data || []).map(d => ({
           ...d,
@@ -107,11 +105,10 @@ export default function TabTimelinePaciente({ pacienteId }) {
           tipo: 'prescripcion',
           fecha: p.createdAt,
           titulo: 'Prescripción Médica',
-          descripcion: `Medicamentos prescritos`,
+          descripcion: 'Medicamentos prescritos',
         })),
       ];
 
-      // Ordenar por fecha descendente
       const ordenados = eventosUnificados.sort((a, b) => 
         new Date(b.fecha) - new Date(a.fecha)
       );
@@ -165,38 +162,36 @@ export default function TabTimelinePaciente({ pacienteId }) {
     : eventos.filter(e => e.tipo === filtroTipo);
 
   return (
-    <div className=\"space-y-6\">
-      {/* Header */}
-      <Card className=\"border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-white\">
+    <div className="space-y-6">
+      <Card className="border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-white">
         <CardHeader>
-          <div className=\"flex items-center justify-between flex-wrap gap-4\">
-            <div className=\"flex items-center gap-3\">
-              <div className=\"p-3 bg-cyan-600 rounded-lg\">
-                <Calendar className=\"w-6 h-6 text-white\" />
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-cyan-600 rounded-lg">
+                <Calendar className="w-6 h-6 text-white" />
               </div>
               <div>
-                <CardTitle className=\"text-2xl\">Timeline de Historia Clínica</CardTitle>
-                <p className=\"text-sm text-gray-600 mt-1\">
-                  Vista cronológica de todos los eventos médicos del paciente
+                <CardTitle className="text-2xl">Timeline de Historia Clínica</CardTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Vista cronológica de todos los eventos médicos
                 </p>
               </div>
             </div>
             
-            {/* Filtro */}
-            <div className=\"flex items-center gap-2\">
-              <Filter className=\"h-4 w-4 text-gray-600\" />
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-gray-600" />
               <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className=\"w-48\">
+                <SelectTrigger className="w-48">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value=\"todos\">Todos los eventos</SelectItem>
-                  <SelectItem value=\"evolucion\">Evoluciones SOAP</SelectItem>
-                  <SelectItem value=\"signos\">Signos Vitales</SelectItem>
-                  <SelectItem value=\"diagnostico\">Diagnósticos</SelectItem>
-                  <SelectItem value=\"alerta\">Alertas</SelectItem>
-                  <SelectItem value=\"procedimiento\">Procedimientos</SelectItem>
-                  <SelectItem value=\"prescripcion\">Prescripciones</SelectItem>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="evolucion">Evoluciones</SelectItem>
+                  <SelectItem value="signos">Signos Vitales</SelectItem>
+                  <SelectItem value="diagnostico">Diagnósticos</SelectItem>
+                  <SelectItem value="alerta">Alertas</SelectItem>
+                  <SelectItem value="procedimiento">Procedimientos</SelectItem>
+                  <SelectItem value="prescripcion">Prescripciones</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -204,133 +199,120 @@ export default function TabTimelinePaciente({ pacienteId }) {
         </CardHeader>
       </Card>
 
-      {/* Timeline */}
       {loading ? (
         <Card>
-          <CardContent className=\"p-6\">
-            <p className=\"text-center text-gray-600 py-8\">Cargando timeline...</p>
+          <CardContent className="p-6">
+            <p className="text-center text-gray-600 py-8">Cargando timeline...</p>
           </CardContent>
         </Card>
       ) : eventosFiltrados.length === 0 ? (
         <Card>
-          <CardContent className=\"p-6\">
-            <div className=\"text-center py-12\">
-              <Calendar className=\"w-16 h-16 text-gray-300 mx-auto mb-4\" />
-              <p className=\"text-gray-600 mb-2\">No hay eventos registrados</p>
-              <p className=\"text-sm text-gray-500\">
-                Los eventos aparecerán aquí a medida que se registren durante las consultas
+          <CardContent className="p-6">
+            <div className="text-center py-12">
+              <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <p className="text-gray-600 mb-2">No hay eventos registrados</p>
+              <p className="text-sm text-gray-500">
+                Los eventos aparecerán aquí a medida que se registren
               </p>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className=\"space-y-4\">
-          {/* Stats */}
-          <div className=\"grid grid-cols-3 md:grid-cols-6 gap-3\">
-            <Card className=\"border-blue-200 bg-blue-50\">
-              <CardContent className=\"p-3 text-center\">
-                <FileText className=\"h-6 w-6 text-blue-600 mx-auto mb-1\" />
-                <p className=\"text-2xl font-bold text-blue-700\">
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            <Card className="border-blue-200 bg-blue-50">
+              <CardContent className="p-3 text-center">
+                <FileText className="h-6 w-6 text-blue-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-blue-700">
                   {eventos.filter(e => e.tipo === 'evolucion').length}
                 </p>
-                <p className=\"text-xs text-blue-600\">SOAP</p>
+                <p className="text-xs text-blue-600">SOAP</p>
               </CardContent>
             </Card>
-            <Card className=\"border-purple-200 bg-purple-50\">
-              <CardContent className=\"p-3 text-center\">
-                <Activity className=\"h-6 w-6 text-purple-600 mx-auto mb-1\" />
-                <p className=\"text-2xl font-bold text-purple-700\">
+            <Card className="border-purple-200 bg-purple-50">
+              <CardContent className="p-3 text-center">
+                <Activity className="h-6 w-6 text-purple-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-purple-700">
                   {eventos.filter(e => e.tipo === 'signos').length}
                 </p>
-                <p className=\"text-xs text-purple-600\">Vitales</p>
+                <p className="text-xs text-purple-600">Vitales</p>
               </CardContent>
             </Card>
-            <Card className=\"border-pink-200 bg-pink-50\">
-              <CardContent className=\"p-3 text-center\">
-                <ClipboardList className=\"h-6 w-6 text-pink-600 mx-auto mb-1\" />
-                <p className=\"text-2xl font-bold text-pink-700\">
+            <Card className="border-pink-200 bg-pink-50">
+              <CardContent className="p-3 text-center">
+                <ClipboardList className="h-6 w-6 text-pink-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-pink-700">
                   {eventos.filter(e => e.tipo === 'diagnostico').length}
                 </p>
-                <p className=\"text-xs text-pink-600\">Dx</p>
+                <p className="text-xs text-pink-600">Dx</p>
               </CardContent>
             </Card>
-            <Card className=\"border-orange-200 bg-orange-50\">
-              <CardContent className=\"p-3 text-center\">
-                <AlertCircle className=\"h-6 w-6 text-orange-600 mx-auto mb-1\" />
-                <p className=\"text-2xl font-bold text-orange-700\">
+            <Card className="border-orange-200 bg-orange-50">
+              <CardContent className="p-3 text-center">
+                <AlertCircle className="h-6 w-6 text-orange-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-orange-700">
                   {eventos.filter(e => e.tipo === 'alerta').length}
                 </p>
-                <p className=\"text-xs text-orange-600\">Alertas</p>
+                <p className="text-xs text-orange-600">Alertas</p>
               </CardContent>
             </Card>
-            <Card className=\"border-indigo-200 bg-indigo-50\">
-              <CardContent className=\"p-3 text-center\">
-                <Stethoscope className=\"h-6 w-6 text-indigo-600 mx-auto mb-1\" />
-                <p className=\"text-2xl font-bold text-indigo-700\">
+            <Card className="border-indigo-200 bg-indigo-50">
+              <CardContent className="p-3 text-center">
+                <Stethoscope className="h-6 w-6 text-indigo-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-indigo-700">
                   {eventos.filter(e => e.tipo === 'procedimiento').length}
                 </p>
-                <p className=\"text-xs text-indigo-600\">Proc</p>
+                <p className="text-xs text-indigo-600">Proc</p>
               </CardContent>
             </Card>
-            <Card className=\"border-teal-200 bg-teal-50\">
-              <CardContent className=\"p-3 text-center\">
-                <Pill className=\"h-6 w-6 text-teal-600 mx-auto mb-1\" />
-                <p className=\"text-2xl font-bold text-teal-700\">
+            <Card className="border-teal-200 bg-teal-50">
+              <CardContent className="p-3 text-center">
+                <Pill className="h-6 w-6 text-teal-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-teal-700">
                   {eventos.filter(e => e.tipo === 'prescripcion').length}
                 </p>
-                <p className=\"text-xs text-teal-600\">Rx</p>
+                <p className="text-xs text-teal-600">Rx</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Timeline de eventos */}
-          <div className=\"relative\">
-            {/* Línea vertical del timeline */}
-            <div className=\"absolute left-6 top-0 bottom-0 w-0.5 bg-gray-300\"></div>
-
-            <div className=\"space-y-4\">
+          <div className="relative">
+            <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-300"></div>
+            <div className="space-y-4">
               {eventosFiltrados.map((evento, index) => {
                 const config = getEventoConfig(evento.tipo);
                 const IconComponent = config.icon;
                 
                 return (
-                  <div key={`${evento.tipo}-${evento.id}-${index}`} className=\"relative flex gap-4\">
-                    {/* Círculo en la línea */}
+                  <div key={`${evento.tipo}-${evento.id}-${index}`} className="relative flex gap-4">
                     <div className={`relative z-10 flex-shrink-0 w-12 h-12 rounded-full ${config.color} flex items-center justify-center border-4 border-white shadow`}>
-                      <IconComponent className=\"h-5 w-5\" />
+                      <IconComponent className="h-5 w-5" />
                     </div>
-
-                    {/* Card del evento */}
                     <Card className={`flex-1 border-2 ${config.borderColor} hover:shadow-md transition-shadow`}>
-                      <CardContent className=\"p-4\">
-                        <div className=\"flex items-start justify-between mb-2\">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
                           <div>
-                            <h4 className=\"font-semibold text-gray-900\">{evento.titulo}</h4>
+                            <h4 className="font-semibold text-gray-900">{evento.titulo}</h4>
                             <Badge className={`${config.color} mt-1 text-xs`}>
                               {evento.tipo.charAt(0).toUpperCase() + evento.tipo.slice(1)}
                             </Badge>
                           </div>
-                          <div className=\"flex items-center gap-2\">
-                            <div className=\"text-sm text-gray-600 flex items-center gap-1\">
-                              <Clock className=\"h-4 w-4\" />
+                          <div className="flex items-center gap-2">
+                            <div className="text-sm text-gray-600 flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
                               {formatDate(evento.fecha)}
                             </div>
                             <Button
-                              size=\"sm\"
-                              variant=\"ghost\"
+                              size="sm"
+                              variant="ghost"
                               onClick={() => verDetalle(evento)}
-                              className=\"hover:bg-gray-100\"
+                              className="hover:bg-gray-100"
                             >
-                              <Eye className=\"h-4 w-4\" />
+                              <Eye className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
-                        <p className=\"text-sm text-gray-700 mt-2\">{evento.descripcion}</p>
-                        {(evento.doctor?.nombre || evento.medicoResponsable?.nombre || evento.medico?.nombre || evento.registrador?.nombre) && (
-                          <p className=\"text-xs text-gray-500 mt-2\">
-                            Por: {evento.doctor?.nombre || evento.medicoResponsable?.nombre || evento.medico?.nombre || evento.registrador?.nombre} {evento.doctor?.apellido || evento.medicoResponsable?.apellido || evento.medico?.apellido || evento.registrador?.apellido}
-                          </p>
-                        )}
+                        <p className="text-sm text-gray-700 mt-2">{evento.descripcion}</p>
                       </CardContent>
                     </Card>
                   </div>
@@ -341,142 +323,25 @@ export default function TabTimelinePaciente({ pacienteId }) {
         </div>
       )}
 
-      {/* Modal de Detalle */}
       <Dialog open={mostrarModal} onOpenChange={setMostrarModal}>
-        <DialogContent className=\"max-w-3xl max-h-[80vh] overflow-y-auto\">
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className=\"flex items-center gap-2\">
-              {eventoSeleccionado && (() => {
-                const config = getEventoConfig(eventoSeleccionado.tipo);
-                const IconComponent = config.icon;
-                return (
-                  <>
-                    <div className={`p-2 rounded-lg ${config.color}`}>
-                      <IconComponent className=\"h-5 w-5\" />
-                    </div>
-                    {eventoSeleccionado.titulo}
-                  </>
-                );
-              })()}
-            </DialogTitle>
+            <DialogTitle>Detalle del Evento</DialogTitle>
           </DialogHeader>
           {eventoSeleccionado && (
-            <div className=\"space-y-4\">
+            <div className="space-y-4">
               <div>
-                <span className=\"text-sm text-gray-600\">Fecha:</span>
-                <p className=\"font-semibold\">{formatDate(eventoSeleccionado.fecha)}</p>
+                <span className="text-sm text-gray-600">Fecha:</span>
+                <p className="font-semibold">{formatDate(eventoSeleccionado.fecha)}</p>
               </div>
-              
-              {eventoSeleccionado.tipo === 'evolucion' && (
-                <>
-                  <div>
-                    <span className=\"text-sm font-semibold text-gray-700\">Subjetivo (S):</span>
-                    <p className=\"text-sm text-gray-900 mt-1 bg-gray-50 p-3 rounded\">{eventoSeleccionado.subjetivo}</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm font-semibold text-gray-700\">Objetivo (O):</span>
-                    <p className=\"text-sm text-gray-900 mt-1 bg-gray-50 p-3 rounded\">{eventoSeleccionado.objetivo}</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm font-semibold text-gray-700\">Análisis (A):</span>
-                    <p className=\"text-sm text-gray-900 mt-1 bg-gray-50 p-3 rounded\">{eventoSeleccionado.analisis}</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm font-semibold text-gray-700\">Plan (P):</span>
-                    <p className=\"text-sm text-gray-900 mt-1 bg-gray-50 p-3 rounded\">{eventoSeleccionado.plan}</p>
-                  </div>
-                </>
-              )}
-              
-              {eventoSeleccionado.tipo === 'signos' && (
-                <div className=\"grid grid-cols-2 gap-4\">
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Temperatura:</span>
-                    <p className=\"font-semibold\">{eventoSeleccionado.temperatura || 'N/A'} °C</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Presión Arterial:</span>
-                    <p className=\"font-semibold\">{eventoSeleccionado.presionSistolica}/{eventoSeleccionado.presionDiastolica} mmHg</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Frecuencia Cardíaca:</span>
-                    <p className=\"font-semibold\">{eventoSeleccionado.frecuenciaCardiaca || 'N/A'} bpm</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Saturación O2:</span>
-                    <p className=\"font-semibold\">{eventoSeleccionado.saturacionOxigeno || 'N/A'} %</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Peso:</span>
-                    <p className=\"font-semibold\">{eventoSeleccionado.peso || 'N/A'} kg</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Talla:</span>
-                    <p className=\"font-semibold\">{eventoSeleccionado.talla || 'N/A'} cm</p>
-                  </div>
-                </div>
-              )}
-              
-              {eventoSeleccionado.tipo === 'diagnostico' && (
-                <>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Código CIE-11:</span>
-                    <p className=\"font-semibold\">{eventoSeleccionado.codigoCIE11}</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Descripción:</span>
-                    <p className=\"text-sm\">{eventoSeleccionado.descripcionCIE11}</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Tipo:</span>
-                    <Badge>{eventoSeleccionado.tipoDiagnostico}</Badge>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Estado:</span>
-                    <Badge>{eventoSeleccionado.estadoDiagnostico}</Badge>
-                  </div>
-                </>
-              )}
-              
-              {eventoSeleccionado.tipo === 'procedimiento' && (
-                <>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Nombre:</span>
-                    <p className=\"font-semibold\">{eventoSeleccionado.nombre}</p>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Descripción:</span>
-                    <p className=\"text-sm bg-gray-50 p-3 rounded\">{eventoSeleccionado.descripcion}</p>
-                  </div>
-                  {eventoSeleccionado.resultados && (
-                    <div>
-                      <span className=\"text-sm text-gray-600\">Resultados:</span>
-                      <p className=\"text-sm bg-gray-50 p-3 rounded\">{eventoSeleccionado.resultados}</p>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {eventoSeleccionado.tipo === 'alerta' && (
-                <>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Tipo:</span>
-                    <Badge className=\"capitalize\">{eventoSeleccionado.tipoAlerta}</Badge>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Severidad:</span>
-                    <Badge className={
-                      eventoSeleccionado.severidad === 'Critica' ? 'bg-red-100 text-red-700' :
-                      eventoSeleccionado.severidad === 'Grave' ? 'bg-orange-100 text-orange-700' :
-                      'bg-yellow-100 text-yellow-700'
-                    }>{eventoSeleccionado.severidad}</Badge>
-                  </div>
-                  <div>
-                    <span className=\"text-sm text-gray-600\">Descripción:</span>
-                    <p className=\"text-sm bg-gray-50 p-3 rounded\">{eventoSeleccionado.descripcion}</p>
-                  </div>
-                </>
-              )}
+              <div>
+                <span className="text-sm text-gray-600">Tipo:</span>
+                <Badge>{eventoSeleccionado.tipo}</Badge>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600">Descripción:</span>
+                <p className="text-sm bg-gray-50 p-3 rounded">{eventoSeleccionado.descripcion}</p>
+              </div>
             </div>
           )}
         </DialogContent>
