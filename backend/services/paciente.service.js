@@ -86,14 +86,14 @@ class PacienteService {
         // Datos Personales
         nombre: data.nombre,
         apellido: data.apellido || '',
-        tipoDocumento: data.tipo_documento || data.tipoDocumento,
+        tipoDocumento: data.tipo_documento,
         cedula: data.cedula || `TEMP-${Date.now()}`,
-        fechaNacimiento: data.fecha_nacimiento ? new Date(data.fecha_nacimiento) : (data.fechaNacimiento ? new Date(data.fechaNacimiento) : null),
+        fechaNacimiento: data.fecha_nacimiento ? new Date(data.fecha_nacimiento) : null,
         genero: data.genero,
-        estadoCivil: data.estado_civil || data.estadoCivil,
+        estadoCivil: data.estado_civil,
         
         // Ubicación
-        paisNacimiento: data.pais_nacimiento || data.paisNacimiento,
+        paisNacimiento: data.pais_nacimiento,
         departamento: data.departamento,
         municipio: data.municipio,
         barrio: data.barrio,
@@ -104,39 +104,39 @@ class PacienteService {
         email: data.email,
         
         // Contactos de Emergencia (JSON)
-        contactosEmergencia: data.contactos_emergencia || data.contactosEmergencia || null,
+        contactosEmergencia: data.contactos_emergencia,
         
         // Aseguramiento
         eps: data.eps,
         regimen: data.regimen,
-        tipoAfiliacion: data.tipo_afiliacion || data.tipoAfiliacion,
-        nivelSisben: data.nivel_sisben || data.nivelSisben,
-        numeroAutorizacion: data.numero_autorizacion || data.numeroAutorizacion,
-        fechaAfiliacion: data.fecha_afiliacion ? new Date(data.fecha_afiliacion) : (data.fechaAfiliacion ? new Date(data.fechaAfiliacion) : null),
+        tipoAfiliacion: data.tipo_afiliacion,
+        nivelSisben: data.nivel_sisben,
+        numeroAutorizacion: data.numero_autorizacion,
+        fechaAfiliacion: data.fecha_afiliacion ? new Date(data.fecha_afiliacion) : null,
         convenio: data.convenio,
-        carnetPoliza: data.carnet_poliza || data.carnetPoliza,
+        carnetPoliza: data.carnet_poliza,
         arl: data.arl,
         
         // Información Demográfica y Laboral
         ocupacion: data.ocupacion,
-        nivelEducacion: data.nivel_educacion || data.nivelEducacion,
-        empleadorActual: data.empleador_actual || data.empleadorActual,
-        tipoUsuario: data.tipo_usuario || data.tipoUsuario,
+        nivelEducacion: data.nivel_educacion,
+        empleadorActual: data.empleador_actual,
+        tipoUsuario: data.tipo_usuario,
         
         // Información de Referencia
-        referidoPor: data.referido_por || data.referidoPor,
-        nombreRefiere: data.nombre_refiere || data.nombreRefiere,
-        tipoPaciente: data.tipo_paciente || data.tipoPaciente,
+        referidoPor: data.referido_por,
+        nombreRefiere: data.nombre_refiere,
+        tipoPaciente: data.tipo_paciente,
         categoria: data.categoria,
         
         // Información Médica
-        tipoSangre: data.tipo_sangre || data.tipoSangre,
+        tipoSangre: data.tipo_sangre,
         peso: data.peso ? parseFloat(data.peso) : null,
         altura: data.altura ? parseFloat(data.altura) : null,
         alergias: data.alergias,
-        enfermedadesCronicas: data.enfermedades_cronicas || data.enfermedadesCronicas,
-        medicamentosActuales: data.medicamentos_actuales || data.medicamentosActuales,
-        antecedentesQuirurgicos: data.antecedentes_quirurgicos || data.antecedentesQuirurgicos,
+        enfermedadesCronicas: data.enfermedades_cronicas,
+        medicamentosActuales: data.medicamentos_actuales,
+        antecedentesQuirurgicos: data.antecedentes_quirurgicos,
         
       },
     });
