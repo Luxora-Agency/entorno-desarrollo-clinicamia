@@ -18,6 +18,7 @@ import CategoriasProductosModule from './CategoriasProductosModule';
 import EtiquetasProductosModule from './EtiquetasProductosModule';
 import AdmisionesView from './AdmisionesView';
 import PacienteStepperForm from './PacienteStepperForm';
+import VerPaciente from './VerPaciente';
 import UnidadesModule from './UnidadesModule';
 import HabitacionesModule from './HabitacionesModule';
 import CamasModule from './CamasModule';
