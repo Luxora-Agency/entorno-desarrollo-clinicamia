@@ -127,8 +127,17 @@ export default function PanelPaciente({ paciente, onEdit, onGoToHCE }) {
             )}
           </div>
 
-          {/* Botón Editar */}
-          <div className="flex items-center justify-end flex-shrink-0">
+          {/* Botones de Acción */}
+          <div className="flex items-center justify-end flex-shrink-0 gap-2">
+            {onGoToHCE && (
+              <Button
+                onClick={onGoToHCE}
+                className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
+              >
+                <FileHeart className="w-4 h-4 mr-2" />
+                Ir a HCE
+              </Button>
+            )}
             <Button
               onClick={onEdit}
               variant="outline"
