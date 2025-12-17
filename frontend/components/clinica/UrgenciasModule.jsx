@@ -481,6 +481,17 @@ function FormularioTriaje({ onClose, onSuccess, user }) {
     observaciones: '',
   });
 
+  const getCategoriaColorLocal = (categoria) => {
+    switch (categoria) {
+      case 'Rojo': return 'bg-red-600 text-white hover:bg-red-700';
+      case 'Naranja': return 'bg-orange-500 text-white hover:bg-orange-600';
+      case 'Amarillo': return 'bg-yellow-500 text-gray-900 hover:bg-yellow-600';
+      case 'Verde': return 'bg-green-500 text-white hover:bg-green-600';
+      case 'Azul': return 'bg-blue-500 text-white hover:bg-blue-600';
+      default: return 'bg-gray-500 text-white hover:bg-gray-600';
+    }
+  };
+
   const buscarPacientes = async () => {
     if (searchPaciente.length < 3) return;
     
