@@ -449,13 +449,7 @@ export default function DashboardEnfermera({ user }) {
   };
 
   const handleCompletarTarea = (tareaId) => {
-    setTareasDelTurno(prev =>
-      prev.map(t =>
-        t.id === tareaId
-          ? { ...t, estado: 'Completada' }
-          : t
-      )
-    );
+    // Por implementar
   };
 
   const getComplejidadColor = (complejidad) => {
