@@ -1252,6 +1252,20 @@ enum EstadoAdministracion {
   Rechazada
 }
 
+enum TurnoEnfermeria {
+  Manana
+  Tarde
+  Noche
+}
+
+enum TipoNotaEnfermeria {
+  Evolucion
+  Observacion
+  Incidente
+  CambioTurno
+  Procedimiento
+}
+
 // NOTA: Se usa el modelo Producto existente como catálogo de medicamentos
 // El modelo Producto ya tiene: principioActivo, concentracion, presentacion,
 // viaAdministracion, requiereReceta, laboratorio, etc.
