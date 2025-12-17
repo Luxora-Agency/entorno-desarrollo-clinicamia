@@ -140,21 +140,17 @@ export default function UrgenciasModule({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-      // Si el usuario actual es doctor, usarlo; si no, buscar un doctor disponible
+      // Buscar un doctor disponible
+      const doctoresRes = await fetch(`${apiUrl}/doctores?limit=1`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
       let medicoId = null;
-      if (user.rol === 'Doctor') {
-        medicoId = user.id;
-      } else {
-        // Buscar un doctor disponible
-        const doctoresRes = await fetch(`${apiUrl}/doctores?limit=1`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (doctoresRes.ok) {
-          const doctoresData = await doctoresRes.json();
-          const doctores = doctoresData.data || [];
-          if (doctores.length > 0) {
-            medicoId = doctores[0].usuarioId;
-          }
+      if (doctoresRes.ok) {
+        const doctoresData = await doctoresRes.json();
+        const doctores = doctoresData.data || [];
+        if (doctores.length > 0) {
+          medicoId = doctores[0].usuarioId; // Importante: usar usuarioId, no id
         }
       }
 
