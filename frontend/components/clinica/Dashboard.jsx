@@ -91,6 +91,17 @@ export default function Dashboard({ user, onLogout }) {
   };
 
   const renderModule = () => {
+    // Manejar vista de paciente individual
+    const pacienteId = searchParams.get('pacienteId');
+    
+    if (activeModule === 'pacientes' && pacienteId) {
+      return <VerPaciente 
+        pacienteId={pacienteId} 
+        onBack={() => changeModule('pacientes')}
+        user={user}
+      />;
+    }
+    
     switch (activeModule) {
       case 'dashboard':
         // Dashboard personalizado según rol
