@@ -29,6 +29,7 @@ import {
   MapPin,
   Calendar,
   Edit,
+  Phone,
 } from 'lucide-react';
 
 export default function EnfermeriaModule({ user }) {
