@@ -102,6 +102,8 @@ app.get('/', (c) => {
       egresos: '/egresos',
       // Disponibilidad
       disponibilidad: '/disponibilidad',
+      // Urgencias
+      urgencias: '/urgencias',
     }
   });
 });
