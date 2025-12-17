@@ -1,13 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import {
   Activity,
   Clock,
@@ -22,150 +25,158 @@ import {
   FileText,
   Search,
   Filter,
+  Plus,
+  MapPin,
+  Calendar,
+  Edit,
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 export default function EnfermeriaModule({ user }) {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('resumen');
+  const [enfermeras, setEnfermeras] = useState([]);
   const [enfermeraSeleccionada, setEnfermeraSeleccionada] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [showAsignarModal, setShowAsignarModal] = useState(false);
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+  
+  const [formAsignacion, setFormAsignacion] = useState({
+    enfermera_id: '',
+    unidad_id: '',
+    piso: '',
+    turno: 'Manana',
+  });
 
-  // Mock data - Lista de enfermeras
-  const [enfermeras] = useState([
-    {
-      id: 'ENF-001',
-      nombre: 'María González',
-      email: 'enfermera@clinicamia.com',
-      turno: 'Tarde (14:00 - 22:00)',
-      pacientesAsignados: 3,
-      medicamentosPendientes: 2,
-      tareasCompletadas: 5,
-      tareasDelTurno: 7,
-      ultimaActividad: '15:30',
-      estado: 'Activa',
-    },
-    {
-      id: 'ENF-002',
-      nombre: 'Laura Pérez',
-      email: 'laura.perez@clinicamia.com',
-      turno: 'Mañana (06:00 - 14:00)',
-      pacientesAsignados: 4,
-      medicamentosPendientes: 0,
-      tareasCompletadas: 8,
-      tareasDelTurno: 8,
-      ultimaActividad: '13:45',
-      estado: 'Activa',
-    },
-    {
-      id: 'ENF-003',
-      nombre: 'Ana Martínez',
-      email: 'ana.martinez@clinicamia.com',
-      turno: 'Noche (22:00 - 06:00)',
-      pacientesAsignados: 2,
-      medicamentosPendientes: 1,
-      tareasCompletadas: 3,
-      tareasDelTurno: 5,
-      ultimaActividad: '02:15',
-      estado: 'Activa',
-    },
-  ]);
+  useEffect(() => {
+    loadEnfermeras();
+    loadUnidades();
+  }, []);
 
-  // Mock data - Información detallada de la enfermera seleccionada
-  const datosEnfermera = {
-    pacientes: [
-      {
-        id: '1',
-        nombre: 'María González',
-        edad: 65,
-        habitacion: '301-A',
-        diagnostico: 'Neumonía',
-        complejidad: 'Alta',
-        medicamentosPendientes: 2,
-        ultimaActualizacion: '14:30',
-      },
-      {
-        id: '2',
-        nombre: 'Pedro Jiménez',
-        edad: 58,
-        habitacion: '302-B',
-        diagnostico: 'Diabetes descompensada',
-        complejidad: 'Media',
-        medicamentosPendientes: 1,
-        ultimaActualizacion: '15:00',
-      },
-      {
-        id: '3',
-        nombre: 'Ana Martínez',
-        edad: 42,
-        habitacion: '303-A',
-        diagnostico: 'Post-operatorio',
-        complejidad: 'Media',
-        medicamentosPendientes: 3,
-        ultimaActualizacion: '13:45',
-      },
-    ],
-    actividades: [
-      {
-        id: 'ACT-001',
-        hora: '14:00',
-        tipo: 'Medicamento',
-        descripcion: 'Administró Paracetamol 500mg a María González',
-        paciente: 'María González',
-      },
-      {
-        id: 'ACT-002',
-        hora: '14:30',
-        tipo: 'Signos Vitales',
-        descripcion: 'Registró signos vitales de María González',
-        paciente: 'María González',
-      },
-      {
-        id: 'ACT-003',
-        hora: '15:00',
-        tipo: 'Nota',
-        descripcion: 'Añadió nota de evolución para Pedro Jiménez',
-        paciente: 'Pedro Jiménez',
-      },
-      {
-        id: 'ACT-004',
-        hora: '15:15',
-        tipo: 'Tarea',
-        descripcion: 'Completó curación de herida en Ana Martínez',
-        paciente: 'Ana Martínez',
-      },
-      {
-        id: 'ACT-005',
-        hora: '15:30',
-        tipo: 'Medicamento',
-        descripcion: 'Administró Amoxicilina 500mg a María González',
-        paciente: 'María González',
-      },
-    ],
-    estadisticasTurno: {
-      medicamentosAdministrados: 8,
-      signosVitalesRegistrados: 6,
-      notasRegistradas: 4,
-      tareasCompletadas: 5,
-      horasActivas: 3.5,
-    },
+  useEffect(() => {
+    if (enfermeraSeleccionada) {
+      loadAsignaciones(enfermeraSeleccionada.id);
+    }
+  }, [enfermeraSeleccionada]);
+
+  const loadEnfermeras = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const response = await fetch(`${apiUrl}/usuarios?rol=Enfermera&limit=100`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setEnfermeras(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Datos para gráficas
-  const datosActividadPorHora = [
-    { hora: '14:00', actividades: 2 },
-    { hora: '15:00', actividades: 5 },
-    { hora: '16:00', actividades: 3 },
-    { hora: '17:00', actividades: 4 },
-  ];
+  const loadUnidades = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const response = await fetch(`${apiUrl}/unidades?activo=true`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-  const datosTipoActividad = [
-    { nombre: 'Medicamentos', valor: 35 },
-    { nombre: 'Signos Vitales', valor: 25 },
-    { nombre: 'Notas', valor: 20 },
-    { nombre: 'Tareas', valor: 20 },
-  ];
+      if (response.ok) {
+        const data = await response.json();
+        setUnidades(data.data?.unidades || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
-  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+  const loadAsignaciones = async (enfermeraId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const response = await fetch(`${apiUrl}/asignaciones-enfermeria/enfermera/${enfermeraId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAsignaciones(data.data?.asignaciones || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const handleCrearAsignacion = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const response = await fetch(`${apiUrl}/asignaciones-enfermeria`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          enfermera_id: enfermeraSeleccionada.id,
+          unidad_id: formAsignacion.unidad_id,
+          piso: formAsignacion.piso ? parseInt(formAsignacion.piso) : null,
+          turno: formAsignacion.turno,
+        }),
+      });
+
+      if (response.ok) {
+        toast({ description: 'Asignación creada correctamente' });
+        setShowAsignarModal(false);
+        loadAsignaciones(enfermeraSeleccionada.id);
+        setFormAsignacion({
+          enfermera_id: '',
+          unidad_id: '',
+          piso: '',
+          turno: 'Manana',
+        });
+      } else {
+        const error = await response.json();
+        toast({ description: error.message || 'Error al crear asignación', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({ description: 'Error al crear asignación', variant: 'destructive' });
+    }
+  };
+
+  const handleDesactivarAsignacion = async (asignacionId) => {
+    if (!confirm('¿Desactivar esta asignación?')) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const response = await fetch(`${apiUrl}/asignaciones-enfermeria/${asignacionId}/desactivar`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        toast({ description: 'Asignación desactivada' });
+        loadAsignaciones(enfermeraSeleccionada.id);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   const getEstadoColor = (estado) => {
     const colores = {
