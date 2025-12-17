@@ -155,16 +155,16 @@ class PacienteService {
     const updateData = {};
     
     // Datos Personales
-    if (data.nombre) updateData.nombre = data.nombre;
+    if (data.nombre !== undefined) updateData.nombre = data.nombre;
     if (data.apellido !== undefined) updateData.apellido = data.apellido;
-    if (data.tipo_documento !== undefined || data.tipoDocumento !== undefined) updateData.tipoDocumento = data.tipo_documento || data.tipoDocumento;
+    if (data.tipo_documento !== undefined) updateData.tipoDocumento = data.tipo_documento;
     if (data.cedula !== undefined) updateData.cedula = data.cedula;
-    if (data.fecha_nacimiento || data.fechaNacimiento) updateData.fechaNacimiento = new Date(data.fecha_nacimiento || data.fechaNacimiento);
+    if (data.fecha_nacimiento !== undefined) updateData.fechaNacimiento = new Date(data.fecha_nacimiento);
     if (data.genero !== undefined) updateData.genero = data.genero;
-    if (data.estado_civil !== undefined || data.estadoCivil !== undefined) updateData.estadoCivil = data.estado_civil || data.estadoCivil;
+    if (data.estado_civil !== undefined) updateData.estadoCivil = data.estado_civil;
     
     // Ubicación
-    if (data.pais_nacimiento !== undefined || data.paisNacimiento !== undefined) updateData.paisNacimiento = data.pais_nacimiento || data.paisNacimiento;
+    if (data.pais_nacimiento !== undefined) updateData.paisNacimiento = data.pais_nacimiento;
     if (data.departamento !== undefined) updateData.departamento = data.departamento;
     if (data.municipio !== undefined) updateData.municipio = data.municipio;
     if (data.barrio !== undefined) updateData.barrio = data.barrio;
@@ -173,39 +173,39 @@ class PacienteService {
     // Contacto
     if (data.telefono !== undefined) updateData.telefono = data.telefono;
     if (data.email !== undefined) updateData.email = data.email;
-    if (data.contactos_emergencia !== undefined || data.contactosEmergencia !== undefined) updateData.contactosEmergencia = data.contactos_emergencia || data.contactosEmergencia;
+    if (data.contactos_emergencia !== undefined) updateData.contactosEmergencia = data.contactos_emergencia;
     
     // Aseguramiento
     if (data.eps !== undefined) updateData.eps = data.eps;
     if (data.regimen !== undefined) updateData.regimen = data.regimen;
-    if (data.tipo_afiliacion !== undefined || data.tipoAfiliacion !== undefined) updateData.tipoAfiliacion = data.tipo_afiliacion || data.tipoAfiliacion;
-    if (data.nivel_sisben !== undefined || data.nivelSisben !== undefined) updateData.nivelSisben = data.nivel_sisben || data.nivelSisben;
-    if (data.numero_autorizacion !== undefined || data.numeroAutorizacion !== undefined) updateData.numeroAutorizacion = data.numero_autorizacion || data.numeroAutorizacion;
-    if (data.fecha_afiliacion || data.fechaAfiliacion) updateData.fechaAfiliacion = new Date(data.fecha_afiliacion || data.fechaAfiliacion);
+    if (data.tipo_afiliacion !== undefined) updateData.tipoAfiliacion = data.tipo_afiliacion;
+    if (data.nivel_sisben !== undefined) updateData.nivelSisben = data.nivel_sisben;
+    if (data.numero_autorizacion !== undefined) updateData.numeroAutorizacion = data.numero_autorizacion;
+    if (data.fecha_afiliacion !== undefined) updateData.fechaAfiliacion = new Date(data.fecha_afiliacion);
     if (data.convenio !== undefined) updateData.convenio = data.convenio;
-    if (data.carnet_poliza !== undefined || data.carnetPoliza !== undefined) updateData.carnetPoliza = data.carnet_poliza || data.carnetPoliza;
+    if (data.carnet_poliza !== undefined) updateData.carnetPoliza = data.carnet_poliza;
     if (data.arl !== undefined) updateData.arl = data.arl;
     
     // Información Demográfica y Laboral
     if (data.ocupacion !== undefined) updateData.ocupacion = data.ocupacion;
-    if (data.nivel_educacion !== undefined || data.nivelEducacion !== undefined) updateData.nivelEducacion = data.nivel_educacion || data.nivelEducacion;
-    if (data.empleador_actual !== undefined || data.empleadorActual !== undefined) updateData.empleadorActual = data.empleador_actual || data.empleadorActual;
-    if (data.tipo_usuario !== undefined || data.tipoUsuario !== undefined) updateData.tipoUsuario = data.tipo_usuario || data.tipoUsuario;
+    if (data.nivel_educacion !== undefined) updateData.nivelEducacion = data.nivel_educacion;
+    if (data.empleador_actual !== undefined) updateData.empleadorActual = data.empleador_actual;
+    if (data.tipo_usuario !== undefined) updateData.tipoUsuario = data.tipo_usuario;
     
     // Información de Referencia
-    if (data.referido_por !== undefined || data.referidoPor !== undefined) updateData.referidoPor = data.referido_por || data.referidoPor;
-    if (data.nombre_refiere !== undefined || data.nombreRefiere !== undefined) updateData.nombreRefiere = data.nombre_refiere || data.nombreRefiere;
-    if (data.tipo_paciente !== undefined || data.tipoPaciente !== undefined) updateData.tipoPaciente = data.tipo_paciente || data.tipoPaciente;
+    if (data.referido_por !== undefined) updateData.referidoPor = data.referido_por;
+    if (data.nombre_refiere !== undefined) updateData.nombreRefiere = data.nombre_refiere;
+    if (data.tipo_paciente !== undefined) updateData.tipoPaciente = data.tipo_paciente;
     if (data.categoria !== undefined) updateData.categoria = data.categoria;
     
     // Información Médica
-    if (data.tipo_sangre !== undefined || data.tipoSangre !== undefined) updateData.tipoSangre = data.tipo_sangre || data.tipoSangre;
+    if (data.tipo_sangre !== undefined) updateData.tipoSangre = data.tipo_sangre;
     if (data.peso !== undefined) updateData.peso = data.peso ? parseFloat(data.peso) : null;
     if (data.altura !== undefined) updateData.altura = data.altura ? parseFloat(data.altura) : null;
     if (data.alergias !== undefined) updateData.alergias = data.alergias;
-    if (data.enfermedades_cronicas !== undefined || data.enfermedadesCronicas !== undefined) updateData.enfermedadesCronicas = data.enfermedades_cronicas || data.enfermedadesCronicas;
-    if (data.medicamentos_actuales !== undefined || data.medicamentosActuales !== undefined) updateData.medicamentosActuales = data.medicamentos_actuales || data.medicamentosActuales;
-    if (data.antecedentes_quirurgicos !== undefined || data.antecedentesQuirurgicos !== undefined) updateData.antecedentesQuirurgicos = data.antecedentes_quirurgicos || data.antecedentesQuirurgicos;
+    if (data.enfermedades_cronicas !== undefined) updateData.enfermedadesCronicas = data.enfermedades_cronicas;
+    if (data.medicamentos_actuales !== undefined) updateData.medicamentosActuales = data.medicamentos_actuales;
+    if (data.antecedentes_quirurgicos !== undefined) updateData.antecedentesQuirurgicos = data.antecedentes_quirurgicos;
     
     const paciente = await prisma.paciente.update({
       where: { id },
