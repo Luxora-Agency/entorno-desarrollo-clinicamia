@@ -1386,3 +1386,92 @@ model RolePermiso {
 // examenProcedimientoId: referencia si es examen o procedimiento
 // duracionMinutos: duración estimada
 // costo: costo de la consulta
+
+// ===================================
+// MÓDULO DE URGENCIAS
+// ===================================
+
+enum CategoriaManchester {
+  Rojo      // Reanimación - Inmediato
+  Naranja   // Muy Urgente - 10 min
+  Amarillo  // Urgente - 60 min
+  Verde     // Poco Urgente - 120 min
+  Azul      // No Urgente - 240 min
+}
+
+enum EstadoUrgencia {
+  Triaje
+  Espera
+  EnAtencion
+  Completada
+  Alta
+  Hospitalizado
+  Remitido
+  Cancelado
+}
+
+enum DisposicionUrgencia {
+  Alta
+  Hospitalizar
+  Remitir
+  Fallecido
+  Observacion
+}
+
+model AtencionUrgencia {
+  id                      String                @id @default(uuid())
+  pacienteId              String                @map("paciente_id")
+  
+  // Triaje Manchester
+  categoriaManchester     CategoriaManchester   @map("categoria_manchester")
+  nivelUrgencia           String                @map("nivel_urgencia") // "Reanimación", "Muy Urgente", etc.
+  prioridad               Int                   // 1-5 (1 más urgente)
+  
+  // Información de Llegada
+  motivoConsulta          String                @db.Text @map("motivo_consulta")
+  horaLlegada             DateTime              @default(now()) @map("hora_llegada")
+  horaTriaje              DateTime?             @map("hora_triaje")
+  medioLlegada            String?               @map("medio_llegada") // Ambulancia, Particular, Remitido
+  acompanante             String?               // Nombre del acompañante
+  
+  // Signos Vitales Iniciales (Triaje)
+  presionSistolica        Int?                  @map("presion_sistolica")
+  presionDiastolica       Int?                  @map("presion_diastolica")
+  frecuenciaCardiaca      Int?                  @map("frecuencia_cardiaca")
+  frecuenciaRespiratoria  Int?                  @map("frecuencia_respiratoria")
+  temperatura             Decimal?              @db.Decimal(4, 1)
+  saturacionOxigeno       Decimal?              @map("saturacion_oxigeno") @db.Decimal(5, 2)
+  escalaGlasgow           Int?                  @map("escala_glasgow")
+  escalaDolor             Int?                  @map("escala_dolor") // 0-10
+  
+  // Atención Médica
+  estado                  EstadoUrgencia        @default(Triaje)
+  areaAsignada            String?               @map("area_asignada") // "Shock", "Consultorio 1", "Observación"
+  medicoAsignadoId        String?               @map("medico_asignado_id") @db.Uuid
+  enfermeraAsignadaId     String?               @map("enfermera_asignada_id") @db.Uuid
+  horaInicioAtencion      DateTime?             @map("hora_inicio_atencion")
+  horaFinAtencion         DateTime?             @map("hora_fin_atencion")
+  
+  // Diagnóstico y Tratamiento
+  diagnosticoInicial      String?               @db.Text @map("diagnostico_inicial")
+  tratamientoAplicado     String?               @db.Text @map("tratamiento_aplicado")
+  observaciones           String?               @db.Text
+  
+  // Disposición Final
+  disposicion             DisposicionUrgencia?
+  indicacionesAlta        String?               @db.Text @map("indicaciones_alta")
+  citaId                  String?               @map("cita_id") // Si se programa cita de seguimiento
+  admisionId              String?               @map("admision_id") // Si se hospitaliza
+  
+  createdAt               DateTime              @default(now()) @map("created_at")
+  updatedAt               DateTime              @updatedAt @map("updated_at")
+  
+  // Relaciones
+  paciente                Paciente              @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  medicoAsignado          Usuario?              @relation("UrgenciaMedico", fields: [medicoAsignadoId], references: [id])
+  enfermeraAsignada       Usuario?              @relation("UrgenciaEnfermera", fields: [enfermeraAsignadaId], references: [id])
+  cita                    Cita?                 @relation(fields: [citaId], references: [id])
+  admision                Admision?             @relation(fields: [admisionId], references: [id])
+  
+  @@map("atenciones_urgencias")
+}
