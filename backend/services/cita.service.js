@@ -20,15 +20,15 @@ class CitaService {
   /**
    * Obtener todas las citas
    */
-  async getAll({ page = 1, limit = 10, fecha = '', fechaDesde = '', estado = '', pacienteId = '', doctorId = '' }) {
+  async getAll({ page = 1, limit = 10, fecha = '', fechaDesde = '', estado = '', pacienteId = '', paciente_id = '', doctorId = '', doctor_id = '' }) {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {
       ...(fecha && { fecha: parseSimpleDate(fecha) }),
       ...(fechaDesde && { fecha: { gte: parseSimpleDate(fechaDesde) } }),
       ...(estado && { estado }),
-      ...(pacienteId && { pacienteId }),
-      ...(doctorId && { doctorId }),
+      ...((pacienteId || paciente_id) && { pacienteId: pacienteId || paciente_id }),
+      ...((doctorId || doctor_id) && { doctorId: doctorId || doctor_id }),
     };
 
     const [citas, total] = await Promise.all([
