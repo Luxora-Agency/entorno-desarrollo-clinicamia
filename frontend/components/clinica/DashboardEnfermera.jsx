@@ -463,7 +463,7 @@ export default function DashboardEnfermera({ user }) {
         {/* Tab: Pendientes */}
         <TabsContent value="pendientes" className="space-y-4">
           {/* Medicamentos atrasados */}
-          {medicamentosPendientes.filter(m => m.estado === 'Atrasado').length > 0 && (
+          {medicamentosProgramados.filter(m => m.estado === 'Atrasado').length > 0 && (
             <Card className="border-l-4 border-red-500 shadow-lg">
               <CardHeader className="bg-red-50">
                 <CardTitle className="flex items-center gap-2 text-red-700">
