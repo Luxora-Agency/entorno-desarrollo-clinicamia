@@ -16,31 +16,117 @@ import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 
 export default function DashboardEnfermera({ user }) {
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('pendientes');
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('pacientes');
   const [showAdministrarModal, setShowAdministrarModal] = useState(false);
   const [showSignosModal, setShowSignosModal] = useState(false);
   const [showNotaModal, setShowNotaModal] = useState(false);
   const [selectedMedicamento, setSelectedMedicamento] = useState(null);
   const [selectedPaciente, setSelectedPaciente] = useState(null);
   
+  // Datos reales del backend
+  const [asignaciones, setAsignaciones] = useState([]);
+  const [pacientesAsignados, setPacientesAsignados] = useState([]);
+  const [medicamentosProgramados, setMedicamentosProgramados] = useState([]);
+  const [notasEnfermeria, setNotasEnfermeria] = useState([]);
+  const [turnoActual, setTurnoActual] = useState('Tarde');
+  
   // Form states
   const [formSignos, setFormSignos] = useState({
-    presionArterial: '',
+    temperatura: '',
+    presionSistolica: '',
+    presionDiastolica: '',
     frecuenciaCardiaca: '',
     frecuenciaRespiratoria: '',
-    temperatura: '',
-    saturacionO2: '',
+    saturacionOxigeno: '',
+    peso: '',
+    talla: '',
+    escalaDolor: 0,
     observaciones: ''
   });
 
   const [formNota, setFormNota] = useState({
-    tipo: 'Evolución',
-    nota: ''
+    tipo_nota: 'Evolucion',
+    titulo: '',
+    contenido: '',
+    requiere_seguimiento: false,
   });
+
+  const [formAdministracion, setFormAdministracion] = useState({
+    dosis_administrada: '',
+    via_administrada: '',
+    observaciones: '',
+    reaccion_adversa: false,
+    descripcion_reaccion: '',
+  });
+
+  useEffect(() => {
+    if (user?.id) {
+      loadDashboardData();
+      // Recargar cada minuto
+      const interval = setInterval(loadDashboardData, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
+  const loadDashboardData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      // Determinar turno actual
+      const hora = new Date().getHours();
+      let turno = 'Tarde';
+      if (hora >= 6 && hora < 14) turno = 'Manana';
+      else if (hora >= 14 && hora < 22) turno = 'Tarde';
+      else turno = 'Noche';
+      setTurnoActual(turno);
+
+      // Cargar pacientes asignados
+      const pacientesRes = await fetch(`${apiUrl}/asignaciones-enfermeria/pacientes/${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (pacientesRes.ok) {
+        const data = await pacientesRes.json();
+        const pacientes = data.data?.pacientes || [];
+        setPacientesAsignados(pacientes);
+        
+        // Cargar medicamentos de esos pacientes
+        if (pacientes.length > 0) {
+          const hoy = new Date().toISOString().split('T')[0];
+          const medicamentosRes = await fetch(`${apiUrl}/administraciones?fecha=${hoy}&estado=Programada&limit=100`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          
+          if (medicamentosRes.ok) {
+            const medData = await medicamentosRes.json();
+            setMedicamentosProgramados(medData.data || []);
+          }
+        }
+      }
+
+      // Cargar notas del turno actual
+      const notasRes = await fetch(`${apiUrl}/notas-enfermeria/enfermera/${user.id}?turno=${turno}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      
+      if (notasRes.ok) {
+        const notasData = await notasRes.json();
+        setNotasEnfermeria(notasData.data?.notas || []);
+      }
+
+    } catch (error) {
+      console.error('Error cargando dashboard:', error);
+      toast({ description: 'Error al cargar información', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [formAdministracion, setFormAdministracion] = useState({
     observaciones: '',
