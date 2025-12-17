@@ -50,6 +50,8 @@ const prescripciones = require('./routes/prescripciones');
 const administraciones = require('./routes/administraciones');
 // Rutas de consultas
 const consultas = require('./routes/consultas');
+// Rutas de urgencias
+const urgencias = require('./routes/urgencias');
 
 const app = new Hono();
 
@@ -160,6 +162,8 @@ app.route('/prescripciones', prescripciones);
 app.route('/administraciones', administraciones);
 // Rutas de consultas
 app.route('/consultas', consultas);
+// Rutas de urgencias
+app.route('/urgencias', urgencias);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
