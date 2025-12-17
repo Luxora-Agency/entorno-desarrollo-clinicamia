@@ -52,6 +52,10 @@ const administraciones = require('./routes/administraciones');
 const consultas = require('./routes/consultas');
 // Rutas de urgencias
 const urgencias = require('./routes/urgencias');
+// Rutas de asignaciones de enfermería
+const asignacionesEnfermeria = require('./routes/asignacionesEnfermeria');
+// Rutas de notas de enfermería
+const notasEnfermeria = require('./routes/notasEnfermeria');
 
 const app = new Hono();
 
@@ -166,6 +170,10 @@ app.route('/administraciones', administraciones);
 app.route('/consultas', consultas);
 // Rutas de urgencias
 app.route('/urgencias', urgencias);
+// Rutas de asignaciones de enfermería
+app.route('/asignaciones-enfermeria', asignacionesEnfermeria);
+// Rutas de notas de enfermería
+app.route('/notas-enfermeria', notasEnfermeria);
 
 // Inicializar servidor
 const PORT = process.env.PORT || 4000;
