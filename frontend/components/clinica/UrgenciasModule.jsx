@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/hooks/use-toast';
 import {
   Plus,
   Search,
@@ -27,127 +29,60 @@ import {
   TrendingUp,
   Users,
   AlertTriangle,
+  Bed,
+  Calendar,
+  FileText,
 } from 'lucide-react';
 
 export default function UrgenciasModule({ user }) {
+  const router = useRouter();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('triaje');
-  const [showNewPatient, setShowNewPatient] = useState(false);
-  const [showTriajeForm, setShowTriajeForm] = useState(false);
-  const [showDetail, setShowDetail] = useState(false);
-  const [selectedPatient, setSelectedPatient] = useState(null);
+  const [atenciones, setAtenciones] = useState([]);
+  const [estadisticas, setEstadisticas] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showTriajeForm, setShowTriajeForm] = useState(false);
+  const [atencionSeleccionada, setAtencionSeleccionada] = useState(null);
+  const [showDisposicionModal, setShowDisposicionModal] = useState(false);
+  const [tipoDisposicion, setTipoDisposicion] = useState('');
 
-  // Datos mockeados de pacientes en urgencias
-  const [pacientes, setPacientes] = useState([
-    {
-      id: 'URG-2025-001',
-      paciente: { nombre: 'Pedro Martínez', cedula: '1234567890', edad: 45, genero: 'M' },
-      motivo: 'Dolor torácico intenso',
-      categoriaManchester: 'Rojo',
-      nivel: 'Reanimación',
-      prioridad: 1,
-      signosVitales: {
-        presionArterial: '180/110',
-        frecuenciaCardiaca: 120,
-        frecuenciaRespiratoria: 28,
-        temperatura: 37.2,
-        saturacionOxigeno: 88,
-        glasgow: 15,
-      },
-      horaLlegada: '2025-01-15 10:30',
-      horaTriaje: '2025-01-15 10:32',
-      tiempoEspera: '2 min',
-      estado: 'EnAtencion',
-      areaAsignada: 'Shock',
-      medicoDe: 'Dr. Carlos Méndez',
-      observaciones: 'Posible IAM. Sospecha de STEMI.',
-    },
-    {
-      id: 'URG-2025-002',
-      paciente: { nombre: 'María González', cedula: '9876543210', edad: 32, genero: 'F' },
-      motivo: 'Fractura de antebrazo derecho',
-      categoriaManchester: 'Naranja',
-      nivel: 'Muy Urgente',
-      prioridad: 2,
-      signosVitales: {
-        presionArterial: '125/80',
-        frecuenciaCardiaca: 95,
-        frecuenciaRespiratoria: 20,
-        temperatura: 36.8,
-        saturacionOxigeno: 97,
-        glasgow: 15,
-      },
-      horaLlegada: '2025-01-15 10:45',
-      horaTriaje: '2025-01-15 10:48',
-      tiempoEspera: '15 min',
-      estado: 'Espera',
-      areaAsignada: 'Consultorio 2',
-      observaciones: 'Trauma por caída. Deformidad evidente en antebrazo.',
-    },
-    {
-      id: 'URG-2025-003',
-      paciente: { nombre: 'Juan Pérez', cedula: '4567891230', edad: 28, genero: 'M' },
-      motivo: 'Cefalea intensa',
-      categoriaManchester: 'Amarillo',
-      nivel: 'Urgente',
-      prioridad: 3,
-      signosVitales: {
-        presionArterial: '140/90',
-        frecuenciaCardiaca: 85,
-        frecuenciaRespiratoria: 18,
-        temperatura: 37.5,
-        saturacionOxigeno: 98,
-        glasgow: 15,
-      },
-      horaLlegada: '2025-01-15 11:00',
-      horaTriaje: '2025-01-15 11:05',
-      tiempoEspera: '45 min',
-      estado: 'Espera',
-      observaciones: 'Cefalea de 2 días de evolución. Sin signos neurológicos focales.',
-    },
-    {
-      id: 'URG-2025-004',
-      paciente: { nombre: 'Laura Rodríguez', cedula: '7891234560', edad: 52, genero: 'F' },
-      motivo: 'Dolor abdominal',
-      categoriaManchester: 'Verde',
-      nivel: 'Poco Urgente',
-      prioridad: 4,
-      signosVitales: {
-        presionArterial: '120/75',
-        frecuenciaCardiaca: 78,
-        frecuenciaRespiratoria: 16,
-        temperatura: 36.5,
-        saturacionOxigeno: 99,
-        glasgow: 15,
-      },
-      horaLlegada: '2025-01-15 11:15',
-      horaTriaje: '2025-01-15 11:18',
-      tiempoEspera: '1h 20min',
-      estado: 'Espera',
-      observaciones: 'Dolor abdominal difuso de inicio gradual hace 6 horas.',
-    },
-    {
-      id: 'URG-2025-005',
-      paciente: { nombre: 'Roberto Silva', cedula: '3216549870', edad: 65, genero: 'M' },
-      motivo: 'Control post-operatorio',
-      categoriaManchester: 'Azul',
-      nivel: 'No Urgente',
-      prioridad: 5,
-      signosVitales: {
-        presionArterial: '130/85',
-        frecuenciaCardiaca: 72,
-        frecuenciaRespiratoria: 16,
-        temperatura: 36.7,
-        saturacionOxigeno: 98,
-        glasgow: 15,
-      },
-      horaLlegada: '2025-01-15 11:30',
-      horaTriaje: '2025-01-15 11:33',
-      tiempoEspera: '2h 10min',
-      estado: 'Espera',
-      observaciones: 'Control rutinario post apendicectomía hace 3 días.',
-    },
-  ]);
+  useEffect(() => {
+    loadData();
+    // Recargar cada 30 segundos
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const [atencioneRes, statsRes] = await Promise.all([
+        fetch(`${apiUrl}/urgencias`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`${apiUrl}/urgencias/estadisticas`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
+
+      if (atencioneRes.ok) {
+        const data = await atencioneRes.json();
+        setAtenciones(data.data?.atenciones || []);
+      }
+
+      if (statsRes.ok) {
+        const data = await statsRes.json();
+        setEstadisticas(data.data?.estadisticas || null);
+      }
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getCategoriaColor = (categoria) => {
     switch (categoria) {
@@ -164,28 +99,77 @@ export default function UrgenciasModule({ user }) {
     switch (estado) {
       case 'EnAtencion': return 'bg-blue-100 text-blue-800 border-blue-300';
       case 'Espera': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'Completado': return 'bg-green-100 text-green-800 border-green-300';
+      case 'Alta': return 'bg-green-100 text-green-800 border-green-300';
+      case 'Hospitalizado': return 'bg-purple-100 text-purple-800 border-purple-300';
       case 'Cancelado': return 'bg-red-100 text-red-800 border-red-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
 
-  const pacientesFiltrados = pacientes.filter(p => {
+  const calcularTiempoEspera = (horaLlegada) => {
+    const ahora = new Date();
+    const llegada = new Date(horaLlegada);
+    const diffMs = ahora - llegada;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 60) return `${diffMins} min`;
+    const horas = Math.floor(diffMins / 60);
+    const mins = diffMins % 60;
+    return `${horas}h ${mins}min`;
+  };
+
+  const atencionesFiltradas = atenciones.filter(a => {
     const matchSearch = searchTerm === '' ||
-      p.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.paciente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.paciente.cedula.includes(searchTerm);
+      a.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.paciente?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.paciente?.cedula?.includes(searchTerm);
     
     const matchTab = 
       (activeTab === 'triaje') ||
-      (activeTab === 'atencion' && p.estado === 'EnAtencion') ||
-      (activeTab === 'espera' && p.estado === 'Espera');
+      (activeTab === 'atencion' && a.estado === 'EnAtencion') ||
+      (activeTab === 'espera' && a.estado === 'Espera');
     
     return matchSearch && matchTab;
   });
 
-  // Ordenar por prioridad
-  const pacientesOrdenados = [...pacientesFiltrados].sort((a, b) => a.prioridad - b.prioridad);
+  const atencionesOrdenadas = [...atencionesFiltradas].sort((a, b) => a.prioridad - b.prioridad);
+
+  const iniciarAtencion = async (atencionId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const response = await fetch(`${apiUrl}/urgencias/${atencionId}/atender`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          medico_id: user.id,
+          area_asignada: 'Consultorio Urgencias',
+        }),
+      });
+
+      if (response.ok) {
+        toast({ description: 'Atención iniciada correctamente' });
+        loadData();
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({ description: 'Error al iniciar atención', variant: 'destructive' });
+    }
+  };
+
+  const abrirDisposicion = (atencion, tipo) => {
+    setAtencionSeleccionada(atencion);
+    setTipoDisposicion(tipo);
+    setShowDisposicionModal(true);
+  };
+
+  const contarPorCategoria = (categoria) => {
+    return atenciones.filter(a => a.categoriaManchester === categoria && (a.estado === 'Espera' || a.estado === 'EnAtencion')).length;
+  };
 
   return (
     <div className="p-6 lg:p-8 bg-gradient-to-br from-red-50 via-orange-50 to-yellow-50 min-h-screen">
@@ -201,30 +185,37 @@ export default function UrgenciasModule({ user }) {
               <p className="text-sm text-gray-600">Clasificación y Atención de Emergencias</p>
             </div>
           </div>
-          <Dialog open={showNewPatient} onOpenChange={setShowNewPatient}>
+          <Dialog open={showTriajeForm} onOpenChange={setShowTriajeForm}>
             <DialogTrigger asChild>
               <Button className="bg-gradient-to-r from-red-600 to-orange-700 hover:from-red-700 hover:to-orange-800 text-white shadow-md">
                 <Plus className="w-4 h-4 mr-2" />
                 Nuevo Ingreso
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Nuevo Ingreso a Urgencias</DialogTitle>
               </DialogHeader>
-              <FormularioNuevoIngreso onClose={() => setShowNewPatient(false)} />
+              <FormularioTriaje 
+                onClose={() => setShowTriajeForm(false)} 
+                onSuccess={() => {
+                  setShowTriajeForm(false);
+                  loadData();
+                }}
+                user={user}
+              />
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Estadísticas Rápidas */}
+        {/* Estadísticas por Categoría Manchester */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <Card className="border-l-4 border-l-red-600">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Rojo</p>
-                  <p className="text-2xl font-bold text-red-600">1</p>
+                  <p className="text-2xl font-bold text-red-600">{contarPorCategoria('Rojo')}</p>
                   <p className="text-xs text-gray-500">Reanimación</p>
                 </div>
                 <AlertCircle className="w-8 h-8 text-red-600" />
@@ -237,7 +228,7 @@ export default function UrgenciasModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Naranja</p>
-                  <p className="text-2xl font-bold text-orange-600">1</p>
+                  <p className="text-2xl font-bold text-orange-600">{contarPorCategoria('Naranja')}</p>
                   <p className="text-xs text-gray-500">Muy Urgente</p>
                 </div>
                 <Heart className="w-8 h-8 text-orange-600" />
@@ -250,7 +241,7 @@ export default function UrgenciasModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Amarillo</p>
-                  <p className="text-2xl font-bold text-yellow-600">1</p>
+                  <p className="text-2xl font-bold text-yellow-600">{contarPorCategoria('Amarillo')}</p>
                   <p className="text-xs text-gray-500">Urgente</p>
                 </div>
                 <Clock className="w-8 h-8 text-yellow-600" />
@@ -263,7 +254,7 @@ export default function UrgenciasModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Verde</p>
-                  <p className="text-2xl font-bold text-green-600">1</p>
+                  <p className="text-2xl font-bold text-green-600">{contarPorCategoria('Verde')}</p>
                   <p className="text-xs text-gray-500">Poco Urgente</p>
                 </div>
                 <Activity className="w-8 h-8 text-green-600" />
@@ -276,7 +267,7 @@ export default function UrgenciasModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Azul</p>
-                  <p className="text-2xl font-bold text-blue-600">1</p>
+                  <p className="text-2xl font-bold text-blue-600">{contarPorCategoria('Azul')}</p>
                   <p className="text-xs text-gray-500">No Urgente</p>
                 </div>
                 <Users className="w-8 h-8 text-blue-600" />
@@ -291,7 +282,7 @@ export default function UrgenciasModule({ user }) {
             <div className="flex items-center gap-2">
               <Search className="w-5 h-5 text-gray-400" />
               <Input
-                placeholder="Buscar por ID, paciente o cédula..."
+                placeholder="Buscar por paciente o cédula..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="flex-1"
@@ -304,13 +295,13 @@ export default function UrgenciasModule({ user }) {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-white border shadow-sm">
             <TabsTrigger value="triaje" className="data-[state=active]:bg-red-100 data-[state=active]:text-red-700">
-              Panel de Triaje
+              Panel de Triaje ({atenciones.length})
             </TabsTrigger>
             <TabsTrigger value="atencion" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
-              En Atención
+              En Atención ({atenciones.filter(a => a.estado === 'EnAtencion').length})
             </TabsTrigger>
             <TabsTrigger value="espera" className="data-[state=active]:bg-yellow-100 data-[state=active]:text-yellow-700">
-              En Espera
+              En Espera ({atenciones.filter(a => a.estado === 'Espera').length})
             </TabsTrigger>
           </TabsList>
 
@@ -320,83 +311,118 @@ export default function UrgenciasModule({ user }) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-20">Categoría</TableHead>
-                      <TableHead>ID</TableHead>
+                      <TableHead className="w-20">Cat.</TableHead>
                       <TableHead>Paciente</TableHead>
                       <TableHead>Motivo</TableHead>
                       <TableHead>Signos Vitales</TableHead>
-                      <TableHead>Hora Llegada</TableHead>
-                      <TableHead>Tiempo Espera</TableHead>
+                      <TableHead>Llegada</TableHead>
+                      <TableHead>Espera</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead>Acciones</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {pacientesOrdenados.length === 0 ? (
+                    {loading ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center text-gray-500 py-8">
-                          No se encontraron pacientes
+                        <TableCell colSpan={8} className="text-center py-8">
+                          Cargando...
+                        </TableCell>
+                      </TableRow>
+                    ) : atencionesOrdenadas.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center text-gray-500 py-8">
+                          No hay pacientes en urgencias
                         </TableCell>
                       </TableRow>
                     ) : (
-                      pacientesOrdenados.map((paciente) => (
-                        <TableRow key={paciente.id} className="hover:bg-gray-50">
+                      atencionesOrdenadas.map((atencion) => (
+                        <TableRow key={atencion.id} className="hover:bg-gray-50">
                           <TableCell>
-                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${getCategoriaColor(paciente.categoriaManchester)}`}>
-                              {paciente.prioridad}
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${getCategoriaColor(atencion.categoriaManchester)}`}>
+                              {atencion.prioridad}
                             </div>
                           </TableCell>
-                          <TableCell className="font-medium">{paciente.id}</TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{paciente.paciente.nombre}</p>
-                              <p className="text-xs text-gray-500">CC: {paciente.paciente.cedula}</p>
-                              <p className="text-xs text-gray-500">{paciente.paciente.edad} años - {paciente.paciente.genero}</p>
+                              <p className="font-semibold">{atencion.paciente?.nombre} {atencion.paciente?.apellido}</p>
+                              <p className="text-xs text-gray-500">CC: {atencion.paciente?.cedula}</p>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <p className="text-sm max-w-xs">{paciente.motivo}</p>
-                            <Badge className={`mt-1 ${getCategoriaColor(paciente.categoriaManchester)}`}>
-                              {paciente.nivel}
-                            </Badge>
+                          <TableCell className="max-w-xs">
+                            <p className="truncate text-sm">{atencion.motivoConsulta}</p>
                           </TableCell>
                           <TableCell>
                             <div className="text-xs space-y-1">
-                              <p>PA: {paciente.signosVitales.presionArterial}</p>
-                              <p>FC: {paciente.signosVitales.frecuenciaCardiaca} lpm</p>
-                              <p>SpO2: {paciente.signosVitales.saturacionOxigeno}%</p>
+                              <div className="flex items-center gap-1">
+                                <Heart className="w-3 h-3 text-red-500" />
+                                <span>{atencion.presionSistolica}/{atencion.presionDiastolica}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Activity className="w-3 h-3 text-blue-500" />
+                                <span>{atencion.frecuenciaCardiaca} bpm</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <Thermometer className="w-3 h-3 text-orange-500" />
+                                <span>{atencion.temperatura}°C</span>
+                              </div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm">{paciente.horaLlegada}</TableCell>
+                          <TableCell className="text-sm">
+                            {new Date(atencion.horaLlegada).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                          </TableCell>
                           <TableCell>
-                            <Badge variant="outline" className="font-semibold">
-                              {paciente.tiempoEspera}
+                            <Badge variant="outline" className="text-xs">
+                              {calcularTiempoEspera(atencion.horaLlegada)}
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <Badge className={getEstadoColor(paciente.estado)}>
-                              {paciente.estado}
+                            <Badge className={`${getEstadoColor(atencion.estado)} border text-xs`}>
+                              {atencion.estado}
                             </Badge>
                           </TableCell>
-                          <TableCell>
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedPatient(paciente);
-                                  setShowDetail(true);
-                                }}
-                              >
+                          <TableCell className="text-right">
+                            <div className="flex gap-1 justify-end">
+                              <Button size="sm" variant="ghost" onClick={() => {
+                                setAtencionSeleccionada(atencion);
+                              }}>
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              {paciente.estado === 'Espera' && (
-                                <Button
-                                  size="sm"
-                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                              {atencion.estado === 'Espera' && (
+                                <Button 
+                                  size="sm" 
+                                  className="bg-blue-600 hover:bg-blue-700"
+                                  onClick={() => iniciarAtencion(atencion.id)}
                                 >
                                   <ArrowRight className="w-4 h-4" />
                                 </Button>
+                              )}
+                              {atencion.estado === 'EnAtencion' && (
+                                <div className="flex gap-1">
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-green-600 hover:bg-green-700"
+                                    onClick={() => abrirDisposicion(atencion, 'alta')}
+                                    title="Dar de Alta"
+                                  >
+                                    <CheckCircle className="w-4 h-4" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-purple-600 hover:bg-purple-700"
+                                    onClick={() => abrirDisposicion(atencion, 'hospitalizar')}
+                                    title="Hospitalizar"
+                                  >
+                                    <Bed className="w-4 h-4" />
+                                  </Button>
+                                  <Button 
+                                    size="sm" 
+                                    className="bg-teal-600 hover:bg-teal-700"
+                                    onClick={() => abrirDisposicion(atencion, 'cita')}
+                                    title="Programar Cita"
+                                  >
+                                    <Calendar className="w-4 h-4" />
+                                  </Button>
+                                </div>
                               )}
                             </div>
                           </TableCell>
@@ -410,285 +436,706 @@ export default function UrgenciasModule({ user }) {
           </TabsContent>
         </Tabs>
 
-        {/* Dialog de Detalle */}
-        <Dialog open={showDetail} onOpenChange={setShowDetail}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Detalle del Paciente - Triaje</DialogTitle>
-            </DialogHeader>
-            {selectedPatient && (
-              <DetalleTriaje paciente={selectedPatient} />
-            )}
-          </DialogContent>
-        </Dialog>
+        {/* Modal de Disposición */}
+        <ModalDisposicion
+          open={showDisposicionModal}
+          onClose={() => {
+            setShowDisposicionModal(false);
+            setAtencionSeleccionada(null);
+          }}
+          atencion={atencionSeleccionada}
+          tipo={tipoDisposicion}
+          onSuccess={() => {
+            setShowDisposicionModal(false);
+            loadData();
+          }}
+          user={user}
+        />
       </div>
     </div>
   );
 }
 
-// Componente de Formulario de Nuevo Ingreso
-function FormularioNuevoIngreso({ onClose }) {
+// Componente de Formulario de Triaje
+function FormularioTriaje({ onClose, onSuccess, user }) {
+  const { toast } = useToast();
+  const [step, setStep] = useState(1);
+  const [pacientes, setPacientes] = useState([]);
+  const [searchPaciente, setSearchPaciente] = useState('');
+  const [pacienteSeleccionado, setPacienteSeleccionado] = useState(null);
   const [formData, setFormData] = useState({
-    paciente: '',
-    motivo: '',
-    categoriaManchester: '',
-    signosVitales: {
-      presionArterial: '',
-      frecuenciaCardiaca: '',
-      frecuenciaRespiratoria: '',
-      temperatura: '',
-      saturacionOxigeno: '',
-      glasgow: 15,
-    },
+    categoria_manchester: 'Amarillo',
+    nivel_urgencia: 'Urgente',
+    prioridad: 3,
+    motivo_consulta: '',
+    medio_llegada: 'Particular',
+    acompanante: '',
+    presion_sistolica: '',
+    presion_diastolica: '',
+    frecuencia_cardiaca: '',
+    frecuencia_respiratoria: '',
+    temperatura: '',
+    saturacion_oxigeno: '',
+    escala_glasgow: 15,
+    escala_dolor: 0,
+    observaciones: '',
   });
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    alert('Paciente ingresado a urgencias exitosamente (mockup)');
-    onClose();
+  const buscarPacientes = async () => {
+    if (searchPaciente.length < 3) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      
+      const response = await fetch(`${apiUrl}/pacientes?search=${searchPaciente}&limit=10`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setPacientes(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error buscando pacientes:', error);
+    }
+  };
+
+  const handleCategoriaChange = (categoria) => {
+    const configuraciones = {
+      'Rojo': { nivel: 'Reanimación', prioridad: 1 },
+      'Naranja': { nivel: 'Muy Urgente', prioridad: 2 },
+      'Amarillo': { nivel: 'Urgente', prioridad: 3 },
+      'Verde': { nivel: 'Poco Urgente', prioridad: 4 },
+      'Azul': { nivel: 'No Urgente', prioridad: 5 },
+    };
+
+    const config = configuraciones[categoria];
+    setFormData({
+      ...formData,
+      categoria_manchester: categoria,
+      nivel_urgencia: config.nivel,
+      prioridad: config.prioridad,
+    });
+  };
+
+  const handleSubmit = async () => {
+    if (!pacienteSeleccionado) {
+      toast({ description: 'Debe seleccionar un paciente', variant: 'destructive' });
+      return;
+    }
+
+    if (!formData.motivo_consulta) {
+      toast({ description: 'El motivo de consulta es obligatorio', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const response = await fetch(`${apiUrl}/urgencias/triaje`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          paciente_id: pacienteSeleccionado.id,
+          ...formData,
+        }),
+      });
+
+      if (response.ok) {
+        toast({ description: 'Triaje registrado exitosamente' });
+        onSuccess();
+      } else {
+        const error = await response.json();
+        toast({ description: error.message || 'Error al registrar triaje', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({ description: 'Error al registrar triaje', variant: 'destructive' });
+    }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div>
-        <Label>Paciente *</Label>
-        <Input placeholder="Buscar paciente..." required />
-      </div>
+    <div className="space-y-6">
+      {step === 1 && (
+        <div className="space-y-4">
+          <h3 className="font-semibold text-lg">Paso 1: Seleccionar Paciente</h3>
+          <div>
+            <Label>Buscar Paciente</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nombre, cédula..."
+                value={searchPaciente}
+                onChange={(e) => setSearchPaciente(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && buscarPacientes()}
+              />
+              <Button onClick={buscarPacientes}>
+                <Search className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
 
-      <div>
-        <Label>Motivo de Consulta *</Label>
-        <Textarea
-          placeholder="Descripción del motivo de consulta..."
-          rows={2}
-          required
-        />
-      </div>
+          {pacientes.length > 0 && (
+            <div className="border rounded-lg max-h-60 overflow-y-auto">
+              {pacientes.map(p => (
+                <div
+                  key={p.id}
+                  onClick={() => setPacienteSeleccionado(p)}
+                  className={`p-3 cursor-pointer hover:bg-gray-50 border-b ${pacienteSeleccionado?.id === p.id ? 'bg-emerald-50' : ''}`}
+                >
+                  <p className="font-semibold">{p.nombre} {p.apellido}</p>
+                  <p className="text-sm text-gray-600">CC: {p.cedula}</p>
+                </div>
+              ))}
+            </div>
+          )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>Categoría Manchester *</Label>
-          <Select required>
-            <SelectTrigger>
-              <SelectValue placeholder="Seleccione..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Rojo">🔴 Rojo - Reanimación (Inmediato)</SelectItem>
-              <SelectItem value="Naranja">🟠 Naranja - Muy Urgente (10 min)</SelectItem>
-              <SelectItem value="Amarillo">🟡 Amarillo - Urgente (60 min)</SelectItem>
-              <SelectItem value="Verde">🟢 Verde - Poco Urgente (120 min)</SelectItem>
-              <SelectItem value="Azul">🔵 Azul - No Urgente (240 min)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label>Presión Arterial *</Label>
-          <Input placeholder="Ej: 120/80" required />
-        </div>
-      </div>
+          {pacienteSeleccionado && (
+            <Card className="bg-emerald-50 border-emerald-200">
+              <CardContent className="p-4">
+                <p className="font-semibold text-emerald-900">Paciente Seleccionado:</p>
+                <p className="text-sm">{pacienteSeleccionado.nombre} {pacienteSeleccionado.apellido} - {pacienteSeleccionado.cedula}</p>
+              </CardContent>
+            </Card>
+          )}
 
-      <div className="grid grid-cols-3 gap-4">
-        <div>
-          <Label>FC (lpm) *</Label>
-          <Input type="number" placeholder="72" required />
+          <div className="flex justify-end">
+            <Button 
+              onClick={() => setStep(2)} 
+              disabled={!pacienteSeleccionado}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              Continuar
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
         </div>
-        <div>
-          <Label>FR (rpm) *</Label>
-          <Input type="number" placeholder="16" required />
-        </div>
-        <div>
-          <Label>Temp (°C) *</Label>
-          <Input type="number" step="0.1" placeholder="36.5" required />
-        </div>
-      </div>
+      )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label>SpO2 (%) *</Label>
-          <Input type="number" placeholder="98" required />
-        </div>
-        <div>
-          <Label>Glasgow *</Label>
-          <Input type="number" min="3" max="15" placeholder="15" required />
-        </div>
-      </div>
+      {step === 2 && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold text-lg">Paso 2: Triaje Manchester</h3>
+            <Button variant="outline" size="sm" onClick={() => setStep(1)}>
+              Volver
+            </Button>
+          </div>
 
-      <div>
-        <Label>Observaciones del Triaje</Label>
-        <Textarea
-          placeholder="Hallazgos relevantes durante la valoración..."
-          rows={2}
-        />
-      </div>
+          {/* Categoría Manchester */}
+          <div>
+            <Label>Categoría Manchester *</Label>
+            <div className="grid grid-cols-5 gap-2 mt-2">
+              {['Rojo', 'Naranja', 'Amarillo', 'Verde', 'Azul'].map(cat => (
+                <Button
+                  key={cat}
+                  type="button"
+                  variant={formData.categoria_manchester === cat ? 'default' : 'outline'}
+                  className={formData.categoria_manchester === cat ? getCategoriaColor(cat) : ''}
+                  onClick={() => handleCategoriaChange(cat)}
+                >
+                  {cat}
+                </Button>
+              ))}
+            </div>
+            <p className="text-sm text-gray-600 mt-1">
+              Nivel: {formData.nivel_urgencia} (Prioridad {formData.prioridad})
+            </p>
+          </div>
 
-      <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button type="submit" className="bg-gradient-to-r from-red-600 to-orange-700">
-          Ingresar a Urgencias
-        </Button>
-      </div>
-    </form>
+          {/* Motivo de Consulta */}
+          <div>
+            <Label>Motivo de Consulta *</Label>
+            <Textarea
+              value={formData.motivo_consulta}
+              onChange={(e) => setFormData({ ...formData, motivo_consulta: e.target.value })}
+              placeholder="Describa el motivo de la consulta..."
+              rows={3}
+            />
+          </div>
+
+          {/* Signos Vitales */}
+          <div className="bg-gray-50 p-4 rounded-lg space-y-4">
+            <h4 className="font-semibold">Signos Vitales</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div>
+                <Label className="text-xs">PA Sistólica</Label>
+                <Input
+                  type="number"
+                  value={formData.presion_sistolica}
+                  onChange={(e) => setFormData({ ...formData, presion_sistolica: e.target.value })}
+                  placeholder="120"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">PA Diastólica</Label>
+                <Input
+                  type="number"
+                  value={formData.presion_diastolica}
+                  onChange={(e) => setFormData({ ...formData, presion_diastolica: e.target.value })}
+                  placeholder="80"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">FC (bpm)</Label>
+                <Input
+                  type="number"
+                  value={formData.frecuencia_cardiaca}
+                  onChange={(e) => setFormData({ ...formData, frecuencia_cardiaca: e.target.value })}
+                  placeholder="80"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">FR (rpm)</Label>
+                <Input
+                  type="number"
+                  value={formData.frecuencia_respiratoria}
+                  onChange={(e) => setFormData({ ...formData, frecuencia_respiratoria: e.target.value })}
+                  placeholder="18"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Temperatura (°C)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.temperatura}
+                  onChange={(e) => setFormData({ ...formData, temperatura: e.target.value })}
+                  placeholder="36.5"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Sat O2 (%)</Label>
+                <Input
+                  type="number"
+                  value={formData.saturacion_oxigeno}
+                  onChange={(e) => setFormData({ ...formData, saturacion_oxigeno: e.target.value })}
+                  placeholder="98"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Glasgow</Label>
+                <Input
+                  type="number"
+                  value={formData.escala_glasgow}
+                  onChange={(e) => setFormData({ ...formData, escala_glasgow: e.target.value })}
+                  placeholder="15"
+                  min="3"
+                  max="15"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Dolor (0-10)</Label>
+                <Input
+                  type="number"
+                  value={formData.escala_dolor}
+                  onChange={(e) => setFormData({ ...formData, escala_dolor: e.target.value })}
+                  placeholder="0"
+                  min="0"
+                  max="10"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Información Adicional */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label>Medio de Llegada</Label>
+              <Select value={formData.medio_llegada} onValueChange={(value) => setFormData({ ...formData, medio_llegada: value })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Particular">Particular</SelectItem>
+                  <SelectItem value="Ambulancia">Ambulancia</SelectItem>
+                  <SelectItem value="Policia">Policía</SelectItem>
+                  <SelectItem value="Bomberos">Bomberos</SelectItem>
+                  <SelectItem value="Remitido">Remitido</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Acompañante</Label>
+              <Input
+                value={formData.acompanante}
+                onChange={(e) => setFormData({ ...formData, acompanante: e.target.value })}
+                placeholder="Nombre del acompañante"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label>Observaciones</Label>
+            <Textarea
+              value={formData.observaciones}
+              onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
+              placeholder="Observaciones adicionales..."
+              rows={3}
+            />
+          </div>
+
+          {/* Botones */}
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSubmit}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Registrar Triaje
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-// Componente de Detalle de Triaje
-function DetalleTriaje({ paciente }) {
+// Modal de Disposición (Alta, Cita, Hospitalización)
+function ModalDisposicion({ open, onClose, atencion, tipo, onSuccess, user }) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    diagnostico: '',
+    tratamiento: '',
+    indicaciones_alta: '',
+    // Para cita
+    doctor_id: '',
+    especialidad_id: '',
+    fecha: '',
+    hora: '',
+    // Para hospitalización
+    unidad_id: '',
+    cama_id: '',
+    motivo_ingreso: '',
+    sin_cama: false,
+  });
+  const [doctores, setDoctores] = useState([]);
+  const [especialidades, setEspecialidades] = useState([]);
+  const [unidades, setUnidades] = useState([]);
+  const [camas, setCamas] = useState([]);
+
+  useEffect(() => {
+    if (open && tipo === 'cita') {
+      loadDoctoresEspecialidades();
+    }
+    if (open && tipo === 'hospitalizar') {
+      loadUnidades();
+    }
+  }, [open, tipo]);
+
+  const loadDoctoresEspecialidades = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const [doctoresRes, especialidadesRes] = await Promise.all([
+        fetch(`${apiUrl}/doctores?limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${apiUrl}/especialidades?limit=100`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+
+      if (doctoresRes.ok) {
+        const data = await doctoresRes.json();
+        setDoctores(data.data || []);
+      }
+      if (especialidadesRes.ok) {
+        const data = await especialidadesRes.json();
+        setEspecialidades(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const loadUnidades = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const response = await fetch(`${apiUrl}/unidades?activo=true`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUnidades(data.data?.unidades || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const loadCamasDisponibles = async (unidadId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const response = await fetch(`${apiUrl}/camas/disponibles?unidadId=${unidadId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setCamas(data.data?.camas || []);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      let endpoint = '';
+      let payload = {};
+
+      if (tipo === 'alta') {
+        endpoint = `${apiUrl}/urgencias/${atencion.id}/alta`;
+        payload = {
+          diagnostico: formData.diagnostico,
+          tratamiento: formData.tratamiento,
+          indicaciones_alta: formData.indicaciones_alta,
+        };
+      } else if (tipo === 'cita') {
+        endpoint = `${apiUrl}/urgencias/${atencion.id}/programar-cita`;
+        payload = {
+          doctor_id: formData.doctor_id,
+          especialidad_id: formData.especialidad_id,
+          fecha: formData.fecha,
+          hora: formData.hora,
+          diagnostico: formData.diagnostico,
+          indicaciones: formData.indicaciones_alta,
+        };
+      } else if (tipo === 'hospitalizar') {
+        endpoint = `${apiUrl}/urgencias/${atencion.id}/hospitalizar`;
+        payload = {
+          unidad_id: formData.unidad_id,
+          cama_id: formData.sin_cama ? null : formData.cama_id,
+          motivo_ingreso: formData.motivo_ingreso || atencion.motivoConsulta,
+          diagnostico_ingreso: formData.diagnostico || atencion.diagnosticoInicial,
+          observaciones: formData.indicaciones_alta,
+        };
+      }
+
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        toast({ description: `${tipo === 'alta' ? 'Alta' : tipo === 'cita' ? 'Cita' : 'Hospitalización'} registrada correctamente` });
+        onSuccess();
+      } else {
+        const error = await response.json();
+        toast({ description: error.message || 'Error', variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({ description: 'Error en la operación', variant: 'destructive' });
+    }
+  };
+
+  if (!atencion) return null;
+
   return (
-    <div className="space-y-6">
-      {/* Información del Paciente */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center justify-between">
-            <span>Información del Paciente</span>
-            <Badge className={`${
-              paciente.categoriaManchester === 'Rojo' ? 'bg-red-600' :
-              paciente.categoriaManchester === 'Naranja' ? 'bg-orange-500' :
-              paciente.categoriaManchester === 'Amarillo' ? 'bg-yellow-500 text-gray-900' :
-              paciente.categoriaManchester === 'Verde' ? 'bg-green-500' :
-              'bg-blue-500'
-            } text-white text-lg px-4 py-2`}>
-              {paciente.categoriaManchester} - {paciente.nivel}
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-600">ID Urgencia</p>
-              <p className="font-medium">{paciente.id}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Estado</p>
-              <Badge className={paciente.estado === 'EnAtencion' ? 'bg-blue-100 text-blue-800' : 'bg-yellow-100 text-yellow-800'}>
-                {paciente.estado}
-              </Badge>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Paciente</p>
-              <p className="font-medium">{paciente.paciente.nombre}</p>
-              <p className="text-xs text-gray-500">CC: {paciente.paciente.cedula}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Edad / Género</p>
-              <p className="font-medium">{paciente.paciente.edad} años / {paciente.paciente.genero}</p>
-            </div>
-          </div>
-          <div className="pt-3 border-t">
-            <p className="text-sm text-gray-600 mb-1">Motivo de Consulta</p>
-            <p className="text-sm font-medium">{paciente.motivo}</p>
-          </div>
-        </CardContent>
-      </Card>
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>
+            {tipo === 'alta' && '✅ Dar de Alta'}
+            {tipo === 'cita' && '📅 Programar Cita de Seguimiento'}
+            {tipo === 'hospitalizar' && '🏥 Hospitalizar Paciente'}
+          </DialogTitle>
+        </DialogHeader>
 
-      {/* Signos Vitales */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Signos Vitales</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            <div className="text-center p-3 bg-blue-50 rounded-lg">
-              <p className="text-xs text-gray-600">Presión Arterial</p>
-              <p className="text-xl font-bold text-blue-700">{paciente.signosVitales.presionArterial}</p>
-              <p className="text-xs text-gray-500">mmHg</p>
-            </div>
-            <div className="text-center p-3 bg-red-50 rounded-lg">
-              <p className="text-xs text-gray-600">Frecuencia Cardíaca</p>
-              <p className="text-xl font-bold text-red-700">{paciente.signosVitales.frecuenciaCardiaca}</p>
-              <p className="text-xs text-gray-500">lpm</p>
-            </div>
-            <div className="text-center p-3 bg-cyan-50 rounded-lg">
-              <p className="text-xs text-gray-600">Frecuencia Respiratoria</p>
-              <p className="text-xl font-bold text-cyan-700">{paciente.signosVitales.frecuenciaRespiratoria}</p>
-              <p className="text-xs text-gray-500">rpm</p>
-            </div>
-            <div className="text-center p-3 bg-orange-50 rounded-lg">
-              <p className="text-xs text-gray-600">Temperatura</p>
-              <p className="text-xl font-bold text-orange-700">{paciente.signosVitales.temperatura}°C</p>
-              <p className="text-xs text-gray-500">Celsius</p>
-            </div>
-            <div className="text-center p-3 bg-green-50 rounded-lg">
-              <p className="text-xs text-gray-600">Saturación O2</p>
-              <p className="text-xl font-bold text-green-700">{paciente.signosVitales.saturacionOxigeno}%</p>
-              <p className="text-xs text-gray-500">SpO2</p>
-            </div>
-            <div className="text-center p-3 bg-purple-50 rounded-lg">
-              <p className="text-xs text-gray-600">Escala Glasgow</p>
-              <p className="text-xl font-bold text-purple-700">{paciente.signosVitales.glasgow}/15</p>
-              <p className="text-xs text-gray-500">Conciencia</p>
-            </div>
+        <div className="space-y-4">
+          {/* Diagnóstico (común para todos) */}
+          <div>
+            <Label>Diagnóstico *</Label>
+            <Textarea
+              value={formData.diagnostico}
+              onChange={(e) => setFormData({ ...formData, diagnostico: e.target.value })}
+              placeholder="Diagnóstico del paciente..."
+              rows={2}
+            />
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Timeline de Atención */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Timeline de Atención</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex gap-3">
-              <div className="flex flex-col items-center">
-                <div className="w-3 h-3 rounded-full bg-green-500" />
-                <div className="w-0.5 h-12 bg-gray-300" />
+          {tipo === 'alta' && (
+            <>
+              <div>
+                <Label>Tratamiento Aplicado</Label>
+                <Textarea
+                  value={formData.tratamiento}
+                  onChange={(e) => setFormData({ ...formData, tratamiento: e.target.value })}
+                  placeholder="Medicamentos y tratamientos aplicados..."
+                  rows={2}
+                />
               </div>
               <div>
-                <p className="text-sm font-medium">Llegada a Urgencias</p>
-                <p className="text-xs text-gray-500">{paciente.horaLlegada}</p>
+                <Label>Indicaciones de Alta *</Label>
+                <Textarea
+                  value={formData.indicaciones_alta}
+                  onChange={(e) => setFormData({ ...formData, indicaciones_alta: e.target.value })}
+                  placeholder="Indicaciones para el paciente..."
+                  rows={3}
+                />
               </div>
-            </div>
-            <div className="flex gap-3">
-              <div className="flex flex-col items-center">
-                <div className="w-3 h-3 rounded-full bg-blue-500" />
-                <div className="w-0.5 h-12 bg-gray-300" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Triaje Completado</p>
-                <p className="text-xs text-gray-500">{paciente.horaTriaje}</p>
-                <p className="text-xs text-gray-600 mt-1">Clasificado como: {paciente.categoriaManchester} - {paciente.nivel}</p>
-              </div>
-            </div>
-            {paciente.estado === 'EnAtencion' && (
-              <div className="flex gap-3">
-                <div className="flex flex-col items-center">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+            </>
+          )}
+
+          {tipo === 'cita' && (
+            <>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Especialidad *</Label>
+                  <Select value={formData.especialidad_id} onValueChange={(value) => setFormData({ ...formData, especialidad_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {especialidades.map(esp => (
+                        <SelectItem key={esp.id} value={esp.id}>{esp.titulo}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">En Atención Médica</p>
-                  <p className="text-xs text-gray-500">Área: {paciente.areaAsignada}</p>
-                  <p className="text-xs text-gray-500">Médico: {paciente.medicoDe}</p>
+                  <Label>Doctor *</Label>
+                  <Select value={formData.doctor_id} onValueChange={(value) => setFormData({ ...formData, doctor_id: value })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {doctores.map(doc => (
+                        <SelectItem key={doc.usuario.id} value={doc.usuario.id}>
+                          Dr. {doc.usuario.nombre} {doc.usuario.apellido}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Fecha *</Label>
+                  <Input
+                    type="date"
+                    value={formData.fecha}
+                    onChange={(e) => setFormData({ ...formData, fecha: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label>Hora *</Label>
+                  <Input
+                    type="time"
+                    value={formData.hora}
+                    onChange={(e) => setFormData({ ...formData, hora: e.target.value })}
+                  />
                 </div>
               </div>
-            )}
+              <div>
+                <Label>Indicaciones</Label>
+                <Textarea
+                  value={formData.indicaciones_alta}
+                  onChange={(e) => setFormData({ ...formData, indicaciones_alta: e.target.value })}
+                  placeholder="Indicaciones para la cita..."
+                  rows={2}
+                />
+              </div>
+            </>
+          )}
+
+          {tipo === 'hospitalizar' && (
+            <>
+              <div>
+                <Label>Unidad *</Label>
+                <Select 
+                  value={formData.unidad_id} 
+                  onValueChange={(value) => {
+                    setFormData({ ...formData, unidad_id: value });
+                    if (!formData.sin_cama) {
+                      loadCamasDisponibles(value);
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar unidad..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unidades.map(unidad => (
+                      <SelectItem key={unidad.id} value={unidad.id}>
+                        {unidad.nombre} ({unidad.tipo})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  id="sin_cama"
+                  checked={formData.sin_cama}
+                  onChange={(e) => setFormData({ ...formData, sin_cama: e.target.checked, cama_id: '' })}
+                  className="w-4 h-4"
+                />
+                <Label htmlFor="sin_cama" className="cursor-pointer">
+                  Sin cama asignada (Salón común / Observación)
+                </Label>
+              </div>
+
+              {!formData.sin_cama && (
+                <div>
+                  <Label>Cama *</Label>
+                  <Select 
+                    value={formData.cama_id} 
+                    onValueChange={(value) => setFormData({ ...formData, cama_id: value })}
+                    disabled={!formData.unidad_id}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar cama..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {camas.map(cama => (
+                        <SelectItem key={cama.id} value={cama.id}>
+                          {cama.numero} - Hab. {cama.habitacion?.numero}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <div>
+                <Label>Motivo de Ingreso</Label>
+                <Textarea
+                  value={formData.motivo_ingreso}
+                  onChange={(e) => setFormData({ ...formData, motivo_ingreso: e.target.value })}
+                  placeholder="Motivo de hospitalización..."
+                  rows={2}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Botones */}
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={onClose}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} className="bg-red-600 hover:bg-red-700">
+              Confirmar
+            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Observaciones */}
-      {paciente.observaciones && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Observaciones del Triaje</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-gray-700">{paciente.observaciones}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="flex justify-end gap-2">
-        <Button variant="outline">
-          Imprimir Triaje
-        </Button>
-        {paciente.estado === 'Espera' && (
-          <Button className="bg-gradient-to-r from-blue-600 to-indigo-700">
-            <ArrowRight className="w-4 h-4 mr-2" />
-            Iniciar Atención
-          </Button>
-        )}
-      </div>
-    </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
