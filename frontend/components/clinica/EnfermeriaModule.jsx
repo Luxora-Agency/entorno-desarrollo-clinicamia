@@ -361,7 +361,7 @@ export default function EnfermeriaModule({ user }) {
           <CardContent className="p-6">
             {asignaciones.length === 0 ? (
               <p className="text-center text-gray-500 py-8">
-                No hay asignaciones activas. Haz click en "Nueva Asignación" para crear una.
+                No hay asignaciones activas. Haz click en &quot;Nueva Asignación&quot; para crear una.
               </p>
             ) : (
               <Table>
