@@ -1,4 +1,9 @@
 {
+  "name": "clinica-mia",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "cd frontend && npm run dev"
+  },
   "dependencies": {
     "react-is": "^19.2.1",
     "recharts": "^3.5.1"
