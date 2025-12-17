@@ -45,6 +45,7 @@ export default function UrgenciasModule({ user }) {
   const [showTriajeForm, setShowTriajeForm] = useState(false);
   const [atencionSeleccionada, setAtencionSeleccionada] = useState(null);
   const [showDisposicionModal, setShowDisposicionModal] = useState(false);
+  const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [tipoDisposicion, setTipoDisposicion] = useState('');
 
   useEffect(() => {
@@ -165,6 +166,11 @@ export default function UrgenciasModule({ user }) {
     setAtencionSeleccionada(atencion);
     setTipoDisposicion(tipo);
     setShowDisposicionModal(true);
+  };
+
+  const verDetalle = (atencion) => {
+    setAtencionSeleccionada(atencion);
+    setShowDetalleModal(true);
   };
 
   const contarPorCategoria = (categoria) => {
@@ -382,15 +388,13 @@ export default function UrgenciasModule({ user }) {
                           </TableCell>
                           <TableCell className="text-right">
                             <div className="flex gap-1 justify-end">
-                              <Button size="sm" variant="ghost" onClick={() => {
-                                setAtencionSeleccionada(atencion);
-                              }}>
+                              <Button size="sm" variant="ghost" onClick={() => verDetalle(atencion)}>
                                 <Eye className="w-4 h-4" />
                               </Button>
                               {atencion.estado === 'Espera' && (
                                 <Button 
                                   size="sm" 
-                                  className="bg-blue-600 hover:bg-blue-700"
+                                  className="bg-blue-600 hover:bg-blue-700 text-white"
                                   onClick={() => iniciarAtencion(atencion.id)}
                                 >
                                   <ArrowRight className="w-4 h-4" />
@@ -400,7 +404,7 @@ export default function UrgenciasModule({ user }) {
                                 <div className="flex gap-1">
                                   <Button 
                                     size="sm" 
-                                    className="bg-green-600 hover:bg-green-700"
+                                    className="bg-green-600 hover:bg-green-700 text-white"
                                     onClick={() => abrirDisposicion(atencion, 'alta')}
                                     title="Dar de Alta"
                                   >
@@ -408,7 +412,7 @@ export default function UrgenciasModule({ user }) {
                                   </Button>
                                   <Button 
                                     size="sm" 
-                                    className="bg-purple-600 hover:bg-purple-700"
+                                    className="bg-purple-600 hover:bg-purple-700 text-white"
                                     onClick={() => abrirDisposicion(atencion, 'hospitalizar')}
                                     title="Hospitalizar"
                                   >
@@ -416,7 +420,7 @@ export default function UrgenciasModule({ user }) {
                                   </Button>
                                   <Button 
                                     size="sm" 
-                                    className="bg-teal-600 hover:bg-teal-700"
+                                    className="bg-teal-600 hover:bg-teal-700 text-white"
                                     onClick={() => abrirDisposicion(atencion, 'cita')}
                                     title="Programar Cita"
                                   >
