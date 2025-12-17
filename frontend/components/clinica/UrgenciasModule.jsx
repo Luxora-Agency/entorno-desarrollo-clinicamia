@@ -140,6 +140,24 @@ export default function UrgenciasModule({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
+      // Si el usuario actual es doctor, usarlo; si no, buscar un doctor disponible
+      let medicoId = null;
+      if (user.rol === 'Doctor') {
+        medicoId = user.id;
+      } else {
+        // Buscar un doctor disponible
+        const doctoresRes = await fetch(`${apiUrl}/doctores?limit=1`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (doctoresRes.ok) {
+          const doctoresData = await doctoresRes.json();
+          const doctores = doctoresData.data || [];
+          if (doctores.length > 0) {
+            medicoId = doctores[0].usuarioId;
+          }
+        }
+      }
+
       const response = await fetch(`${apiUrl}/urgencias/${atencionId}/atender`, {
         method: 'PUT',
         headers: {
@@ -147,7 +165,7 @@ export default function UrgenciasModule({ user }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          medico_id: user.id,
+          medico_id: medicoId,
           area_asignada: 'Consultorio Urgencias',
         }),
       });
@@ -155,6 +173,9 @@ export default function UrgenciasModule({ user }) {
       if (response.ok) {
         toast({ description: 'Atención iniciada correctamente' });
         loadData();
+      } else {
+        const errorData = await response.json();
+        toast({ description: errorData.message || 'Error al iniciar atención', variant: 'destructive' });
       }
     } catch (error) {
       console.error('Error:', error);
