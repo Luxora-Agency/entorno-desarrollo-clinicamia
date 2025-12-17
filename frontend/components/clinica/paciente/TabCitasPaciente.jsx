@@ -32,19 +32,29 @@ export default function TabCitasPaciente({ pacienteId }) {
 
   const loadCitas = async () => {
     try {
+      console.log('🔍 TabCitasPaciente - Cargando citas para paciente:', pacienteId);
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
-      const response = await fetch(`${apiUrl}/citas?paciente_id=${pacienteId}&limit=100`, {
+      console.log('📡 URL de API:', apiUrl);
+      const url = `${apiUrl}/citas?paciente_id=${pacienteId}&limit=100`;
+      console.log('📡 Fetch URL completa:', url);
+      
+      const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      console.log('✅ Response status:', response.status, response.ok);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('📊 Citas recibidas:', result.data?.length || 0);
         setCitas(result.data || []);
+      } else {
+        console.error('❌ Error en response:', response.status);
       }
     } catch (error) {
-      console.error('Error cargando citas:', error);
+      console.error('❌ Error cargando citas:', error);
     } finally {
       setLoading(false);
     }
