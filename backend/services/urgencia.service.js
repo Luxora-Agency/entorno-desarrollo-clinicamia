@@ -138,10 +138,21 @@ class UrgenciaService {
       throw new ValidationError('La atención ya fue iniciada');
     }
 
+    // Validar que el médico existe (opcional si no se proporciona)
+    let medicoId = data.medico_id;
+    if (medicoId) {
+      const medico = await prisma.usuario.findUnique({
+        where: { id: medicoId },
+      });
+      if (!medico) {
+        medicoId = null; // Si no existe, no asignar médico
+      }
+    }
+
     const actualizada = await prisma.atencionUrgencia.update({
       where: { id },
       data: {
-        medicoAsignadoId: data.medico_id,
+        medicoAsignadoId: medicoId || null,
         areaAsignada: data.area_asignada,
         horaInicioAtencion: new Date(),
         estado: 'EnAtencion',
