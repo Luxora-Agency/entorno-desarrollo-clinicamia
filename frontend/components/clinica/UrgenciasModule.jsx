@@ -455,6 +455,74 @@ export default function UrgenciasModule({ user }) {
           }}
           user={user}
         />
+
+        {/* Modal de Detalle */}
+        <Dialog open={showDetalleModal} onOpenChange={setShowDetalleModal}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>Detalle de Atención de Urgencias</DialogTitle>
+            </DialogHeader>
+            {atencionSeleccionada && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-sm text-gray-600">Paciente:</span>
+                    <p className="font-semibold">{atencionSeleccionada.paciente?.nombre} {atencionSeleccionada.paciente?.apellido}</p>
+                    <p className="text-sm text-gray-500">CC: {atencionSeleccionada.paciente?.cedula}</p>
+                  </div>
+                  <div>
+                    <span className="text-sm text-gray-600">Categoría:</span>
+                    <Badge className={`${getCategoriaColor(atencionSeleccionada.categoriaManchester)} mt-1`}>
+                      {atencionSeleccionada.categoriaManchester} - Prioridad {atencionSeleccionada.prioridad}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-sm text-gray-600">Motivo de Consulta:</span>
+                  <p className="mt-1 p-3 bg-gray-50 rounded">{atencionSeleccionada.motivoConsulta}</p>
+                </div>
+
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h4 className="font-semibold mb-3">Signos Vitales</h4>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <span className="text-xs text-gray-600">PA:</span>
+                      <p className="font-semibold">{atencionSeleccionada.presionSistolica}/{atencionSeleccionada.presionDiastolica}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">FC:</span>
+                      <p className="font-semibold">{atencionSeleccionada.frecuenciaCardiaca} bpm</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">FR:</span>
+                      <p className="font-semibold">{atencionSeleccionada.frecuenciaRespiratoria} rpm</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">Temp:</span>
+                      <p className="font-semibold">{atencionSeleccionada.temperatura}°C</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">Sat O2:</span>
+                      <p className="font-semibold">{atencionSeleccionada.saturacionOxigeno}%</p>
+                    </div>
+                    <div>
+                      <span className="text-xs text-gray-600">Glasgow:</span>
+                      <p className="font-semibold">{atencionSeleccionada.escalaGlasgow}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {atencionSeleccionada.observaciones && (
+                  <div>
+                    <span className="text-sm text-gray-600">Observaciones:</span>
+                    <p className="mt-1 p-3 bg-gray-50 rounded text-sm">{atencionSeleccionada.observaciones}</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
