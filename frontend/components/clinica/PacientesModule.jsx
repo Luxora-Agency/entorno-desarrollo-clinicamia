@@ -125,12 +125,10 @@ export default function PacientesModule({ user }) {
         user={user}
         editingPaciente={editingPaciente}
         onBack={() => {
-          setShowForm(false);
-          setEditingPaciente(null);
+          router.push('?module=pacientes');
         }}
         onSuccess={() => {
-          setShowForm(false);
-          setEditingPaciente(null);
+          router.push('?module=pacientes');
           loadPacientes();
         }}
       />
