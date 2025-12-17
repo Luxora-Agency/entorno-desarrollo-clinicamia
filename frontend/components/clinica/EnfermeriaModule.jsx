@@ -213,9 +213,9 @@ export default function EnfermeriaModule({ user }) {
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
             <Activity className="w-8 h-8 text-teal-600" />
-            Panel de Enfermería - Administración
+            Gestión de Enfermería
           </h1>
-          <p className="text-gray-600 mt-1">Monitoreo y supervisión del personal de enfermería</p>
+          <p className="text-gray-600 mt-1">Administración de personal y asignaciones</p>
         </div>
         <div className="flex gap-2">
           <Input
@@ -224,40 +224,196 @@ export default function EnfermeriaModule({ user }) {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-64"
           />
-          <Button variant="outline">
-            <Filter className="w-4 h-4" />
-          </Button>
         </div>
       </div>
 
-      {/* Selector de Enfermera */}
+      {/* Lista de Enfermeras */}
       <Card className="shadow-lg border-l-4 border-teal-500">
         <CardHeader className="bg-gradient-to-r from-teal-50 to-green-50">
           <CardTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Seleccionar Enfermera
+            <Users className="w-5 h-5" />
+            Personal de Enfermería ({enfermeras.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {enfermeras
-              .filter(enf => 
-                searchTerm === '' || 
-                enf.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                enf.email.toLowerCase().includes(searchTerm.toLowerCase())
-              )
-              .map((enfermera) => (
-              <Card 
-                key={enfermera.id} 
-                className={`cursor-pointer transition-all hover:shadow-lg ${
-                  enfermeraSeleccionada?.id === enfermera.id 
-                    ? 'border-2 border-teal-500 shadow-lg' 
-                    : 'border border-gray-200'
-                }`}
-                onClick={() => setEnfermeraSeleccionada(enfermera)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
+          {loading ? (
+            <p className="text-center py-8 text-gray-600">Cargando...</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {enfermeras
+                .filter(enf => 
+                  searchTerm === '' || 
+                  enf.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                  enf.email.toLowerCase().includes(searchTerm.toLowerCase())
+                )
+                .map((enfermera) => (
+                <Card 
+                  key={enfermera.id} 
+                  className={`cursor-pointer transition-all hover:shadow-lg ${
+                    enfermeraSeleccionada?.id === enfermera.id 
+                      ? 'border-2 border-teal-500 shadow-lg' 
+                      : 'border border-gray-200'
+                  }`}
+                  onClick={() => setEnfermeraSeleccionada(enfermera)}
+                >
+                  <CardContent className="p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <p className="font-bold text-lg text-gray-900">{enfermera.nombre} {enfermera.apellido}</p>
+                        <p className="text-sm text-gray-600">{enfermera.email}</p>
+                        <p className="text-xs text-gray-500 mt-1">CC: {enfermera.cedula}</p>
+                      </div>
+                      <Badge className="bg-green-100 text-green-700">
+                        Activa
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Phone className="w-4 h-4" />
+                      {enfermera.telefono || 'N/A'}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Detalle de Enfermera Seleccionada */}
+      {enfermeraSeleccionada && (
+        <Card className="shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-teal-50 to-green-50">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Asignaciones de {enfermeraSeleccionada.nombre} {enfermeraSeleccionada.apellido}
+              </CardTitle>
+              <Dialog open={showAsignarModal} onOpenChange={setShowAsignarModal}>
+                <DialogTrigger asChild>
+                  <Button className="bg-teal-600 hover:bg-teal-700">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nueva Asignación
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Asignar Piso/Unidad</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Unidad *</Label>
+                      <Select 
+                        value={formAsignacion.unidad_id} 
+                        onValueChange={(value) => setFormAsignacion({...formAsignacion, unidad_id: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccionar unidad..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {unidades.map(unidad => (
+                            <SelectItem key={unidad.id} value={unidad.id}>
+                              {unidad.nombre} - {unidad.tipo}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Piso (Opcional)</Label>
+                      <Input
+                        type="number"
+                        value={formAsignacion.piso}
+                        onChange={(e) => setFormAsignacion({...formAsignacion, piso: e.target.value})}
+                        placeholder="Ej: 1, 2, 3..."
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Dejar vacío para toda la unidad</p>
+                    </div>
+                    <div>
+                      <Label>Turno *</Label>
+                      <Select 
+                        value={formAsignacion.turno} 
+                        onValueChange={(value) => setFormAsignacion({...formAsignacion, turno: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Manana">Mañana (06:00 - 14:00)</SelectItem>
+                          <SelectItem value="Tarde">Tarde (14:00 - 22:00)</SelectItem>
+                          <SelectItem value="Noche">Noche (22:00 - 06:00)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex gap-2 justify-end">
+                      <Button variant="outline" onClick={() => setShowAsignarModal(false)}>
+                        Cancelar
+                      </Button>
+                      <Button onClick={handleCrearAsignacion} className="bg-teal-600 hover:bg-teal-700">
+                        Crear Asignación
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            {asignaciones.length === 0 ? (
+              <p className="text-center text-gray-500 py-8">
+                No hay asignaciones activas. Haz click en "Nueva Asignación" para crear una.
+              </p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Unidad</TableHead>
+                    <TableHead>Piso</TableHead>
+                    <TableHead>Turno</TableHead>
+                    <TableHead>Desde</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {asignaciones.map((asig) => (
+                    <TableRow key={asig.id}>
+                      <TableCell>{asig.unidad?.nombre}</TableCell>
+                      <TableCell>{asig.piso || 'Toda la unidad'}</TableCell>
+                      <TableCell>
+                        <Badge>
+                          {asig.turno === 'Manana' ? 'Mañana' : asig.turno === 'Tarde' ? 'Tarde' : 'Noche'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(asig.fechaInicio).toLocaleDateString('es-CO')}
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={asig.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>
+                          {asig.activo ? 'Activa' : 'Inactiva'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {asig.activo && (
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => handleDesactivarAsignacion(asig.id)}
+                          >
+                            Desactivar
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
                     <div>
                       <h3 className="font-semibold text-gray-900">{enfermera.nombre}</h3>
                       <p className="text-sm text-gray-600">{enfermera.email}</p>
