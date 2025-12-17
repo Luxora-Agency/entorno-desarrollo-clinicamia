@@ -93,6 +93,14 @@ export default function TabInformacion({ paciente }) {
             <p className="font-semibold">{paciente.genero || 'N/A'}</p>
           </div>
           <div>
+            <span className="text-sm text-gray-600">Estado Civil:</span>
+            <p className="font-semibold capitalize">{paciente.estadoCivil?.replace('_', ' ') || 'N/A'}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">Ocupación:</span>
+            <p className="font-semibold">{paciente.ocupacion || 'N/A'}</p>
+          </div>
+          <div>
             <span className="text-sm text-gray-600">País de Nacimiento:</span>
             <p className="font-semibold">{paciente.paisNacimiento || 'N/A'}</p>
           </div>
@@ -111,23 +119,93 @@ export default function TabInformacion({ paciente }) {
         </CardContent>
       </Card>
 
+      {/* Información de Contacto */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Información de Contacto</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <span className="text-sm text-gray-600">Teléfono:</span>
+            <p className="font-semibold">{paciente.telefono || 'N/A'}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">Email:</span>
+            <p className="font-semibold">{paciente.email || 'N/A'}</p>
+          </div>
+          <div className="md:col-span-2">
+            <span className="text-sm text-gray-600">Dirección:</span>
+            <p className="font-semibold">{paciente.direccion || 'N/A'}</p>
+          </div>
+          {paciente.contactosEmergencia && (
+            <div className="md:col-span-2">
+              <span className="text-sm text-gray-600 block mb-2">Contactos de Emergencia:</span>
+              <div className="space-y-2">
+                {(Array.isArray(paciente.contactosEmergencia) 
+                  ? paciente.contactosEmergencia 
+                  : JSON.parse(paciente.contactosEmergencia || '[]')
+                ).map((contacto, i) => (
+                  <div key={i} className="p-3 bg-gray-50 rounded-lg">
+                    <p className="font-semibold text-sm">{contacto.nombre}</p>
+                    <p className="text-sm text-gray-600">Tel: {contacto.telefono} - {contacto.parentesco}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Información Laboral y Educativa */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Información Laboral y Educativa</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <span className="text-sm text-gray-600">Nivel de Educación:</span>
+            <p className="font-semibold capitalize">{paciente.nivelEducacion?.replace('_', ' ') || 'N/A'}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">Empleador Actual:</span>
+            <p className="font-semibold">{paciente.empleadorActual || 'N/A'}</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Aseguramiento en Salud */}
       <Card>
         <CardHeader>
-          <CardTitle>Aseguramiento en Salud</CardTitle>
+          <CardTitle>Aseguramiento y Convenios</CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <span className="text-sm text-gray-600">Tipo de Usuario:</span>
+            <p className="font-semibold capitalize">{paciente.tipoUsuario || 'N/A'}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">Convenio:</span>
+            <p className="font-semibold">{paciente.convenio || 'N/A'}</p>
+          </div>
           <div>
             <span className="text-sm text-gray-600">EPS/Aseguradora:</span>
             <p className="font-semibold">{paciente.eps || 'N/A'}</p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Régimen:</span>
-            <p className="font-semibold">{paciente.regimen || 'N/A'}</p>
+            <p className="font-semibold capitalize">{paciente.regimen || 'N/A'}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">ARL:</span>
+            <p className="font-semibold">{paciente.arl || 'N/A'}</p>
+          </div>
+          <div>
+            <span className="text-sm text-gray-600">Carnet/Póliza:</span>
+            <p className="font-semibold">{paciente.carnetPoliza || 'N/A'}</p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Tipo de Afiliación:</span>
-            <p className="font-semibold">{paciente.tipoAfiliacion || 'N/A'}</p>
+            <p className="font-semibold capitalize">{paciente.tipoAfiliacion || 'N/A'}</p>
           </div>
           <div>
             <span className="text-sm text-gray-600">Nivel SISBEN:</span>
@@ -135,6 +213,33 @@ export default function TabInformacion({ paciente }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Información de Referencia */}
+      {(paciente.referidoPor || paciente.tipoPaciente || paciente.categoria) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Información de Referencia</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <span className="text-sm text-gray-600">Referido Por:</span>
+              <p className="font-semibold">{paciente.referidoPor || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-600">Nombre de Quien Refiere:</span>
+              <p className="font-semibold">{paciente.nombreRefiere || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-600">Tipo de Paciente:</span>
+              <p className="font-semibold">{paciente.tipoPaciente || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-sm text-gray-600">Categoría:</span>
+              <p className="font-semibold">{paciente.categoria || 'N/A'}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Información Médica */}
       <Card>
