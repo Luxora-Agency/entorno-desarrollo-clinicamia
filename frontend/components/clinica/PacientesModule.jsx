@@ -227,7 +227,7 @@ export default function PacientesModule({ user }) {
             <div className="text-center py-12">
               <Users className="w-16 h-16 mx-auto text-gray-300 mb-4" />
               <p className="text-gray-500 mb-4">No hay pacientes registrados</p>
-              <Button onClick={() => setShowForm(true)} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
+              <Button onClick={() => router.push('?module=agregar-paciente')} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Agregar Primer Paciente
               </Button>
