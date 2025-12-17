@@ -110,6 +110,18 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   // Cargar datos al editar
   useEffect(() => {
     if (editingPaciente) {
+      console.log('🔍 Editando paciente - Datos recibidos:', editingPaciente);
+      console.log('📋 Campos clave:', {
+        estadoCivil: editingPaciente.estadoCivil,
+        ocupacion: editingPaciente.ocupacion,
+        nivelEducacion: editingPaciente.nivelEducacion,
+        empleadorActual: editingPaciente.empleadorActual,
+        convenio: editingPaciente.convenio,
+        arl: editingPaciente.arl,
+        carnetPoliza: editingPaciente.carnetPoliza,
+        tipoUsuario: editingPaciente.tipoUsuario
+      });
+      
       // Parsear contactos de emergencia
       let contactos = [{ nombre: '', telefono: '', parentesco: '' }];
       if (editingPaciente.contactosEmergencia) {
