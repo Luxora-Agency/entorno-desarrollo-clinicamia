@@ -269,13 +269,13 @@ export default function DashboardEnfermera({ user }) {
     },
   ]);
 
-  // Estadísticas
+  // Estadísticas calculadas
   const stats = {
     pacientesAsignados: pacientesAsignados.length,
-    medicamentosPendientes: medicamentosPendientes.filter(m => m.estado !== 'Administrado').length,
-    signosVitalesPendientes: signosVitalesPendientes.length,
-    tareasDelTurno: tareasDelTurno.filter(t => t.estado === 'Pendiente').length,
-    alertasActivas: pacientesAsignados.reduce((acc, p) => acc + p.alertas.length, 0),
+    medicamentosPendientes: medicamentosProgramados.filter(m => m.estado === 'Programada' || m.estado === 'Pendiente').length,
+    signosVitalesPendientes: pacientesAsignados.length, // Simplificado: uno por paciente
+    tareasDelTurno: 0, // Por implementar
+    alertasActivas: 0, // Por implementar
   };
 
   // Funciones de acción
