@@ -87,7 +87,25 @@ frontend/node_modules/@next/swc-linux-arm64-musl/next-swc.linux-arm64-musl.node
 frontend/.next/cache/webpack/client-production/0.pack
 
 
--e 
+-e
 # Environment files
 *.env
 *.env.*
+!*.env.example
+!*.env.local.example
+
+# Auto Claude data directory
+.auto-claude/
+
+# Prisma
+backend/prisma/*.db
+backend/prisma/*.db-journal
+
+# Uploads and generated files
+backend/public/uploads/
+backend/public/pdfs/
+backend/public/temp/
+
+# Firebase
+firebase-debug.log
+.firebase/
