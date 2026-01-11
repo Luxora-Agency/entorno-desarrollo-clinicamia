@@ -10,9 +10,34 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '/api';
  */
 export const getAuthToken = () => {
   if (typeof window !== 'undefined') {
-    return localStorage.getItem('token');
+    // Try accessToken first, then fallback to legacy 'token'
+    return localStorage.getItem('accessToken') || localStorage.getItem('token');
   }
   return null;
+};
+
+export const getRefreshToken = () => {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('refreshToken');
+  }
+  return null;
+};
+
+export const setTokens = (accessToken, refreshToken) => {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('accessToken', accessToken);
+    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+  }
+};
+
+export const clearTokens = () => {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    // Legacy support
+    localStorage.removeItem('token');
+  }
 };
 
 /**
@@ -22,13 +47,98 @@ const getDefaultHeaders = () => {
   const headers = {
     'Content-Type': 'application/json',
   };
-  
+
   const token = getAuthToken();
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
-  
+
   return headers;
+};
+
+/**
+ * Logic for refreshing token
+ */
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+const refreshAccessToken = async () => {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) throw new Error('No refresh token available');
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to refresh token');
+    }
+
+    const data = await response.json();
+    if (data.success && data.data) {
+      const { accessToken, refreshToken: newRefreshToken } = data.data;
+      setTokens(accessToken, newRefreshToken);
+      return accessToken;
+    }
+    throw new Error('Invalid refresh response');
+  } catch (error) {
+    clearTokens();
+    window.location.href = '/login'; // Force logout
+    throw error;
+  }
+};
+
+/**
+ * Internal request wrapper with retry logic
+ */
+const request = async (url, options) => {
+  let response = await fetch(url, options);
+
+  if (response.status === 401) {
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      }).then(token => {
+        options.headers.Authorization = `Bearer ${token}`;
+        return fetch(url, options);
+      });
+    }
+
+    // Try to refresh
+    const refreshToken = getRefreshToken();
+    if (refreshToken) {
+      isRefreshing = true;
+      try {
+        const newToken = await refreshAccessToken();
+        processQueue(null, newToken);
+        
+        // Retry original request
+        options.headers.Authorization = `Bearer ${newToken}`;
+        response = await fetch(url, options);
+      } catch (err) {
+        processQueue(err, null);
+        throw err;
+      } finally {
+        isRefreshing = false;
+      }
+    }
+  }
+
+  return handleResponse(response);
 };
 
 /**
@@ -51,63 +161,92 @@ export const apiGet = async (endpoint, params = {}) => {
   const queryString = new URLSearchParams(params).toString();
   const url = `${API_BASE_URL}${endpoint}${queryString ? `?${queryString}` : ''}`;
   
-  const response = await fetch(url, {
+  return request(url, {
     method: 'GET',
     headers: getDefaultHeaders(),
   });
-  
-  return handleResponse(response);
 };
 
 /**
  * POST request
+ * Automatically detects FormData and handles file uploads
  */
 export const apiPost = async (endpoint, data = {}) => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const isFormData = data instanceof FormData;
+
+  const options = {
     method: 'POST',
-    headers: getDefaultHeaders(),
-    body: JSON.stringify(data),
-  });
-  
-  return handleResponse(response);
+    headers: isFormData ? {} : getDefaultHeaders(),
+    body: isFormData ? data : JSON.stringify(data),
+  };
+
+  // Add auth header manually for FormData (Content-Type will be set by browser with boundary)
+  if (isFormData) {
+    const token = getAuthToken();
+    if (token) {
+      options.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  return request(`${API_BASE_URL}${endpoint}`, options);
 };
 
 /**
  * PUT request
+ * Automatically detects FormData and handles file uploads
  */
 export const apiPut = async (endpoint, data = {}) => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const isFormData = data instanceof FormData;
+
+  const options = {
     method: 'PUT',
-    headers: getDefaultHeaders(),
-    body: JSON.stringify(data),
-  });
-  
-  return handleResponse(response);
+    headers: isFormData ? {} : getDefaultHeaders(),
+    body: isFormData ? data : JSON.stringify(data),
+  };
+
+  // Add auth header manually for FormData (Content-Type will be set by browser with boundary)
+  if (isFormData) {
+    const token = getAuthToken();
+    if (token) {
+      options.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  return request(`${API_BASE_URL}${endpoint}`, options);
 };
 
 /**
  * DELETE request
  */
 export const apiDelete = async (endpoint) => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  return request(`${API_BASE_URL}${endpoint}`, {
     method: 'DELETE',
     headers: getDefaultHeaders(),
   });
-  
-  return handleResponse(response);
 };
 
 /**
  * PATCH request
+ * Automatically detects FormData and handles file uploads
  */
 export const apiPatch = async (endpoint, data = {}) => {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const isFormData = data instanceof FormData;
+
+  const options = {
     method: 'PATCH',
-    headers: getDefaultHeaders(),
-    body: JSON.stringify(data),
-  });
-  
-  return handleResponse(response);
+    headers: isFormData ? {} : getDefaultHeaders(),
+    body: isFormData ? data : JSON.stringify(data),
+  };
+
+  // Add auth header manually for FormData (Content-Type will be set by browser with boundary)
+  if (isFormData) {
+    const token = getAuthToken();
+    if (token) {
+      options.headers.Authorization = `Bearer ${token}`;
+    }
+  }
+
+  return request(`${API_BASE_URL}${endpoint}`, options);
 };
 
 /**
@@ -120,6 +259,15 @@ export const apiUpload = async (endpoint, formData) => {
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Note: request wrapper assumes Content-Type json by default in getDefaultHeaders
+  // so we need to bypass getDefaultHeaders for upload or handle it.
+  // apiUpload implementation in original code didn't use getDefaultHeaders fully.
+  // We'll call fetch directly here but with retry logic manually if needed, 
+  // OR adapt request to accept custom headers that override default.
+  
+  // Simplified for now: just try one call, if 401, generic error. 
+  // Uploads are complex to retry with streams.
   
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     method: 'POST',

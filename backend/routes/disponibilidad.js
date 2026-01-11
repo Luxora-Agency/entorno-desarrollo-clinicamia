@@ -11,7 +11,42 @@ const disponibilidad = new Hono();
 disponibilidad.use('/*', authMiddleware);
 
 /**
- * GET /disponibilidad/:doctorId - Obtener disponibilidad de un doctor para una fecha
+ * @swagger
+ * tags:
+ *   name: Disponibilidad
+ *   description: Consulta de disponibilidad de doctores
+ */
+
+/**
+ * @swagger
+ * /disponibilidad/{doctorId}:
+ *   get:
+ *     summary: Obtener disponibilidad diaria de un doctor
+ *     tags: [Disponibilidad]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del doctor
+ *       - in: query
+ *         name: fecha
+ *         schema:
+ *           type: string
+ *           format: date
+ *         required: true
+ *         description: Fecha a consultar
+ *     responses:
+ *       200:
+ *         description: Disponibilidad del doctor
+ *       400:
+ *         description: Fecha requerida
+ *       500:
+ *         description: Error del servidor
  */
 disponibilidad.get('/:doctorId', async (c) => {
   try {
@@ -48,7 +83,32 @@ disponibilidad.get('/:doctorId', async (c) => {
 });
 
 /**
- * GET /disponibilidad/:doctorId/semana - Obtener disponibilidad de 7 días
+ * @swagger
+ * /disponibilidad/{doctorId}/semana:
+ *   get:
+ *     summary: Obtener disponibilidad semanal de un doctor
+ *     tags: [Disponibilidad]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: doctorId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del doctor
+ *       - in: query
+ *         name: fecha_inicio
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de inicio de la semana
+ *     responses:
+ *       200:
+ *         description: Disponibilidad semanal
+ *       500:
+ *         description: Error del servidor
  */
 disponibilidad.get('/:doctorId/semana', async (c) => {
   try {
@@ -76,7 +136,42 @@ disponibilidad.get('/:doctorId/semana', async (c) => {
 });
 
 /**
- * POST /disponibilidad/validar - Validar si una hora está disponible
+ * @swagger
+ * /disponibilidad/validar:
+ *   post:
+ *     summary: Validar si un horario específico está disponible
+ *     tags: [Disponibilidad]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - doctor_id
+ *               - fecha
+ *               - hora
+ *             properties:
+ *               doctor_id:
+ *                 type: string
+ *                 format: uuid
+ *               fecha:
+ *                 type: string
+ *                 format: date
+ *               hora:
+ *                 type: string
+ *               duracion_minutos:
+ *                 type: integer
+ *                 default: 30
+ *     responses:
+ *       200:
+ *         description: Horario disponible
+ *       400:
+ *         description: Horario no disponible
+ *       500:
+ *         description: Error del servidor
  */
 disponibilidad.post('/validar', async (c) => {
   try {

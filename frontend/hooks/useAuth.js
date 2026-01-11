@@ -2,7 +2,7 @@
  * Hook para manejo de autenticación
  */
 import { useState, useEffect } from 'react';
-import { apiPost } from '@/services/api';
+import { apiPost, setTokens, clearTokens, getAuthToken, getRefreshToken } from '@/services/api';
 
 export const useAuth = () => {
   const [user, setUser] = useState(null);
@@ -28,9 +28,9 @@ export const useAuth = () => {
       const response = await apiPost('/auth/login', { email, password });
       
       if (response.success && response.data) {
-        const { token, usuario } = response.data;
+        const { accessToken, refreshToken, user: usuario } = response.data;
         
-        localStorage.setItem('token', token);
+        setTokens(accessToken, refreshToken);
         localStorage.setItem('user', JSON.stringify(usuario));
         setUser(usuario);
         
@@ -46,14 +46,23 @@ export const useAuth = () => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setUser(null);
+  const logout = async () => {
+    try {
+      const refreshToken = getRefreshToken();
+      if (refreshToken) {
+        await apiPost('/auth/logout', { refreshToken });
+      }
+    } catch (e) {
+      console.error('Error logging out:', e);
+    } finally {
+      clearTokens();
+      setUser(null);
+      // Optional: Redirect to login or reload
+    }
   };
 
   const isAuthenticated = () => {
-    return !!user && !!localStorage.getItem('token');
+    return !!user && !!getAuthToken();
   };
 
   return {

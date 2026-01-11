@@ -12,7 +12,64 @@ const especialidades = new Hono();
 especialidades.use('*', authMiddleware);
 
 /**
- * GET /especialidades - Obtener todas las especialidades
+ * @swagger
+ * components:
+ *   schemas:
+ *     Especialidad:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *     EspecialidadInput:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ * tags:
+ *   name: Especialidades
+ *   description: Gestión de especialidades médicas
+ */
+
+/**
+ * @swagger
+ * /especialidades:
+ *   get:
+ *     summary: Obtener todas las especialidades
+ *     tags: [Especialidades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: nombre
+ *         schema:
+ *           type: string
+ *         description: Filtrar por nombre
+ *     responses:
+ *       200:
+ *         description: Lista de especialidades
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Especialidad'
+ *       500:
+ *         description: Error del servidor
  */
 especialidades.get('/', async (c) => {
   try {
@@ -25,7 +82,41 @@ especialidades.get('/', async (c) => {
 });
 
 /**
- * GET /especialidades/:id - Obtener una especialidad por ID
+ * @swagger
+ * /especialidades/{id}:
+ *   get:
+ *     summary: Obtener una especialidad por ID
+ *     tags: [Especialidades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la especialidad
+ *     responses:
+ *       200:
+ *         description: Datos de la especialidad
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     especialidad:
+ *                       $ref: '#/components/schemas/Especialidad'
+ *       404:
+ *         description: Especialidad no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 especialidades.get('/:id', async (c) => {
   try {
@@ -38,7 +129,37 @@ especialidades.get('/:id', async (c) => {
 });
 
 /**
- * POST /especialidades - Crear una especialidad
+ * @swagger
+ * /especialidades:
+ *   post:
+ *     summary: Crear una especialidad
+ *     tags: [Especialidades]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EspecialidadInput'
+ *     responses:
+ *       201:
+ *         description: Especialidad creada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     especialidad:
+ *                       $ref: '#/components/schemas/Especialidad'
+ *       500:
+ *         description: Error del servidor
  */
 especialidades.post('/', async (c) => {
   try {
@@ -51,7 +172,34 @@ especialidades.post('/', async (c) => {
 });
 
 /**
- * PUT /especialidades/:id - Actualizar una especialidad
+ * @swagger
+ * /especialidades/{id}:
+ *   put:
+ *     summary: Actualizar una especialidad
+ *     tags: [Especialidades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la especialidad
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EspecialidadInput'
+ *     responses:
+ *       200:
+ *         description: Especialidad actualizada exitosamente
+ *       404:
+ *         description: Especialidad no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 especialidades.put('/:id', async (c) => {
   try {
@@ -65,7 +213,28 @@ especialidades.put('/:id', async (c) => {
 });
 
 /**
- * DELETE /especialidades/:id - Eliminar una especialidad
+ * @swagger
+ * /especialidades/{id}:
+ *   delete:
+ *     summary: Eliminar una especialidad
+ *     tags: [Especialidades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la especialidad
+ *     responses:
+ *       200:
+ *         description: Especialidad eliminada correctamente
+ *       404:
+ *         description: Especialidad no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 especialidades.delete('/:id', async (c) => {
   try {

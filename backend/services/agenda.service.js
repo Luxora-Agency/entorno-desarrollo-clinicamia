@@ -13,6 +13,8 @@ const prisma = new PrismaClient();
  * @returns {Array} Lista de bloques con estado (ocupado/disponible)
  */
 async function generarBloques(doctorId, fecha) {
+  console.log(`[DEBUG] Generando bloques para Doctor: ${doctorId}, Fecha: ${fecha}`);
+
   // 1. Obtener doctor con sus horarios y especialidades
   const doctor = await prisma.doctor.findUnique({
     where: { id: doctorId },
@@ -31,6 +33,7 @@ async function generarBloques(doctorId, fecha) {
   });
 
   if (!doctor) {
+    console.warn(`[DEBUG] Doctor no encontrado: ${doctorId}`);
     throw new NotFoundError('Doctor no encontrado');
   }
 
@@ -39,9 +42,29 @@ async function generarBloques(doctorId, fecha) {
 
   // 3. Obtener horarios del doctor para esa fecha
   const horarios = doctor.horarios || {};
-  const horariosFecha = horarios[fecha];
+  
+  // Calcular día de la semana (0-6) para buscar horario recurrente
+  // Nota: getDay() devuelve 0 para Domingo, 1 Lunes...
+  // Importante: Usar Date sin UTC para obtener el día local esperado
+  // FIX: Ajustar la fecha para que getDay() sea consistente con la fecha local (YYYY-MM-DD)
+  // Al crear Date('YYYY-MM-DD') se asume UTC, lo que puede devolver el día anterior dependiendo de la TZ
+  // Usamos una conversión explícita
+  const [year, month, day] = fecha.split('-').map(Number);
+  const fechaObj = new Date(year, month - 1, day); // Mes es 0-indexado
+  const diaSemana = fechaObj.getDay().toString();
+  
+  console.log(`[DEBUG] Buscando horarios - Fecha: ${fecha}, Día Semana: ${diaSemana} (Objeto Fecha: ${fechaObj.toISOString()})`);
+  console.log(`[DEBUG] Horarios raw:`, JSON.stringify(horarios));
+
+  // Prioridad: Fecha específica > Día de la semana recurrente
+  let horariosFecha = horarios[fecha];
+
+  if (!horariosFecha) {
+    horariosFecha = horarios[diaSemana];
+  }
 
   if (!horariosFecha || horariosFecha.length === 0) {
+    console.log(`[DEBUG] No se encontraron horarios configurados para la fecha ${fecha} (Día ${diaSemana})`);
     return {
       doctor: {
         id: doctor.id,
@@ -54,6 +77,8 @@ async function generarBloques(doctorId, fecha) {
       mensaje: 'El doctor no tiene horario configurado para esta fecha'
     };
   }
+
+  console.log(`[DEBUG] Horarios a usar:`, JSON.stringify(horariosFecha));
 
   // 4. Obtener citas existentes del doctor en esa fecha
   // IMPORTANTE: doctorId en citas apunta a usuario.id, no a doctor.id
@@ -77,12 +102,23 @@ async function generarBloques(doctorId, fecha) {
     orderBy: { hora: 'asc' }
   });
 
+  console.log(`[DEBUG] Citas existentes: ${citasExistentes.length}`);
+
   // 5. Generar bloques
   const bloques = [];
 
   horariosFecha.forEach(rango => {
-    const [horaInicioH, horaInicioM] = rango.inicio.split(':').map(Number);
-    const [horaFinH, horaFinM] = rango.fin.split(':').map(Number);
+    // Soporte para inicio/fin (nuevo) y start/end (legacy)
+    const inicioStr = rango.inicio || rango.start;
+    const finStr = rango.fin || rango.end;
+
+    if (!inicioStr || !finStr) {
+      console.warn(`[DEBUG] Rango inválido encontrado:`, rango);
+      return;
+    }
+
+    const [horaInicioH, horaInicioM] = inicioStr.split(':').map(Number);
+    const [horaFinH, horaFinM] = finStr.split(':').map(Number);
 
     let minutosActuales = horaInicioH * 60 + horaInicioM;
     const minutosFin = horaFinH * 60 + horaFinM;

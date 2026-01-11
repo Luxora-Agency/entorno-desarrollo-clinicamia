@@ -36,8 +36,11 @@ export default function Login({ onLogin }) {
         throw new Error(result.error || result.message || 'Error al iniciar sesión');
       }
 
-      const { user, token } = result.data || result;
-      
+      const data = result.data || result;
+      const user = data.user;
+      // Soportar tanto 'token' como 'accessToken'
+      const token = data.token || data.accessToken;
+
       if (!user || !token) {
         throw new Error('Respuesta inválida del servidor');
       }

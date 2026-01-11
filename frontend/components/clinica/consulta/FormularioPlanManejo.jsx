@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +16,8 @@ import {
 } from '@/components/ui/dialog';
 import {
   FileText, FileCheck, Calendar, Stethoscope,
-  AlertCircle, CheckCircle2, Package, Syringe, X, Loader2
+  AlertCircle, CheckCircle2, Package, Syringe, X, Loader2,
+  Search, DollarSign, Pill, Tag
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -23,13 +26,7 @@ import { apiPost } from '@/services/api';
 import FormularioIncapacidad from './FormularioIncapacidad';
 import FormularioCertificado from './FormularioCertificado';
 import FormularioSeguimiento from './FormularioSeguimiento';
-
-// Kits de Medicamentos Predefinidos (Ejemplo)
-const KITS_MEDICAMENTOS = [
-  { id: 1, nombre: 'Kit Dolor Agudo', descripcion: 'Tramadol + Dipirona + Diclofenaco', medicamentos: ['Tramadol', 'Dipirona', 'Diclofenaco'] },
-  { id: 2, nombre: 'Kit Respiratorio', descripcion: 'Salbutamol + Bromuro de Ipratropio + Hidrocortisona', medicamentos: ['Salbutamol', 'Bromuro de Ipratropio', 'Hidrocortisona'] },
-  { id: 3, nombre: 'Kit Gastrointestinal', descripcion: 'Omeprazol + Hioscina + Metoclopramida', medicamentos: ['Omeprazol', 'Hioscina', 'Metoclopramida'] },
-];
+import { KITS_MEDICAMENTOS, KITS_POR_CATEGORIA, CATEGORIAS_KITS, calcularPrecioKit, COLORES_CATEGORIA_KIT } from '@/constants/kitsMedicamentos';
 
 export default function FormularioPlanManejo({
   paciente,
@@ -52,6 +49,37 @@ export default function FormularioPlanManejo({
   // Estado para preview y confirmación
   const [showPreview, setShowPreview] = useState(false);
   const [creandoOrden, setCreandoOrden] = useState(false);
+  // Estado para filtrado de kits
+  const [busquedaKit, setBusquedaKit] = useState('');
+  const [categoriaFiltro, setCategoriaFiltro] = useState('todas');
+
+  // Filtrar kits según búsqueda y categoría
+  const kitsFiltrados = useMemo(() => {
+    let kits = KITS_MEDICAMENTOS;
+
+    // Filtrar por categoría
+    if (categoriaFiltro !== 'todas') {
+      kits = kits.filter(k => k.categoria === categoriaFiltro);
+    }
+
+    // Filtrar por búsqueda
+    if (busquedaKit.trim()) {
+      const termino = busquedaKit.toLowerCase();
+      kits = kits.filter(k =>
+        k.nombre.toLowerCase().includes(termino) ||
+        k.codigo.toLowerCase().includes(termino) ||
+        k.descripcion.toLowerCase().includes(termino) ||
+        k.medicamentos.some(m => m.nombre.toLowerCase().includes(termino))
+      );
+    }
+
+    return kits;
+  }, [busquedaKit, categoriaFiltro]);
+
+  // Calcular total de la orden
+  const totalOrden = useMemo(() => {
+    return kitsSeleccionados.reduce((total, kit) => total + calcularPrecioKit(kit), 0);
+  }, [kitsSeleccionados]);
 
   const toggleKit = (kit) => {
     if (kitsSeleccionados.find(k => k.id === kit.id)) {
@@ -71,14 +99,18 @@ export default function FormularioPlanManejo({
   const confirmarAplicacion = async () => {
     setCreandoOrden(true);
     try {
-      // Preparar los datos para el backend
+      // Preparar los datos para el backend con estructura mejorada
       const medicamentosOrden = kitsSeleccionados.flatMap(kit =>
         kit.medicamentos.map(med => ({
-          nombre: med,
+          nombre: med.nombre,
+          codigoCum: med.codigoCum,
+          concentracion: med.concentracion,
           kitOrigen: kit.nombre,
-          cantidad: 1,
-          via: 'parenteral',
-          observaciones: `Kit: ${kit.nombre}`
+          kitCodigo: kit.codigo,
+          cantidad: med.cantidad,
+          via: med.via,
+          precio: med.precio,
+          observaciones: `Kit: ${kit.codigo} - ${kit.nombre}`
         }))
       );
 
@@ -90,7 +122,14 @@ export default function FormularioPlanManejo({
           doctorId: doctorId,
           tipoOrden: 'aplicacion_medicamentos',
           medicamentos: medicamentosOrden,
-          kits: kitsSeleccionados.map(k => k.nombre),
+          kits: kitsSeleccionados.map(k => ({
+            id: k.id,
+            codigo: k.codigo,
+            nombre: k.nombre,
+            categoria: k.categoria,
+            precio: calcularPrecioKit(k)
+          })),
+          totalOrden: totalOrden,
           estado: 'pendiente'
         });
       } catch (apiError) {
@@ -247,46 +286,154 @@ export default function FormularioPlanManejo({
           </TabsList>
 
           <TabsContent value="aplicacion" className="mt-4 space-y-4">
-             <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <h4 className="font-semibold text-blue-900 flex items-center gap-2 mb-2">
-                    <Package className="h-4 w-4" />
-                    Kits de Medicamentos (Aplicación Inmediata)
-                </h4>
-                <p className="text-sm text-blue-700 mb-4">
-                    Seleccione los kits para generar automáticamente la orden de enfermería y descontar del inventario.
-                </p>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {KITS_MEDICAMENTOS.map(kit => {
+             <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h4 className="font-semibold text-blue-900 flex items-center gap-2">
+                        <Package className="h-5 w-5" />
+                        Kits de Medicamentos (Aplicación Inmediata)
+                    </h4>
+                    <p className="text-sm text-blue-700 mt-1">
+                        Seleccione los kits para generar la orden de enfermería con códigos CUM y precios.
+                    </p>
+                  </div>
+                  {kitsSeleccionados.length > 0 && (
+                    <div className="text-right">
+                      <Badge className="bg-green-600 text-white">
+                        {kitsSeleccionados.length} kit(s)
+                      </Badge>
+                      <p className="text-xs text-green-700 mt-1 font-semibold">
+                        Total: ${totalOrden.toLocaleString('es-CO')}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Búsqueda y Filtros */}
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Buscar kits por nombre, código o medicamento..."
+                      value={busquedaKit}
+                      onChange={(e) => setBusquedaKit(e.target.value)}
+                      className="pl-10 bg-white"
+                    />
+                  </div>
+                  <select
+                    value={categoriaFiltro}
+                    onChange={(e) => setCategoriaFiltro(e.target.value)}
+                    className="px-3 py-2 border rounded-md text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="todas">Todas las categorías</option>
+                    {CATEGORIAS_KITS.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Grid de Kits */}
+                <ScrollArea className="h-[400px] pr-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {kitsFiltrados.map(kit => {
                         const isSelected = kitsSeleccionados.find(k => k.id === kit.id);
+                        const precioKit = calcularPrecioKit(kit);
+                        const colorClass = COLORES_CATEGORIA_KIT[kit.categoria] || 'bg-gray-100 text-gray-700 border-gray-200';
+
                         return (
-                            <div 
-                                key={kit.id} 
+                            <div
+                                key={kit.id}
                                 onClick={() => toggleKit(kit)}
                                 className={`cursor-pointer border rounded-lg p-3 transition-all ${
-                                    isSelected 
-                                    ? 'bg-blue-100 border-blue-500 shadow-sm ring-1 ring-blue-500' 
-                                    : 'bg-white border-slate-200 hover:border-blue-300'
+                                    isSelected
+                                    ? 'bg-blue-100 border-blue-500 shadow-md ring-2 ring-blue-400'
+                                    : 'bg-white border-slate-200 hover:border-blue-300 hover:shadow-sm'
                                 }`}
                             >
-                                <div className="flex justify-between items-start mb-1">
-                                    <h5 className="font-bold text-sm text-slate-800">{kit.nombre}</h5>
-                                    {isSelected && <CheckCircle2 className="h-4 w-4 text-blue-600" />}
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <h5 className="font-bold text-sm text-slate-800">{kit.nombre}</h5>
+                                        {isSelected && <CheckCircle2 className="h-4 w-4 text-blue-600 flex-shrink-0" />}
+                                      </div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <Badge variant="outline" className="text-[10px] font-mono">
+                                          <Tag className="h-2.5 w-2.5 mr-1" />
+                                          {kit.codigo}
+                                        </Badge>
+                                        <Badge className={`text-[10px] ${colorClass}`}>
+                                          {kit.categoria}
+                                        </Badge>
+                                      </div>
+                                    </div>
                                 </div>
-                                <p className="text-xs text-slate-500">{kit.descripcion}</p>
+
+                                <p className="text-xs text-slate-500 mb-2">{kit.descripcion}</p>
+
+                                {/* Lista de medicamentos del kit */}
+                                <div className="space-y-1 mb-2">
+                                  {kit.medicamentos.slice(0, 3).map((med, idx) => (
+                                    <div key={idx} className="flex items-center justify-between text-[11px]">
+                                      <div className="flex items-center gap-1 text-gray-600">
+                                        <Pill className="h-3 w-3 text-blue-400" />
+                                        <span className="truncate max-w-[120px]">{med.nombre}</span>
+                                        <span className="text-gray-400">x{med.cantidad}</span>
+                                      </div>
+                                      <span className="text-gray-500">{med.via}</span>
+                                    </div>
+                                  ))}
+                                  {kit.medicamentos.length > 3 && (
+                                    <p className="text-[10px] text-gray-400">
+                                      +{kit.medicamentos.length - 3} más...
+                                    </p>
+                                  )}
+                                </div>
+
+                                {/* Precio y cantidad */}
+                                <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+                                  <span className="text-xs text-gray-500">
+                                    {kit.medicamentos.length} medicamento(s)
+                                  </span>
+                                  <span className="text-sm font-bold text-green-700 flex items-center">
+                                    <DollarSign className="h-3 w-3" />
+                                    {precioKit.toLocaleString('es-CO')}
+                                  </span>
+                                </div>
                             </div>
                         );
                     })}
-                </div>
+                  </div>
 
-                <div className="mt-4 flex justify-end">
-                    <Button 
-                        onClick={handleAplicarMedicamentos} 
+                  {kitsFiltrados.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <Package className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+                      <p>No se encontraron kits</p>
+                      <p className="text-sm">Intente con otro término de búsqueda</p>
+                    </div>
+                  )}
+                </ScrollArea>
+
+                <div className="mt-4 flex items-center justify-between pt-3 border-t border-blue-200">
+                    <div className="text-sm text-blue-800">
+                      {kitsSeleccionados.length > 0 ? (
+                        <>
+                          <span className="font-semibold">{kitsSeleccionados.length}</span> kit(s) seleccionado(s)
+                          {' • '}
+                          <span className="font-semibold">{kitsSeleccionados.reduce((acc, k) => acc + k.medicamentos.length, 0)}</span> medicamento(s)
+                          {' • '}
+                          <span className="font-bold text-green-700">${totalOrden.toLocaleString('es-CO')}</span>
+                        </>
+                      ) : (
+                        'Seleccione kits para generar la orden'
+                      )}
+                    </div>
+                    <Button
+                        onClick={handleAplicarMedicamentos}
                         disabled={kitsSeleccionados.length === 0}
                         className="bg-blue-600 hover:bg-blue-700"
                     >
                         <Syringe className="h-4 w-4 mr-2" />
-                        Generar Orden de Aplicación ({kitsSeleccionados.length})
+                        Generar Orden ({kitsSeleccionados.length})
                     </Button>
                 </div>
              </div>
@@ -368,32 +515,63 @@ export default function FormularioPlanManejo({
             {/* Lista de kits y medicamentos */}
             <div className="space-y-3">
               <p className="text-sm font-medium text-gray-700">Kits Seleccionados:</p>
-              {kitsSeleccionados.map(kit => (
-                <div key={kit.id} className="border rounded-lg p-3 bg-blue-50">
-                  <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-semibold text-blue-900">{kit.nombre}</h4>
-                    <Badge className="bg-blue-600">{kit.medicamentos.length} meds</Badge>
+              {kitsSeleccionados.map(kit => {
+                const precioKit = calcularPrecioKit(kit);
+                return (
+                  <div key={kit.id} className="border rounded-lg p-3 bg-blue-50">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h4 className="font-semibold text-blue-900">{kit.nombre}</h4>
+                        <Badge variant="outline" className="text-[10px] font-mono mt-1">
+                          {kit.codigo}
+                        </Badge>
+                      </div>
+                      <div className="text-right">
+                        <Badge className="bg-blue-600">{kit.medicamentos.length} meds</Badge>
+                        <p className="text-xs font-bold text-green-700 mt-1">
+                          ${precioKit.toLocaleString('es-CO')}
+                        </p>
+                      </div>
+                    </div>
+                    <ul className="space-y-1">
+                      {kit.medicamentos.map((med, idx) => (
+                        <li key={idx} className="text-sm text-gray-700 flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-3 w-3 text-green-600" />
+                            <span>{med.nombre}</span>
+                            <span className="text-xs text-gray-400">x{med.cantidad}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="font-mono text-gray-500">{med.codigoCum}</span>
+                            <span className="text-gray-400">{med.via}</span>
+                            <span className="text-green-600">${(med.precio * med.cantidad).toLocaleString('es-CO')}</span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
-                  <ul className="space-y-1">
-                    {kit.medicamentos.map((med, idx) => (
-                      <li key={idx} className="text-sm text-gray-700 flex items-center gap-2">
-                        <CheckCircle2 className="h-3 w-3 text-green-600" />
-                        {med}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
-            {/* Resumen */}
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-              <p className="text-sm text-amber-800">
-                <AlertCircle className="h-4 w-4 inline mr-1" />
-                Se generará una orden de enfermería con{' '}
-                <strong>{kitsSeleccionados.reduce((acc, kit) => acc + kit.medicamentos.length, 0)}</strong>{' '}
-                medicamentos para aplicación inmediata.
-              </p>
+            {/* Resumen con Total */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-green-800">
+                  <p>
+                    <AlertCircle className="h-4 w-4 inline mr-1" />
+                    Se generará orden con{' '}
+                    <strong>{kitsSeleccionados.reduce((acc, kit) => acc + kit.medicamentos.length, 0)}</strong>{' '}
+                    medicamentos
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-gray-600">Total Orden:</p>
+                  <p className="text-lg font-bold text-green-700">
+                    ${totalOrden.toLocaleString('es-CO')}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 

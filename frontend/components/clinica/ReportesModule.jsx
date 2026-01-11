@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,24 +11,15 @@ import {
   BarChart3,
   TrendingUp,
   Download,
-  Calendar,
   Users,
   Activity,
   DollarSign,
-  FileText,
-  Clock,
-  AlertCircle,
   CheckCircle,
   XCircle,
-  Eye,
-  Filter,
-  PieChart as PieChartIcon,
 } from 'lucide-react';
 import { 
   BarChart, 
   Bar, 
-  LineChart, 
-  Line, 
   PieChart, 
   Pie, 
   Cell, 
@@ -40,147 +31,51 @@ import {
   Tooltip, 
   Legend, 
   ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar,
 } from 'recharts';
+import useReportes from '@/hooks/useReportes';
 
 export default function ReportesModule({ user }) {
   const [activeTab, setActiveTab] = useState('general');
   const [periodoSeleccionado, setPeriodoSeleccionado] = useState('mes');
+  
+  const {
+    loading,
+    generalStats,
+    financialStats,
+    occupancyStats,
+    specialtyStats,
+    demographicsStats,
+    servicesStats,
+    doctorsStats,
+    qualityStats,
+    auditStats,
+    fetchAllStats
+  } = useReportes();
 
-  // Datos para Dashboard General
-  const kpisGenerales = {
-    totalPacientes: 1247,
-    pacientesNuevos: 89,
-    consultasRealizadas: 456,
-    ocupacionCamas: 78,
-    ingresosMes: 24850000,
-    gastosMes: 18200000,
-    utilidad: 6650000,
-    satisfaccion: 4.6,
+  useEffect(() => {
+    fetchAllStats(periodoSeleccionado);
+  }, [fetchAllStats, periodoSeleccionado]);
+
+  // Fallback data structure if loading or error
+  const kpisGenerales = generalStats || {
+    totalPacientes: 0,
+    pacientesNuevos: 0,
+    consultasRealizadas: 0,
+    ocupacionCamas: 0,
+    ingresosMes: 0,
+    gastosMes: 0,
+    utilidad: 0,
+    satisfaccion: 0,
   };
 
-  // Datos de consultas por especialidad
-  const consultasPorEspecialidad = [
-    { especialidad: 'Medicina General', cantidad: 145, porcentaje: 32 },
-    { especialidad: 'Pediatría', cantidad: 98, porcentaje: 21 },
-    { especialidad: 'Ginecología', cantidad: 76, porcentaje: 17 },
-    { especialidad: 'Cardiología', cantidad: 54, porcentaje: 12 },
-    { especialidad: 'Ortopedia', cantidad: 43, porcentaje: 9 },
-    { especialidad: 'Otros', cantidad: 40, porcentaje: 9 },
-  ];
-
-  // Datos de ocupación por mes
-  const ocupacionMensual = [
-    { mes: 'Jul', ocupacion: 72, capacidad: 100 },
-    { mes: 'Ago', ocupacion: 78, capacidad: 100 },
-    { mes: 'Sep', ocupacion: 75, capacidad: 100 },
-    { mes: 'Oct', ocupacion: 81, capacidad: 100 },
-    { mes: 'Nov', ocupacion: 85, capacidad: 100 },
-    { mes: 'Dic', ocupacion: 88, capacidad: 100 },
-    { mes: 'Ene', ocupacion: 78, capacidad: 100 },
-  ];
-
-  // Datos de ingresos vs gastos
-  const ingresosGastos = [
-    { mes: 'Jul', ingresos: 21500000, gastos: 16200000 },
-    { mes: 'Ago', ingresos: 23800000, gastos: 17500000 },
-    { mes: 'Sep', ingresos: 22100000, gastos: 16800000 },
-    { mes: 'Oct', ingresos: 25300000, gastos: 18900000 },
-    { mes: 'Nov', ingresos: 26700000, gastos: 19200000 },
-    { mes: 'Dic', ingresos: 28500000, gastos: 20100000 },
-    { mes: 'Ene', ingresos: 24850000, gastos: 18200000 },
-  ];
-
-  // Datos de distribución de pacientes por edad
-  const pacientesPorEdad = [
-    { rango: '0-18', cantidad: 156 },
-    { rango: '19-35', cantidad: 342 },
-    { rango: '36-50', cantidad: 398 },
-    { rango: '51-65', cantidad: 245 },
-    { rango: '65+', cantidad: 106 },
-  ];
-
-  // Datos de servicios más solicitados
-  const serviciosMasSolicitados = [
-    { servicio: 'Consulta Externa', cantidad: 456, variacion: '+12%' },
-    { servicio: 'Laboratorio Clínico', cantidad: 234, variacion: '+8%' },
-    { servicio: 'Imagenología', cantidad: 189, variacion: '+15%' },
-    { servicio: 'Urgencias', cantidad: 145, variacion: '+5%' },
-    { servicio: 'Cirugías', cantidad: 87, variacion: '+3%' },
-    { servicio: 'Hospitalización', cantidad: 62, variacion: '-2%' },
-  ];
-
-  // Datos de indicadores de calidad
-  const indicadoresCalidad = [
-    { indicador: 'Satisfacción del Paciente', valor: 4.6, meta: 4.5, cumple: true },
-    { indicador: 'Tiempo de Espera (min)', valor: 18, meta: 20, cumple: true },
-    { indicador: 'Tasa de Ocupación (%)', valor: 78, meta: 75, cumple: true },
-    { indicador: 'Reingresos 30 días (%)', valor: 3.2, meta: 5, cumple: true },
-    { indicador: 'Infecciones Nosocomiales (%)', valor: 1.1, meta: 2, cumple: true },
-    { indicador: 'Quejas y Reclamos', valor: 8, meta: 10, cumple: true },
-  ];
-
-  // Datos de auditoría
-  const registrosAuditoria = [
-    {
-      id: 'AUD-001',
-      fecha: '2025-01-15 14:35',
-      usuario: 'Dr. Carlos Méndez',
-      accion: 'Modificación HCE',
-      modulo: 'Historia Clínica',
-      detalle: 'Actualización de evolución clínica - Paciente: María González',
-      tipo: 'Modificación',
-    },
-    {
-      id: 'AUD-002',
-      fecha: '2025-01-15 13:22',
-      usuario: 'Admin Sistema',
-      accion: 'Creación Usuario',
-      modulo: 'Administración',
-      detalle: 'Nuevo usuario médico: Dr. Roberto Silva',
-      tipo: 'Creación',
-    },
-    {
-      id: 'AUD-003',
-      fecha: '2025-01-15 11:45',
-      usuario: 'Enf. Laura Díaz',
-      accion: 'Administración Medicamento',
-      modulo: 'Enfermería',
-      detalle: 'Medicamento administrado - Paciente: Juan Pérez',
-      tipo: 'Registro',
-    },
-    {
-      id: 'AUD-004',
-      fecha: '2025-01-15 10:15',
-      usuario: 'Dr. Patricia Gómez',
-      accion: 'Eliminación Registro',
-      modulo: 'Laboratorio',
-      detalle: 'Orden de laboratorio cancelada por error',
-      tipo: 'Eliminación',
-    },
-    {
-      id: 'AUD-005',
-      fecha: '2025-01-15 09:30',
-      usuario: 'Admin Facturación',
-      accion: 'Modificación Factura',
-      modulo: 'Facturación',
-      detalle: 'Corrección de valor en factura FACT-2025-003',
-      tipo: 'Modificación',
-    },
-  ];
-
-  // Datos de rendimiento por médico
-  const rendimientoMedicos = [
-    { medico: 'Dr. Carlos Méndez', consultas: 87, cirugias: 12, satisfaccion: 4.8, ingresos: 8500000 },
-    { medico: 'Dra. Patricia Gómez', consultas: 76, cirugias: 15, satisfaccion: 4.7, ingresos: 9200000 },
-    { medico: 'Dr. Eduardo Torres', consultas: 54, cirugias: 8, satisfaccion: 4.6, ingresos: 6800000 },
-    { medico: 'Dra. Sandra Reyes', consultas: 92, cirugias: 6, satisfaccion: 4.9, ingresos: 7100000 },
-    { medico: 'Dr. Jorge Ramírez', consultas: 45, cirugias: 18, satisfaccion: 4.5, ingresos: 10500000 },
-  ];
+  const consultasPorEspecialidad = specialtyStats.length > 0 ? specialtyStats : [];
+  const ocupacionMensual = occupancyStats.length > 0 ? occupancyStats : [];
+  const ingresosGastos = financialStats.length > 0 ? financialStats : [];
+  const pacientesPorEdad = demographicsStats.length > 0 ? demographicsStats : [];
+  const serviciosMasSolicitados = servicesStats.length > 0 ? servicesStats : [];
+  const indicadoresCalidad = qualityStats.length > 0 ? qualityStats : [];
+  const registrosAuditoria = auditStats.length > 0 ? auditStats : [];
+  const rendimientoMedicos = doctorsStats.length > 0 ? doctorsStats : [];
 
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ef4444', '#6366f1'];
 
@@ -189,7 +84,7 @@ export default function ReportesModule({ user }) {
       style: 'currency',
       currency: 'COP',
       minimumFractionDigits: 0,
-    }).format(value);
+    }).format(value || 0);
   };
 
   const getTipoAuditoriaColor = (tipo) => {
@@ -201,6 +96,10 @@ export default function ReportesModule({ user }) {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (loading && !generalStats) {
+    return <div className="p-8 text-center">Cargando reportes...</div>;
+  }
 
   return (
     <div className="p-6 lg:p-8 bg-gradient-to-br from-slate-50 via-gray-50 to-zinc-50 min-h-screen">
@@ -256,7 +155,7 @@ export default function ReportesModule({ user }) {
           {/* Tab: Dashboard General */}
           <TabsContent value="general" className="mt-6 space-y-6">
             {/* KPIs Principales */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
               <Card className="border-l-4 border-l-blue-500">
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between">
@@ -265,7 +164,7 @@ export default function ReportesModule({ user }) {
                       <p className="text-2xl font-bold text-blue-600">{kpisGenerales.totalPacientes}</p>
                       <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
                         <TrendingUp className="w-3 h-3" />
-                        +{kpisGenerales.pacientesNuevos} este mes
+                        +{kpisGenerales.pacientesNuevos} nuevos
                       </p>
                     </div>
                     <Users className="w-8 h-8 text-blue-600" />
@@ -279,9 +178,22 @@ export default function ReportesModule({ user }) {
                     <div>
                       <p className="text-sm text-gray-600">Consultas Realizadas</p>
                       <p className="text-2xl font-bold text-green-600">{kpisGenerales.consultasRealizadas}</p>
-                      <p className="text-xs text-gray-500 mt-1">Este mes</p>
+                      <p className="text-xs text-gray-500 mt-1">Este periodo</p>
                     </div>
                     <Activity className="w-8 h-8 text-green-600" />
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-l-4 border-l-orange-500">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">Evoluciones HCE</p>
+                      <p className="text-2xl font-bold text-orange-600">{kpisGenerales.evolucionesRealizadas || 0}</p>
+                      <p className="text-xs text-gray-500 mt-1">Realizadas</p>
+                    </div>
+                    <Activity className="w-8 h-8 text-orange-600" />
                   </div>
                 </CardContent>
               </Card>
@@ -292,7 +204,7 @@ export default function ReportesModule({ user }) {
                     <div>
                       <p className="text-sm text-gray-600">Ocupación Camas</p>
                       <p className="text-2xl font-bold text-purple-600">{kpisGenerales.ocupacionCamas}%</p>
-                      <p className="text-xs text-gray-500 mt-1">Promedio mes</p>
+                      <p className="text-xs text-gray-500 mt-1">Actual</p>
                     </div>
                     <Activity className="w-8 h-8 text-purple-600" />
                   </div>
@@ -318,7 +230,7 @@ export default function ReportesModule({ user }) {
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">Ingresos del Mes</p>
+                    <p className="text-sm text-gray-600">Ingresos del Periodo</p>
                     <DollarSign className="w-5 h-5 text-green-600" />
                   </div>
                   <p className="text-2xl font-bold text-green-600">{formatCurrency(kpisGenerales.ingresosMes)}</p>
@@ -328,7 +240,7 @@ export default function ReportesModule({ user }) {
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-gray-600">Gastos del Mes</p>
+                    <p className="text-sm text-gray-600">Gastos del Periodo</p>
                     <DollarSign className="w-5 h-5 text-red-600" />
                   </div>
                   <p className="text-2xl font-bold text-red-600">{formatCurrency(kpisGenerales.gastosMes)}</p>
@@ -476,7 +388,7 @@ export default function ReportesModule({ user }) {
                         <TableHead>Médico</TableHead>
                         <TableHead className="text-right">Consultas</TableHead>
                         <TableHead className="text-right">Cirugías</TableHead>
-                        <TableHead className="text-right">Rating</TableHead>
+                        <TableHead className="text-right">Ingresos</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -486,9 +398,7 @@ export default function ReportesModule({ user }) {
                           <TableCell className="text-right">{medico.consultas}</TableCell>
                           <TableCell className="text-right">{medico.cirugias}</TableCell>
                           <TableCell className="text-right">
-                            <Badge className="bg-green-100 text-green-800">
-                              {medico.satisfaccion} ⭐
-                            </Badge>
+                            {formatCurrency(medico.ingresos)}
                           </TableCell>
                         </TableRow>
                       ))}

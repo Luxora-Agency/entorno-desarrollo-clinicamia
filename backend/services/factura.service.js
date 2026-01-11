@@ -95,6 +95,45 @@ class FacturaService {
   }
 
   /**
+   * Obtener facturas por múltiples IDs de citas (batch)
+   * Optimizado para evitar N+1 queries
+   *
+   * @param {string[]} citaIds - Array de IDs de citas
+   * @returns {Object} Mapa de citaId -> factura
+   */
+  async getFacturasByCitaIds(citaIds) {
+    if (!citaIds || citaIds.length === 0) {
+      return {};
+    }
+
+    // Buscar todos los items de factura que tengan alguno de los citaIds
+    const facturaItems = await prisma.facturaItem.findMany({
+      where: {
+        citaId: {
+          in: citaIds
+        }
+      },
+      include: {
+        factura: {
+          include: {
+            pagos: true
+          }
+        }
+      }
+    });
+
+    // Crear mapa de citaId -> factura
+    const result = {};
+    for (const item of facturaItems) {
+      if (item.citaId && item.factura) {
+        result[item.citaId] = item.factura;
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Obtener una factura por ID
    */
   async getById(id) {
@@ -242,7 +281,41 @@ class FacturaService {
       },
     });
 
+    // Emitir factura electrónica automáticamente si Siigo está conectado
+    if (!data.skip_electronic_invoice) {
+      this.emitirFacturaElectronicaAsync(factura.id).catch(err => {
+        console.error(`[Factura] Error emitiendo FE para ${factura.numero}:`, err.message);
+      });
+    }
+
     return factura;
+  }
+
+  /**
+   * Emitir factura electrónica de forma asíncrona (no bloquea la creación)
+   */
+  async emitirFacturaElectronicaAsync(facturaId) {
+    try {
+      const siigoService = require('./siigo/siigo.service');
+
+      // Solo emitir si Siigo está conectado
+      if (!siigoService.initialized) {
+        console.log(`[Factura] Siigo no conectado - factura ${facturaId} pendiente de emisión electrónica`);
+        return;
+      }
+
+      const invoiceSiigoService = require('./siigo/invoice.siigo.service');
+      await invoiceSiigoService.createElectronicInvoice(facturaId);
+      console.log(`[Factura] FE emitida automáticamente para factura ${facturaId}`);
+    } catch (error) {
+      // Registrar error para reintento posterior
+      await prisma.siigoSync.upsert({
+        where: { entidad_entidadId: { entidad: 'factura', entidadId: facturaId } },
+        update: { estado: 'error', errorMessage: error.message, ultimaSync: new Date() },
+        create: { entidad: 'factura', entidadId: facturaId, estado: 'error', errorMessage: error.message }
+      });
+      throw error;
+    }
   }
 
   /**
@@ -328,7 +401,59 @@ class FacturaService {
       },
     });
 
+    // Crear recibo de caja en Siigo (asíncrono, no bloquea)
+    this.crearReciboSiigoAsync(pago.id).catch(err => {
+      console.error(`[Factura] Error creando recibo Siigo para pago ${pago.id}:`, err.message);
+    });
+
     return pago;
+  }
+
+  /**
+   * Crear recibo de caja en Siigo de forma asíncrona
+   */
+  async crearReciboSiigoAsync(pagoId) {
+    try {
+      const siigoService = require('./siigo/siigo.service');
+
+      // Verificar si Siigo está conectado
+      if (!siigoService.initialized) {
+        console.log(`[Factura] Siigo no conectado - recibo para pago ${pagoId} pendiente`);
+        await prisma.siigoSync.upsert({
+          where: {
+            entidad_entidadId: { entidad: 'pago', entidadId: pagoId }
+          },
+          update: { estado: 'pendiente', ultimaSync: new Date() },
+          create: { entidad: 'pago', entidadId: pagoId, estado: 'pendiente' }
+        });
+        return;
+      }
+
+      const voucherSiigoService = require('./siigo/voucher.siigo.service');
+      await voucherSiigoService.createVoucher(pagoId);
+      console.log(`[Factura] ✓ Recibo de caja creado para pago ${pagoId}`);
+    } catch (error) {
+      console.error(`[Factura] Error en creación de recibo Siigo:`, error.message);
+
+      // Registrar error para reintento por cron
+      await prisma.siigoSync.upsert({
+        where: {
+          entidad_entidadId: { entidad: 'pago', entidadId: pagoId }
+        },
+        update: {
+          estado: 'error',
+          errorMessage: error.message,
+          ultimaSync: new Date()
+        },
+        create: {
+          entidad: 'pago',
+          entidadId: pagoId,
+          estado: 'error',
+          errorMessage: error.message
+        }
+      });
+      throw error;
+    }
   }
 
   /**
@@ -364,6 +489,213 @@ class FacturaService {
 
     await prisma.factura.delete({ where: { id } });
     return true;
+  }
+
+  // ============ FACTURACIÓN ELECTRÓNICA SIIGO ============
+
+  /**
+   * Emitir factura electrónica a través de Siigo
+   * @param {string} facturaId - ID de la factura local
+   * @returns {Object} Resultado con CUFE y estado DIAN
+   */
+  async emitirFacturaElectronica(facturaId) {
+    const factura = await this.getById(facturaId);
+
+    if (factura.siigoId) {
+      throw new ValidationError('Esta factura ya fue emitida electrónicamente');
+    }
+
+    if (factura.estado === 'Cancelada') {
+      throw new ValidationError('No se puede emitir una factura cancelada');
+    }
+
+    try {
+      const invoiceSiigoService = require('./siigo/invoice.siigo.service');
+      const result = await invoiceSiigoService.createElectronicInvoice(facturaId);
+
+      // Update local invoice with electronic data
+      await prisma.factura.update({
+        where: { id: facturaId },
+        data: {
+          siigoId: result.id,
+          cufe: result.cufe,
+          qrCode: result.qrCode,
+          estadoDian: 'ACEPTADA',
+          fechaEmisionDian: new Date(),
+          numeroElectronico: result.name
+        }
+      });
+
+      // Log sync
+      await prisma.siigoSync.upsert({
+        where: { entidad_entidadId: { entidad: 'factura', entidadId: facturaId } },
+        update: { siigoId: result.id, estado: 'sincronizado', ultimaSync: new Date() },
+        create: { entidad: 'factura', entidadId: facturaId, siigoId: result.id, estado: 'sincronizado' }
+      });
+
+      return {
+        success: true,
+        siigoId: result.id,
+        cufe: result.cufe,
+        numeroElectronico: result.name,
+        estadoDian: 'ACEPTADA'
+      };
+    } catch (error) {
+      console.error('[FacturaService] Error emitiendo factura electrónica:', error.message);
+
+      // Mark for retry
+      await prisma.siigoSync.upsert({
+        where: { entidad_entidadId: { entidad: 'factura', entidadId: facturaId } },
+        update: { estado: 'error', errorMessage: error.message, ultimaSync: new Date() },
+        create: { entidad: 'factura', entidadId: facturaId, estado: 'error', errorMessage: error.message }
+      });
+
+      throw new ValidationError(`Error emitiendo factura electrónica: ${error.message}`);
+    }
+  }
+
+  /**
+   * Verificar estado DIAN de una factura
+   * @param {string} facturaId - ID de la factura local
+   */
+  async verificarEstadoDian(facturaId) {
+    const factura = await this.getById(facturaId);
+
+    if (!factura.siigoId) {
+      throw new ValidationError('Esta factura no ha sido emitida electrónicamente');
+    }
+
+    try {
+      const invoiceSiigoService = require('./siigo/invoice.siigo.service');
+      const status = await invoiceSiigoService.checkDianStatus(facturaId);
+
+      // Update local status
+      await prisma.factura.update({
+        where: { id: facturaId },
+        data: { estadoDian: status }
+      });
+
+      return { estadoDian: status };
+    } catch (error) {
+      console.error('[FacturaService] Error verificando estado DIAN:', error.message);
+      throw new ValidationError(`Error verificando estado DIAN: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtener PDF de factura electrónica desde Siigo
+   * @param {string} facturaId - ID de la factura local
+   */
+  async obtenerPdfElectronico(facturaId) {
+    const factura = await this.getById(facturaId);
+
+    if (!factura.siigoId) {
+      throw new ValidationError('Esta factura no ha sido emitida electrónicamente');
+    }
+
+    try {
+      const invoiceSiigoService = require('./siigo/invoice.siigo.service');
+      return await invoiceSiigoService.getInvoicePdf(facturaId);
+    } catch (error) {
+      console.error('[FacturaService] Error obteniendo PDF electrónico:', error.message);
+      throw new ValidationError(`Error obteniendo PDF electrónico: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtener errores DIAN de una factura
+   * @param {string} facturaId - ID de la factura local
+   */
+  async obtenerErroresDian(facturaId) {
+    const factura = await this.getById(facturaId);
+
+    if (!factura.siigoId) {
+      throw new ValidationError('Esta factura no ha sido emitida electrónicamente');
+    }
+
+    try {
+      const invoiceSiigoService = require('./siigo/invoice.siigo.service');
+      return await invoiceSiigoService.getInvoiceErrors(facturaId);
+    } catch (error) {
+      console.error('[FacturaService] Error obteniendo errores DIAN:', error.message);
+      throw new ValidationError(`Error obteniendo errores DIAN: ${error.message}`);
+    }
+  }
+
+  /**
+   * Reenviar factura por email
+   * @param {string} facturaId - ID de la factura local
+   * @param {string} email - Email destino (opcional, usa el del paciente por defecto)
+   */
+  async reenviarFacturaEmail(facturaId, email) {
+    const factura = await this.getById(facturaId);
+
+    if (!factura.siigoId) {
+      throw new ValidationError('Esta factura no ha sido emitida electrónicamente');
+    }
+
+    const destinoEmail = email || factura.paciente?.email;
+    if (!destinoEmail) {
+      throw new ValidationError('No se encontró email de destino');
+    }
+
+    try {
+      const invoiceSiigoService = require('./siigo/invoice.siigo.service');
+      await invoiceSiigoService.sendInvoiceEmail(facturaId, destinoEmail);
+      return { success: true, message: `Factura enviada a ${destinoEmail}` };
+    } catch (error) {
+      console.error('[FacturaService] Error reenviando factura por email:', error.message);
+      throw new ValidationError(`Error reenviando factura: ${error.message}`);
+    }
+  }
+
+  /**
+   * Obtener facturas pendientes de emisión electrónica
+   */
+  async getFacturasPendientesEmision() {
+    return prisma.factura.findMany({
+      where: {
+        siigoId: null,
+        estado: { not: 'Cancelada' }
+      },
+      include: {
+        paciente: {
+          select: { id: true, nombre: true, apellido: true, cedula: true }
+        }
+      },
+      orderBy: { fechaEmision: 'asc' },
+      take: 100
+    });
+  }
+
+  /**
+   * Obtener facturas con errores de emisión
+   */
+  async getFacturasConErrores() {
+    const syncs = await prisma.siigoSync.findMany({
+      where: {
+        entidad: 'factura',
+        estado: 'error'
+      },
+      orderBy: { ultimaSync: 'desc' },
+      take: 50
+    });
+
+    const facturaIds = syncs.map(s => s.entidadId);
+
+    const facturas = await prisma.factura.findMany({
+      where: { id: { in: facturaIds } },
+      include: {
+        paciente: {
+          select: { id: true, nombre: true, apellido: true, cedula: true }
+        }
+      }
+    });
+
+    return facturas.map(f => ({
+      ...f,
+      errorMessage: syncs.find(s => s.entidadId === f.id)?.errorMessage
+    }));
   }
 }
 

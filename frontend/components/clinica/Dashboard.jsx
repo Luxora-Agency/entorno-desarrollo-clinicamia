@@ -36,9 +36,32 @@ import PlanesMiaPassModule from './PlanesMiaPassModule';
 import SuscripcionesMiaPassModule from './SuscripcionesMiaPassModule';
 import SuscriptoresMiaPassModule from './SuscriptoresMiaPassModule';
 import CuponesMiaPassModule from './CuponesMiaPassModule';
+import FormulariosMiaPassModule from './FormulariosMiaPassModule';
+import ComisionesMiaPassModule from './ComisionesMiaPassModule';
+// Órdenes Médicas
 import OrdenesMedicasModule from './OrdenesMedicasModule';
+import OrdenesTiendaModule from './OrdenesTiendaModule';
 import UsuariosRolesModule from './UsuariosRolesModule';
 import DashboardRecepcionistaNew from './DashboardRecepcionistaNew';
+import CalidadModule from './calidad/CalidadModule';
+import DocsInscripcionModule from './calidad2/docs-inscripcion/DocsInscripcionModule';
+import TalentoHumanoModule from './calidad2/talento-humano/TalentoHumanoModule';
+import InfraestructuraModule from './calidad2/infraestructura/InfraestructuraModule';
+import MedicamentosModule from './calidad2/medicamentos/MedicamentosModule';
+import ProcesosPrioritariosModule from './calidad2/procesos-prioritarios/ProcesosPrioritariosModule';
+import HistoriaClinicaModule from './calidad2/historia-clinica/HistoriaClinicaModule';
+import SSTModule from './sst/SSTModule';
+import RRHHModule from './rrhh/RRHHModule';
+import DrogueriaModule from './drogueria/DrogueriaModule';
+import ChecklistsModule from './calidad2/ChecklistsModule';
+import PlantillasDoctorModule from './templates/PlantillasDoctorModule';
+import PublicacionesModule from './publicaciones/PublicacionesModule';
+import ContabilidadModule from './contabilidad/ContabilidadModule';
+import DashboardFinancieroModule from './contabilidad/DashboardFinancieroModule';
+import ActivosFijosModule from './contabilidad/ActivosFijosModule';
+import BancosModule from './contabilidad/BancosModule';
+import ComprasModule from './compras/ComprasModule';
+import SiigoConfigModule from './admin/SiigoConfigModule';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
@@ -156,6 +179,8 @@ export default function Dashboard({ user, onLogout }) {
       // Módulos de Farmacia
       case 'farmacia':
         return <FarmaciaModule user={user} />;
+      case 'ordenes-tienda':
+        return <OrdenesTiendaModule user={user} />;
       case 'categorias-productos':
         return <CategoriasProductosModule user={user} />;
       case 'etiquetas-productos':
@@ -196,12 +221,63 @@ export default function Dashboard({ user, onLogout }) {
         return <SuscriptoresMiaPassModule user={user} />;
       case 'cupones-miapass':
         return <CuponesMiaPassModule user={user} />;
+      case 'formularios-miapass':
+        return <FormulariosMiaPassModule user={user} />;
+      case 'comisiones-miapass':
+        return <ComisionesMiaPassModule user={user} />;
       // Órdenes Médicas
       case 'ordenes-medicas':
         return <OrdenesMedicasModule user={user} />;
       // Configuración
       case 'usuarios-roles':
         return <UsuariosRolesModule user={user} />;
+      // Talento Humano (RRHH)
+      case 'rrhh':
+        return <RRHHModule user={user} />;
+      // Droguería
+      case 'drogueria':
+        return <DrogueriaModule user={user} />;
+      // Contabilidad
+      case 'contabilidad':
+        return <ContabilidadModule user={user} />;
+      case 'dashboard-financiero':
+        return <DashboardFinancieroModule user={user} />;
+      case 'activos-fijos':
+        return <ActivosFijosModule user={user} />;
+      case 'bancos':
+        return <BancosModule user={user} />;
+      // Compras
+      case 'compras':
+        return <ComprasModule user={user} />;
+      // Configuración Siigo
+      case 'siigo-config':
+        return <SiigoConfigModule user={user} />;
+      // Publicaciones
+      case 'publicaciones':
+      case 'categorias-publicaciones':
+        return <PublicacionesModule user={user} activeTab={activeModule === 'categorias-publicaciones' ? 'categorias' : 'publicaciones'} />;
+      // Módulo de Calidad
+      case 'calidad':
+        return <CalidadModule user={user} />;
+      // Módulos de Calidad 2.0
+      case 'calidad2-inscripcion':
+        return <DocsInscripcionModule user={user} />;
+      case 'calidad2-talento':
+        return <TalentoHumanoModule user={user} />;
+      case 'calidad2-infraestructura':
+        return <InfraestructuraModule user={user} />;
+      case 'calidad2-medicamentos':
+        return <MedicamentosModule user={user} />;
+      case 'calidad2-procesos-prioritarios':
+        return <ProcesosPrioritariosModule user={user} />;
+      case 'calidad2-historia-clinica':
+        return <HistoriaClinicaModule user={user} />;
+      case 'sst':
+        return <SSTModule user={user} />;
+      case 'calidad2-checklists':
+        return <ChecklistsModule user={user} />;
+      case 'plantillas-doctor':
+        return <PlantillasDoctorModule user={user} />;
       default:
         return <DashboardHome user={user} />;
     }

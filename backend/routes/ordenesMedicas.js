@@ -12,7 +12,94 @@ const ordenesMedicas = new Hono();
 ordenesMedicas.use('*', authMiddleware);
 
 /**
- * GET /ordenes-medicas - Obtener todas las órdenes médicas
+ * @swagger
+ * components:
+ *   schemas:
+ *     OrdenMedica:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         medico_id:
+ *           type: string
+ *           format: uuid
+ *         tipo:
+ *           type: string
+ *           enum: [Laboratorio, Imagenologia, Procedimiento, Interconsulta, Dieta, Otro]
+ *         descripcion:
+ *           type: string
+ *         prioridad:
+ *           type: string
+ *           enum: [Baja, Media, Alta, Urgente]
+ *         estado:
+ *           type: string
+ *           enum: [Pendiente, EnProceso, Completada, Cancelada]
+ *         fecha_creacion:
+ *           type: string
+ *           format: date-time
+ *     OrdenMedicaInput:
+ *       type: object
+ *       required:
+ *         - paciente_id
+ *         - tipo
+ *         - descripcion
+ *       properties:
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         tipo:
+ *           type: string
+ *           enum: [Laboratorio, Imagenologia, Procedimiento, Interconsulta, Dieta, Otro]
+ *         descripcion:
+ *           type: string
+ *         prioridad:
+ *           type: string
+ *           enum: [Baja, Media, Alta, Urgente]
+ * tags:
+ *   name: OrdenesMedicas
+ *   description: Gestión de órdenes médicas
+ */
+
+/**
+ * @swagger
+ * /ordenes-medicas:
+ *   get:
+ *     summary: Obtener todas las órdenes médicas
+ *     tags: [OrdenesMedicas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: paciente_id
+ *         schema:
+ *           type: string
+ *         description: Filtrar por paciente
+ *       - in: query
+ *         name: estado
+ *         schema:
+ *           type: string
+ *         description: Filtrar por estado
+ *     responses:
+ *       200:
+ *         description: Lista de órdenes médicas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/OrdenMedica'
+ *       500:
+ *         description: Error del servidor
  */
 ordenesMedicas.get('/', async (c) => {
   try {
@@ -25,7 +112,41 @@ ordenesMedicas.get('/', async (c) => {
 });
 
 /**
- * GET /ordenes-medicas/:id - Obtener una orden médica por ID
+ * @swagger
+ * /ordenes-medicas/{id}:
+ *   get:
+ *     summary: Obtener una orden médica por ID
+ *     tags: [OrdenesMedicas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la orden médica
+ *     responses:
+ *       200:
+ *         description: Datos de la orden médica
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orden:
+ *                       $ref: '#/components/schemas/OrdenMedica'
+ *       404:
+ *         description: Orden médica no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 ordenesMedicas.get('/:id', async (c) => {
   try {
@@ -38,7 +159,37 @@ ordenesMedicas.get('/:id', async (c) => {
 });
 
 /**
- * POST /ordenes-medicas - Crear una nueva orden médica
+ * @swagger
+ * /ordenes-medicas:
+ *   post:
+ *     summary: Crear una nueva orden médica
+ *     tags: [OrdenesMedicas]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/OrdenMedicaInput'
+ *     responses:
+ *       201:
+ *         description: Orden médica creada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     orden:
+ *                       $ref: '#/components/schemas/OrdenMedica'
+ *       500:
+ *         description: Error del servidor
  */
 ordenesMedicas.post('/', async (c) => {
   try {
@@ -51,7 +202,34 @@ ordenesMedicas.post('/', async (c) => {
 });
 
 /**
- * PUT /ordenes-medicas/:id - Actualizar una orden médica
+ * @swagger
+ * /ordenes-medicas/{id}:
+ *   put:
+ *     summary: Actualizar una orden médica
+ *     tags: [OrdenesMedicas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la orden médica
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/OrdenMedicaInput'
+ *     responses:
+ *       200:
+ *         description: Orden médica actualizada correctamente
+ *       404:
+ *         description: Orden médica no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 ordenesMedicas.put('/:id', async (c) => {
   try {
@@ -65,9 +243,42 @@ ordenesMedicas.put('/:id', async (c) => {
 });
 
 /**
- * POST /ordenes-medicas/:id/completar - Completar una orden médica
+ * @swagger
+ * /ordenes-medicas/{id}/completar:
+ *   post:
+ *     summary: Completar una orden médica
+ *     tags: [OrdenesMedicas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la orden médica
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               resultados:
+ *                 type: object
+ *                 description: Resultados estructurados (JSON)
+ *               archivo_resultado:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Orden médica completada correctamente
+ *       404:
+ *         description: Orden médica no encontrada
+ *       500:
+ *         description: Error del servidor
  */
-ordenesMedicas.post('/:id/administrar', async (c) => {
+ordenesMedicas.post('/:id/completar', async (c) => {
   try {
     const { id } = c.req.param();
     const body = await c.req.json();
@@ -80,9 +291,41 @@ ordenesMedicas.post('/:id/administrar', async (c) => {
 });
 
 /**
- * POST /ordenes-medicas/:id/cancelar - Cancelar una orden médica
+ * @swagger
+ * /ordenes-medicas/{id}/cancelar:
+ *   post:
+ *     summary: Cancelar una orden médica
+ *     tags: [OrdenesMedicas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la orden médica
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - observaciones
+ *             properties:
+ *               observaciones:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Orden médica cancelada correctamente
+ *       404:
+ *         description: Orden médica no encontrada
+ *       500:
+ *         description: Error del servidor
  */
-ordenesMedicas.post('/:id/administrar', async (c) => {
+ordenesMedicas.post('/:id/cancelar', async (c) => {
   try {
     const { id } = c.req.param();
     const body = await c.req.json();
@@ -94,7 +337,28 @@ ordenesMedicas.post('/:id/administrar', async (c) => {
 });
 
 /**
- * DELETE /ordenes-medicas/:id - Eliminar una orden médica
+ * @swagger
+ * /ordenes-medicas/{id}:
+ *   delete:
+ *     summary: Eliminar una orden médica
+ *     tags: [OrdenesMedicas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la orden médica
+ *     responses:
+ *       200:
+ *         description: Orden médica eliminada correctamente
+ *       404:
+ *         description: Orden médica no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 ordenesMedicas.delete('/:id', async (c) => {
   try {

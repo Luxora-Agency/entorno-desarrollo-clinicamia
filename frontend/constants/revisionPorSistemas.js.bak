@@ -1,0 +1,233 @@
+/**
+ * Constantes para la Revisión por Sistemas
+ * Preguntas organizadas por sistema fisiológico
+ */
+
+export const SISTEMAS = {
+  general: {
+    titulo: 'General',
+    icono: 'User',
+    preguntas: [
+      { id: 'fiebre', texto: 'Fiebre' },
+      { id: 'escalofrios', texto: 'Escalofríos' },
+      { id: 'fatiga', texto: 'Fatiga o malestar general' },
+      { id: 'perdidaPeso', texto: 'Pérdida de peso involuntaria' },
+      { id: 'aumentoPeso', texto: 'Aumento de peso' },
+      { id: 'sudoracionNocturna', texto: 'Sudoración nocturna' },
+      { id: 'insomnio', texto: 'Insomnio o alteraciones del sueño' },
+    ],
+  },
+  cabezaCuello: {
+    titulo: 'Cabeza y Cuello',
+    icono: 'UserCircle',
+    preguntas: [
+      { id: 'cefalea', texto: 'Cefalea o dolor de cabeza' },
+      { id: 'mareo', texto: 'Mareo o vértigo' },
+      { id: 'traumatismoCraneo', texto: 'Traumatismo craneoencefálico reciente' },
+      { id: 'dolorCuello', texto: 'Dolor de cuello' },
+      { id: 'rigidezNuca', texto: 'Rigidez de nuca' },
+      { id: 'masasCuello', texto: 'Masas o ganglios en cuello' },
+    ],
+  },
+  ojos: {
+    titulo: 'Ojos',
+    icono: 'Eye',
+    preguntas: [
+      { id: 'perdidaVision', texto: 'Pérdida o disminución de la visión' },
+      { id: 'visionDoble', texto: 'Visión doble (diplopía)' },
+      { id: 'dolorOcular', texto: 'Dolor ocular' },
+      { id: 'enrojecimientoOjos', texto: 'Enrojecimiento de ojos' },
+      { id: 'secrecionOcular', texto: 'Secreción ocular' },
+      { id: 'pruritoOcular', texto: 'Prurito ocular' },
+      { id: 'fotofobia', texto: 'Fotofobia' },
+    ],
+  },
+  oidos: {
+    titulo: 'Oídos',
+    icono: 'Ear',
+    preguntas: [
+      { id: 'perdidaAudicion', texto: 'Pérdida de audición' },
+      { id: 'tinnitus', texto: 'Tinnitus (zumbidos)' },
+      { id: 'otalgia', texto: 'Dolor de oídos (otalgia)' },
+      { id: 'otorrea', texto: 'Secreción por oídos (otorrea)' },
+      { id: 'vertigo', texto: 'Vértigo' },
+    ],
+  },
+  narizGarganta: {
+    titulo: 'Nariz y Garganta',
+    icono: 'Mic',
+    preguntas: [
+      { id: 'congestionNasal', texto: 'Congestión nasal' },
+      { id: 'rinorrea', texto: 'Rinorrea (secreción nasal)' },
+      { id: 'epistaxis', texto: 'Epistaxis (sangrado nasal)' },
+      { id: 'odinofagia', texto: 'Dolor de garganta (odinofagia)' },
+      { id: 'disfagia', texto: 'Dificultad para tragar (disfagia)' },
+      { id: 'disfoniaRonquera', texto: 'Disfonía o ronquera' },
+    ],
+  },
+  cardiovascular: {
+    titulo: 'Cardiovascular',
+    icono: 'Heart',
+    preguntas: [
+      { id: 'dolorPecho', texto: 'Dolor en el pecho' },
+      { id: 'palpitaciones', texto: 'Palpitaciones' },
+      { id: 'disnea', texto: 'Dificultad para respirar (disnea)' },
+      { id: 'ortopnea', texto: 'Ortopnea (dificultad respirar acostado)' },
+      { id: 'edemaExtremidades', texto: 'Hinchazón de piernas/tobillos' },
+      { id: 'sincope', texto: 'Síncope o desmayos' },
+      { id: 'claudicacionIntermitente', texto: 'Claudicación intermitente' },
+    ],
+  },
+  respiratorio: {
+    titulo: 'Respiratorio',
+    icono: 'Wind',
+    preguntas: [
+      { id: 'tos', texto: 'Tos' },
+      { id: 'expectoracion', texto: 'Expectoración' },
+      { id: 'hemoptisis', texto: 'Hemoptisis (sangre al toser)' },
+      { id: 'sibilancias', texto: 'Sibilancias' },
+      { id: 'disneaEsfuerzo', texto: 'Disnea de esfuerzo' },
+      { id: 'disneaReposo', texto: 'Disnea en reposo' },
+      { id: 'dolorToracico', texto: 'Dolor torácico al respirar' },
+    ],
+  },
+  gastrointestinal: {
+    titulo: 'Gastrointestinal',
+    icono: 'Apple',
+    preguntas: [
+      { id: 'nauseas', texto: 'Náuseas' },
+      { id: 'vomito', texto: 'Vómito' },
+      { id: 'dolorAbdominal', texto: 'Dolor abdominal' },
+      { id: 'diarrea', texto: 'Diarrea' },
+      { id: 'estrenimiento', texto: 'Estreñimiento' },
+      { id: 'pirosis', texto: 'Pirosis (acidez)' },
+      { id: 'disfagia', texto: 'Dificultad para tragar' },
+      { id: 'hematemesis', texto: 'Hematemesis (vómito con sangre)' },
+      { id: 'melena', texto: 'Melena (heces negras)' },
+      { id: 'hematoquecia', texto: 'Hematoquecia (sangre roja en heces)' },
+      { id: 'ictericia', texto: 'Ictericia (coloración amarilla)' },
+    ],
+  },
+  genitourinario: {
+    titulo: 'Genitourinario',
+    icono: 'Droplets',
+    preguntas: [
+      { id: 'disuria', texto: 'Disuria (dolor al orinar)' },
+      { id: 'polaquiuria', texto: 'Polaquiuria (orinar frecuente)' },
+      { id: 'urgenciaMiccional', texto: 'Urgencia miccional' },
+      { id: 'hematuria', texto: 'Hematuria (sangre en orina)' },
+      { id: 'incontinenciaUrinaria', texto: 'Incontinencia urinaria' },
+      { id: 'nicturia', texto: 'Nicturia (orinar de noche)' },
+      { id: 'dolorLumbar', texto: 'Dolor lumbar/renal' },
+      { id: 'secrecionUretral', texto: 'Secreción uretral' },
+    ],
+  },
+  musculoesqueletico: {
+    titulo: 'Musculoesquelético',
+    icono: 'Bone',
+    preguntas: [
+      { id: 'dolorArticular', texto: 'Dolor articular' },
+      { id: 'rigidezArticular', texto: 'Rigidez articular' },
+      { id: 'inflamacionArticular', texto: 'Inflamación articular' },
+      { id: 'dolorMuscular', texto: 'Dolor muscular' },
+      { id: 'debilidadMuscular', texto: 'Debilidad muscular' },
+      { id: 'dolorEspalda', texto: 'Dolor de espalda' },
+      { id: 'limitacionMovimiento', texto: 'Limitación del movimiento' },
+      { id: 'calambres', texto: 'Calambres musculares' },
+    ],
+  },
+  neurologico: {
+    titulo: 'Neurológico',
+    icono: 'Brain',
+    preguntas: [
+      { id: 'parestesias', texto: 'Parestesias (hormigueo/adormecimiento)' },
+      { id: 'perdidaFuerza', texto: 'Pérdida de fuerza' },
+      { id: 'temblor', texto: 'Temblor' },
+      { id: 'convulsiones', texto: 'Convulsiones' },
+      { id: 'perdidaConciencia', texto: 'Pérdida de conciencia' },
+      { id: 'alteracionMemoria', texto: 'Alteración de la memoria' },
+      { id: 'alteracionLenguaje', texto: 'Alteración del lenguaje' },
+      { id: 'alteracionMarcha', texto: 'Alteración de la marcha' },
+      { id: 'alteracionEquilibrio', texto: 'Alteración del equilibrio' },
+    ],
+  },
+  piel: {
+    titulo: 'Piel y Faneras',
+    icono: 'Hand',
+    preguntas: [
+      { id: 'erupciones', texto: 'Erupciones o rash' },
+      { id: 'prurito', texto: 'Prurito (picazón)' },
+      { id: 'lesionesNuevas', texto: 'Lesiones nuevas' },
+      { id: 'cambiosLunares', texto: 'Cambios en lunares' },
+      { id: 'sequedadPiel', texto: 'Sequedad de piel' },
+      { id: 'cambiosColoracion', texto: 'Cambios de coloración' },
+      { id: 'alopeciaCaidaCabello', texto: 'Caída del cabello' },
+      { id: 'cambiosUnas', texto: 'Cambios en las uñas' },
+    ],
+  },
+  psiquiatrico: {
+    titulo: 'Psiquiátrico',
+    icono: 'Brain',
+    preguntas: [
+      { id: 'ansiedad', texto: 'Ansiedad' },
+      { id: 'depresion', texto: 'Depresión o tristeza' },
+      { id: 'irritabilidad', texto: 'Irritabilidad' },
+      { id: 'alteracionesSueno', texto: 'Alteraciones del sueño' },
+      { id: 'perdidaInteres', texto: 'Pérdida de interés en actividades' },
+      { id: 'cambiosApetito', texto: 'Cambios en el apetito' },
+      { id: 'ideacionSuicida', texto: 'Ideación suicida' },
+      { id: 'alucinaciones', texto: 'Alucinaciones' },
+    ],
+  },
+  endocrino: {
+    titulo: 'Endocrino/Metabólico',
+    icono: 'Thermometer',
+    preguntas: [
+      { id: 'poliuria', texto: 'Poliuria (orinar mucho)' },
+      { id: 'polidipsia', texto: 'Polidipsia (sed excesiva)' },
+      { id: 'polifagia', texto: 'Polifagia (hambre excesiva)' },
+      { id: 'intoleranciaCaloFrio', texto: 'Intolerancia al calor/frío' },
+      { id: 'cambiosPeso', texto: 'Cambios de peso inexplicables' },
+      { id: 'sudoracionExcesiva', texto: 'Sudoración excesiva' },
+      { id: 'agrandamientoTiroides', texto: 'Agrandamiento del cuello (tiroides)' },
+    ],
+  },
+  hematologico: {
+    titulo: 'Hematológico/Inmunológico',
+    icono: 'Droplet',
+    preguntas: [
+      { id: 'sangradoFacil', texto: 'Sangrado fácil' },
+      { id: 'hematomas', texto: 'Hematomas frecuentes' },
+      { id: 'adenopatias', texto: 'Ganglios inflamados' },
+      { id: 'infeccionesFrecuentes', texto: 'Infecciones frecuentes' },
+      { id: 'transfusionesPrevias', texto: 'Transfusiones previas' },
+    ],
+  },
+};
+
+export const VALOR_DEFAULT = 'No manifiesta';
+
+export const getResumenRevision = (revision) => {
+  if (!revision) return [];
+
+  const positivos = [];
+  Object.entries(revision).forEach(([sistemaId, datos]) => {
+    if (datos && typeof datos === 'object') {
+      const sistema = SISTEMAS[sistemaId];
+      if (sistema) {
+        Object.entries(datos).forEach(([preguntaId, valor]) => {
+          if (valor === true) {
+            const pregunta = sistema.preguntas.find(p => p.id === preguntaId);
+            if (pregunta) {
+              positivos.push({
+                sistema: sistema.titulo,
+                sintoma: pregunta.texto,
+              });
+            }
+          }
+        });
+      }
+    }
+  });
+  return positivos;
+};

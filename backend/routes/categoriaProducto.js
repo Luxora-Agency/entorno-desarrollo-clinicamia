@@ -8,7 +8,50 @@ const app = new Hono();
 // Aplicar autenticación a todas las rutas
 app.use('*', authMiddleware);
 
-// GET /api/categorias-productos
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     CategoriaProducto:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *         activa:
+ *           type: boolean
+ *     CategoriaProductoInput:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ * tags:
+ *   name: CategoriasProductos
+ *   description: Gestión de categorías de productos
+ */
+
+/**
+ * @swagger
+ * /categorias-productos:
+ *   get:
+ *     summary: Obtener todas las categorías de productos
+ *     tags: [CategoriasProductos]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de categorías
+ *       500:
+ *         description: Error del servidor
+ */
 app.get('/', async (c) => {
   try {
     const categorias = await CategoriaProductoService.getAll();
@@ -18,7 +61,30 @@ app.get('/', async (c) => {
   }
 });
 
-// GET /api/categorias-productos/:id
+/**
+ * @swagger
+ * /categorias-productos/{id}:
+ *   get:
+ *     summary: Obtener categoría por ID
+ *     tags: [CategoriasProductos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la categoría
+ *     responses:
+ *       200:
+ *         description: Datos de la categoría
+ *       404:
+ *         description: Categoría no encontrada
+ *       500:
+ *         description: Error del servidor
+ */
 app.get('/:id', async (c) => {
   try {
     const { id } = c.req.param();
@@ -29,7 +95,26 @@ app.get('/:id', async (c) => {
   }
 });
 
-// POST /api/categorias-productos
+/**
+ * @swagger
+ * /categorias-productos:
+ *   post:
+ *     summary: Crear categoría de producto
+ *     tags: [CategoriasProductos]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CategoriaProductoInput'
+ *     responses:
+ *       201:
+ *         description: Categoría creada exitosamente
+ *       500:
+ *         description: Error del servidor
+ */
 app.post('/', async (c) => {
   try {
     const body = await c.req.json();
@@ -40,7 +125,36 @@ app.post('/', async (c) => {
   }
 });
 
-// PUT /api/categorias-productos/:id
+/**
+ * @swagger
+ * /categorias-productos/{id}:
+ *   put:
+ *     summary: Actualizar categoría de producto
+ *     tags: [CategoriasProductos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la categoría
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/CategoriaProductoInput'
+ *     responses:
+ *       200:
+ *         description: Categoría actualizada exitosamente
+ *       404:
+ *         description: Categoría no encontrada
+ *       500:
+ *         description: Error del servidor
+ */
 app.put('/:id', async (c) => {
   try {
     const { id } = c.req.param();
@@ -52,7 +166,30 @@ app.put('/:id', async (c) => {
   }
 });
 
-// DELETE /api/categorias-productos/:id
+/**
+ * @swagger
+ * /categorias-productos/{id}:
+ *   delete:
+ *     summary: Eliminar categoría de producto
+ *     tags: [CategoriasProductos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la categoría
+ *     responses:
+ *       200:
+ *         description: Categoría eliminada exitosamente
+ *       404:
+ *         description: Categoría no encontrada
+ *       500:
+ *         description: Error del servidor
+ */
 app.delete('/:id', async (c) => {
   try {
     const { id } = c.req.param();

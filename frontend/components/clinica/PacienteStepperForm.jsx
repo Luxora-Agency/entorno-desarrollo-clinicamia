@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useForm, useFieldArray, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -8,13 +10,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, User, Phone, Shield, Activity, AlertCircle, Plus, X, Droplet, Scale, Ruler, Upload, FileText, Trash2 } from 'lucide-react';
-import { Textarea } from '@/components/ui/textarea';
+import { ArrowLeft, Check, User, Phone, Shield, Activity, AlertCircle, Plus, X, Droplet, Scale, FileText, Trash2, Upload } from 'lucide-react';
 import epsData from '@/data/eps.json';
 import regimenesData from '@/data/regimenes.json';
 import colombiaData from '@/data/colombia.json';
+import paisesData from '@/data/paises.json';
 import { ESTADO_CIVIL, NIVEL_EDUCACION, TIPO_USUARIO, ARL_COLOMBIA } from '@/constants/pacientes';
 import SuccessModal from './SuccessModal';
+import { pacienteFormSchema } from '@/schemas/paciente.schema';
 
 export default function PacienteStepperForm({ user, editingPaciente, onBack, onSuccess }) {
   const { toast } = useToast();
@@ -24,59 +27,9 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   const [savedPaciente, setSavedPaciente] = useState(null);
   const [documentos, setDocumentos] = useState([]);
   const [uploadingDocuments, setUploadingDocuments] = useState(false);
-
-  // Form data
-  const [formData, setFormData] = useState({
-    // Paso 1: Información Básica
-    nombres: '',
-    apellidos: '',
-    tipoDocumento: '',
-    numeroDocumento: '',
-    fechaNacimiento: '',
-    generoBiologico: '',
-    otroGenero: '',
-    estadoCivil: '',
-    ocupacion: '',
-    paisNacimiento: 'Colombia',
-    departamento: '',
-    municipio: '',
-    barrioVereda: '',
-    direccionCompleta: '',
-    
-    // Paso 2: Contacto y Datos Adicionales
-    telefonoCelular: '',
-    correoElectronico: '',
-    contactosEmergencia: [{ nombre: '', telefono: '', parentesco: '' }],
-    nivelEducacion: '',
-    empleadorActual: '',
-    
-    // Paso 3: Aseguramiento
-    epsAseguradora: '',
-    regimenAfiliacion: '',
-    tipoAfiliacion: '',
-    nivelSisben: '',
-    numeroAutorizacion: '',
-    fechaAfiliacion: '',
-    convenio: '',
-    arl: '',
-    carnetPoliza: '',
-    tipoUsuario: '',
-    referidoPor: '',
-    nombreRefiere: '',
-    tipoPaciente: '',
-    categoria: '',
-    
-    // Paso 4: Información Médica
-    tipoSangre: '',
-    peso: '',
-    altura: '',
-    alergias: [],
-    enfermedadesCronicas: [],
-    medicamentosActuales: [],
-    antecedentesQuirurgicos: [],
-  });
-
   const [municipios, setMunicipios] = useState([]);
+  
+  // Estado para inputs de tags
   const [inputValues, setInputValues] = useState({
     alergia: '',
     enfermedad: '',
@@ -84,12 +37,169 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
     antecedente: '',
   });
 
+  const form = useForm({
+    resolver: zodResolver(pacienteFormSchema),
+    defaultValues: {
+      nombre: '',
+      apellido: '',
+      tipoDocumento: '',
+      cedula: '',
+      fechaNacimiento: '',
+      genero: '',
+      otroGenero: '',
+      estadoCivil: '',
+      ocupacion: '',
+      paisNacimiento: 'Colombia',
+      departamento: '',
+      municipio: '',
+      barrio: '',
+      direccion: '',
+      telefono: '',
+      email: '',
+      contactosEmergencia: [{ nombre: '', telefono: '', parentesco: '' }],
+      nivelEducacion: '',
+      empleadorActual: '',
+      eps: '',
+      regimen: '',
+      tipoAfiliacion: '',
+      nivelSisben: '',
+      numeroAutorizacion: '',
+      fechaAfiliacion: '',
+      convenio: '',
+      arl: '',
+      carnetPoliza: '',
+      tipoUsuario: '',
+      referidoPor: '',
+      nombreRefiere: '',
+      tipoPaciente: '',
+      categoria: '',
+      tipoSangre: '',
+      peso: '',
+      altura: '',
+      alergias: [],
+      enfermedadesCronicas: [],
+      medicamentosActuales: [],
+      antecedentesQuirurgicos: [],
+    },
+    mode: 'onChange'
+  });
+
+  const { register, control, handleSubmit, watch, setValue, formState: { errors, isValid }, trigger } = form;
+  
+  const { fields: contactosFields, append: appendContacto, remove: removeContacto } = useFieldArray({
+    control,
+    name: "contactosEmergencia"
+  });
+
+  const departamento = watch('departamento');
+  const peso = watch('peso');
+  const altura = watch('altura');
+  const genero = watch('genero');
+
+  // Cargar municipios cuando cambia departamento
+  useEffect(() => {
+    if (departamento) {
+      const dept = colombiaData.departamentos.find(d => d.nombre === departamento);
+      setMunicipios(dept ? dept.municipios : []);
+    } else {
+      setMunicipios([]);
+    }
+  }, [departamento]);
+
+  // Cargar datos al editar
+  useEffect(() => {
+    if (editingPaciente) {
+      console.log('Editando:', editingPaciente);
+
+      // PRIMERO: Cargar municipios si hay departamento para evitar race condition
+      if (editingPaciente.departamento) {
+        const dept = colombiaData.departamentos.find(d => d.nombre === editingPaciente.departamento);
+        if (dept) {
+          setMunicipios(dept.municipios);
+        }
+      }
+
+      const parseArray = (data) => {
+        if (!data) return [];
+        if (Array.isArray(data)) return data;
+        if (typeof data === 'string') {
+          try {
+            const parsed = JSON.parse(data);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return data.split(',').map(item => item.trim()).filter(Boolean);
+          }
+        }
+        return [];
+      };
+
+      let contactos = [{ nombre: '', telefono: '', parentesco: '' }];
+      if (editingPaciente.contactosEmergencia) {
+        try {
+          const parsed = typeof editingPaciente.contactosEmergencia === 'string'
+            ? JSON.parse(editingPaciente.contactosEmergencia)
+            : editingPaciente.contactosEmergencia;
+          contactos = parsed.length > 0 ? parsed : contactos;
+        } catch (e) {
+          console.error('Error parsing contactos', e);
+        }
+      }
+
+      // DESPUÉS: Resetear formulario con datos existentes (municipios ya cargados)
+      // Usamos requestAnimationFrame para asegurar que el estado de municipios se actualizó
+      requestAnimationFrame(() => {
+        form.reset({
+          nombre: editingPaciente.nombre || '',
+          apellido: editingPaciente.apellido || '',
+          tipoDocumento: editingPaciente.tipoDocumento || '',
+          cedula: editingPaciente.cedula || '',
+          fechaNacimiento: editingPaciente.fechaNacimiento ? editingPaciente.fechaNacimiento.split('T')[0] : '',
+          genero: editingPaciente.genero || '',
+          otroGenero: '', // Logic needed if stored differently
+          estadoCivil: editingPaciente.estadoCivil || '',
+          ocupacion: editingPaciente.ocupacion || '',
+          paisNacimiento: editingPaciente.paisNacimiento || 'Colombia',
+          departamento: editingPaciente.departamento || '',
+          municipio: editingPaciente.municipio || '',
+          barrio: editingPaciente.barrio || '',
+          direccion: editingPaciente.direccion || '',
+          telefono: editingPaciente.telefono || '',
+          email: editingPaciente.email || '',
+          contactosEmergencia: contactos,
+          nivelEducacion: editingPaciente.nivelEducacion || '',
+          empleadorActual: editingPaciente.empleadorActual || '',
+          eps: editingPaciente.eps || '',
+          regimen: editingPaciente.regimen || '',
+          tipoAfiliacion: editingPaciente.tipoAfiliacion || '',
+          nivelSisben: editingPaciente.nivelSisben || '',
+          numeroAutorizacion: editingPaciente.numeroAutorizacion || '',
+          fechaAfiliacion: editingPaciente.fechaAfiliacion ? editingPaciente.fechaAfiliacion.split('T')[0] : '',
+          convenio: editingPaciente.convenio || '',
+          arl: editingPaciente.arl || '',
+          carnetPoliza: editingPaciente.carnetPoliza || '',
+          tipoUsuario: editingPaciente.tipoUsuario || '',
+          referidoPor: editingPaciente.referidoPor || '',
+          nombreRefiere: editingPaciente.nombreRefiere || '',
+          tipoPaciente: editingPaciente.tipoPaciente || '',
+          categoria: editingPaciente.categoria || '',
+          tipoSangre: editingPaciente.tipoSangre || '',
+          peso: editingPaciente.peso ? String(editingPaciente.peso) : '',
+          altura: editingPaciente.altura ? String(editingPaciente.altura) : '',
+          alergias: parseArray(editingPaciente.alergias),
+          enfermedadesCronicas: parseArray(editingPaciente.enfermedadesCronicas),
+          medicamentosActuales: parseArray(editingPaciente.medicamentosActuales),
+          antecedentesQuirurgicos: parseArray(editingPaciente.antecedentesQuirurgicos),
+        });
+      });
+    }
+  }, [editingPaciente, form]);
+
   const steps = [
-    { number: 1, title: 'Información Básica', icon: User },
-    { number: 2, title: 'Contacto y Emergencias', icon: Phone },
-    { number: 3, title: 'Aseguramiento en Salud', icon: Shield },
-    { number: 4, title: 'Información Médica', icon: Activity },
-    { number: 5, title: 'Documentos', icon: FileText },
+    { number: 1, title: 'Información Básica', icon: User, fields: ['nombre', 'apellido', 'tipoDocumento', 'cedula', 'fechaNacimiento', 'departamento', 'municipio', 'barrio', 'direccion'] },
+    { number: 2, title: 'Contacto y Emergencias', icon: Phone, fields: ['telefono', 'email', 'contactosEmergencia'] },
+    { number: 3, title: 'Aseguramiento en Salud', icon: Shield, fields: [] }, // Optional mostly
+    { number: 4, title: 'Información Médica', icon: Activity, fields: ['tipoSangre'] },
+    { number: 5, title: 'Documentos', icon: FileText, fields: [] },
   ];
 
   const tiposDocumento = [
@@ -107,144 +217,22 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
 
   const tiposSangre = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-  // Cargar datos al editar
-  useEffect(() => {
-    if (editingPaciente) {
-      console.log('🔍 Editando paciente - Datos recibidos:', editingPaciente);
-      console.log('📋 Campos clave:', {
-        estadoCivil: editingPaciente.estadoCivil,
-        ocupacion: editingPaciente.ocupacion,
-        nivelEducacion: editingPaciente.nivelEducacion,
-        empleadorActual: editingPaciente.empleadorActual,
-        convenio: editingPaciente.convenio,
-        arl: editingPaciente.arl,
-        carnetPoliza: editingPaciente.carnetPoliza,
-        tipoUsuario: editingPaciente.tipoUsuario
-      });
-      
-      // Parsear contactos de emergencia
-      let contactos = [{ nombre: '', telefono: '', parentesco: '' }];
-      if (editingPaciente.contactosEmergencia) {
-        try {
-          const parsed = typeof editingPaciente.contactosEmergencia === 'string'
-            ? JSON.parse(editingPaciente.contactosEmergencia)
-            : editingPaciente.contactosEmergencia;
-          contactos = parsed.length > 0 ? parsed : contactos;
-        } catch (e) {
-          console.error('Error parsing contactos:', e);
-        }
-      }
-
-      // Parsear arrays de historial médico
-      const parseArray = (data) => {
-        if (!data) return [];
-        try {
-          // Si es un array, retornarlo
-          if (Array.isArray(data)) return data;
-          // Si es string con JSON, parsear
-          if (typeof data === 'string') {
-            // Intentar parsear como JSON primero
-            try {
-              const parsed = JSON.parse(data);
-              return Array.isArray(parsed) ? parsed : [];
-            } catch {
-              // Si falla, asumir que es string separado por comas
-              return data.split(',').map(item => item.trim()).filter(item => item);
-            }
-          }
-          return [];
-        } catch (e) {
-          console.error('Error parsing array:', e);
-          return [];
-        }
-      };
-
-      setFormData({
-        nombres: editingPaciente.nombre || '',
-        apellidos: editingPaciente.apellido || '',
-        tipoDocumento: editingPaciente.tipoDocumento || '',
-        numeroDocumento: editingPaciente.cedula || '',
-        fechaNacimiento: editingPaciente.fechaNacimiento ? editingPaciente.fechaNacimiento.split('T')[0] : '',
-        generoBiologico: editingPaciente.genero || '',
-        otroGenero: '',
-        estadoCivil: editingPaciente.estadoCivil || '',
-        ocupacion: editingPaciente.ocupacion || '',
-        paisNacimiento: editingPaciente.paisNacimiento || 'Colombia',
-        departamento: editingPaciente.departamento || '',
-        municipio: editingPaciente.municipio || '',
-        barrioVereda: editingPaciente.barrio || '',
-        direccionCompleta: editingPaciente.direccion || '',
-        telefonoCelular: editingPaciente.telefono || '',
-        correoElectronico: editingPaciente.email || '',
-        contactosEmergencia: contactos,
-        nivelEducacion: editingPaciente.nivelEducacion || '',
-        empleadorActual: editingPaciente.empleadorActual || '',
-        epsAseguradora: editingPaciente.eps || '',
-        regimenAfiliacion: editingPaciente.regimen || '',
-        tipoAfiliacion: editingPaciente.tipoAfiliacion || '',
-        nivelSisben: editingPaciente.nivelSisben || '',
-        numeroAutorizacion: editingPaciente.numeroAutorizacion || '',
-        fechaAfiliacion: editingPaciente.fechaAfiliacion ? editingPaciente.fechaAfiliacion.split('T')[0] : '',
-        convenio: editingPaciente.convenio || '',
-        arl: editingPaciente.arl || '',
-        carnetPoliza: editingPaciente.carnetPoliza || '',
-        tipoUsuario: editingPaciente.tipoUsuario || '',
-        referidoPor: editingPaciente.referidoPor || '',
-        nombreRefiere: editingPaciente.nombreRefiere || '',
-        tipoPaciente: editingPaciente.tipoPaciente || '',
-        categoria: editingPaciente.categoria || '',
-        tipoSangre: editingPaciente.tipoSangre || '',
-        peso: editingPaciente.peso || '',
-        altura: editingPaciente.altura || '',
-        alergias: parseArray(editingPaciente.alergias),
-        enfermedadesCronicas: parseArray(editingPaciente.enfermedadesCronicas),
-        medicamentosActuales: parseArray(editingPaciente.medicamentosActuales),
-        antecedentesQuirurgicos: parseArray(editingPaciente.antecedentesQuirurgicos),
-      });
-    }
-  }, [editingPaciente]);
-
-  useEffect(() => {
-    if (formData.departamento) {
-      const dept = colombiaData.departamentos.find(d => d.nombre === formData.departamento);
-      setMunicipios(dept ? dept.municipios : []);
-    }
-  }, [formData.departamento]);
-
-  const validateStep1 = () => {
-    if (!formData.nombres.trim()) return false;
-    if (!formData.tipoDocumento) return false;
-    if (!formData.departamento) return false;
-    if (!formData.municipio) return false;
-    if (!formData.barrioVereda.trim()) return false;
-    if (!formData.direccionCompleta.trim()) return false;
-    return true;
-  };
-
-  const validateStep2 = () => {
-    if (!formData.telefonoCelular.trim()) return false;
-    if (!formData.correoElectronico.trim()) return false;
-    const validContact = formData.contactosEmergencia.some(
-      c => c.nombre.trim() && c.telefono.trim() && c.parentesco.trim()
-    );
-    return validContact;
-  };
-
-  const validateStep3 = () => {
-    // Paso 3 es opcional
-    return true;
-  };
-
-  const handleNext = () => {
-    if (currentStep === 1 && !validateStep1()) {
-      toast({ description: 'Por favor complete todos los campos obligatorios del Paso 1' });
-      return;
-    }
-    if (currentStep === 2 && !validateStep2()) {
-      toast({ description: 'Por favor complete todos los campos obligatorios del Paso 2 y al menos un contacto de emergencia' });
-      return;
-    }
+  const handleNext = async () => {
+    const currentStepFields = steps[currentStep - 1].fields;
     
+    // Validar solo los campos del paso actual
+    if (currentStepFields.length > 0) {
+      const isStepValid = await trigger(currentStepFields);
+      if (!isStepValid) {
+        toast({ 
+          variant: "destructive",
+          title: "Error de validación",
+          description: "Por favor corrija los errores antes de continuar" 
+        });
+        return;
+      }
+    }
+
     if (!completedSteps.includes(currentStep)) {
       setCompletedSteps([...completedSteps, currentStep]);
     }
@@ -255,49 +243,29 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
     setCurrentStep(currentStep - 1);
   };
 
-  const addContactoEmergencia = () => {
-    if (formData.contactosEmergencia.length < 5) {
-      setFormData({
-        ...formData,
-        contactosEmergencia: [...formData.contactosEmergencia, { nombre: '', telefono: '', parentesco: '' }]
-      });
-    }
-  };
-
-  const removeContactoEmergencia = (index) => {
-    if (formData.contactosEmergencia.length > 1) {
-      const newContactos = formData.contactosEmergencia.filter((_, i) => i !== index);
-      setFormData({ ...formData, contactosEmergencia: newContactos });
-    }
-  };
-
-  const updateContactoEmergencia = (index, field, value) => {
-    const newContactos = [...formData.contactosEmergencia];
-    newContactos[index][field] = value;
-    setFormData({ ...formData, contactosEmergencia: newContactos });
-  };
-
   const addTag = (field, inputField) => {
     const value = inputValues[inputField].trim();
-    if (value && !formData[field].includes(value)) {
-      setFormData({ ...formData, [field]: [...formData[field], value] });
+    const currentValues = form.getValues(field) || [];
+    
+    if (value && !currentValues.includes(value)) {
+      setValue(field, [...currentValues, value], { shouldValidate: true });
       setInputValues({ ...inputValues, [inputField]: '' });
     }
   };
 
   const removeTag = (field, value) => {
-    setFormData({ ...formData, [field]: formData[field].filter(item => item !== value) });
+    const currentValues = form.getValues(field) || [];
+    setValue(field, currentValues.filter(item => item !== value), { shouldValidate: true });
   };
 
   const calcularIMC = () => {
-    if (formData.peso && formData.altura) {
-      const peso = parseFloat(formData.peso);
-      const altura = parseFloat(formData.altura);
-      if (peso > 0 && altura > 0) {
-        const imc = peso / (altura ** 2);
+    if (peso && altura) {
+      const p = parseFloat(peso);
+      const a = parseFloat(altura);
+      if (p > 0 && a > 0) {
+        const imc = p / (a ** 2);
         const imcValue = imc.toFixed(1);
         
-        // Determinar categoría
         let categoria = '';
         if (imc < 18.5) categoria = 'Bajo Peso';
         else if (imc >= 18.5 && imc < 25) categoria = 'Normal';
@@ -311,10 +279,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   };
 
   const uploadDocuments = async (pacienteId, token, apiUrl) => {
-    if (!pacienteId) {
-      console.error('No se proporcionó pacienteId para subir documentos');
-      return;
-    }
+    if (!pacienteId || documentos.length === 0) return;
 
     try {
       console.log('Subiendo documentos para paciente:', pacienteId);
@@ -334,66 +299,61 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Error al subir documento:', errorData);
-        } else {
-          console.log('Documento subido exitosamente:', doc.file.name);
+          console.error('Error al subir documento:', doc.file.name);
         }
       }
     } catch (error) {
       console.error('Error al subir documentos:', error);
-      toast({ description: 'Hubo un error al subir algunos documentos. El paciente se guardó correctamente.' });
+      toast({ description: 'Hubo un error al subir algunos documentos.' });
     }
   };
 
-  const handleSubmit = async () => {
+  const onSubmit = async (data) => {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
       
+      // Transformar datos para la API (snake_case)
       const payload = {
-        nombre: formData.nombres,
-        apellido: formData.apellidos,
-        tipo_documento: formData.tipoDocumento,
-        cedula: formData.numeroDocumento,
-        fecha_nacimiento: formData.fechaNacimiento,
-        genero: formData.generoBiologico === 'Otro' ? formData.otroGenero : formData.generoBiologico,
-        estado_civil: formData.estadoCivil,
-        ocupacion: formData.ocupacion,
-        pais_nacimiento: formData.paisNacimiento,
-        departamento: formData.departamento,
-        municipio: formData.municipio,
-        barrio: formData.barrioVereda,
-        direccion: formData.direccionCompleta,
-        telefono: formData.telefonoCelular,
-        email: formData.correoElectronico,
-        contactos_emergencia: formData.contactosEmergencia,
-        nivel_educacion: formData.nivelEducacion,
-        empleador_actual: formData.empleadorActual,
-        eps: formData.epsAseguradora,
-        regimen: formData.regimenAfiliacion,
-        tipo_afiliacion: formData.tipoAfiliacion,
-        nivel_sisben: formData.nivelSisben,
-        numero_autorizacion: formData.numeroAutorizacion,
-        fecha_afiliacion: formData.fechaAfiliacion,
-        convenio: formData.convenio,
-        arl: formData.arl,
-        carnet_poliza: formData.carnetPoliza,
-        tipo_usuario: formData.tipoUsuario,
-        referido_por: formData.referidoPor,
-        nombre_refiere: formData.nombreRefiere,
-        tipo_paciente: formData.tipoPaciente,
-        categoria: formData.categoria,
-        tipo_sangre: formData.tipoSangre,
-        peso: formData.peso ? parseFloat(formData.peso) : null,
-        altura: formData.altura ? parseFloat(formData.altura) : null,
-        alergias: formData.alergias.join(', '),
-        enfermedades_cronicas: formData.enfermedadesCronicas.join(', '),
-        medicamentos_actuales: formData.medicamentosActuales.join(', '),
-        antecedentes_quirurgicos: formData.antecedentesQuirurgicos.join(', '),
-        // Mantener compatibilidad
-        contacto_emergencia_nombre: formData.contactosEmergencia[0]?.nombre || '',
-        contacto_emergencia_telefono: formData.contactosEmergencia[0]?.telefono || '',
+        nombre: data.nombre,
+        apellido: data.apellido,
+        tipo_documento: data.tipoDocumento,
+        cedula: data.cedula,
+        fecha_nacimiento: data.fechaNacimiento,
+        genero: data.genero === 'Otro' ? data.otroGenero : data.genero,
+        estado_civil: data.estadoCivil,
+        ocupacion: data.ocupacion,
+        pais_nacimiento: data.paisNacimiento,
+        departamento: data.departamento,
+        municipio: data.municipio,
+        barrio: data.barrio,
+        direccion: data.direccion,
+        telefono: data.telefono,
+        email: data.email,
+        contactos_emergencia: data.contactosEmergencia,
+        nivel_educacion: data.nivelEducacion,
+        empleador_actual: data.empleadorActual,
+        eps: data.eps,
+        regimen: data.regimen,
+        tipo_afiliacion: data.tipoAfiliacion,
+        nivel_sisben: data.nivelSisben,
+        numero_autorizacion: data.numeroAutorizacion,
+        fecha_afiliacion: data.fechaAfiliacion || null,
+        convenio: data.convenio,
+        arl: data.arl,
+        carnet_poliza: data.carnetPoliza,
+        tipo_usuario: data.tipoUsuario,
+        referido_por: data.referidoPor,
+        nombre_refiere: data.nombreRefiere,
+        tipo_paciente: data.tipoPaciente,
+        categoria: data.categoria,
+        tipo_sangre: data.tipoSangre,
+        peso: data.peso ? parseFloat(data.peso) : null,
+        altura: data.altura ? parseFloat(data.altura) : null,
+        alergias: data.alergias.join(', '),
+        enfermedades_cronicas: data.enfermedadesCronicas.join(', '),
+        medicamentos_actuales: data.medicamentosActuales.join(', '),
+        antecedentes_quirurgicos: data.antecedentesQuirurgicos.join(', '),
       };
 
       const url = editingPaciente 
@@ -413,58 +373,48 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
 
       if (response.ok) {
         const result = await response.json();
+        let pacienteId = result.data?.paciente?.id || result.data?.id || result.id;
         
-        // La respuesta tiene esta estructura: result.data.paciente
-        let pacienteId = null;
-        let pacienteData = null;
-        
-        if (result.data && result.data.paciente) {
-          pacienteData = result.data.paciente;
-          pacienteId = result.data.paciente.id;
-        } else if (result.data && result.data.id) {
-          pacienteData = result.data;
-          pacienteId = result.data.id;
-        } else if (result.id) {
-          pacienteData = result;
-          pacienteId = result.id;
-        }
-        
-        console.log('Paciente guardado - ID:', pacienteId); // Debug
-        
-        // Subir documentos si hay alguno
         if (documentos.length > 0 && pacienteId) {
           setUploadingDocuments(true);
           await uploadDocuments(pacienteId, token, apiUrl);
           setUploadingDocuments(false);
         }
         
-        // Guardar datos del paciente para el modal
         setSavedPaciente({
           id: pacienteId || (editingPaciente ? editingPaciente.id : null),
-          nombre: `${formData.nombres} ${formData.apellidos}`
+          nombre: `${data.nombre} ${data.apellido}`
         });
         
-        // Mostrar modal de éxito
         setShowSuccessModal(true);
       } else {
         const error = await response.json();
-        alert(error.error || 'Error al guardar el paciente');
+        const errorMessage = error.error?.details 
+          ? error.error.details.map(d => d.message).join(', ') 
+          : error.error || 'Error al guardar el paciente';
+          
+        toast({ 
+          variant: "destructive",
+          title: "Error al guardar",
+          description: errorMessage 
+        });
       }
     } catch (error) {
       console.error('Error:', error);
-      toast({ description: 'Error al guardar el paciente' });
+      toast({ 
+        variant: "destructive",
+        title: "Error de red",
+        description: "No se pudo conectar con el servidor" 
+      });
     }
   };
 
   const handleCloseModal = () => {
     setShowSuccessModal(false);
-    // Si el usuario cierra el modal sin elegir, ir a la lista por defecto
     if (onSuccess) {
       onSuccess();
     }
   };
-
-  const regimenSeleccionado = regimenesData.find(r => r.id === formData.regimenAfiliacion);
 
   return (
     <div className="p-6 lg:p-8 bg-white min-h-screen">
@@ -482,10 +432,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
           {editingPaciente ? 'Editar Paciente' : 'Nuevo Paciente'}
         </h1>
         <p className="text-gray-600 mb-8">
-          {editingPaciente 
-            ? 'Actualice la información del paciente en los siguientes pasos'
-            : 'Complete el formulario paso a paso para registrar un nuevo paciente'
-          }
+          Complete el formulario paso a paso. Los campos marcados con * son obligatorios.
         </p>
 
         {/* Stepper */}
@@ -527,902 +474,739 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
           </div>
         </div>
 
-        {/* Step Content */}
+        {/* Form */}
         <Card className="shadow-lg">
           <CardContent className="p-8">
-            {/* PASO 1 */}
-            {currentStep === 1 && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <User className="w-5 h-5 text-emerald-600" />
-                    Datos Personales
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Nombres *</Label>
-                      <Input
-                        value={formData.nombres}
-                        onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Ej: Juan Carlos"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Apellidos</Label>
-                      <Input
-                        value={formData.apellidos}
-                        onChange={(e) => setFormData({ ...formData, apellidos: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Ej: Pérez García"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Tipo de Documento *</Label>
-                      <Select value={formData.tipoDocumento} onValueChange={(value) => setFormData({ ...formData, tipoDocumento: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tiposDocumento.map(tipo => (
-                            <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Número de Documento</Label>
-                      <Input
-                        value={formData.numeroDocumento}
-                        onChange={(e) => setFormData({ ...formData, numeroDocumento: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="1234567890"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Fecha de Nacimiento</Label>
-                      <Input
-                        type="date"
-                        value={formData.fechaNacimiento}
-                        onChange={(e) => setFormData({ ...formData, fechaNacimiento: e.target.value })}
-                        className="h-11 mt-2"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Género Biológico</Label>
-                      <Select value={formData.generoBiologico} onValueChange={(value) => setFormData({ ...formData, generoBiologico: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Masculino">Masculino</SelectItem>
-                          <SelectItem value="Femenino">Femenino</SelectItem>
-                          <SelectItem value="Otro">Otro</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {formData.generoBiologico === 'Otro' && (
-                      <div className="md:col-span-2">
-                        <Label className="text-sm font-semibold text-gray-700">Especifique</Label>
-                        <Input
-                          value={formData.otroGenero}
-                          onChange={(e) => setFormData({ ...formData, otroGenero: e.target.value })}
-                          className="h-11 mt-2"
-                          placeholder="Especifique el género"
+            <form onSubmit={handleSubmit(onSubmit)}>
+              
+              {/* PASO 1 */}
+              {currentStep === 1 && (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <User className="w-5 h-5 text-emerald-600" />
+                      Datos Personales
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Nombres *</Label>
+                        <Input {...register('nombre')} className={`h-11 mt-2 ${errors.nombre ? 'border-red-500' : ''}`} placeholder="Ej: Juan Carlos" />
+                        {errors.nombre && <p className="text-xs text-red-500 mt-1">{errors.nombre.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Apellidos *</Label>
+                        <Input {...register('apellido')} className={`h-11 mt-2 ${errors.apellido ? 'border-red-500' : ''}`} placeholder="Ej: Pérez García" />
+                        {errors.apellido && <p className="text-xs text-red-500 mt-1">{errors.apellido.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Tipo de Documento *</Label>
+                        <Controller
+                          name="tipoDocumento"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className={`h-11 mt-2 ${errors.tipoDocumento ? 'border-red-500' : ''}`}>
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {tiposDocumento.map(tipo => (
+                                  <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.tipoDocumento && <p className="text-xs text-red-500 mt-1">{errors.tipoDocumento.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Número de Documento *</Label>
+                        <Input {...register('cedula')} className={`h-11 mt-2 ${errors.cedula ? 'border-red-500' : ''}`} placeholder="1234567890" />
+                        {errors.cedula && <p className="text-xs text-red-500 mt-1">{errors.cedula.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Fecha de Nacimiento *</Label>
+                        <Input type="date" {...register('fechaNacimiento')} className={`h-11 mt-2 ${errors.fechaNacimiento ? 'border-red-500' : ''}`} />
+                        {errors.fechaNacimiento && <p className="text-xs text-red-500 mt-1">{errors.fechaNacimiento.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Género Biológico</Label>
+                        <Controller
+                          name="genero"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Masculino">Masculino</SelectItem>
+                                <SelectItem value="Femenino">Femenino</SelectItem>
+                                <SelectItem value="Otro">Otro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
                         />
                       </div>
-                    )}
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Estado Civil</Label>
-                      <Select value={formData.estadoCivil} onValueChange={(value) => setFormData({ ...formData, estadoCivil: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ESTADO_CIVIL.map(estado => (
-                            <SelectItem key={estado.value} value={estado.value}>{estado.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Ocupación</Label>
-                      <Input
-                        value={formData.ocupacion}
-                        onChange={(e) => setFormData({ ...formData, ocupacion: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Ej: Médico, Ingeniero, Estudiante..."
-                      />
+                      {genero === 'Otro' && (
+                        <div className="md:col-span-2">
+                          <Label className="text-sm font-semibold text-gray-700">Especifique *</Label>
+                          <Input {...register('otroGenero')} className={`h-11 mt-2 ${errors.otroGenero ? 'border-red-500' : ''}`} placeholder="Especifique el género" />
+                          {errors.otroGenero && <p className="text-xs text-red-500 mt-1">{errors.otroGenero.message}</p>}
+                        </div>
+                      )}
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Estado Civil</Label>
+                        <Controller
+                          name="estadoCivil"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ESTADO_CIVIL.map(estado => (
+                                  <SelectItem key={estado.value} value={estado.value}>{estado.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Ocupación</Label>
+                        <Input {...register('ocupacion')} className="h-11 mt-2" placeholder="Ej: Médico, Ingeniero" />
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Ubicación y Residencia</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">País de Nacimiento</Label>
-                      <Input
-                        value={formData.paisNacimiento}
-                        onChange={(e) => setFormData({ ...formData, paisNacimiento: e.target.value })}
-                        className="h-11 mt-2"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Departamento *</Label>
-                      <Select value={formData.departamento} onValueChange={(value) => {
-                        setFormData({ ...formData, departamento: value, municipio: '' });
-                      }}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {colombiaData.departamentos.map(dept => (
-                            <SelectItem key={dept.id} value={dept.nombre}>{dept.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Municipio *</Label>
-                      <Select 
-                        value={formData.municipio} 
-                        onValueChange={(value) => setFormData({ ...formData, municipio: value })}
-                        disabled={!formData.departamento}
-                      >
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {municipios.map(mun => (
-                            <SelectItem key={mun} value={mun}>{mun}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Barrio / Vereda *</Label>
-                      <Input
-                        value={formData.barrioVereda}
-                        onChange={(e) => setFormData({ ...formData, barrioVereda: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Nombre del barrio o vereda"
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label className="text-sm font-semibold text-gray-700">Dirección Completa *</Label>
-                      <Input
-                        value={formData.direccionCompleta}
-                        onChange={(e) => setFormData({ ...formData, direccionCompleta: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Calle 123 #45-67"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PASO 2 */}
-            {currentStep === 2 && (
-              <div className="space-y-8">
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Phone className="w-5 h-5 text-emerald-600" />
-                    Información de Contacto
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Teléfono Celular *</Label>
-                      <Input
-                        value={formData.telefonoCelular}
-                        onChange={(e) => setFormData({ ...formData, telefonoCelular: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="+57 300 123 4567"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Correo Electrónico *</Label>
-                      <Input
-                        type="email"
-                        value={formData.correoElectronico}
-                        onChange={(e) => setFormData({ ...formData, correoElectronico: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="correo@ejemplo.com"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2 mb-4">
-                    <AlertCircle className="w-5 h-5 text-red-600" />
-                    <h3 className="text-xl font-bold text-gray-900">Contactos de Emergencia</h3>
-                  </div>
-                  <p className="text-sm text-gray-600 mb-4">Debe registrar al menos 1 contacto de emergencia (máximo 5)</p>
-                  
-                  <div className="space-y-4">
-                    {formData.contactosEmergencia.map((contacto, index) => (
-                      <div key={index} className="border-2 border-gray-200 rounded-xl p-4 relative">
-                        {formData.contactosEmergencia.length > 1 && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => removeContactoEmergencia(index)}
-                            className="absolute top-2 right-2 text-red-600 hover:bg-red-50"
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Ubicación y Residencia</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">País de Nacimiento</Label>
+                        <Controller
+                          name="paisNacimiento"
+                          control={control}
+                          render={({ field }) => (
+                            <Select 
+                              onValueChange={(val) => {
+                                field.onChange(val);
+                                if (val !== 'Colombia') {
+                                  setValue('departamento', '');
+                                  setValue('municipio', '');
+                                }
+                              }} 
+                              value={field.value}
+                            >
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {paisesData.map(pais => (
+                                  <SelectItem key={pais} value={pais}>{pais}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Departamento *</Label>
+                        {watch('paisNacimiento') === 'Colombia' ? (
+                          <Controller
+                            name="departamento"
+                            control={control}
+                            render={({ field }) => (
+                              <Select 
+                                onValueChange={(val) => {
+                                  field.onChange(val);
+                                  setValue('municipio', ''); // Reset municipio
+                                }} 
+                                value={field.value}
+                              >
+                                <SelectTrigger className={`h-11 mt-2 ${errors.departamento ? 'border-red-500' : ''}`}>
+                                  <SelectValue placeholder="Seleccionar..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {colombiaData.departamentos
+                                    .sort((a, b) => a.nombre.localeCompare(b.nombre))
+                                    .map(dept => (
+                                      <SelectItem key={dept.id} value={dept.nombre}>{dept.nombre}</SelectItem>
+                                    ))
+                                  }
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        ) : (
+                          <Input 
+                            {...register('departamento')} 
+                            className={`h-11 mt-2 ${errors.departamento ? 'border-red-500' : ''}`} 
+                            placeholder="Estado / Provincia" 
+                          />
                         )}
-                        <p className="font-semibold text-sm text-gray-700 mb-3">Contacto {index + 1}</p>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div>
-                            <Label className="text-xs font-semibold text-gray-700">Nombre *</Label>
-                            <Input
-                              value={contacto.nombre}
-                              onChange={(e) => updateContactoEmergencia(index, 'nombre', e.target.value)}
-                              className="h-10 mt-1"
-                              placeholder="Nombre completo"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs font-semibold text-gray-700">Teléfono *</Label>
-                            <Input
-                              value={contacto.telefono}
-                              onChange={(e) => updateContactoEmergencia(index, 'telefono', e.target.value)}
-                              className="h-10 mt-1"
-                              placeholder="+57 300..."
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs font-semibold text-gray-700">Parentesco *</Label>
-                            <Input
-                              value={contacto.parentesco}
-                              onChange={(e) => updateContactoEmergencia(index, 'parentesco', e.target.value)}
-                              className="h-10 mt-1"
-                              placeholder="Ej: Madre, Esposo"
-                            />
+                        {errors.departamento && <p className="text-xs text-red-500 mt-1">{errors.departamento.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Municipio *</Label>
+                        {watch('paisNacimiento') === 'Colombia' ? (
+                          <Controller
+                            name="municipio"
+                            control={control}
+                            render={({ field }) => (
+                              <Select 
+                                onValueChange={field.onChange} 
+                                value={field.value} 
+                                disabled={!departamento}
+                              >
+                                <SelectTrigger className={`h-11 mt-2 ${errors.municipio ? 'border-red-500' : ''}`}>
+                                  <SelectValue placeholder="Seleccionar..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {municipios.map(mun => (
+                                    <SelectItem key={mun} value={mun}>{mun}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        ) : (
+                          <Input 
+                            {...register('municipio')} 
+                            className={`h-11 mt-2 ${errors.municipio ? 'border-red-500' : ''}`} 
+                            placeholder="Ciudad / Municipio" 
+                          />
+                        )}
+                        {errors.municipio && <p className="text-xs text-red-500 mt-1">{errors.municipio.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Barrio / Vereda *</Label>
+                        <Input {...register('barrio')} className={`h-11 mt-2 ${errors.barrio ? 'border-red-500' : ''}`} placeholder="Nombre del barrio" />
+                        {errors.barrio && <p className="text-xs text-red-500 mt-1">{errors.barrio.message}</p>}
+                      </div>
+                      <div className="md:col-span-2">
+                        <Label className="text-sm font-semibold text-gray-700">Dirección Completa *</Label>
+                        <Input {...register('direccion')} className={`h-11 mt-2 ${errors.direccion ? 'border-red-500' : ''}`} placeholder="Calle 123 #45-67" />
+                        {errors.direccion && <p className="text-xs text-red-500 mt-1">{errors.direccion.message}</p>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASO 2 */}
+              {currentStep === 2 && (
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                      <Phone className="w-5 h-5 text-emerald-600" />
+                      Información de Contacto
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Teléfono Celular *</Label>
+                        <Input {...register('telefono')} className={`h-11 mt-2 ${errors.telefono ? 'border-red-500' : ''}`} placeholder="+57 300 123 4567" />
+                        {errors.telefono && <p className="text-xs text-red-500 mt-1">{errors.telefono.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Correo Electrónico</Label>
+                        <Input type="email" {...register('email')} className={`h-11 mt-2 ${errors.email ? 'border-red-500' : ''}`} placeholder="correo@ejemplo.com" />
+                        {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                      <h3 className="text-xl font-bold text-gray-900">Contactos de Emergencia</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">Debe registrar al menos 1 contacto de emergencia.</p>
+                    
+                    <div className="space-y-4">
+                      {contactosFields.map((field, index) => (
+                        <div key={field.id} className="border-2 border-gray-200 rounded-xl p-4 relative">
+                          {contactosFields.length > 1 && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => removeContacto(index)}
+                              className="absolute top-2 right-2 text-red-600 hover:bg-red-50"
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          )}
+                          <p className="font-semibold text-sm text-gray-700 mb-3">Contacto {index + 1}</p>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <Label className="text-xs font-semibold text-gray-700">Nombre *</Label>
+                              <Input
+                                {...register(`contactosEmergencia.${index}.nombre`)}
+                                className="h-10 mt-1"
+                                placeholder="Nombre completo"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs font-semibold text-gray-700">Teléfono *</Label>
+                              <Input
+                                {...register(`contactosEmergencia.${index}.telefono`)}
+                                className="h-10 mt-1"
+                                placeholder="+57 300..."
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs font-semibold text-gray-700">Parentesco *</Label>
+                              <Input
+                                {...register(`contactosEmergencia.${index}.parentesco`)}
+                                className="h-10 mt-1"
+                                placeholder="Ej: Madre"
+                              />
+                            </div>
                           </div>
                         </div>
+                      ))}
+                    </div>
+                    {errors.contactosEmergencia && <p className="text-xs text-red-500 mt-2">{errors.contactosEmergencia.message || errors.contactosEmergencia.root?.message}</p>}
+
+                    {contactosFields.length < 5 && (
+                      <Button
+                        type="button"
+                        onClick={() => appendContacto({ nombre: '', telefono: '', parentesco: '' })}
+                        className="mt-4 bg-emerald-600 hover:bg-emerald-700"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Agregar Otro Contacto
+                      </Button>
+                    )}
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Información Adicional</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Nivel de Educación</Label>
+                        <Controller
+                          name="nivelEducacion"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {NIVEL_EDUCACION.map(nivel => (
+                                  <SelectItem key={nivel.value} value={nivel.value}>{nivel.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
                       </div>
-                    ))}
-                  </div>
-
-                  {formData.contactosEmergencia.length < 5 && (
-                    <Button
-                      type="button"
-                      onClick={addContactoEmergencia}
-                      className="mt-4 bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Agregar Otro Contacto
-                    </Button>
-                  )}
-                </div>
-
-                {/* Información Adicional */}
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Información Adicional</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Nivel de Educación</Label>
-                      <Select value={formData.nivelEducacion} onValueChange={(value) => setFormData({ ...formData, nivelEducacion: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {NIVEL_EDUCACION.map(nivel => (
-                            <SelectItem key={nivel.value} value={nivel.value}>{nivel.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Empleador Actual</Label>
-                      <Input
-                        value={formData.empleadorActual}
-                        onChange={(e) => setFormData({ ...formData, empleadorActual: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Nombre de la empresa o institución"
-                      />
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Empleador Actual</Label>
+                        <Input {...register('empleadorActual')} className="h-11 mt-2" />
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* PASO 3 */}
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
-                  <h4 className="font-bold text-blue-900 mb-2">Información RIPS 2025</h4>
-                  <p className="text-sm text-blue-800">
-                    Los datos de aseguramiento son requeridos para los reportes de Registros Individuales de Prestación de Servicios de Salud (RIPS).
-                  </p>
-                </div>
-
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Aseguramiento en Salud</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">EPS Aseguradora</Label>
-                      <Select value={formData.epsAseguradora} onValueChange={(value) => setFormData({ ...formData, epsAseguradora: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {epsData.map(eps => (
-                            <SelectItem key={eps} value={eps}>{eps}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Régimen de Afiliación</Label>
-                      <Select value={formData.regimenAfiliacion} onValueChange={(value) => setFormData({ ...formData, regimenAfiliacion: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {regimenesData.map(reg => (
-                            <SelectItem key={reg.id} value={reg.id}>{reg.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Tipo de Afiliación</Label>
-                      <Select value={formData.tipoAfiliacion} onValueChange={(value) => setFormData({ ...formData, tipoAfiliacion: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="cotizante">Cotizante</SelectItem>
-                          <SelectItem value="beneficiario">Beneficiario</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {regimenSeleccionado?.requiereSisben && (
+              {/* PASO 3 */}
+              {currentStep === 3 && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Aseguramiento en Salud</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">EPS Aseguradora</Label>
+                        <Controller
+                          name="eps"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {epsData.map(eps => (
+                                  <SelectItem key={eps} value={eps}>{eps}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Régimen de Afiliación</Label>
+                        <Controller
+                          name="regimen"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {regimenesData.map(reg => (
+                                  <SelectItem key={reg.id} value={reg.id}>{reg.nombre}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Tipo de Afiliación</Label>
+                        <Controller
+                          name="tipoAfiliacion"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="cotizante">Cotizante</SelectItem>
+                                <SelectItem value="beneficiario">Beneficiario</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Nivel SISBEN IV</Label>
-                        <Input
-                          value={formData.nivelSisben}
-                          onChange={(e) => setFormData({ ...formData, nivelSisben: e.target.value })}
-                          className="h-11 mt-2"
-                          placeholder="Nivel..."
+                        <Input {...register('nivelSisben')} className="h-11 mt-2" placeholder="Ej: A1" />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Número de Autorización</Label>
+                        <Input {...register('numeroAutorizacion')} className="h-11 mt-2" />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Fecha de Afiliación</Label>
+                        <Input type="date" {...register('fechaAfiliacion')} className="h-11 mt-2" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Convenios y Aseguramiento Laboral</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Tipo de Usuario</Label>
+                        <Controller
+                          name="tipoUsuario"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {TIPO_USUARIO.map(tipo => (
+                                  <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
                         />
                       </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Convenio</Label>
+                        <Input {...register('convenio')} className="h-11 mt-2" />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">ARL</Label>
+                        <Controller
+                          name="arl"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {ARL_COLOMBIA.map(arl => (
+                                  <SelectItem key={arl.codigo} value={arl.nombre}>{arl.nombre}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Número de Carnet / Póliza</Label>
+                        <Input {...register('carnetPoliza')} className="h-11 mt-2" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Información de Referencia</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Referido Por</Label>
+                        <Input {...register('referidoPor')} className="h-11 mt-2" />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Nombre de Quien Refiere</Label>
+                        <Input {...register('nombreRefiere')} className="h-11 mt-2" />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Tipo de Paciente</Label>
+                        <Input {...register('tipoPaciente')} className="h-11 mt-2" />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Categoría</Label>
+                        <Input {...register('categoria')} className="h-11 mt-2" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASO 4 */}
+              {currentStep === 4 && (
+                <div className="space-y-8">
+                  <div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <Activity className="w-6 h-6 text-emerald-600" />
+                      <h3 className="text-xl font-bold text-gray-900">Datos Médicos Básicos</h3>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                          <Droplet className="w-4 h-4 text-red-500" />
+                          Tipo de Sangre *
+                        </Label>
+                        <Controller
+                          name="tipoSangre"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className={`h-12 ${errors.tipoSangre ? 'border-red-500' : ''}`}>
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {tiposSangre.map(tipo => (
+                                  <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.tipoSangre && <p className="text-xs text-red-500 mt-1">{errors.tipoSangre.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                          <Scale className="w-4 h-4 text-blue-500" />
+                          Peso (kg)
+                        </Label>
+                        <Input type="number" step="0.1" {...register('peso')} className="h-12" placeholder="70" />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-green-500" />
+                          Altura (m)
+                        </Label>
+                        <Input type="number" step="0.01" {...register('altura')} className="h-12" placeholder="1.70" />
+                      </div>
+                    </div>
+
+                    {calcularIMC() && (
+                      <div className="mt-6 p-4 bg-emerald-50 border-2 border-emerald-200 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-semibold text-gray-700">IMC Calculado</span>
+                          <span className="text-lg font-bold text-emerald-600">{calcularIMC()}</span>
+                        </div>
+                      </div>
                     )}
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Número de Autorización (Opcional)</Label>
-                      <Input
-                        value={formData.numeroAutorizacion}
-                        onChange={(e) => setFormData({ ...formData, numeroAutorizacion: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="123456"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Fecha de Afiliación</Label>
-                      <Input
-                        type="date"
-                        value={formData.fechaAfiliacion}
-                        onChange={(e) => setFormData({ ...formData, fechaAfiliacion: e.target.value })}
-                        className="h-11 mt-2"
-                      />
-                    </div>
                   </div>
-                </div>
 
-                {/* Información de Convenios y ARL */}
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Convenios y Aseguramiento Laboral</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Tipo de Usuario</Label>
-                      <Select value={formData.tipoUsuario} onValueChange={(value) => setFormData({ ...formData, tipoUsuario: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {TIPO_USUARIO.map(tipo => (
-                            <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Convenio</Label>
-                      <Input
-                        value={formData.convenio}
-                        onChange={(e) => setFormData({ ...formData, convenio: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Nombre del convenio o plan"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">ARL (Riesgos Laborales)</Label>
-                      <Select value={formData.arl} onValueChange={(value) => setFormData({ ...formData, arl: value })}>
-                        <SelectTrigger className="h-11 mt-2">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ARL_COLOMBIA.map(arl => (
-                            <SelectItem key={arl.codigo} value={arl.nombre}>{arl.nombre}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Número de Carnet / Póliza</Label>
-                      <Input
-                        value={formData.carnetPoliza}
-                        onChange={(e) => setFormData({ ...formData, carnetPoliza: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Ej: POL-123456"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Información de Referencia */}
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">Información de Referencia (Opcional)</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Referido Por</Label>
-                      <Input
-                        value={formData.referidoPor}
-                        onChange={(e) => setFormData({ ...formData, referidoPor: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Ej: Dr. Juan Pérez"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Nombre de Quien Refiere</Label>
-                      <Input
-                        value={formData.nombreRefiere}
-                        onChange={(e) => setFormData({ ...formData, nombreRefiere: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Nombre completo"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Tipo de Paciente</Label>
-                      <Input
-                        value={formData.tipoPaciente}
-                        onChange={(e) => setFormData({ ...formData, tipoPaciente: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Ej: Empleado, Particular, VIP"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700">Categoría</Label>
-                      <Input
-                        value={formData.categoria}
-                        onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                        className="h-11 mt-2"
-                        placeholder="Categoría del paciente"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {(formData.epsAseguradora || formData.regimenAfiliacion) && (
-                  <Card className="bg-gray-50 border-2 border-gray-200">
-                    <CardContent className="p-4">
-                      <h4 className="font-bold text-gray-900 mb-3">Resumen de Aseguramiento</h4>
-                      <div className="space-y-2 text-sm">
-                        {formData.epsAseguradora && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">EPS:</span>
-                            <span className="font-semibold">{formData.epsAseguradora}</span>
-                          </div>
-                        )}
-                        {formData.regimenAfiliacion && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Régimen:</span>
-                            <span className="font-semibold">{regimenesData.find(r => r.id === formData.regimenAfiliacion)?.nombre}</span>
-                          </div>
-                        )}
-                        {formData.tipoAfiliacion && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Tipo:</span>
-                            <span className="font-semibold capitalize">{formData.tipoAfiliacion}</span>
-                          </div>
-                        )}
-                        {formData.fechaAfiliacion && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Fecha de Afiliación:</span>
-                            <span className="font-semibold">{formData.fechaAfiliacion}</span>
-                          </div>
-                        )}
+                  {/* Tags Sections */}
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Historial Médico</h3>
+                    
+                    {/* Alergias */}
+                    <div className="mb-6 p-6 bg-red-50 border-2 border-red-100 rounded-xl">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-base font-bold text-red-900">Alergias</h4>
                       </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
+                      <div className="flex gap-2 mb-3">
+                        <Input
+                          value={inputValues.alergia}
+                          onChange={(e) => setInputValues({ ...inputValues, alergia: e.target.value })}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag('alergias', 'alergia'))}
+                          className="h-11 bg-white border-red-200"
+                          placeholder="Escriba una alergia y presione Enter"
+                        />
+                        <Button type="button" onClick={() => addTag('alergias', 'alergia')} className="bg-red-600 hover:bg-red-700 px-4">
+                          <Plus className="w-5 h-5" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {watch('alergias')?.map((tag, i) => (
+                          <Badge key={i} className="bg-red-600 text-white px-3 py-1.5 text-sm">
+                            {tag} <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => removeTag('alergias', tag)} />
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
 
-            {/* PASO 4 */}
-            {currentStep === 4 && (
-              <div className="space-y-8">
-                {/* Datos Médicos Básicos */}
-                <div>
+                    {/* Enfermedades Crónicas */}
+                    <div className="mb-6 p-6 bg-yellow-50 border-2 border-yellow-100 rounded-xl">
+                      <h4 className="text-base font-bold text-yellow-900 mb-4">Enfermedades Crónicas</h4>
+                      <div className="flex gap-2 mb-3">
+                        <Input
+                          value={inputValues.enfermedad}
+                          onChange={(e) => setInputValues({ ...inputValues, enfermedad: e.target.value })}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag('enfermedadesCronicas', 'enfermedad'))}
+                          className="h-11 bg-white border-yellow-200"
+                          placeholder="Escriba una enfermedad y presione Enter"
+                        />
+                        <Button type="button" onClick={() => addTag('enfermedadesCronicas', 'enfermedad')} className="bg-yellow-600 hover:bg-yellow-700 px-4">
+                          <Plus className="w-5 h-5" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {watch('enfermedadesCronicas')?.map((tag, i) => (
+                          <Badge key={i} className="bg-yellow-600 text-white px-3 py-1.5 text-sm">
+                            {tag} <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => removeTag('enfermedadesCronicas', tag)} />
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Medicamentos */}
+                    <div className="mb-6 p-6 bg-blue-50 border-2 border-blue-100 rounded-xl">
+                      <h4 className="text-base font-bold text-blue-900 mb-4">Medicamentos Actuales</h4>
+                      <div className="flex gap-2 mb-3">
+                        <Input
+                          value={inputValues.medicamento}
+                          onChange={(e) => setInputValues({ ...inputValues, medicamento: e.target.value })}
+                          onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag('medicamentosActuales', 'medicamento'))}
+                          className="h-11 bg-white border-blue-200"
+                          placeholder="Escriba un medicamento y presione Enter"
+                        />
+                        <Button type="button" onClick={() => addTag('medicamentosActuales', 'medicamento')} className="bg-blue-600 hover:bg-blue-700 px-4">
+                          <Plus className="w-5 h-5" />
+                        </Button>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {watch('medicamentosActuales')?.map((tag, i) => (
+                          <Badge key={i} className="bg-blue-600 text-white px-3 py-1.5 text-sm">
+                            {tag} <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => removeTag('medicamentosActuales', tag)} />
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASO 5 */}
+              {currentStep === 5 && (
+                <div className="space-y-6">
                   <div className="flex items-center gap-3 mb-6">
-                    <Activity className="w-6 h-6 text-emerald-600" />
-                    <h3 className="text-xl font-bold text-gray-900">Datos Médicos Básicos</h3>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Tipo de Sangre */}
+                    <FileText className="w-6 h-6 text-blue-600" />
                     <div>
-                      <Label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                        <Droplet className="w-4 h-4 text-red-500" />
-                        Tipo de Sangre <span className="text-red-500">*</span>
-                      </Label>
-                      <Select value={formData.tipoSangre} onValueChange={(value) => setFormData({ ...formData, tipoSangre: value })}>
-                        <SelectTrigger className="h-12">
-                          <SelectValue placeholder="Seleccionar..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {tiposSangre.map(tipo => (
-                            <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Peso */}
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                        <Scale className="w-4 h-4 text-blue-500" />
-                        Peso (kg) <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={formData.peso}
-                        onChange={(e) => setFormData({ ...formData, peso: e.target.value })}
-                        className="h-12"
-                        placeholder="70"
-                      />
-                    </div>
-
-                    {/* Altura */}
-                    <div>
-                      <Label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                        <Activity className="w-4 h-4 text-green-500" />
-                        Altura (m) <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={formData.altura}
-                        onChange={(e) => setFormData({ ...formData, altura: e.target.value })}
-                        className="h-12"
-                        placeholder="1.7"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">En metros (Ej: 1.75)</p>
+                      <h3 className="text-xl font-bold text-gray-900">Documentos del Paciente</h3>
+                      <p className="text-sm text-gray-600">Sube documentos importantes.</p>
                     </div>
                   </div>
 
-                  {/* IMC Calculado */}
-                  {calcularIMC() && (
-                    <div className="mt-6 p-4 bg-emerald-50 border-2 border-emerald-200 rounded-xl">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-semibold text-gray-700">IMC Calculado</span>
-                        <span className="text-lg font-bold text-emerald-600">{calcularIMC()}</span>
-                      </div>
+                  <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:border-blue-400 transition-all">
+                    <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Arrastra archivos aquí</h4>
+                    <input
+                      type="file"
+                      multiple
+                      id="file-upload"
+                      className="hidden"
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || []);
+                        files.forEach(file => {
+                          if (file.size > 10 * 1024 * 1024) {
+                            alert(`El archivo ${file.name} excede el tamaño máximo de 10MB`);
+                            return;
+                          }
+                          setDocumentos(prev => [...prev, { file, preview: URL.createObjectURL(file) }]);
+                        });
+                        e.target.value = '';
+                      }}
+                    />
+                    <Button type="button" onClick={() => document.getElementById('file-upload').click()} className="bg-blue-600 hover:bg-blue-700">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Seleccionar Archivos
+                    </Button>
+                  </div>
+
+                  {documentos.length > 0 && (
+                    <div className="space-y-3">
+                      {documentos.map((doc, index) => (
+                        <div key={index} className="flex items-center justify-between p-4 bg-white border-2 border-gray-200 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-5 h-5 text-blue-600" />
+                            <p className="text-sm font-semibold">{doc.file.name}</p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              URL.revokeObjectURL(doc.preview);
+                              setDocumentos(prev => prev.filter((_, i) => i !== index));
+                            }}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
+              )}
 
-                {/* Historial Médico */}
-                <div>
-                  <div className="flex items-center gap-3 mb-6">
-                    <Activity className="w-6 h-6 text-pink-600" />
-                    <h3 className="text-xl font-bold text-gray-900">Historial Médico</h3>
-                  </div>
-
-                  {/* Alergias */}
-                  <div className="mb-6 p-6 bg-red-50 border-2 border-red-100 rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-base font-bold text-red-900">Alergias</h4>
-                      <span className="text-xs text-red-600 font-semibold">{formData.alergias.length}/20</span>
-                    </div>
-                    
-                    <div className="flex gap-2 mb-3">
-                      <Input
-                        value={inputValues.alergia}
-                        onChange={(e) => setInputValues({ ...inputValues, alergia: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag('alergias', 'alergia'))}
-                        className="h-11 bg-white border-red-200"
-                        placeholder="Escriba una alergia y presione Enter"
-                      />
-                      <Button 
-                        type="button" 
-                        onClick={() => addTag('alergias', 'alergia')} 
-                        className="bg-red-600 hover:bg-red-700 px-4"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </Button>
-                    </div>
-
-                    <p className="text-xs text-red-700 mb-3">Ej: Penicilina, Mariscos, Polen, Látex</p>
-
-                    {formData.alergias.length === 0 ? (
-                      <p className="text-sm text-red-600 italic">No tiene alergias conocidas</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {formData.alergias.map((alergia, i) => (
-                          <Badge key={i} className="bg-red-600 text-white px-3 py-1.5 text-sm">
-                            {alergia}
-                            <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => removeTag('alergias', alergia)} />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Enfermedades Crónicas */}
-                  <div className="mb-6 p-6 bg-yellow-50 border-2 border-yellow-100 rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-base font-bold text-yellow-900">Enfermedades Crónicas</h4>
-                      <span className="text-xs text-yellow-600 font-semibold">{formData.enfermedadesCronicas.length}/20</span>
-                    </div>
-                    
-                    <div className="flex gap-2 mb-3">
-                      <Input
-                        value={inputValues.enfermedad}
-                        onChange={(e) => setInputValues({ ...inputValues, enfermedad: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag('enfermedadesCronicas', 'enfermedad'))}
-                        className="h-11 bg-white border-yellow-200"
-                        placeholder="Escriba una enfermedad y presione Enter"
-                      />
-                      <Button 
-                        type="button" 
-                        onClick={() => addTag('enfermedadesCronicas', 'enfermedad')} 
-                        className="bg-yellow-600 hover:bg-yellow-700 px-4"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </Button>
-                    </div>
-
-                    <p className="text-xs text-yellow-700 mb-3">Ej: Diabetes, Hipertensión, Asma</p>
-
-                    {formData.enfermedadesCronicas.length === 0 ? (
-                      <p className="text-sm text-yellow-600 italic">No tiene enfermedades crónicas</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {formData.enfermedadesCronicas.map((enfermedad, i) => (
-                          <Badge key={i} className="bg-yellow-600 text-white px-3 py-1.5 text-sm">
-                            {enfermedad}
-                            <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => removeTag('enfermedadesCronicas', enfermedad)} />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Medicamentos Actuales */}
-                  <div className="mb-6 p-6 bg-blue-50 border-2 border-blue-100 rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-base font-bold text-blue-900">Medicamentos Actuales</h4>
-                      <span className="text-xs text-blue-600 font-semibold">{formData.medicamentosActuales.length}/20</span>
-                    </div>
-                    
-                    <div className="flex gap-2 mb-3">
-                      <Input
-                        value={inputValues.medicamento}
-                        onChange={(e) => setInputValues({ ...inputValues, medicamento: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag('medicamentosActuales', 'medicamento'))}
-                        className="h-11 bg-white border-blue-200"
-                        placeholder="Escriba un medicamento y presione Enter"
-                      />
-                      <Button 
-                        type="button" 
-                        onClick={() => addTag('medicamentosActuales', 'medicamento')} 
-                        className="bg-blue-600 hover:bg-blue-700 px-4"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </Button>
-                    </div>
-
-                    <p className="text-xs text-blue-700 mb-3">Ej: Metformina 500mg, Losartán 50mg</p>
-
-                    {formData.medicamentosActuales.length === 0 ? (
-                      <p className="text-sm text-blue-600 italic">No toma medicamentos actualmente</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {formData.medicamentosActuales.map((medicamento, i) => (
-                          <Badge key={i} className="bg-blue-600 text-white px-3 py-1.5 text-sm">
-                            {medicamento}
-                            <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => removeTag('medicamentosActuales', medicamento)} />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Antecedentes Quirúrgicos */}
-                  <div className="p-6 bg-purple-50 border-2 border-purple-100 rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                      <h4 className="text-base font-bold text-purple-900">Antecedentes Quirúrgicos</h4>
-                      <span className="text-xs text-purple-600 font-semibold">{formData.antecedentesQuirurgicos.length}/20</span>
-                    </div>
-                    
-                    <div className="flex gap-2 mb-3">
-                      <Input
-                        value={inputValues.antecedente}
-                        onChange={(e) => setInputValues({ ...inputValues, antecedente: e.target.value })}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag('antecedentesQuirurgicos', 'antecedente'))}
-                        className="h-11 bg-white border-purple-200"
-                        placeholder="Escriba un procedimiento y presione Enter"
-                      />
-                      <Button 
-                        type="button" 
-                        onClick={() => addTag('antecedentesQuirurgicos', 'antecedente')} 
-                        className="bg-purple-600 hover:bg-purple-700 px-4"
-                      >
-                        <Plus className="w-5 h-5" />
-                      </Button>
-                    </div>
-
-                    <p className="text-xs text-purple-700 mb-3">Ej: Apendicectomía 2015, Cesárea 2018</p>
-
-                    {formData.antecedentesQuirurgicos.length === 0 ? (
-                      <p className="text-sm text-purple-600 italic">Sin antecedentes quirúrgicos</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {formData.antecedentesQuirurgicos.map((antecedente, i) => (
-                          <Badge key={i} className="bg-purple-600 text-white px-3 py-1.5 text-sm">
-                            {antecedente}
-                            <X className="w-3 h-3 ml-2 cursor-pointer" onClick={() => removeTag('antecedentesQuirurgicos', antecedente)} />
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* PASO 5 - DOCUMENTOS */}
-            {currentStep === 5 && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-3 mb-6">
-                  <FileText className="w-6 h-6 text-blue-600" />
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">Documentos del Paciente</h3>
-                    <p className="text-sm text-gray-600">Sube documentos importantes como historia clínica, exámenes, consentimientos, etc.</p>
-                  </div>
-                </div>
-
-                {/* Zona de subida */}
-                <div className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center bg-gray-50 hover:border-blue-400 hover:bg-blue-50 transition-all">
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                    Arrastra archivos aquí o haz clic para seleccionar
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Tamaño máximo por archivo: 10MB. Todos los formatos son aceptados.
-                  </p>
-                  <input
-                    type="file"
-                    multiple
-                    id="file-upload"
-                    className="hidden"
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || []);
-                      files.forEach(file => {
-                        if (file.size > 10 * 1024 * 1024) {
-                          alert(`El archivo ${file.name} excede el tamaño máximo de 10MB`);
-                          return;
-                        }
-                        setDocumentos(prev => [...prev, { file, preview: URL.createObjectURL(file) }]);
-                      });
-                      e.target.value = '';
-                    }}
-                  />
+              {/* Botones de Navegación */}
+              <div className="flex justify-between mt-8">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handlePrevious}
+                  disabled={currentStep === 1}
+                  className="border-2 h-11"
+                >
+                  <ArrowLeft className="w-4 h-4 mr-2" />
+                  Anterior
+                </Button>
+                {currentStep < 5 ? (
                   <Button
                     type="button"
-                    onClick={() => document.getElementById('file-upload').click()}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={handleNext}
+                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 h-11"
                   >
-                    <Upload className="w-4 h-4 mr-2" />
-                    Seleccionar Archivos
+                    Siguiente
+                    <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
                   </Button>
-                </div>
-
-                {/* Lista de documentos */}
-                {documentos.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="text-base font-semibold text-gray-900">
-                      Archivos seleccionados ({documentos.length})
-                    </h4>
-                    {documentos.map((doc, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-4 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-300 transition-all"
-                      >
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <FileText className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">
-                              {doc.file.name}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {(doc.file.size / 1024).toFixed(2)} KB
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            URL.revokeObjectURL(doc.preview);
-                            setDocumentos(prev => prev.filter((_, i) => i !== index));
-                          }}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {documentos.length === 0 && (
-                  <div className="text-center py-8 text-gray-500 text-sm">
-                    No hay documentos seleccionados. Puedes continuar sin subir documentos si lo deseas.
-                  </div>
+                ) : (
+                  <Button
+                    type="submit"
+                    disabled={uploadingDocuments}
+                    className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 h-11"
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    {uploadingDocuments ? 'Subiendo documentos...' : 'Finalizar y Guardar'}
+                  </Button>
                 )}
               </div>
-            )}
+            </form>
           </CardContent>
         </Card>
-
-        {/* Navigation Buttons */}
-        <div className="flex justify-between mt-8">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentStep === 1}
-            className="border-2 h-11"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Anterior
-          </Button>
-          {currentStep < 5 ? (
-            <Button
-              type="button"
-              onClick={handleNext}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 h-11"
-            >
-              Siguiente
-              <ArrowLeft className="w-4 h-4 ml-2 rotate-180" />
-            </Button>
-          ) : (
-            <Button
-              type="button"
-              onClick={handleSubmit}
-              disabled={uploadingDocuments}
-              className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 h-11"
-            >
-              <Check className="w-4 h-4 mr-2" />
-              {uploadingDocuments ? 'Subiendo documentos...' : 'Finalizar y Guardar'}
-            </Button>
-          )}
-        </div>
       </div>
 
-      {/* Modal de Éxito */}
       <SuccessModal
         isOpen={showSuccessModal}
         onClose={handleCloseModal}

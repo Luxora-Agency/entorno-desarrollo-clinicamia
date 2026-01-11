@@ -10,9 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, User, Briefcase, Calendar as CalendarIcon, X, ChevronLeft, ChevronRight, Clock, Mail, Phone, MapPin, GraduationCap, Award, FileText } from 'lucide-react';
+import { ArrowLeft, Save, User, Briefcase, Calendar as CalendarIcon, X, Clock, Mail, Phone, GraduationCap, Award, FileText, Camera, Trash2 } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
-import TimeBlockModal from './TimeBlockModal';
+import DoctorScheduleManager from './DoctorScheduleManager';
 
 export default function DoctorForm({ user, editingDoctor, onBack }) {
   const { toast } = useToast();
@@ -22,12 +22,10 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
   const [searchEspecialidad, setSearchEspecialidad] = useState('');
   const [showEspecialidadesDropdown, setShowEspecialidadesDropdown] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDates, setSelectedDates] = useState({});
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedDateForModal, setSelectedDateForModal] = useState(null);
-  const [hoveredDate, setHoveredDate] = useState(null);
-  
+  const [fotoPreview, setFotoPreview] = useState(null);
+  const [fotoBase64, setFotoBase64] = useState(null);
+
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
@@ -91,6 +89,53 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
     if (editingDoctor.horarios) {
       setSelectedDates(editingDoctor.horarios);
     }
+
+    if (editingDoctor.foto) {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
+      const fotoUrl = editingDoctor.foto.startsWith('http')
+        ? editingDoctor.foto
+        : `${apiUrl}${editingDoctor.foto}`;
+      setFotoPreview(fotoUrl);
+    }
+  };
+
+  const handleFotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo de archivo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Tipo de archivo no permitido. Use JPG, PNG, WEBP o GIF.'
+      });
+      return;
+    }
+
+    // Validar tamaño (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'El archivo es muy grande. Máximo 5MB.'
+      });
+      return;
+    }
+
+    // Crear preview y convertir a base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFotoPreview(reader.result);
+      setFotoBase64(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveFoto = () => {
+    setFotoPreview(null);
+    setFotoBase64(null);
   };
 
   const handleEspecialidadToggle = (especialidadId) => {
@@ -103,44 +148,8 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
     });
   };
 
-  const getDaysInMonth = (date) => {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const daysInMonth = lastDay.getDate();
-    const startingDayOfWeek = firstDay.getDay();
-    
-    return { daysInMonth, startingDayOfWeek, year, month };
-  };
-
-  const handleDateClick = (dateStr) => {
-    const existingBlocks = selectedDates[dateStr] || [];
-    setSelectedDateForModal(dateStr);
-    setModalOpen(true);
-  };
-
-  const handleSaveBlocks = (blocks) => {
-    if (blocks.length > 0) {
-      setSelectedDates(prev => ({
-        ...prev,
-        [selectedDateForModal]: blocks
-      }));
-    } else {
-      setSelectedDates(prev => {
-        const newDates = { ...prev };
-        delete newDates[selectedDateForModal];
-        return newDates;
-      });
-    }
-  };
-
-  const removeDate = (dateStr) => {
-    setSelectedDates(prev => {
-      const newDates = { ...prev };
-      delete newDates[dateStr];
-      return newDates;
-    });
+  const handleScheduleChange = (newHorarios) => {
+    setSelectedDates(newHorarios);
   };
 
   const handleSubmit = async (e) => {
@@ -195,6 +204,11 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
         horarios: selectedDates,
       };
 
+      // Incluir foto si se subió una nueva
+      if (fotoBase64) {
+        payload.foto = fotoBase64;
+      }
+
       const url = editingDoctor
         ? `${apiUrl}/doctores/${editingDoctor.id}`
         : `${apiUrl}/doctores`;
@@ -213,28 +227,23 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
       const data = await response.json();
 
       if (response.ok) {
+        toast({ title: 'Éxito', description: editingDoctor ? 'Doctor actualizado exitosamente' : 'Doctor creado exitosamente' });
         onBack();
       } else {
-        alert(data.error || data.message || 'Error al guardar el doctor');
+        if (data.details && Array.isArray(data.details)) {
+          // Mostrar errores de validación
+          const errorMessages = data.details.map(d => `${d.message}`).join('\n');
+          toast({ variant: 'destructive', title: 'Error de validación', description: errorMessages });
+        } else {
+          toast({ variant: 'destructive', title: 'Error', description: data.error || data.message || 'Error al guardar el doctor' });
+        }
       }
     } catch (error) {
       console.error('Error saving doctor:', error);
-      toast({ description: 'Error al guardar el doctor' });
+      toast({ variant: 'destructive', title: 'Error', description: 'Error de conexión o del servidor' });
     } finally {
       setLoading(false);
     }
-  };
-
-  const { daysInMonth, startingDayOfWeek, year, month } = getDaysInMonth(currentMonth);
-  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-
-  const previousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
-  };
-
-  const nextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
 
   return (
@@ -339,6 +348,67 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
               <Card className="shadow-lg border-0 bg-white">
                 <CardContent className="p-8">
                   <div className="space-y-8">
+                    {/* Foto del Doctor */}
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <Camera className="w-5 h-5 text-emerald-600" />
+                        Foto del Doctor
+                      </h3>
+                      <div className="flex items-start gap-6">
+                        {/* Preview de foto */}
+                        <div className="relative">
+                          <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100 border-4 border-gray-200 flex items-center justify-center">
+                            {fotoPreview ? (
+                              <img
+                                src={fotoPreview}
+                                alt="Foto del doctor"
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <User className="w-16 h-16 text-gray-400" />
+                            )}
+                          </div>
+                          {fotoPreview && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveFoto}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1.5 hover:bg-red-600 transition-colors shadow-lg"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Botón de subir */}
+                        <div className="flex-1">
+                          <Label htmlFor="foto" className="text-sm font-semibold text-gray-700 mb-2 block">
+                            Subir Foto
+                          </Label>
+                          <div className="flex flex-col gap-2">
+                            <input
+                              id="foto"
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              onChange={handleFotoChange}
+                              className="hidden"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => document.getElementById('foto').click()}
+                              className="w-fit border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
+                            >
+                              <Camera className="w-4 h-4 mr-2" />
+                              {fotoPreview ? 'Cambiar Foto' : 'Seleccionar Foto'}
+                            </Button>
+                            <p className="text-xs text-gray-500">
+                              Formatos permitidos: JPG, PNG, WEBP, GIF. Máximo 5MB.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Nombre Completo del Doctor */}
                     <div>
                       <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -621,146 +691,13 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
 
             {/* Horarios - Calendario Premium */}
             <TabsContent value="horarios">
-              <Card className="shadow-premium border-0 overflow-hidden">
-                {/* Header con gradient azul */}
-                <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 p-6 text-white">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-2xl font-bold">Calendario de Disponibilidad</h2>
-                    <div className="flex items-center gap-3">
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={previousMonth}
-                        className="text-white hover:bg-white/20 h-10 w-10 p-0 rounded-lg"
-                      >
-                        <ChevronLeft className="w-5 h-5" />
-                      </Button>
-                      <span className="text-xl font-bold min-w-[200px] text-center">
-                        {monthNames[month]} {year}
-                      </span>
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={nextMonth}
-                        className="text-white hover:bg-white/20 h-10 w-10 p-0 rounded-lg"
-                      >
-                        <ChevronRight className="w-5 h-5" />
-                      </Button>
-                    </div>
-                  </div>
-                  
-                  {/* Leyendas */}
-                  <div className="flex flex-wrap items-center gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-yellow-400 border-2 border-yellow-500"></div>
-                      <span>Hoy</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-blue-400 border-2 border-blue-500"></div>
-                      <span>Seleccionado</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-green-400 border-2 border-green-500"></div>
-                      <span>Disponible</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 rounded bg-red-400 border-2 border-red-500"></div>
-                      <span>Ocupado</span>
-                    </div>
-                  </div>
-                </div>
-
-                <CardContent className="p-6">
-                  {/* Calendario */}
-                  <div className="border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm">
-                    <div className="grid grid-cols-7 bg-gray-100">
-                      {dayNames.map(day => (
-                        <div key={day} className="p-3 text-center text-sm font-bold text-gray-700 border-r border-gray-200 last:border-r-0">
-                          {day}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="grid grid-cols-7">
-                      {Array.from({ length: startingDayOfWeek }).map((_, i) => (
-                        <div key={`empty-${i}`} className="p-3 bg-gray-50 border-r border-b border-gray-200 min-h-[100px]" />
-                      ))}
-                      {Array.from({ length: daysInMonth }).map((_, i) => {
-                        const day = i + 1;
-                        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                        const isSelected = !!selectedDates[dateStr];
-                        const isToday = new Date().toDateString() === new Date(year, month, day).toDateString();
-                        const isHovered = hoveredDate === dateStr;
-                        
-                        return (
-                          <div
-                            key={day}
-                            className={`relative p-3 min-h-[100px] border-r border-b border-gray-200 cursor-pointer transition-all group ${
-                              isSelected 
-                                ? 'bg-blue-50 hover:bg-blue-100' 
-                                : 'hover:bg-gray-50'
-                            } ${isToday ? 'ring-2 ring-inset ring-yellow-400 bg-yellow-50' : ''}`}
-                            onClick={() => handleDateClick(dateStr)}
-                            onMouseEnter={() => setHoveredDate(dateStr)}
-                            onMouseLeave={() => setHoveredDate(null)}
-                          >
-                            <div className={`text-base font-bold mb-2 ${
-                              isSelected ? 'text-blue-700' : isToday ? 'text-yellow-700' : 'text-gray-700'
-                            }`}>
-                              {day}
-                            </div>
-                            
-                            {isSelected && (
-                              <div className="space-y-1">
-                                {selectedDates[dateStr].map((block, idx) => (
-                                  <div key={idx} className="text-xs bg-blue-600 text-white px-2 py-1 rounded font-medium">
-                                    <Clock className="w-3 h-3 inline mr-1" />
-                                    {block.inicio} - {block.fin}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                            
-                            {!isSelected && isHovered && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-blue-600/90 text-white text-xs font-semibold">
-                                <Clock className="w-4 h-4 mr-1" />
-                                Click para agregar
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Resumen */}
-                  {Object.keys(selectedDates).length > 0 && (
-                    <div className="mt-6 p-6 bg-blue-50 rounded-xl border-2 border-blue-200">
-                      <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                        <Clock className="w-5 h-5 text-blue-600" />
-                        Días Configurados ({Object.keys(selectedDates).length})
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {Object.entries(selectedDates).map(([date, blocks]) => (
-                          <Badge key={date} className="bg-blue-600 text-white border-0 px-4 py-2 text-sm font-semibold">
-                            {new Date(date + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
-                            <span className="mx-2">•</span>
-                            {blocks.length} bloque{blocks.length > 1 ? 's' : ''}
-                            <X
-                              className="w-4 h-4 ml-2 cursor-pointer hover:text-blue-200"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                removeDate(date);
-                              }}
-                            />
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <div className="h-[800px]">
+                <DoctorScheduleManager 
+                  doctorId={editingDoctor?.id}
+                  initialHorarios={editingDoctor?.horarios || selectedDates}
+                  onChange={handleScheduleChange}
+                />
+              </div>
             </TabsContent>
           </Tabs>
 
@@ -785,15 +722,6 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
           </div>
         </form>
       </div>
-
-      {/* Modal de Bloques de Tiempo */}
-      <TimeBlockModal
-        isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
-        selectedDate={selectedDateForModal}
-        onSave={handleSaveBlocks}
-        existingBlocks={selectedDateForModal ? selectedDates[selectedDateForModal] || [] : []}
-      />
     </div>
   );
 }

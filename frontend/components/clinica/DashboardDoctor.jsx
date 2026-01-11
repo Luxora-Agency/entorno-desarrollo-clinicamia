@@ -361,8 +361,8 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
 
         if (response.ok) {
             // Agregar paciente a recientes
-            if (activeCita?.paciente && user?.id) {
-              addRecentPatient(user.id, activeCita.paciente, 'consulta');
+            if (activeCita?.paciente && doctorProfile?.id) {
+              addRecentPatient(doctorProfile.id, activeCita.paciente, 'consulta');
             }
             toast({ title: 'Éxito', description: 'Consulta finalizada y firmada digitalmente.' });
             setViewMode('dashboard');
@@ -484,14 +484,14 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     <div className="lg:col-span-2 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
                         <DoctorScheduleManager
-                            doctorId={user.id}
+                            doctorId={doctorProfile?.id}
                             onChange={(newSchedule) => console.log('Schedule updated', newSchedule)}
                         />
                     </div>
                     <div className="lg:col-span-1">
                         <BloqueoAgendaManager
-                            doctorId={user.id}
-                            doctorNombre={`Dr. ${user.nombre || ''} ${user.apellido || ''}`}
+                            doctorId={doctorProfile?.id}
+                            doctorNombre={`Dr. ${user?.nombre || ''} ${user?.apellido || ''}`}
                         />
                     </div>
                 </div>
@@ -1095,17 +1095,15 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               maxItems={3}
               onViewAll={() => setViewMode('hospitalizacion')}
               onSelectPatient={(admision) => {
-                toast({
-                  title: 'Paciente hospitalizado',
-                  description: `${admision.paciente?.nombre} ${admision.paciente?.apellido} - Cama: ${admision.cama?.codigo || 'Sin asignar'}`,
-                });
-                setViewMode('hospitalizacion');
+                // Guardar la admisión y ofrecer opciones
+                setActiveAdmision(admision);
+                setViewMode('epicrisis');
               }}
             />
 
             {/* Widget de Cirugías del Día */}
             <QuirofanoWidget
-              userId={user?.id}
+              doctorId={doctorProfile?.id}
               maxItems={3}
               onViewAll={() => setViewMode('quirofano')}
               onSelectProcedure={(proc) => {
@@ -1150,7 +1148,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
 
             {/* Pacientes Recientes */}
             <RecentPatientsWidget
-              doctorId={user?.id}
+              doctorId={doctorProfile?.id}
               maxItems={5}
               onSelectPatient={(patient) => {
                 toast({
@@ -1181,7 +1179,13 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                 <Button
                   variant="outline"
                   className="w-full justify-start gap-3 h-10 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
-                  onClick={() => setViewMode('epicrisis')}
+                  onClick={() => {
+                    // Verificar si hay pacientes hospitalizados para generar epicrisis
+                    toast({
+                      title: 'Generar Epicrisis',
+                      description: 'Seleccione un paciente hospitalizado desde el widget de hospitalización para generar su epicrisis.',
+                    });
+                  }}
                 >
                   <FileText className="h-4 w-4" />
                   Generar Epicrisis
@@ -1201,7 +1205,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
 
             {/* Alertas Clínicas */}
             <ClinicalAlertsWidget
-              doctorId={user?.id}
+              doctorId={doctorProfile?.id}
               citasEnEspera={citasHoy.filter(c => c.estado === 'EnEspera')}
               onAlertClick={(alert) => {
                 if (alert.data?.id && alert.type === 'long_wait') {

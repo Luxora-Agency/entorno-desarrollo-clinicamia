@@ -48,8 +48,10 @@ export default function TabCitasPaciente({ pacienteId }) {
 
       if (response.ok) {
         const result = await response.json();
-        console.log('📊 Citas recibidas:', result.data?.length || 0);
-        setCitas(result.data || []);
+        // La API devuelve { status, citas, pagination } - no { data }
+        const citasData = result.citas || result.data || [];
+        console.log('📊 Citas recibidas:', citasData.length);
+        setCitas(citasData);
       } else {
         console.error('❌ Error en response:', response.status);
       }
@@ -170,7 +172,7 @@ export default function TabCitasPaciente({ pacienteId }) {
                     <TableCell>{formatDate(cita.fecha)}</TableCell>
                     <TableCell>{formatTime(cita.hora)}</TableCell>
                     <TableCell>
-                      {cita.doctor ? `Dr. ${cita.doctor.nombre} ${cita.doctor.apellido}` : 'N/A'}
+                      {cita.doctor ? `Dr. ${cita.doctor.usuario?.nombre || cita.doctor.nombre || ''} ${cita.doctor.usuario?.apellido || cita.doctor.apellido || ''}` : 'N/A'}
                     </TableCell>
                     <TableCell>{cita.especialidad?.titulo || 'N/A'}</TableCell>
                     <TableCell className="max-w-xs truncate">{cita.motivo}</TableCell>
@@ -220,7 +222,7 @@ export default function TabCitasPaciente({ pacienteId }) {
                 <div>
                   <span className="text-sm text-gray-600">Doctor:</span>
                   <p className="font-semibold">
-                    {citaSeleccionada.doctor ? `Dr. ${citaSeleccionada.doctor.nombre} ${citaSeleccionada.doctor.apellido}` : 'N/A'}
+                    {citaSeleccionada.doctor ? `Dr. ${citaSeleccionada.doctor.usuario?.nombre || citaSeleccionada.doctor.nombre || ''} ${citaSeleccionada.doctor.usuario?.apellido || citaSeleccionada.doctor.apellido || ''}` : 'N/A'}
                   </p>
                 </div>
                 <div>

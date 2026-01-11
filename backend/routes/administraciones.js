@@ -12,7 +12,86 @@ const administraciones = new Hono();
 administraciones.use('/*', authMiddleware);
 
 /**
- * GET / - Obtener administraciones programadas
+ * @swagger
+ * components:
+ *   schemas:
+ *     AdministracionMedicamento:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         prescripcion_id:
+ *           type: string
+ *           format: uuid
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         enfermera_id:
+ *           type: string
+ *           format: uuid
+ *         medicamento:
+ *           type: string
+ *         dosis:
+ *           type: string
+ *         via:
+ *           type: string
+ *         estado:
+ *           type: string
+ *           enum: [Pendiente, Administrado, Omitido, Rechazado]
+ *         fecha_programada:
+ *           type: string
+ *           format: date-time
+ *         fecha_administracion:
+ *           type: string
+ *           format: date-time
+ *     AdministracionInput:
+ *       type: object
+ *       required:
+ *         - fecha_administracion
+ *       properties:
+ *         fecha_administracion:
+ *           type: string
+ *           format: date-time
+ *         observaciones:
+ *           type: string
+ *         signos_vitales:
+ *           type: object
+ * tags:
+ *   name: Administraciones
+ *   description: Administración de medicamentos (Enfermería)
+ */
+
+/**
+ * @swagger
+ * /administraciones:
+ *   get:
+ *     summary: Obtener administraciones programadas
+ *     tags: [Administraciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: fecha
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha de programación
+ *       - in: query
+ *         name: pacienteId
+ *         schema:
+ *           type: string
+ *         description: Filtrar por paciente
+ *       - in: query
+ *         name: estado
+ *         schema:
+ *           type: string
+ *         description: Filtrar por estado
+ *     responses:
+ *       200:
+ *         description: Lista de administraciones
+ *       500:
+ *         description: Error del servidor
  */
 administraciones.get('/', async (c) => {
   try {
@@ -38,7 +117,30 @@ administraciones.get('/', async (c) => {
 });
 
 /**
- * GET /resumen-dia - Resumen de administraciones del día
+ * @swagger
+ * /administraciones/resumen-dia:
+ *   get:
+ *     summary: Resumen de administraciones del día
+ *     tags: [Administraciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: fecha
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha del resumen
+ *       - in: query
+ *         name: unidadId
+ *         schema:
+ *           type: string
+ *         description: Filtrar por unidad
+ *     responses:
+ *       200:
+ *         description: Resumen de administraciones
+ *       500:
+ *         description: Error del servidor
  */
 administraciones.get('/resumen-dia', async (c) => {
   try {
@@ -53,7 +155,26 @@ administraciones.get('/resumen-dia', async (c) => {
 });
 
 /**
- * GET /historial/:pacienteId - Historial de administración de un paciente
+ * @swagger
+ * /administraciones/historial/{pacienteId}:
+ *   get:
+ *     summary: Historial de administración de un paciente
+ *     tags: [Administraciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: pacienteId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del paciente
+ *     responses:
+ *       200:
+ *         description: Historial de administraciones
+ *       500:
+ *         description: Error del servidor
  */
 administraciones.get('/historial/:pacienteId', async (c) => {
   try {
@@ -68,7 +189,26 @@ administraciones.get('/historial/:pacienteId', async (c) => {
 });
 
 /**
- * GET /pendientes/:pacienteId - Administraciones pendientes de un paciente
+ * @swagger
+ * /administraciones/pendientes/{pacienteId}:
+ *   get:
+ *     summary: Administraciones pendientes de un paciente
+ *     tags: [Administraciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: pacienteId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del paciente
+ *     responses:
+ *       200:
+ *         description: Administraciones pendientes
+ *       500:
+ *         description: Error del servidor
  */
 administraciones.get('/pendientes/:pacienteId', async (c) => {
   try {
@@ -81,7 +221,32 @@ administraciones.get('/pendientes/:pacienteId', async (c) => {
 });
 
 /**
- * POST /:id/administrar - Registrar administración (Enfermería)
+ * @swagger
+ * /administraciones/{id}/administrar:
+ *   post:
+ *     summary: Registrar administración (Enfermería)
+ *     tags: [Administraciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la administración
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AdministracionInput'
+ *     responses:
+ *       200:
+ *         description: Administración registrada exitosamente
+ *       500:
+ *         description: Error del servidor
  */
 administraciones.post('/:id/administrar', async (c) => {
   try {
@@ -97,9 +262,39 @@ administraciones.post('/:id/administrar', async (c) => {
 });
 
 /**
- * POST /:id/omitir - Registrar omisión (Enfermería)
+ * @swagger
+ * /administraciones/{id}/omitir:
+ *   post:
+ *     summary: Registrar omisión (Enfermería)
+ *     tags: [Administraciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la administración
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - motivo
+ *             properties:
+ *               motivo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Omisión registrada
+ *       500:
+ *         description: Error del servidor
  */
-administraciones.post('/:id/administrar', async (c) => {
+administraciones.post('/:id/omitir', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();
@@ -113,9 +308,39 @@ administraciones.post('/:id/administrar', async (c) => {
 });
 
 /**
- * POST /:id/rechazar - Registrar rechazo del paciente (Enfermería)
+ * @swagger
+ * /administraciones/{id}/rechazar:
+ *   post:
+ *     summary: Registrar rechazo del paciente (Enfermería)
+ *     tags: [Administraciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la administración
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - motivo
+ *             properties:
+ *               motivo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Rechazo registrado
+ *       500:
+ *         description: Error del servidor
  */
-administraciones.post('/:id/administrar', async (c) => {
+administraciones.post('/:id/rechazar', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();

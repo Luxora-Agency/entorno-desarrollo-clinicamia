@@ -30,6 +30,8 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
     concentracion: '',
     viaAdministracion: '',
     presentacion: '',
+    codigoAtc: '',
+    cum: '',
     registroSanitario: '',
     temperaturaAlmacenamiento: '',
     requiereReceta: false,
@@ -81,6 +83,8 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
           concentracion: editingProducto.concentracion || '',
           viaAdministracion: editingProducto.viaAdministracion || '',
           presentacion: editingProducto.presentacion || '',
+          codigoAtc: editingProducto.codigoAtc || '',
+          cum: editingProducto.cum || '',
           registroSanitario: editingProducto.registroSanitario || '',
           temperaturaAlmacenamiento: editingProducto.temperaturaAlmacenamiento || '',
           requiereReceta: editingProducto.requiereReceta || false,
@@ -141,6 +145,8 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
       concentracion: '',
       viaAdministracion: '',
       presentacion: '',
+      codigoAtc: '',
+      cum: '',
       registroSanitario: '',
       temperaturaAlmacenamiento: '',
       requiereReceta: false,
@@ -248,14 +254,38 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
       });
 
       if (response.ok) {
+        toast({ 
+          title: editingProducto ? "Producto actualizado" : "Producto creado",
+          description: editingProducto ? "El producto ha sido actualizado correctamente." : "El producto ha sido creado correctamente.",
+          className: "bg-green-50 border-green-200 text-green-800"
+        });
         onSuccess();
       } else {
         const error = await response.json();
-        alert(error.error || 'Error al guardar el producto');
+        
+        // Handle Zod validation errors
+        if (error.details && Array.isArray(error.details)) {
+            const errorMessages = error.details.map(d => `${d.path.join('.')}: ${d.message}`).join('\n');
+            toast({ 
+                title: "Error de validación",
+                description: errorMessages,
+                variant: "destructive"
+            });
+        } else {
+            toast({ 
+                title: "Error",
+                description: error.error || error.message || 'Error al guardar el producto',
+                variant: "destructive"
+            });
+        }
       }
     } catch (error) {
       console.error('Error saving producto:', error);
-      toast({ description: 'Error al guardar el producto' });
+      toast({ 
+          title: "Error de conexión",
+          description: 'No se pudo conectar con el servidor',
+          variant: "destructive"
+      });
     } finally {
       setLoading(false);
     }
@@ -400,6 +430,24 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                   onChange={(e) => setFormData({ ...formData, presentacion: e.target.value })}
                   className="mt-2"
                   placeholder="Ej: Caja x 20 tabletas"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Código ATC</Label>
+                <Input
+                  value={formData.codigoAtc}
+                  onChange={(e) => setFormData({ ...formData, codigoAtc: e.target.value })}
+                  className="mt-2"
+                  placeholder="Ej: N02BE01"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">CUM (Código Único de Medicamento)</Label>
+                <Input
+                  value={formData.cum}
+                  onChange={(e) => setFormData({ ...formData, cum: e.target.value })}
+                  className="mt-2"
+                  placeholder="Ej: 1234567-1"
                 />
               </div>
               <div>

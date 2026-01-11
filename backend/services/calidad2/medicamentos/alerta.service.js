@@ -1,0 +1,529 @@
+const prisma = require('../../../db/prisma');
+const { ValidationError, NotFoundError } = require('../../../utils/errors');
+
+class AlertaMedicamentoService {
+  /**
+   * Find all alerts with filters
+   */
+  async findAll(query = {}) {
+    try {
+      const { tipo, estado, atendida, page = 1, limit = 50 } = query;
+      const skip = (parseInt(page) - 1) * parseInt(limit);
+
+      const where = {
+        OR: [
+          { inventarioMedicamentoId: { not: null } },
+          { registroTemperaturaHumedadId: { not: null } },
+        ],
+      };
+
+      if (tipo) {
+        where.tipo = tipo;
+      }
+
+      if (estado) {
+        where.estado = estado;
+      }
+
+      if (atendida !== undefined) {
+        const isAttended = atendida === 'true' || atendida === true;
+        where.atendidoPor = isAttended ? { not: null } : null;
+      }
+
+      const [alertas, total] = await Promise.all([
+        prisma.alertaCalidad2.findMany({
+          where,
+          include: {
+            InventarioMedicamento: {
+              select: {
+                id: true,
+                nombre: true,
+                codigo: true,
+                tipo: true,
+              },
+            },
+            RegistroTemperaturaHumedad: {
+              select: {
+                id: true,
+                fecha: true,
+                area: true,
+                temperatura: true,
+                humedad: true,
+              },
+            },
+          },
+          orderBy: [
+            { estado: 'asc' },
+            { createdAt: 'desc' },
+          ],
+          skip,
+          take: parseInt(limit),
+        }),
+        prisma.alertaCalidad2.count({ where }),
+      ]);
+
+      return {
+        data: alertas,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          totalPages: Math.ceil(total / parseInt(limit)),
+        },
+      };
+    } catch (error) {
+      console.error('Error finding alertas:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get active (unattended) alerts
+   */
+  async getActivas(filters = {}) {
+    try {
+      const where = {
+        OR: [
+          { inventarioMedicamentoId: { not: null } },
+          { registroTemperaturaHumedadId: { not: null } },
+        ],
+        atendidoPor: null,
+      };
+
+      if (filters.tipo) {
+        where.tipo = filters.tipo;
+      }
+
+      if (filters.estado) {
+        where.estado = filters.estado;
+      }
+
+      const alertas = await prisma.alertaCalidad2.findMany({
+        where,
+        orderBy: [
+          { estado: 'asc' },
+          { createdAt: 'desc' },
+        ],
+        take: filters.limit || 100,
+      });
+
+      return alertas;
+    } catch (error) {
+      console.error('Error getting alertas activas:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Mark alert as attended
+   */
+  async marcarAtendida(id, userId, observaciones = null) {
+    try {
+      const alerta = await prisma.alertaCalidad2.findFirst({
+        where: { id },
+      });
+
+      if (!alerta) {
+        throw new NotFoundError('Alerta no encontrada');
+      }
+
+      if (alerta.atendidoPor) {
+        throw new ValidationError('La alerta ya fue atendida');
+      }
+
+      const updated = await prisma.alertaCalidad2.update({
+        where: { id },
+        data: {
+          estado: 'ATENDIDA',
+          atendidoPor: userId,
+          fechaAtencion: new Date(),
+          updatedAt: new Date(),
+        },
+        include: {
+          InventarioMedicamento: {
+            select: {
+              id: true,
+              nombre: true,
+              codigo: true,
+            },
+          },
+          RegistroTemperaturaHumedad: {
+            select: {
+              id: true,
+              fecha: true,
+              area: true,
+            },
+          },
+        },
+      });
+
+      return updated;
+    } catch (error) {
+      console.error('Error marcando alerta como atendida:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get alert statistics
+   */
+  async getEstadisticas() {
+    try {
+      const whereMedicamentos = {
+        OR: [
+          { inventarioMedicamentoId: { not: null } },
+          { registroTemperaturaHumedadId: { not: null } },
+        ],
+      };
+
+      const [
+        totalActivas,
+        porTipo,
+        porEstado,
+      ] = await Promise.all([
+        prisma.alertaCalidad2.count({
+          where: {
+            ...whereMedicamentos,
+            atendidoPor: null,
+          },
+        }),
+        prisma.alertaCalidad2.groupBy({
+          by: ['tipo'],
+          where: {
+            ...whereMedicamentos,
+            atendidoPor: null,
+          },
+          _count: true,
+        }),
+        prisma.alertaCalidad2.groupBy({
+          by: ['estado'],
+          where: whereMedicamentos,
+          _count: true,
+        }),
+      ]);
+
+      return {
+        totalActivas,
+        porTipo: porTipo.reduce((acc, item) => {
+          acc[item.tipo] = item._count;
+          return acc;
+        }, {}),
+        porEstado: porEstado.reduce((acc, item) => {
+          acc[item.estado] = item._count;
+          return acc;
+        }, {}),
+      };
+    } catch (error) {
+      console.error('Error getting estadísticas:', error);
+      throw error;
+    }
+  }
+
+  // ==========================================
+  // GENERACIÓN AUTOMÁTICA DE ALERTAS
+  // ==========================================
+
+  /**
+   * Generate vencimiento alerts (medicamentos, dispositivos, insumos)
+   */
+  async generarAlertasVencimientos(userId = 'SYSTEM') {
+    try {
+      const ahora = new Date();
+      const en30Dias = new Date();
+      en30Dias.setDate(ahora.getDate() + 30);
+      const en60Dias = new Date();
+      en60Dias.setDate(ahora.getDate() + 60);
+      const en90Dias = new Date();
+      en90Dias.setDate(ahora.getDate() + 90);
+
+      // Find items that will expire
+      const itemsProximosVencer = await prisma.inventarioMedicamento.findMany({
+        where: {
+          
+          fechaVencimiento: {
+            lte: en90Dias,
+          },
+        },
+        orderBy: {
+          fechaVencimiento: 'asc',
+        },
+      });
+
+      let alertasCreadas = 0;
+
+      for (const item of itemsProximosVencer) {
+        const diasParaVencer = Math.floor(
+          (new Date(item.fechaVencimiento) - ahora) / (1000 * 60 * 60 * 24)
+        );
+
+        // Skip if already expired (should be handled separately)
+        if (diasParaVencer < 0) continue;
+
+        // Determine prioridad based on days until expiration
+        let prioridad = 'BAJA';
+        let titulo = '';
+        let descripcion = '';
+
+        if (diasParaVencer <= 30) {
+          prioridad = 'ALTA';
+          titulo = `⚠️ Vence en ${diasParaVencer} días`;
+          descripcion = `${item.nombre} (${item.codigo}) lote ${item.lote} vence el ${new Date(item.fechaVencimiento).toLocaleDateString()}`;
+        } else if (diasParaVencer <= 60) {
+          prioridad = 'MEDIA';
+          titulo = `Próximo a vencer (${diasParaVencer} días)`;
+          descripcion = `${item.nombre} (${item.codigo}) lote ${item.lote} vence el ${new Date(item.fechaVencimiento).toLocaleDateString()}`;
+        } else {
+          prioridad = 'BAJA';
+          titulo = `Vencimiento programado (${diasParaVencer} días)`;
+          descripcion = `${item.nombre} (${item.codigo}) lote ${item.lote} vence el ${new Date(item.fechaVencimiento).toLocaleDateString()}`;
+        }
+
+        // Check if alert already exists for this item
+        const existingAlert = await prisma.alertaCalidad2.findFirst({
+          where: {
+            
+            tipo: 'VENCIMIENTO_MEDICAMENTO',
+            entidadTipo: 'InventarioMedicamento',
+            entidadId: item.id,
+            atendidoPor: null,
+            
+          },
+        });
+
+        if (!existingAlert) {
+          await prisma.alertaCalidad2.create({
+            data: {
+              tipo: 'VENCIMIENTO_MEDICAMENTO',
+              titulo,
+              descripcion,
+              estado: 'PENDIENTE',
+              entidadTipo: 'InventarioMedicamento',
+              entidadId: item.id,
+              inventarioMedicamentoId: item.id,
+            },
+          });
+          alertasCreadas++;
+        }
+      }
+
+      // Also check for already expired items
+      const itemsVencidos = await prisma.inventarioMedicamento.findMany({
+        where: {
+          
+          fechaVencimiento: {
+            lt: ahora,
+          },
+        },
+      });
+
+      for (const item of itemsVencidos) {
+        const existingAlert = await prisma.alertaCalidad2.findFirst({
+          where: {
+            
+            tipo: 'VENCIMIENTO_MEDICAMENTO',
+            entidadTipo: 'InventarioMedicamento',
+            entidadId: item.id,
+            atendidoPor: null,
+            
+          },
+        });
+
+        if (!existingAlert) {
+          await prisma.alertaCalidad2.create({
+            data: {
+              tipo: 'VENCIMIENTO_MEDICAMENTO',
+              titulo: '🔴 VENCIDO',
+              descripcion: `${item.nombre} (${item.codigo}) lote ${item.lote} venció el ${new Date(item.fechaVencimiento).toLocaleDateString()}. DEBE SER RETIRADO INMEDIATAMENTE.`,
+              estado: 'CRITICO',
+              entidadTipo: 'InventarioMedicamento',
+              entidadId: item.id,
+              inventarioMedicamentoId: item.id,
+            },
+          });
+          alertasCreadas++;
+        }
+      }
+
+      return {
+        mensaje: `${alertasCreadas} alertas de vencimiento generadas`,
+        alertasCreadas,
+      };
+    } catch (error) {
+      console.error('Error generando alertas de vencimientos:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate stock alerts
+   */
+  async generarAlertasStock(userId = 'SYSTEM') {
+    try {
+      const itemsBajoStock = await prisma.inventarioMedicamento.findMany({
+        where: {
+          
+          stockMinimo: { not: null },
+        },
+      });
+
+      let alertasCreadas = 0;
+
+      for (const item of itemsBajoStock) {
+        const porcentajeStock = (item.cantidadActual / item.stockMinimo) * 100;
+
+        if (item.cantidadActual <= item.stockMinimo) {
+          let prioridad = 'MEDIA';
+          let titulo = '';
+
+          if (porcentajeStock < 50) {
+            prioridad = 'CRITICA';
+            titulo = '🔴 Stock Crítico';
+          } else {
+            prioridad = 'ALTA';
+            titulo = '⚠️ Stock Bajo';
+          }
+
+          // Check if alert already exists
+          const existingAlert = await prisma.alertaCalidad2.findFirst({
+            where: {
+              
+              tipo: 'STOCK_BAJO',
+              entidadTipo: 'InventarioMedicamento',
+              entidadId: item.id,
+              atendidoPor: null,
+              
+            },
+          });
+
+          if (!existingAlert) {
+            const estado = porcentajeStock < 50 ? 'CRITICO' : 'PENDIENTE';
+            await prisma.alertaCalidad2.create({
+              data: {
+                tipo: 'STOCK_BAJO',
+                titulo,
+                descripcion: `${item.nombre} (${item.codigo}) tiene solo ${item.cantidadActual} ${item.unidadMedida}. Mínimo requerido: ${item.stockMinimo} ${item.unidadMedida}.`,
+                estado,
+                entidadTipo: 'InventarioMedicamento',
+                entidadId: item.id,
+                inventarioMedicamentoId: item.id,
+              },
+            });
+            alertasCreadas++;
+          }
+        }
+      }
+
+      return {
+        mensaje: `${alertasCreadas} alertas de stock generadas`,
+        alertasCreadas,
+      };
+    } catch (error) {
+      console.error('Error generando alertas de stock:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate temperatura/humedad alerts
+   * Note: These are created automatically by temperaturaHumedad.service when records are out of range
+   * This method just checks for any that might have been missed
+   */
+  async generarAlertasTemperatura(userId = 'SYSTEM') {
+    try {
+      // Find records out of range without alerts
+      const registrosFueraRango = await prisma.registroTemperaturaHumedad.findMany({
+        where: {
+          
+          requiereAlerta: true,
+        },
+        orderBy: {
+          fecha: 'desc',
+        },
+        take: 50, // Last 50 records
+      });
+
+      let alertasCreadas = 0;
+
+      for (const registro of registrosFueraRango) {
+        // Check if alert exists
+        const existingAlert = await prisma.alertaCalidad2.findFirst({
+          where: {
+            
+            tipo: {
+              in: ['TEMPERATURA_FUERA_RANGO', 'HUMEDAD_FUERA_RANGO'],
+            },
+            entidadTipo: 'RegistroTemperaturaHumedad',
+            entidadId: registro.id,
+            
+          },
+        });
+
+        if (!existingAlert) {
+          const motivos = [];
+          if (!registro.temperaturaEnRango) {
+            motivos.push(`Temperatura ${registro.temperatura}°C fuera de rango (${registro.temperaturaMin}°C - ${registro.temperaturaMax}°C)`);
+          }
+          if (!registro.humedadEnRango) {
+            motivos.push(`Humedad ${registro.humedad}% fuera de rango (${registro.humedadMin}% - ${registro.humedadMax}%)`);
+          }
+
+          const estado = !registro.temperaturaEnRango ? 'CRITICO' : 'PENDIENTE';
+          await prisma.alertaCalidad2.create({
+            data: {
+              tipo: !registro.temperaturaEnRango ? 'TEMPERATURA_FUERA_RANGO' : 'HUMEDAD_FUERA_RANGO',
+              titulo: `Alerta: ${registro.area}`,
+              descripcion: motivos.join('. '),
+              estado,
+              entidadTipo: 'RegistroTemperaturaHumedad',
+              entidadId: registro.id,
+              registroTemperaturaHumedadId: registro.id,
+            },
+          });
+          alertasCreadas++;
+        }
+      }
+
+      return {
+        mensaje: `${alertasCreadas} alertas de temperatura/humedad verificadas`,
+        alertasCreadas,
+      };
+    } catch (error) {
+      console.error('Error generando alertas de temperatura:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Generate all alerts (called by cron job)
+   */
+  async generarTodasAlertas(userId = 'SYSTEM') {
+    try {
+      console.log('[ALERTAS MEDICAMENTOS] Iniciando generación automática...');
+
+      const resultados = await Promise.all([
+        this.generarAlertasVencimientos(userId),
+        this.generarAlertasStock(userId),
+        this.generarAlertasTemperatura(userId),
+      ]);
+
+      const totalAlertas = resultados.reduce((acc, res) => acc + res.alertasCreadas, 0);
+
+      console.log(`[ALERTAS MEDICAMENTOS] ${totalAlertas} alertas generadas en total`);
+
+      return {
+        mensaje: `Generación automática completada: ${totalAlertas} alertas creadas`,
+        totalAlertas,
+        detalles: {
+          vencimientos: resultados[0],
+          stock: resultados[1],
+          temperatura: resultados[2],
+        },
+      };
+    } catch (error) {
+      console.error('[ALERTAS MEDICAMENTOS] Error en generación automática:', error);
+      throw error;
+    }
+  }
+}
+
+module.exports = new AlertaMedicamentoService();

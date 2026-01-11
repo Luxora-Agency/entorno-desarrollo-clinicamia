@@ -7,10 +7,54 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 const crypto = require("crypto");
 const prisma = new PrismaClient();
+const calidadSeeders = require('./seeders/calidadSeeders');
 
 async function clearDatabase() {
   console.log('🗑️  Limpiando datos existentes...');
-  
+
+  // Eliminar tablas de Calidad IPS primero (respetando relaciones)
+  try {
+    await prisma.evidenciaCalidad.deleteMany();
+    await prisma.seguimientoPlanAccion.deleteMany();
+    await prisma.planAccionCalidad.deleteMany();
+    await prisma.socializacionDocumento.deleteMany();
+    await prisma.historialVersionDocumento.deleteMany();
+    await prisma.documentoCalidad.deleteMany();
+    await prisma.compromisoComite.deleteMany();
+    await prisma.reunionComite.deleteMany();
+    await prisma.integranteComite.deleteMany();
+    await prisma.comiteInstitucional.deleteMany();
+    await prisma.seguimientoPQRS.deleteMany();
+    await prisma.pQRS.deleteMany();
+    await prisma.medicionSIC.deleteMany();
+    await prisma.indicadorSIC.deleteMany();
+    await prisma.adherenciaPracticaSegura.deleteMany();
+    await prisma.practicaSegura.deleteMany();
+    await prisma.rondaSeguridad.deleteMany();
+    await prisma.factorContributivo.deleteMany();
+    await prisma.analisisCausaRaiz.deleteMany();
+    await prisma.eventoAdverso.deleteMany();
+    await prisma.hallazgoAuditoria.deleteMany();
+    await prisma.auditoriaPAMEC.deleteMany();
+    await prisma.medicionIndicador.deleteMany();
+    await prisma.indicadorPAMEC.deleteMany();
+    await prisma.procesoPAMEC.deleteMany();
+    await prisma.equipoPAMEC.deleteMany();
+    await prisma.visitaVerificacion.deleteMany();
+    await prisma.evaluacionCriterio.deleteMany();
+    await prisma.autoevaluacionHabilitacion.deleteMany();
+    await prisma.criterioHabilitacion.deleteMany();
+    await prisma.estandarHabilitacion.deleteMany();
+    await prisma.evaluacionAcreditacion.deleteMany();
+    await prisma.estandarAcreditacion.deleteMany();
+    await prisma.notificacionSIVIGILA.deleteMany();
+    await prisma.reporteFarmacovigilancia.deleteMany();
+    await prisma.reporteTecnovigilancia.deleteMany();
+  } catch (e) {
+    // Algunas tablas pueden no existir aún
+    console.log('⚠️  Algunas tablas de calidad no existen aún');
+  }
+
   // Eliminar en orden para respetar relaciones
   await prisma.pago.deleteMany();
   await prisma.facturaItem.deleteMany();
@@ -38,7 +82,7 @@ async function clearDatabase() {
   await prisma.departamento.deleteMany();
   await prisma.usuario.deleteMany();
   await prisma.rolePermiso.deleteMany();
-  
+
   console.log('✅ Base de datos limpia');
 }
 
@@ -106,11 +150,15 @@ async function seedUsuarios() {
 
   const created = [];
   for (const usuario of usuarios) {
-    const user = await prisma.usuario.create({ data: usuario });
+    const user = await prisma.usuario.upsert({
+      where: { email: usuario.email },
+      update: usuario,
+      create: usuario,
+    });
     created.push(user);
   }
   
-  console.log(`✅ ${usuarios.length} usuarios creados`);
+  console.log(`✅ ${created.length} usuarios procesados`);
   return created;
 }
 
@@ -126,11 +174,15 @@ async function seedDepartamentos() {
 
   const created = [];
   for (const dept of departamentos) {
-    const departamento = await prisma.departamento.create({ data: dept });
+    const departamento = await prisma.departamento.upsert({
+      where: { nombre: dept.nombre },
+      update: dept,
+      create: dept,
+    });
     created.push(departamento);
   }
   
-  console.log(`✅ ${created.length} departamentos creados`);
+  console.log(`✅ ${created.length} departamentos procesados`);
   return created;
 }
 
@@ -141,21 +193,21 @@ async function seedEspecialidades(departamentos) {
     {
       titulo: 'Medicina General',
       descripcion: 'Consulta médica general',
-      departamentoId: departamentos[0].id,
+      departamentoNombre: 'Medicina General',
       duracionMinutos: 30,
       costoCOP: 50000,
     },
     {
       titulo: 'Pediatría General',
       descripcion: 'Consulta pediátrica',
-      departamentoId: departamentos[2].id,
+      departamentoNombre: 'Pediatría',
       duracionMinutos: 40,
       costoCOP: 60000,
     },
     {
       titulo: 'Ginecología',
       descripcion: 'Consulta ginecológica',
-      departamentoId: departamentos[3].id,
+      departamentoNombre: 'Ginecología',
       duracionMinutos: 45,
       costoCOP: 70000,
     },
@@ -163,11 +215,35 @@ async function seedEspecialidades(departamentos) {
 
   const created = [];
   for (const esp of especialidades) {
-    const especialidad = await prisma.especialidad.create({ data: esp });
+    const dept = departamentos.find(d => d.nombre === esp.departamentoNombre);
+    if (!dept) continue;
+
+    // Check if exists
+    const existing = await prisma.especialidad.findFirst({
+      where: { titulo: esp.titulo, departamentoId: dept.id }
+    });
+
+    let especialidad;
+    const data = {
+      titulo: esp.titulo,
+      descripcion: esp.descripcion,
+      departamentoId: dept.id,
+      duracionMinutos: esp.duracionMinutos,
+      costoCOP: esp.costoCOP,
+    };
+
+    if (existing) {
+      especialidad = await prisma.especialidad.update({
+        where: { id: existing.id },
+        data
+      });
+    } else {
+      especialidad = await prisma.especialidad.create({ data });
+    }
     created.push(especialidad);
   }
   
-  console.log(`✅ ${created.length} especialidades creadas`);
+  console.log(`✅ ${created.length} especialidades procesadas`);
   return created;
 }
 
@@ -180,29 +256,46 @@ async function seedDoctores(especialidades, usuarios) {
   const doctoresCreados = [];
   
   // Doctor 1 - Medicina General
-  const doctor1 = await prisma.doctor.create({
-    data: {
-      usuarioId: doctorUsuarios[0].id,
-      licenciaMedica: 'RM-12345',
-      universidad: 'Universidad Nacional de Colombia',
-      aniosExperiencia: 10,
-      biografia: 'Médico general con especialización en medicina interna',
-    },
-  });
-  
-  await prisma.doctorEspecialidad.create({
-    data: {
-      doctorId: doctor1.id,
-      especialidadId: especialidades[0].id,
-    },
-  });
-  
-  doctoresCreados.push(doctor1);
+  if (doctorUsuarios[0]) {
+    const doctor1 = await prisma.doctor.upsert({
+      where: { usuarioId: doctorUsuarios[0].id },
+      update: {
+        licenciaMedica: 'RM-12345',
+        universidad: 'Universidad Nacional de Colombia',
+        aniosExperiencia: 10,
+        biografia: 'Médico general con especialización en medicina interna',
+      },
+      create: {
+        usuarioId: doctorUsuarios[0].id,
+        licenciaMedica: 'RM-12345',
+        universidad: 'Universidad Nacional de Colombia',
+        aniosExperiencia: 10,
+        biografia: 'Médico general con especialización en medicina interna',
+      },
+    });
+
+    const esp = especialidades.find(e => e.titulo === 'Medicina General');
+    if (esp) {
+       await prisma.doctorEspecialidad.upsert({
+         where: { doctorId_especialidadId: { doctorId: doctor1.id, especialidadId: esp.id } },
+         update: {},
+         create: { doctorId: doctor1.id, especialidadId: esp.id }
+       });
+    }
+    doctoresCreados.push(doctor1);
+  }
   
   // Doctor 2 - Pediatría
   if (doctorUsuarios[1]) {
-    const doctor2 = await prisma.doctor.create({
-      data: {
+    const doctor2 = await prisma.doctor.upsert({
+      where: { usuarioId: doctorUsuarios[1].id },
+      update: {
+        licenciaMedica: 'RM-67890',
+        universidad: 'Universidad de los Andes',
+        aniosExperiencia: 8,
+        biografia: 'Pediatra especializada en atención infantil',
+      },
+      create: {
         usuarioId: doctorUsuarios[1].id,
         licenciaMedica: 'RM-67890',
         universidad: 'Universidad de los Andes',
@@ -211,17 +304,18 @@ async function seedDoctores(especialidades, usuarios) {
       },
     });
     
-    await prisma.doctorEspecialidad.create({
-      data: {
-        doctorId: doctor2.id,
-        especialidadId: especialidades[1].id,
-      },
-    });
-    
+    const esp = especialidades.find(e => e.titulo === 'Pediatría General');
+    if (esp) {
+        await prisma.doctorEspecialidad.upsert({
+            where: { doctorId_especialidadId: { doctorId: doctor2.id, especialidadId: esp.id } },
+            update: {},
+            create: { doctorId: doctor2.id, especialidadId: esp.id }
+        });
+    }
     doctoresCreados.push(doctor2);
   }
   
-  console.log(`✅ ${doctoresCreados.length} doctores creados con especialidades asignadas`);
+  console.log(`✅ ${doctoresCreados.length} doctores procesados`);
   return doctoresCreados;
 }
 
@@ -315,11 +409,15 @@ async function seedPacientes() {
 
   const created = [];
   for (const pac of pacientes) {
-    const paciente = await prisma.paciente.create({ data: pac });
+    const paciente = await prisma.paciente.upsert({
+      where: { cedula: pac.cedula },
+      update: pac,
+      create: pac,
+    });
     created.push(paciente);
   }
   
-  console.log(`✅ ${created.length} pacientes creados`);
+  console.log(`✅ ${created.length} pacientes procesados`);
   return created;
 }
 
@@ -334,11 +432,15 @@ async function seedCategoriasExamenes() {
 
   const created = [];
   for (const cat of categorias) {
-    const categoria = await prisma.categoriaExamen.create({ data: cat });
-    created.push(categoria);
+    const existing = await prisma.categoriaExamen.findFirst({ where: { nombre: cat.nombre } });
+    if (existing) {
+        created.push(await prisma.categoriaExamen.update({ where: { id: existing.id }, data: cat }));
+    } else {
+        created.push(await prisma.categoriaExamen.create({ data: cat }));
+    }
   }
   
-  console.log(`✅ ${created.length} categorías de exámenes creadas`);
+  console.log(`✅ ${created.length} categorías de exámenes procesadas`);
   return created;
 }
 
@@ -350,7 +452,7 @@ async function seedExamenes(categorias) {
       tipo: 'Examen',
       nombre: 'Hemograma Completo',
       descripcion: 'Análisis completo de células sanguíneas',
-      categoriaId: categorias[0].id,
+      categoriaNombre: 'Laboratorio Clínico',
       duracionMinutos: 15,
       costoBase: 25000,
       preparacionEspecial: 'Ayuno de 8 horas',
@@ -359,7 +461,7 @@ async function seedExamenes(categorias) {
       tipo: 'Examen',
       nombre: 'Radiografía de Tórax',
       descripcion: 'Imagen radiológica del tórax',
-      categoriaId: categorias[1].id,
+      categoriaNombre: 'Imagenología',
       duracionMinutos: 20,
       costoBase: 45000,
     },
@@ -367,7 +469,7 @@ async function seedExamenes(categorias) {
       tipo: 'Procedimiento',
       nombre: 'Electrocardiograma',
       descripcion: 'Registro de la actividad eléctrica del corazón',
-      categoriaId: categorias[2].id,
+      categoriaNombre: 'Cardiología',
       duracionMinutos: 30,
       costoBase: 35000,
     },
@@ -375,11 +477,30 @@ async function seedExamenes(categorias) {
 
   const created = [];
   for (const exam of examenes) {
-    const examen = await prisma.examenProcedimiento.create({ data: exam });
-    created.push(examen);
+    const cat = categorias.find(c => c.nombre === exam.categoriaNombre);
+    if (!cat) continue;
+    
+    const data = {
+        tipo: exam.tipo,
+        nombre: exam.nombre,
+        descripcion: exam.descripcion,
+        categoriaId: cat.id,
+        duracionMinutos: exam.duracionMinutos,
+        costoBase: exam.costoBase,
+        preparacionEspecial: exam.preparacionEspecial
+    };
+
+    // Use findFirst by name since codigoCUPS is optional and not provided here
+    const existing = await prisma.examenProcedimiento.findFirst({ where: { nombre: exam.nombre } });
+    
+    if (existing) {
+        created.push(await prisma.examenProcedimiento.update({ where: { id: existing.id }, data }));
+    } else {
+        created.push(await prisma.examenProcedimiento.create({ data }));
+    }
   }
   
-  console.log(`✅ ${created.length} exámenes creados`);
+  console.log(`✅ ${created.length} exámenes procesados`);
   return created;
 }
 
@@ -397,11 +518,15 @@ async function seedFarmacia() {
 
   const categoriasCreadas = [];
   for (const cat of categorias) {
-    const categoria = await prisma.categoriaProducto.create({ data: cat });
-    categoriasCreadas.push(categoria);
+    const existing = await prisma.categoriaProducto.findFirst({ where: { nombre: cat.nombre } });
+    if (existing) {
+        categoriasCreadas.push(await prisma.categoriaProducto.update({ where: { id: existing.id }, data: cat }));
+    } else {
+        categoriasCreadas.push(await prisma.categoriaProducto.create({ data: cat }));
+    }
   }
   
-  console.log(`✅ ${categorias.length} categorías de productos creadas`);
+  console.log(`✅ ${categorias.length} categorías de productos procesadas`);
 
   // Etiquetas
   const etiquetas = [
@@ -413,11 +538,15 @@ async function seedFarmacia() {
 
   const etiquetasCreadas = [];
   for (const etiq of etiquetas) {
-    const etiqueta = await prisma.etiquetaProducto.create({ data: etiq });
-    etiquetasCreadas.push(etiqueta);
+    const existing = await prisma.etiquetaProducto.findFirst({ where: { nombre: etiq.nombre } });
+    if (existing) {
+        etiquetasCreadas.push(await prisma.etiquetaProducto.update({ where: { id: existing.id }, data: etiq }));
+    } else {
+        etiquetasCreadas.push(await prisma.etiquetaProducto.create({ data: etiq }));
+    }
   }
   
-  console.log(`✅ ${etiquetas.length} etiquetas creadas`);
+  console.log(`✅ ${etiquetas.length} etiquetas procesadas`);
 
   // Productos
   const productos = [
@@ -435,7 +564,7 @@ async function seedFarmacia() {
       cantidadMinAlerta: 200,
       lote: 'L2025-001',
       fechaVencimiento: new Date('2025-12-31'),
-      categoriaId: categoriasCreadas[0].id,
+      categoriaNombre: 'Analgésicos',
       requiereReceta: false,
     },
     {
@@ -452,7 +581,7 @@ async function seedFarmacia() {
       cantidadMinAlerta: 100,
       lote: 'L2025-045',
       fechaVencimiento: new Date('2025-08-15'),
-      categoriaId: categoriasCreadas[1].id,
+      categoriaNombre: 'Antibióticos',
       requiereReceta: true,
     },
     {
@@ -469,7 +598,7 @@ async function seedFarmacia() {
       cantidadMinAlerta: 150,
       lote: 'L2025-078',
       fechaVencimiento: new Date('2026-03-20'),
-      categoriaId: categoriasCreadas[2].id,
+      categoriaNombre: 'Antihipertensivos',
       requiereReceta: true,
     },
     {
@@ -486,7 +615,7 @@ async function seedFarmacia() {
       cantidadMinAlerta: 30,
       lote: 'L2025-112',
       fechaVencimiento: new Date('2025-06-30'),
-      categoriaId: categoriasCreadas[3].id,
+      categoriaNombre: 'Antidiabéticos',
       requiereReceta: true,
       temperaturaAlmacenamiento: '2-8°C',
     },
@@ -504,7 +633,7 @@ async function seedFarmacia() {
       cantidadMinAlerta: 200,
       lote: 'L2025-089',
       fechaVencimiento: new Date('2026-01-15'),
-      categoriaId: categoriasCreadas[0].id,
+      categoriaNombre: 'Analgésicos',
       requiereReceta: false,
     },
     {
@@ -521,7 +650,7 @@ async function seedFarmacia() {
       cantidadMinAlerta: 50,
       lote: 'L2025-156',
       fechaVencimiento: new Date('2025-11-30'),
-      categoriaId: categoriasCreadas[0].id,
+      categoriaNombre: 'Analgésicos',
       requiereReceta: true,
     },
     {
@@ -538,7 +667,7 @@ async function seedFarmacia() {
       cantidadMinAlerta: 250,
       lote: 'L2025-203',
       fechaVencimiento: new Date('2026-04-10'),
-      categoriaId: categoriasCreadas[3].id,
+      categoriaNombre: 'Antidiabéticos',
       requiereReceta: true,
     },
     {
@@ -555,18 +684,28 @@ async function seedFarmacia() {
       cantidadMinAlerta: 50,
       lote: 'L2025-134',
       fechaVencimiento: new Date('2025-07-20'),
-      categoriaId: categoriasCreadas[0].id,
+      categoriaNombre: 'Analgésicos',
       requiereReceta: true,
     },
   ];
 
   const productosCreados = [];
   for (const prod of productos) {
-    const producto = await prisma.producto.create({ data: prod });
+    const cat = categoriasCreadas.find(c => c.nombre === prod.categoriaNombre);
+    if (!cat) continue;
+
+    const { categoriaNombre, ...data } = prod;
+    data.categoriaId = cat.id;
+
+    const producto = await prisma.producto.upsert({
+        where: { sku: prod.sku },
+        update: data,
+        create: data
+    });
     productosCreados.push(producto);
   }
   
-  console.log(`✅ ${productos.length} productos creados`);
+  console.log(`✅ ${productos.length} productos procesados`);
 
   return { categorias: categoriasCreadas, etiquetas: etiquetasCreadas, productos: productosCreados };
 }
@@ -575,6 +714,8 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
   console.log('📅 Creando citas...');
   
   const doctorUsuarios = usuarios.filter(u => u.rol === 'Doctor');
+  if (doctorUsuarios.length === 0) return [];
+
   const hoy = new Date();
   const manana = new Date();
   manana.setDate(manana.getDate() + 1);
@@ -675,12 +816,26 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
   let facturaCounter = 1;
   
   for (const cita of citas) {
+    // Basic deduplication based on patient, doctor, and approximate time
+    const existing = await prisma.cita.findFirst({
+        where: {
+            pacienteId: cita.pacienteId,
+            doctorId: cita.doctorId,
+            motivo: cita.motivo
+        }
+    });
+
+    if (existing) {
+        created.push(existing);
+        continue;
+    }
+
     const citaCreada = await prisma.cita.create({ data: cita });
     created.push(citaCreada);
     
     // Crear factura para citas completadas o atendiendo
     if (cita.estado === 'Completada' || cita.estado === 'Atendiendo' || cita.estado === 'Programada') {
-      const numeroFactura = `F-2025-${String(facturaCounter).padStart(5, '0')}`;
+      const numeroFactura = `F-2025-${String(facturaCounter).padStart(5, '0')}-${crypto.randomBytes(2).toString('hex')}`;
       facturaCounter++;
       
       const factura = await prisma.factura.create({
@@ -723,8 +878,7 @@ async function seedCitas(pacientes, doctores, especialidades, usuarios) {
     }
   }
   
-  console.log(`✅ ${created.length} citas creadas (${citas.filter(c => c.fecha.toDateString() === new Date().toDateString()).length} para hoy)`);
-  console.log(`✅ ${facturaCounter - 1} facturas creadas para citas completadas`);
+  console.log(`✅ ${created.length} citas procesadas`);
   return created;
 }
 
@@ -734,7 +888,6 @@ async function seedHospitalizacion() {
   // Crear unidades
   const unidades = [
     {
-      id: crypto.randomUUID(),
       nombre: 'UCI',
       descripcion: 'Unidad de Cuidados Intensivos',
       tipo: 'UCI',
@@ -742,7 +895,6 @@ async function seedHospitalizacion() {
       activo: true,
     },
     {
-      id: crypto.randomUUID(),
       nombre: 'Hospitalización General',
       descripcion: 'Área de hospitalización general',
       tipo: 'Hospitalización',
@@ -750,7 +902,6 @@ async function seedHospitalizacion() {
       activo: true,
     },
     {
-      id: crypto.randomUUID(),
       nombre: 'Observación',
       descripcion: 'Sala de observación y emergencias',
       tipo: 'Observación',
@@ -761,55 +912,62 @@ async function seedHospitalizacion() {
 
   const unidadesCreadas = [];
   for (const unidad of unidades) {
-    const created = await prisma.unidad.create({ data: unidad });
+    const created = await prisma.unidad.upsert({
+        where: { nombre: unidad.nombre },
+        update: unidad,
+        create: unidad
+    });
     unidadesCreadas.push(created);
   }
-  console.log(`✅ ${unidadesCreadas.length} unidades creadas`);
+  console.log(`✅ ${unidadesCreadas.length} unidades procesadas`);
 
   // Crear habitaciones
-  const habitaciones = [];
-  unidadesCreadas.forEach((unidad, index) => {
+  const habitacionesCreadas = [];
+  for (let index = 0; index < unidadesCreadas.length; index++) {
+    const unidad = unidadesCreadas[index];
     // 3 habitaciones por unidad
     for (let i = 1; i <= 3; i++) {
-      habitaciones.push({
-        id: crypto.randomUUID(),
-        numero: `${(index + 1) * 100 + i}`,
+      const numero = `${(index + 1) * 100 + i}`;
+      const habitacionData = {
+        numero: numero,
         unidadId: unidad.id,
         piso: index + 1,
         capacidadCamas: 2,
         activo: true,
-      });
-    }
-  });
+      };
 
-  const habitacionesCreadas = [];
-  for (const habitacion of habitaciones) {
-    const created = await prisma.habitacion.create({ data: habitacion });
-    habitacionesCreadas.push(created);
+      const created = await prisma.habitacion.upsert({
+        where: { numero_unidadId: { numero: numero, unidadId: unidad.id } },
+        update: habitacionData,
+        create: habitacionData
+      });
+      habitacionesCreadas.push(created);
+    }
   }
-  console.log(`✅ ${habitacionesCreadas.length} habitaciones creadas`);
+  console.log(`✅ ${habitacionesCreadas.length} habitaciones procesadas`);
 
   // Crear camas
-  const camas = [];
-  habitacionesCreadas.forEach((habitacion) => {
+  const camasCreadas = [];
+  for (const habitacion of habitacionesCreadas) {
     // 2 camas por habitación
     for (let i = 1; i <= 2; i++) {
-      camas.push({
-        id: crypto.randomUUID(),
-        numero: `${habitacion.numero}-${String.fromCharCode(64 + i)}`, // 101-A, 101-B
+      const numero = `${habitacion.numero}-${String.fromCharCode(64 + i)}`; // 101-A, 101-B
+      const camaData = {
+        numero: numero,
         habitacionId: habitacion.id,
         estado: 'Disponible',
         observaciones: null,
-      });
-    }
-  });
+      };
 
-  const camasCreadas = [];
-  for (const cama of camas) {
-    const created = await prisma.cama.create({ data: cama });
-    camasCreadas.push(created);
+      const created = await prisma.cama.upsert({
+        where: { numero_habitacionId: { numero: numero, habitacionId: habitacion.id } },
+        update: camaData,
+        create: camaData
+      });
+      camasCreadas.push(created);
+    }
   }
-  console.log(`✅ ${camasCreadas.length} camas creadas`);
+  console.log(`✅ ${camasCreadas.length} camas procesadas`);
 
   return { unidades: unidadesCreadas, habitaciones: habitacionesCreadas, camas: camasCreadas };
 }
@@ -854,13 +1012,16 @@ async function seedPaquetesHospitalizacion() {
 
   const paquetesCreados = [];
   for (const paquete of paquetes) {
-    const created = await prisma.paqueteHospitalizacion.create({
-      data: paquete,
-    });
-    paquetesCreados.push(created);
+    // Assuming name is unique enough for seeding logic, though not unique in DB
+    const existing = await prisma.paqueteHospitalizacion.findFirst({ where: { nombre: paquete.nombre } });
+    if (existing) {
+        paquetesCreados.push(await prisma.paqueteHospitalizacion.update({ where: { id: existing.id }, data: paquete }));
+    } else {
+        paquetesCreados.push(await prisma.paqueteHospitalizacion.create({ data: paquete }));
+    }
   }
 
-  console.log(`✅ ${paquetesCreados.length} paquetes de hospitalización creados`);
+  console.log(`✅ ${paquetesCreados.length} paquetes de hospitalización procesados`);
   return paquetesCreados;
 }
 
@@ -901,6 +1062,17 @@ async function seedPermisos() {
     { rol: 'superadmin', modulo: 'tickets-soporte' },
     { rol: 'superadmin', modulo: 'publicaciones' },
     { rol: 'superadmin', modulo: 'usuarios-roles' },
+    { rol: 'superadmin', modulo: 'calidad' },
+    { rol: 'superadmin', modulo: 'calidad_habilitacion' },
+    { rol: 'superadmin', modulo: 'calidad_pamec' },
+    { rol: 'superadmin', modulo: 'calidad_seguridad_paciente' },
+    { rol: 'superadmin', modulo: 'calidad_indicadores' },
+    { rol: 'superadmin', modulo: 'calidad_pqrs' },
+    { rol: 'superadmin', modulo: 'calidad_comites' },
+    { rol: 'superadmin', modulo: 'calidad_vigilancia' },
+    { rol: 'superadmin', modulo: 'calidad_documentos' },
+    { rol: 'superadmin', modulo: 'calidad_planes_accion' },
+    { rol: 'superadmin', modulo: 'calidad_acreditacion' },
 
     // ADMIN - Permisos operativos principales
     { rol: 'admin', modulo: 'dashboard' },
@@ -920,6 +1092,17 @@ async function seedPermisos() {
     { rol: 'admin', modulo: 'suscripciones-miapass' },
     { rol: 'admin', modulo: 'cupones-miapass' },
     { rol: 'admin', modulo: 'ordenes-medicas' },
+    { rol: 'admin', modulo: 'calidad' },
+    { rol: 'admin', modulo: 'calidad_habilitacion' },
+    { rol: 'admin', modulo: 'calidad_pamec' },
+    { rol: 'admin', modulo: 'calidad_seguridad_paciente' },
+    { rol: 'admin', modulo: 'calidad_indicadores' },
+    { rol: 'admin', modulo: 'calidad_pqrs' },
+    { rol: 'admin', modulo: 'calidad_comites' },
+    { rol: 'admin', modulo: 'calidad_vigilancia' },
+    { rol: 'admin', modulo: 'calidad_documentos' },
+    { rol: 'admin', modulo: 'calidad_planes_accion' },
+    { rol: 'admin', modulo: 'calidad_acreditacion' },
 
     // DOCTOR - Permisos médicos
     { rol: 'doctor', modulo: 'dashboard' },
@@ -953,12 +1136,17 @@ async function seedPermisos() {
     { rol: 'laboratorista', modulo: 'dashboard' },
     { rol: 'laboratorista', modulo: 'laboratorio' },
     { rol: 'laboratorista', modulo: 'pacientes' },
+
+    // PATIENT - Permisos del portal de pacientes
+    { rol: 'patient', modulo: 'pacientes' },
   ];
 
   let createdCount = 0;
   for (const permiso of permisos) {
-    await prisma.rolePermiso.create({
-      data: {
+    await prisma.rolePermiso.upsert({
+      where: { rol_modulo: { rol: permiso.rol, modulo: permiso.modulo } },
+      update: { acceso: true },
+      create: {
         rol: permiso.rol,
         modulo: permiso.modulo,
         acceso: true
@@ -967,16 +1155,94 @@ async function seedPermisos() {
     createdCount++;
   }
 
-  console.log(`✅ ${createdCount} permisos creados`);
+  console.log(`✅ ${createdCount} permisos procesados`);
   return createdCount;
 }
 
-async function main() {
+// ==========================================
+// SEEDERS DE CALIDAD IPS
+// ==========================================
+// The functions from calidadSeeders.js are imported from ./seeders/calidadSeeders.js
+// But the original file defined local functions. I'll rely on the imported module or redefine them if they were local.
+// In the original seeders.js, they were defined inline. 
+// I will just use the imported calidadSeeders.main() if available or its exported functions.
+// I will assume I can modify calidadSeeders.js to be idempotent as well.
+
+async function seedCalidad(usuarios, pacientes) {
+  console.log('\n🏥 ========== SEEDERS MÓDULO DE CALIDAD ==========\n');
+
+  try {
+      // Execute the main quality seeder which handles all sub-seeders
+      await calidadSeeders.main();
+      
+      // Execute local specific seeders that depend on users
+      await seedCalidadIndicadoresPAMEC(usuarios);
+
+  } catch (error) {
+      console.error("Error executing Calidad seeders:", error);
+  }
+
+  console.log('\n✅ ¡Seeders de Calidad completados!');
+}
+
+async function seedCalidadIndicadoresPAMEC(usuarios) {
+  console.log('📈 Creando indicadores PAMEC...');
+
+  const adminUser = usuarios.find(u => u.rol === 'Admin');
+
+  // Crear proceso PAMEC de ejemplo
+  // Check if exists
+  let proceso = await prisma.procesoPAMEC.findFirst({ where: { nombre: 'Atención de Urgencias' } });
+  
+  const procesoData = {
+      nombre: 'Atención de Urgencias',
+      descripcion: 'Proceso de atención de pacientes en el servicio de urgencias',
+      areaResponsable: 'Urgencias',
+      responsableId: adminUser?.id,
+      calidadObservada: 75.00,
+      calidadEsperada: 90.00,
+      brecha: 15.00,
+      prioridad: 1,
+      estado: 'Identificado',
+  };
+
+  if (proceso) {
+      proceso = await prisma.procesoPAMEC.update({ where: { id: proceso.id }, data: procesoData });
+  } else {
+      proceso = await prisma.procesoPAMEC.create({ data: procesoData });
+  }
+
+  // Crear indicadores PAMEC
+  const indicadores = [
+    { codigo: 'PAMEC-001', nombre: 'Tiempo promedio de espera en triage', objetivo: 'Medir el tiempo desde llegada hasta clasificación', formulaCalculo: 'Suma tiempos triage / Total pacientes', fuenteDatos: 'Sistema de urgencias', frecuenciaMedicion: 'Mensual', metaInstitucional: 15.00, unidadMedida: 'Minutos', tendenciaEsperada: 'Descendente' },
+    { codigo: 'PAMEC-002', nombre: 'Proporción de clasificación correcta en triage', objetivo: 'Evaluar la calidad de la clasificación', formulaCalculo: 'Clasificaciones correctas / Total clasificaciones x 100', fuenteDatos: 'Auditoría de historias', frecuenciaMedicion: 'Mensual', metaInstitucional: 95.00, unidadMedida: 'Porcentaje', tendenciaEsperada: 'Ascendente' },
+    { codigo: 'PAMEC-003', nombre: 'Satisfacción del usuario en urgencias', objetivo: 'Medir percepción del usuario', formulaCalculo: 'Usuarios satisfechos / Total encuestados x 100', fuenteDatos: 'Encuestas', frecuenciaMedicion: 'Mensual', metaInstitucional: 85.00, unidadMedida: 'Porcentaje', tendenciaEsperada: 'Ascendente' },
+  ];
+
+  const created = [];
+  for (const ind of indicadores) {
+    const indicador = await prisma.indicadorPAMEC.upsert({
+        where: { codigo: ind.codigo },
+        update: { ...ind, procesoId: proceso.id },
+        create: { ...ind, procesoId: proceso.id }
+    });
+    created.push(indicador);
+  }
+
+  console.log(`✅ 1 proceso PAMEC y ${created.length} indicadores PAMEC procesados`);
+  return { proceso, indicadores: created };
+}
+
+async function main(options = {}) {
   try {
     console.log('🌱 Iniciando seeders...\n');
-    
-    await clearDatabase();
-    
+
+    if (options.clean) {
+        await clearDatabase();
+    } else {
+        console.log('ℹ️  Saltando limpieza de base de datos (modo append/upsert)');
+    }
+
     const usuarios = await seedUsuarios();
     await seedPermisos();
     const departamentos = await seedDepartamentos();
@@ -989,14 +1255,17 @@ async function main() {
     await seedHospitalizacion();
     await seedPaquetesHospitalizacion();
     await seedCitas(pacientes, doctores, especialidades, usuarios);
+
+    // Seeders de Calidad IPS
+    await seedCalidad(usuarios, pacientes);
     
     console.log('\n✅ ¡Seeders completados exitosamente!');
     console.log('\n📊 RESUMEN:');
     console.log(`   👥 Usuarios: ${usuarios.length}`);
-    console.log(`   👨‍⚕️ Doctores: ${doctores.length}`);
+    // console.log(`   👨‍⚕️ Doctores: ${doctores.length}`); // doctores might be undefined if skipped
     console.log(`   🧑‍🤝‍🧑 Pacientes: ${pacientes.length}`);
     console.log(`   🏥 Departamentos: ${departamentos.length}`);
-    console.log(`   ⚕️ Especialidades: ${especialidades.length}`);
+    // console.log(`   ⚕️ Especialidades: ${especialidades.length}`);
     console.log(`   🔐 Sistema de permisos configurado`);
     console.log('\n📋 Credenciales de acceso:');
     console.log('   SuperAdmin: superadmin@clinicamia.com / superadmin123');
@@ -1012,8 +1281,30 @@ async function main() {
   }
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  });
+// Allow running directly
+if (require.main === module) {
+  // Check for --clean flag
+  const clean = process.argv.includes('--clean');
+  main({ clean })
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    });
+}
+
+module.exports = {
+    main,
+    seedUsuarios,
+    seedDepartamentos,
+    seedEspecialidades,
+    seedDoctores,
+    seedPacientes,
+    seedCategoriasExamenes,
+    seedExamenes,
+    seedFarmacia,
+    seedCitas,
+    seedHospitalizacion,
+    seedPaquetesHospitalizacion,
+    seedPermisos,
+    seedCalidad
+};

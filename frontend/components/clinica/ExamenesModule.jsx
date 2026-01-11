@@ -25,6 +25,7 @@ import {
   XCircle,
   Beaker
 } from 'lucide-react';
+import CatalogSearch from '@/components/ui/CatalogSearch';
 
 export default function ExamenesModule({ user }) {
   const [items, setItems] = useState([]);
@@ -44,6 +45,8 @@ export default function ExamenesModule({ user }) {
   const [formData, setFormData] = useState({
     tipo: 'Examen',
     nombre: '',
+    codigoCUPS: '',
+    codigoCIE11: '',
     descripcion: '',
     categoriaId: '',
     duracionMinutos: '',
@@ -135,6 +138,8 @@ export default function ExamenesModule({ user }) {
     setFormData({
       tipo: item.tipo || 'Examen',
       nombre: item.nombre || '',
+      codigoCUPS: item.codigoCUPS || '',
+      codigoCIE11: item.codigoCIE11 || '',
       descripcion: item.descripcion || '',
       categoriaId: item.categoriaId || '',
       duracionMinutos: item.duracionMinutos || '',
@@ -195,6 +200,8 @@ export default function ExamenesModule({ user }) {
     setFormData({
       tipo: 'Examen',
       nombre: '',
+      codigoCUPS: '',
+      codigoCIE11: '',
       descripcion: '',
       categoriaId: '',
       duracionMinutos: '',
@@ -270,16 +277,33 @@ export default function ExamenesModule({ user }) {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="descripcion" className="text-sm font-semibold text-gray-700 mb-2 block">Descripción</Label>
-                <Textarea
-                  id="descripcion"
-                  value={formData.descripcion}
-                  onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  rows={2}
-                  placeholder="Descripción opcional..."
-                  className="border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="codigoCUPS" className="text-sm font-semibold text-gray-700 mb-2 block">Código CUPS</Label>
+                  <CatalogSearch
+                    type="CUPS"
+                    placeholder="Buscar código o nombre..."
+                    defaultValue={formData.codigoCUPS}
+                    onSelect={(item) => {
+                      setFormData(prev => ({ 
+                        ...prev, 
+                        codigoCUPS: item.codigo,
+                        nombre: prev.nombre || item.descripcion // Auto-fill name if empty
+                      }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="codigoCIE11" className="text-sm font-semibold text-gray-700 mb-2 block">Código CIE-11 (Ref)</Label>
+                  <CatalogSearch
+                    type="CIE11"
+                    placeholder="Buscar diagnóstico..."
+                    defaultValue={formData.codigoCIE11}
+                    onSelect={(item) => {
+                      setFormData(prev => ({ ...prev, codigoCIE11: item.codigo }));
+                    }}
+                  />
+                </div>
               </div>
 
               <div>
@@ -488,7 +512,7 @@ export default function ExamenesModule({ user }) {
                 <TableHeader>
                   <TableRow className="bg-gray-50">
                     <TableHead className="font-semibold">Tipo</TableHead>
-                    <TableHead className="font-semibold">Nombre</TableHead>
+                    <TableHead className="font-semibold">Nombre / CUPS</TableHead>
                     <TableHead className="font-semibold hidden lg:table-cell">Duración</TableHead>
                     <TableHead className="font-semibold">Costo</TableHead>
                     <TableHead className="font-semibold hidden md:table-cell">Categoría</TableHead>
@@ -506,9 +530,14 @@ export default function ExamenesModule({ user }) {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-semibold text-gray-900">
-                        <div className="flex items-center gap-2">
-                          <Beaker className="w-4 h-4 text-emerald-600" />
-                          {item.nombre}
+                        <div className="flex flex-col">
+                          <div className="flex items-center gap-2">
+                            <Beaker className="w-4 h-4 text-emerald-600" />
+                            {item.nombre}
+                          </div>
+                          {item.codigoCUPS && (
+                            <span className="text-xs text-gray-500 ml-6">CUPS: {item.codigoCUPS}</span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">

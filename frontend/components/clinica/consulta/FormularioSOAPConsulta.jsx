@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { FileText, AlertCircle } from 'lucide-react';
+import BotonCorrectorOrtografia from './BotonCorrectorOrtografia';
+import TemplateSelector from '../templates/TemplateSelector';
 
 export default function FormularioSOAPConsulta({ onChange, data }) {
   const [formData, setFormData] = useState({
@@ -61,9 +63,22 @@ export default function FormularioSOAPConsulta({ onChange, data }) {
       </CardHeader>
       <CardContent className="space-y-4 pt-6">
         <div>
-          <Label htmlFor="subjetivo" className="flex items-center gap-1">
-            <span className="text-red-500">*</span> Subjetivo
-          </Label>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="subjetivo" className="flex items-center gap-1">
+                <span className="text-red-500">*</span> Subjetivo
+              </Label>
+              <TemplateSelector 
+                category="SOAP" 
+                onSelect={(text) => handleChange('subjetivo', formData.subjetivo + (formData.subjetivo ? '\n' : '') + text)} 
+              />
+            </div>
+            <BotonCorrectorOrtografia
+              texto={formData.subjetivo}
+              onCorreccion={(text) => handleChange('subjetivo', text)}
+              contexto="medico"
+            />
+          </div>
           <p className="text-xs text-gray-500 mb-2">
             Síntomas y quejas del paciente (en sus propias palabras)
           </p>
@@ -81,9 +96,22 @@ export default function FormularioSOAPConsulta({ onChange, data }) {
         </div>
 
         <div>
-          <Label htmlFor="objetivo" className="flex items-center gap-1">
-            <span className="text-red-500">*</span> Objetivo
-          </Label>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="objetivo" className="flex items-center gap-1">
+                <span className="text-red-500">*</span> Objetivo
+              </Label>
+              <TemplateSelector 
+                category="SOAP" 
+                onSelect={(text) => handleChange('objetivo', formData.objetivo + (formData.objetivo ? '\n' : '') + text)} 
+              />
+            </div>
+            <BotonCorrectorOrtografia
+              texto={formData.objetivo}
+              onCorreccion={(text) => handleChange('objetivo', text)}
+              contexto="medico"
+            />
+          </div>
           <p className="text-xs text-gray-500 mb-2">
             Hallazgos del examen físico y observaciones clínicas
           </p>
@@ -101,9 +129,22 @@ export default function FormularioSOAPConsulta({ onChange, data }) {
         </div>
 
         <div>
-          <Label htmlFor="analisis" className="flex items-center gap-1">
-            <span className="text-red-500">*</span> Análisis
-          </Label>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="analisis" className="flex items-center gap-1">
+                <span className="text-red-500">*</span> Análisis
+              </Label>
+              <TemplateSelector 
+                category="ANALISIS" 
+                onSelect={(text) => handleChange('analisis', formData.analisis + (formData.analisis ? '\n' : '') + text)} 
+              />
+            </div>
+            <BotonCorrectorOrtografia
+              texto={formData.analisis}
+              onCorreccion={(text) => handleChange('analisis', text)}
+              contexto="medico"
+            />
+          </div>
           <p className="text-xs text-gray-500 mb-2">
             Diagnóstico e interpretación clínica
           </p>
@@ -121,9 +162,22 @@ export default function FormularioSOAPConsulta({ onChange, data }) {
         </div>
 
         <div>
-          <Label htmlFor="plan" className="flex items-center gap-1">
-            <span className="text-red-500">*</span> Plan
-          </Label>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="plan" className="flex items-center gap-1">
+                <span className="text-red-500">*</span> Plan
+              </Label>
+              <TemplateSelector 
+                category="PLAN" 
+                onSelect={(text) => handleChange('plan', formData.plan + (formData.plan ? '\n' : '') + text)} 
+              />
+            </div>
+            <BotonCorrectorOrtografia
+              texto={formData.plan}
+              onCorreccion={(text) => handleChange('plan', text)}
+              contexto="medico"
+            />
+          </div>
           <p className="text-xs text-gray-500 mb-2">
             Plan de tratamiento y seguimiento
           </p>

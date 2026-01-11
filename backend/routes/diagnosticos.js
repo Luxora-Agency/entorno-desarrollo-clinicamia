@@ -12,7 +12,84 @@ const diagnosticos = new Hono();
 diagnosticos.use('*', authMiddleware);
 
 /**
- * GET /diagnosticos - Obtener todos los diagnósticos
+ * @swagger
+ * components:
+ *   schemas:
+ *     Diagnostico:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         codigo_cie10:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *         tipo:
+ *           type: string
+ *           enum: [Principal, Relacionado]
+ *         observaciones:
+ *           type: string
+ *         activo:
+ *           type: boolean
+ *     DiagnosticoInput:
+ *       type: object
+ *       required:
+ *         - paciente_id
+ *         - codigo_cie10
+ *         - descripcion
+ *       properties:
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         codigo_cie10:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *         tipo:
+ *           type: string
+ *           enum: [Principal, Relacionado]
+ *         observaciones:
+ *           type: string
+ * tags:
+ *   name: Diagnosticos
+ *   description: Gestión de diagnósticos médicos
+ */
+
+/**
+ * @swagger
+ * /diagnosticos:
+ *   get:
+ *     summary: Obtener todos los diagnósticos
+ *     tags: [Diagnosticos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: paciente_id
+ *         schema:
+ *           type: string
+ *         description: Filtrar por paciente
+ *     responses:
+ *       200:
+ *         description: Lista de diagnósticos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Diagnostico'
+ *       500:
+ *         description: Error del servidor
  */
 diagnosticos.get('/', async (c) => {
   try {
@@ -25,7 +102,41 @@ diagnosticos.get('/', async (c) => {
 });
 
 /**
- * GET /diagnosticos/:id - Obtener un diagnóstico por ID
+ * @swagger
+ * /diagnosticos/{id}:
+ *   get:
+ *     summary: Obtener un diagnóstico por ID
+ *     tags: [Diagnosticos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del diagnóstico
+ *     responses:
+ *       200:
+ *         description: Datos del diagnóstico
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     diagnostico:
+ *                       $ref: '#/components/schemas/Diagnostico'
+ *       404:
+ *         description: Diagnóstico no encontrado
+ *       500:
+ *         description: Error del servidor
  */
 diagnosticos.get('/:id', async (c) => {
   try {
@@ -38,7 +149,26 @@ diagnosticos.get('/:id', async (c) => {
 });
 
 /**
- * GET /diagnosticos/principal/:paciente_id - Obtener diagnóstico principal activo
+ * @swagger
+ * /diagnosticos/principal/{paciente_id}:
+ *   get:
+ *     summary: Obtener diagnóstico principal activo
+ *     tags: [Diagnosticos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paciente_id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del paciente
+ *     responses:
+ *       200:
+ *         description: Diagnóstico principal
+ *       500:
+ *         description: Error del servidor
  */
 diagnosticos.get('/principal/:paciente_id', async (c) => {
   try {
@@ -51,7 +181,37 @@ diagnosticos.get('/principal/:paciente_id', async (c) => {
 });
 
 /**
- * POST /diagnosticos - Crear nuevo diagnóstico
+ * @swagger
+ * /diagnosticos:
+ *   post:
+ *     summary: Crear nuevo diagnóstico
+ *     tags: [Diagnosticos]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/DiagnosticoInput'
+ *     responses:
+ *       201:
+ *         description: Diagnóstico registrado correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     diagnostico:
+ *                       $ref: '#/components/schemas/Diagnostico'
+ *       500:
+ *         description: Error del servidor
  */
 diagnosticos.post('/', async (c) => {
   try {
@@ -67,7 +227,34 @@ diagnosticos.post('/', async (c) => {
 });
 
 /**
- * PUT /diagnosticos/:id - Actualizar diagnóstico
+ * @swagger
+ * /diagnosticos/{id}:
+ *   put:
+ *     summary: Actualizar diagnóstico
+ *     tags: [Diagnosticos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del diagnóstico
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/DiagnosticoInput'
+ *     responses:
+ *       200:
+ *         description: Diagnóstico actualizado correctamente
+ *       404:
+ *         description: Diagnóstico no encontrado
+ *       500:
+ *         description: Error del servidor
  */
 diagnosticos.put('/:id', async (c) => {
   try {

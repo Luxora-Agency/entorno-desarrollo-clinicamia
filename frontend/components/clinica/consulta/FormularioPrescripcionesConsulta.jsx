@@ -7,17 +7,33 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Pill, Plus, X, AlertCircle, Trash2 } from 'lucide-react';
+import { Pill, Plus, X, AlertCircle, Trash2, History, Sparkles } from 'lucide-react';
+import TemplateSelector from '../templates/TemplateSelector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { apiGet } from '@/services/api';
 
-export default function FormularioPrescripcionesConsulta({ onChange, data }) {
+export default function FormularioPrescripcionesConsulta({ onChange, data, diagnosticoConsulta, pacienteId }) {
   const { toast } = useToast();
   const [quiereAgregar, setQuiereAgregar] = useState(data !== null && data !== undefined);
   const [formData, setFormData] = useState(data || {
     diagnostico: '',
     medicamentos: [],
   });
+
+  // Auto-fill diagnosis from consultation when available
+  useEffect(() => {
+    if (diagnosticoConsulta?.principal?.codigoCIE10 && diagnosticoConsulta?.principal?.descripcionCIE10) {
+      const diagnosticoText = `${diagnosticoConsulta.principal.codigoCIE10} - ${diagnosticoConsulta.principal.descripcionCIE10}`;
+      // Only update if current field is empty or matches previous auto-fill pattern
+      if (!formData.diagnostico || formData.diagnostico.match(/^[A-Z]\d{2}/)) {
+        setFormData(prev => ({
+          ...prev,
+          diagnostico: diagnosticoText
+        }));
+      }
+    }
+  }, [diagnosticoConsulta]);
   const [medicamentoActual, setMedicamentoActual] = useState({
     productoId: '',
     nombre: '',
@@ -33,11 +49,59 @@ export default function FormularioPrescripcionesConsulta({ onChange, data }) {
   const [busquedaProducto, setBusquedaProducto] = useState('');
   const [loadingProductos, setLoadingProductos] = useState(false);
 
+  // Medicamentos frecuentes del paciente
+  const [medicamentosFrecuentes, setMedicamentosFrecuentes] = useState([]);
+  const [loadingFrecuentes, setLoadingFrecuentes] = useState(false);
+
   useEffect(() => {
     if (quiereAgregar) {
       cargarProductos();
+      if (pacienteId) {
+        cargarMedicamentosFrecuentes();
+      }
     }
-  }, [quiereAgregar]);
+  }, [quiereAgregar, pacienteId]);
+
+  const cargarMedicamentosFrecuentes = async () => {
+    if (!pacienteId) return;
+    setLoadingFrecuentes(true);
+    try {
+      const response = await apiGet(`/consultas/frecuentes/${pacienteId}`);
+      if (response.success && response.data?.medicamentos) {
+        setMedicamentosFrecuentes(response.data.medicamentos);
+      }
+    } catch (error) {
+      console.error('Error cargando medicamentos frecuentes:', error);
+    } finally {
+      setLoadingFrecuentes(false);
+    }
+  };
+
+  // Agregar medicamento frecuente rápidamente
+  const agregarMedicamentoFrecuente = (frecuente) => {
+    if (!frecuente.producto) return;
+
+    const nuevoMedicamento = {
+      productoId: frecuente.producto.id,
+      nombre: frecuente.producto.nombre,
+      precio: frecuente.producto.precioVenta || 0,
+      dosis: frecuente.ultimaDosis?.dosis || '',
+      via: frecuente.ultimaDosis?.via || 'Oral',
+      frecuencia: frecuente.ultimaDosis?.frecuencia || 'Cada8Horas',
+      duracionDias: frecuente.ultimaDosis?.duracion || '',
+      instrucciones: frecuente.ultimaDosis?.instrucciones || '',
+    };
+
+    const newMedicamentos = [...formData.medicamentos, nuevoMedicamento];
+    const newData = { ...formData, medicamentos: newMedicamentos };
+    setFormData(newData);
+    onChange(newData, isComplete(newData));
+
+    toast({
+      title: 'Medicamento agregado',
+      description: `${frecuente.producto.nombre} agregado con la dosis anterior`,
+    });
+  };
 
   useEffect(() => {
     // Filtrar productos cuando cambie la búsqueda
@@ -186,8 +250,63 @@ export default function FormularioPrescripcionesConsulta({ onChange, data }) {
           </div>
         )}
 
+        {/* Medicamentos Frecuentes del Paciente */}
+        {medicamentosFrecuentes.length > 0 && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <History className="h-4 w-4 text-amber-600" />
+              <span className="text-sm font-semibold text-amber-800">Medicamentos Frecuentes del Paciente</span>
+              <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300">
+                Click para agregar
+              </Badge>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {medicamentosFrecuentes.slice(0, 8).map((frecuente, idx) => {
+                const yaAgregado = formData.medicamentos.some(
+                  m => m.productoId === frecuente.producto?.id
+                );
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => !yaAgregado && agregarMedicamentoFrecuente(frecuente)}
+                    disabled={yaAgregado}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-all ${
+                      yaAgregado
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-white hover:bg-amber-100 text-amber-800 border border-amber-200 hover:border-amber-400 cursor-pointer shadow-sm hover:shadow'
+                    }`}
+                  >
+                    <Pill className="h-3 w-3" />
+                    <span className="font-medium">{frecuente.producto?.nombre}</span>
+                    <span className="text-xs text-gray-500">({frecuente.vecesRecetado}x)</span>
+                    {yaAgregado && <Sparkles className="h-3 w-3 text-green-500" />}
+                  </button>
+                );
+              })}
+            </div>
+            {medicamentosFrecuentes.length > 8 && (
+              <p className="text-xs text-amber-600 mt-2">
+                +{medicamentosFrecuentes.length - 8} medicamentos más en el historial
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
-          <Label htmlFor="diagnostico">Diagnóstico para la prescripción</Label>
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Label htmlFor="diagnostico">Diagnóstico para la prescripción</Label>
+              {diagnosticoConsulta?.principal?.codigoCIE10 && (
+                <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300">
+                  Auto-llenado desde consulta
+                </Badge>
+              )}
+            </div>
+            <TemplateSelector 
+              category="DIAGNOSTICO" 
+              onSelect={(text) => handleChange('diagnostico', formData.diagnostico + (formData.diagnostico ? '\n' : '') + text)} 
+            />
+          </div>
           <Textarea
             id="diagnostico"
             value={formData.diagnostico}

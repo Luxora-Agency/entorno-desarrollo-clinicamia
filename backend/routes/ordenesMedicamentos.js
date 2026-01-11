@@ -67,7 +67,7 @@ ordenesMedicamentos.put('/:id', async (c) => {
 /**
  * POST /ordenes-medicamentos/:id/despachar - Despachar una orden de medicamento
  */
-ordenesMedicamentos.post('/:id/administrar', async (c) => {
+ordenesMedicamentos.post('/:id/despachar', async (c) => {
   try {
     const { id } = c.req.param();
     const user = c.get('user');
@@ -81,7 +81,7 @@ ordenesMedicamentos.post('/:id/administrar', async (c) => {
 /**
  * POST /ordenes-medicamentos/:id/cancelar - Cancelar una orden de medicamento
  */
-ordenesMedicamentos.post('/:id/administrar', async (c) => {
+ordenesMedicamentos.post('/:id/cancelar', async (c) => {
   try {
     const { id } = c.req.param();
     const body = await c.req.json();

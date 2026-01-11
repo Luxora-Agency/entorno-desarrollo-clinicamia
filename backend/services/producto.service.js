@@ -3,6 +3,23 @@
  */
 const prisma = require('../db/prisma');
 const { ValidationError, NotFoundError } = require('../utils/errors');
+const { createProductoSchema, updateProductoSchema } = require('../validators/producto.schema');
+
+// Siigo integration for product synchronization
+let productSiigoService = null;
+let siigoService = null;
+
+const getSiigoServices = () => {
+  if (!productSiigoService) {
+    try {
+      productSiigoService = require('./siigo/product.siigo.service');
+      siigoService = require('./siigo/siigo.service');
+    } catch (e) {
+      console.warn('[Producto] Siigo services not available:', e.message);
+    }
+  }
+  return { productSiigoService, siigoService };
+};
 
 class ProductoService {
   /**
@@ -14,17 +31,21 @@ class ProductoService {
     search, 
     activo,
     controlado,
-    requiereReceta 
+    requiereReceta,
+    categoriaId
   }) {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {};
     
-    // Filtro de búsqueda (nombre, principio activo)
+    // Filtro de búsqueda (nombre, principio activo, ATC, CUM)
     if (search) {
       where.OR = [
         { nombre: { contains: search, mode: 'insensitive' } },
         { principioActivo: { contains: search, mode: 'insensitive' } },
+        { codigoAtc: { contains: search, mode: 'insensitive' } },
+        { cum: { contains: search, mode: 'insensitive' } },
+        { sku: { contains: search, mode: 'insensitive' } },
         { descripcion: { contains: search, mode: 'insensitive' } },
       ];
     }
@@ -32,6 +53,7 @@ class ProductoService {
     if (activo !== undefined) where.activo = activo === 'true' || activo === true;
     if (controlado !== undefined) where.controlado = controlado === 'true' || controlado === true;
     if (requiereReceta !== undefined) where.requiereReceta = requiereReceta === 'true' || requiereReceta === true;
+    if (categoriaId) where.categoriaId = categoriaId;
 
     const [medicamentos, total] = await Promise.all([
       prisma.producto.findMany({
@@ -39,12 +61,62 @@ class ProductoService {
         skip,
         take: parseInt(limit),
         orderBy: { nombre: 'asc' },
+        include: {
+          categoria: true
+        }
       }),
       prisma.producto.count({ where }),
     ]);
 
-    // Retornar en formato plano para que success() lo envuelva correctamente
+    // Retornar solo el array para mantener compatibilidad con frontend existente
+    // TODO: Migrar a respuesta paginada { data, total } en v2
     return medicamentos;
+  }
+
+  /**
+   * Obtener estadísticas de productos
+   */
+  async getStats() {
+    const [total, activos, inactivos, requierenReceta, todosProductos] = await Promise.all([
+      prisma.producto.count(),
+      prisma.producto.count({ where: { activo: true } }),
+      prisma.producto.count({ where: { activo: false } }),
+      prisma.producto.count({ where: { requiereReceta: true } }),
+      prisma.producto.findMany({
+          select: {
+              cantidadTotal: true,
+              cantidadConsumida: true,
+              cantidadMinAlerta: true,
+              precioVenta: true,
+              activo: true
+          }
+      })
+    ]);
+
+    let bajoStock = 0;
+    let valorInventario = 0;
+
+    todosProductos.forEach(p => {
+        if (p.activo) {
+            const disponible = p.cantidadTotal - p.cantidadConsumida;
+            if (disponible < p.cantidadMinAlerta) {
+                bajoStock++;
+            }
+            if (disponible > 0) {
+                valorInventario += (disponible * p.precioVenta);
+            }
+        }
+    });
+
+    return {
+      total,
+      activos,
+      inactivos,
+      bajoStock,
+      requiereReceta: requierenReceta, // Fixed key name to match frontend expectation (requierenReceta vs requiereReceta)
+      requierenReceta, // Keeping both just in case
+      valorInventario
+    };
   }
 
   /**
@@ -54,7 +126,7 @@ class ProductoService {
     const medicamento = await prisma.producto.findUnique({
       where: { id },
       include: {
-        prescripciones: {
+        prescripcionesMedicamentos: {
           take: 5,
           orderBy: { createdAt: 'desc' },
         },
@@ -72,34 +144,25 @@ class ProductoService {
    * Crear medicamento/producto
    */
   async create(data) {
-    // Validaciones básicas
-    if (!data.nombre) {
-      throw new ValidationError('El nombre es requerido');
-    }
-    if (!data.sku) {
-      throw new ValidationError('El SKU es requerido');
-    }
-    if (!data.categoriaId) {
-      throw new ValidationError('La categoría es requerida');
+    // Validar datos con Zod
+    const validatedData = createProductoSchema.parse(data);
+
+    // Verificar si el SKU ya existe
+    const existingSku = await prisma.producto.findUnique({
+      where: { sku: validatedData.sku }
+    });
+
+    if (existingSku) {
+      throw new ValidationError(`El SKU ${validatedData.sku} ya está registrado`);
     }
 
     const producto = await prisma.producto.create({
-      data: {
-        sku: data.sku,
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        principioActivo: data.principioActivo,
-        concentracion: data.concentracion,
-        presentacion: data.presentacion,
-        viaAdministracion: data.viaAdministracion,
-        requiereReceta: data.requiereReceta !== false,
-        categoriaId: data.categoriaId,
-        precioVenta: data.precioVenta || 0,
-        precioCompra: data.precioCompra || 0,
-        cantidadTotal: data.cantidadTotal || 0,
-        cantidadMinAlerta: data.cantidadMinAlerta || 10,
-        activo: data.activo !== false,
-      },
+      data: validatedData,
+    });
+
+    // Sincronizar con Siigo de forma asíncrona
+    this.syncProductoConSiigoAsync(producto.id).catch(err => {
+      console.error(`[Producto] Error sincronizando producto ${producto.id} con Siigo:`, err.message);
     });
 
     return producto;
@@ -109,24 +172,32 @@ class ProductoService {
    * Actualizar producto/medicamento
    */
   async update(id, data) {
-    const producto = await this.getById(id);
+    await this.getById(id); // Verificar existencia
+
+    // Validar datos con Zod (partial)
+    const validatedData = updateProductoSchema.parse(data);
+
+    // Si se actualiza el SKU, verificar duplicados
+    if (validatedData.sku) {
+      const existingSku = await prisma.producto.findFirst({
+        where: { 
+          sku: validatedData.sku,
+          id: { not: id }
+        }
+      });
+      if (existingSku) {
+        throw new ValidationError(`El SKU ${validatedData.sku} ya está registrado`);
+      }
+    }
 
     const updated = await prisma.producto.update({
       where: { id },
-      data: {
-        nombre: data.nombre,
-        descripcion: data.descripcion,
-        principioActivo: data.principioActivo,
-        concentracion: data.concentracion,
-        presentacion: data.presentacion,
-        viaAdministracion: data.viaAdministracion,
-        requiereReceta: data.requiereReceta,
-        precioVenta: data.precioVenta,
-        precioCompra: data.precioCompra,
-        cantidadTotal: data.cantidadTotal,
-        cantidadMinAlerta: data.cantidadMinAlerta,
-        activo: data.activo,
-      },
+      data: validatedData,
+    });
+
+    // Sincronizar con Siigo de forma asíncrona
+    this.syncProductoConSiigoAsync(updated.id).catch(err => {
+      console.error(`[Producto] Error sincronizando actualización de producto ${updated.id} con Siigo:`, err.message);
     });
 
     return updated;
@@ -144,6 +215,15 @@ class ProductoService {
     });
 
     return deleted;
+  }
+
+  /**
+   * Verificar disponibilidad de stock
+   */
+  async verificarStock(id, cantidad) {
+    const producto = await this.getById(id);
+    const disponible = producto.cantidadTotal - producto.cantidadConsumida;
+    return disponible >= cantidad;
   }
 
   /**
@@ -191,70 +271,273 @@ class ProductoService {
   /**
    * Verificar alergias del paciente
    */
-  async verificarAlergias(pacienteId, medicamentosIds) {
-    const paciente = await prisma.paciente.findUnique({
-      where: { id: pacienteId },
-      select: {
-        id: true,
-        nombre: true,
-        apellido: true,
-        alergias: true,
-        alertasClinicas: {
+  /**
+   * Importar medicamentos desde la API de Datos Abiertos Colombia (Socrata)
+   * Dataset: Medicamentos incluidos en el PBS
+   */
+  async importFromSocrata() {
+    const url = 'https://www.datos.gov.co/resource/jtqe-tuvf.json?$limit=5000';
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Error al conectar con la API de Datos Abiertos');
+    
+    const data = await response.json();
+    
+    // 1. Obtener o crear categoría PBS
+    let categoria = await prisma.categoriaProducto.findFirst({
+      where: { nombre: 'Plan de Beneficios en Salud (PBS)' }
+    });
+    
+    if (!categoria) {
+      categoria = await prisma.categoriaProducto.create({
+        data: {
+          nombre: 'Plan de Beneficios en Salud (PBS)',
+          descripcion: 'Medicamentos financiados con recursos de la UPC',
+          color: '#3b82f6'
+        }
+      });
+    }
+
+    const resultados = {
+      procesados: 0,
+      creados: 0,
+      actualizados: 0,
+      errores: 0
+    };
+
+    // 2. Procesar en lotes para no saturar la BD
+    for (const item of data) {
+      try {
+        resultados.procesados++;
+        
+        // El SKU será el código ATC + ID para asegurar unicidad en este dataset
+        const sku = `PBS-${item.codigoatc || 'GEN'}-${item.id}`;
+        const nombre = (item.principioactivo || 'Medicamento sin nombre').trim().toUpperCase();
+        
+        const productoData = {
+          nombre: nombre.substring(0, 255),
+          sku: sku,
+          categoriaId: categoria.id,
+          principioActivo: item.principioactivo,
+          codigoAtc: item.codigoatc,
+          presentacion: item.formafarmaceutica,
+          descripcion: item.resumen || item.aclaracion,
+          cantidadTotal: 0, 
+          cantidadMinAlerta: 10,
+          precioVenta: 0, 
+          activo: true,
+          requiereReceta: true
+        };
+
+        const existing = await prisma.producto.findUnique({ where: { sku } });
+
+        if (existing) {
+          await prisma.producto.update({
+            where: { id: existing.id },
+            data: productoData
+          });
+          resultados.actualizados++;
+        } else {
+          await prisma.producto.create({ data: productoData });
+          resultados.creados++;
+        }
+      } catch (err) {
+        console.error(`Error procesando item ${item.id}:`, err.message);
+        resultados.errores++;
+      }
+    }
+
+    return resultados;
+  }
+
+  /**
+   * Importar medicamentos desde contenido CSV
+   */
+  async importFromCSV(csvContent, categoriaId = null) {
+    const lines = csvContent.split('\n');
+    const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+    
+    const resultados = {
+      procesados: 0,
+      creados: 0,
+      actualizados: 0,
+      errores: 0
+    };
+
+    // Obtener categoría por defecto si no se pasa una
+    if (!categoriaId) {
+      const cat = await prisma.categoriaProducto.findFirst({ where: { nombre: 'Importados' } });
+      if (cat) categoriaId = cat.id;
+      else {
+        const newCat = await prisma.categoriaProducto.create({
+          data: { nombre: 'Importados', color: '#10b981' }
+        });
+        categoriaId = newCat.id;
+      }
+    }
+
+    for (let i = 1; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      
+      try {
+        resultados.procesados++;
+        const values = lines[i].split(',').map(v => v.trim());
+        const data = {};
+        
+        header.forEach((key, index) => {
+          data[key] = values[index];
+        });
+
+        // Mapeo básico de campos comunes en CSV
+        const sku = data.sku || data.codigo || `CSV-${Date.now()}-${i}`;
+        const finalData = {
+          nombre: (data.nombre || data.producto || 'Sin Nombre').trim().toUpperCase(),
+          sku: sku,
+          categoriaId: categoriaId,
+          principioActivo: data.principio_activo || data.principioactivo || null,
+          codigoAtc: data.codigo_atc || data.atc || null,
+          cum: data.cum || null,
+          concentracion: data.concentracion || null,
+          presentacion: data.presentacion || data.forma_farmaceutica || null,
+          laboratorio: data.laboratorio || null,
+          registroSanitario: data.registro_sanitario || data.invima || null,
+          precioVenta: parseFloat(data.precio_venta || data.precio || 0),
+          cantidadTotal: parseInt(data.cantidad || data.stock || 0),
+          cantidadMinAlerta: parseInt(data.stock_minimo || 5),
+          activo: true
+        };
+
+        const existing = await prisma.producto.findUnique({ where: { sku } });
+
+        if (existing) {
+          await prisma.producto.update({ where: { id: existing.id }, data: finalData });
+          resultados.actualizados++;
+        } else {
+          await prisma.producto.create({ data: finalData });
+          resultados.creados++;
+        }
+      } catch (err) {
+        console.error(`Error en línea ${i}:`, err.message);
+        resultados.errores++;
+      }
+    }
+
+    return resultados;
+  }
+
+  // =============================================
+  // Integración con Siigo
+  // =============================================
+
+  /**
+   * Sincronizar producto con Siigo de forma asíncrona
+   * Este método no bloquea la operación principal
+   */
+  async syncProductoConSiigoAsync(productoId) {
+    try {
+      const { productSiigoService, siigoService } = getSiigoServices();
+
+      if (!productSiigoService || !siigoService) {
+        console.log(`[Producto] Servicios Siigo no disponibles - producto ${productoId} pendiente de sync`);
+        return;
+      }
+
+      // Verificar si Siigo está conectado
+      if (!siigoService.initialized) {
+        console.log(`[Producto] Siigo no conectado - producto ${productoId} será sincronizado por cron job`);
+        // Crear registro de sincronización pendiente
+        await prisma.siigoSync.upsert({
           where: {
-            tipoAlerta: 'AlergiaMedicamento',
+            entidad_entidadId: { entidad: 'producto', entidadId: productoId }
           },
-        },
-      },
-    });
+          update: {
+            estado: 'pendiente',
+            ultimaSync: new Date()
+          },
+          create: {
+            entidad: 'producto',
+            entidadId: productoId,
+            estado: 'pendiente'
+          }
+        });
+        return;
+      }
 
-    if (!paciente) {
-      throw new NotFoundError('Paciente no encontrado');
+      // Sincronizar con Siigo
+      await productSiigoService.syncProductoFarmacia(productoId);
+      console.log(`[Producto] ✓ Producto ${productoId} sincronizado con Siigo`);
+    } catch (error) {
+      console.error(`[Producto] Error en sync con Siigo para producto ${productoId}:`, error.message);
+
+      // Registrar error para reintento por cron
+      try {
+        await prisma.siigoSync.upsert({
+          where: {
+            entidad_entidadId: { entidad: 'producto', entidadId: productoId }
+          },
+          update: {
+            estado: 'error',
+            errorMessage: error.message,
+            ultimaSync: new Date()
+          },
+          create: {
+            entidad: 'producto',
+            entidadId: productoId,
+            estado: 'error',
+            errorMessage: error.message
+          }
+        });
+      } catch (syncErr) {
+        console.error(`[Producto] Error registrando sync error:`, syncErr.message);
+      }
+
+      throw error;
+    }
+  }
+
+  /**
+   * Forzar sincronización de un producto con Siigo
+   * Uso manual o desde endpoints de admin
+   */
+  async forceSyncWithSiigo(productoId) {
+    const producto = await this.getById(productoId);
+    if (!producto) {
+      throw new NotFoundError('Producto no encontrado');
     }
 
-    const medicamentos = await prisma.producto.findMany({
-      where: {
-        id: { in: medicamentosIds },
-      },
-      select: {
-        id: true,
-        nombre: true,
-        principioActivo: true,
-      },
-    });
+    return this.syncProductoConSiigoAsync(productoId);
+  }
 
-    const alertas = [];
+  /**
+   * Sincronizar todos los productos activos con Siigo
+   */
+  async syncAllProductsWithSiigo() {
+    const { productSiigoService, siigoService } = getSiigoServices();
 
-    // Verificar alergias del campo texto
-    if (paciente.alergias) {
-      medicamentos.forEach(med => {
-        if (paciente.alergias.toLowerCase().includes(med.nombre.toLowerCase()) ||
-            (med.principioActivo && paciente.alergias.toLowerCase().includes(med.principioActivo.toLowerCase()))) {
-          alertas.push({
-            tipo: 'alergia',
-            medicamento: med.nombre,
-            mensaje: `ALERTA: El paciente tiene alergia registrada a ${med.nombre}`,
-            severidad: 'alta',
-          });
-        }
-      });
+    if (!productSiigoService || !siigoService) {
+      throw new Error('Servicios Siigo no disponibles');
     }
 
-    // Verificar alertas clínicas formales
-    paciente.alertasClinicas.forEach(alerta => {
-      medicamentos.forEach(med => {
-        if (alerta.descripcion.toLowerCase().includes(med.nombre.toLowerCase()) ||
-            (med.principioActivo && alerta.descripcion.toLowerCase().includes(med.principioActivo.toLowerCase()))) {
-          alertas.push({
-            tipo: 'alergia',
-            medicamento: med.nombre,
-            mensaje: `ALERTA: ${alerta.titulo} - ${alerta.descripcion}`,
-            severidad: alerta.severidad || 'alta',
-          });
-        }
-      });
+    if (!siigoService.initialized) {
+      throw new Error('Siigo no está conectado');
+    }
+
+    const productos = await prisma.producto.findMany({
+      where: { activo: true },
+      select: { id: true }
     });
 
-    return alertas;
+    const results = { success: 0, errors: [] };
+
+    for (const producto of productos) {
+      try {
+        await productSiigoService.syncProductoFarmacia(producto.id);
+        results.success++;
+      } catch (error) {
+        results.errors.push({ productoId: producto.id, error: error.message });
+      }
+    }
+
+    return results;
   }
 }
 

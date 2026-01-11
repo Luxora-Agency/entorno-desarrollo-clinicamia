@@ -1,12 +1,119 @@
 const { Hono } = require('hono');
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../db/prisma');
 const { authMiddleware } = require('../middleware/auth');
-const prisma = new PrismaClient();
+const firmaDigitalService = require('../services/firmaDigital.service');
+const auditoriaService = require('../services/auditoria.service');
+const consultaService = require('../services/consulta.service');
 
 const consultasRouter = new Hono();
 
 // Todas las rutas requieren autenticación
 consultasRouter.use('*', authMiddleware);
+
+/**
+ * GET /consultas/tipo-consulta/:pacienteId
+ * Detecta si es primera consulta o consulta de control
+ */
+consultasRouter.get('/tipo-consulta/:pacienteId', async (c) => {
+  try {
+    const { pacienteId } = c.req.param();
+
+    const tipoConsulta = await consultaService.obtenerTipoConsulta(pacienteId);
+
+    return c.json({
+      success: true,
+      data: tipoConsulta
+    });
+  } catch (error) {
+    console.error('Error al obtener tipo de consulta:', error);
+    return c.json({
+      success: false,
+      message: 'Error al obtener tipo de consulta',
+      error: error.message
+    }, 500);
+  }
+});
+
+/**
+ * GET /consultas/historial/:pacienteId
+ * Obtiene el historial de consultas del paciente
+ */
+consultasRouter.get('/historial/:pacienteId', async (c) => {
+  try {
+    const { pacienteId } = c.req.param();
+    const limit = parseInt(c.req.query('limit')) || 10;
+
+    const historial = await consultaService.obtenerHistorialConsultas(pacienteId, limit);
+
+    return c.json({
+      success: true,
+      data: historial
+    });
+  } catch (error) {
+    console.error('Error al obtener historial de consultas:', error);
+    return c.json({
+      success: false,
+      message: 'Error al obtener historial de consultas',
+      error: error.message
+    }, 500);
+  }
+});
+
+/**
+ * GET /consultas/ultima-completa/:pacienteId
+ * Obtiene la última consulta completa con todos sus datos para pre-llenar controles
+ */
+consultasRouter.get('/ultima-completa/:pacienteId', async (c) => {
+  try {
+    const { pacienteId } = c.req.param();
+
+    const consultaCompleta = await consultaService.obtenerUltimaConsultaCompleta(pacienteId);
+
+    if (!consultaCompleta) {
+      return c.json({
+        success: true,
+        data: null,
+        message: 'No hay consultas previas'
+      });
+    }
+
+    return c.json({
+      success: true,
+      data: consultaCompleta
+    });
+  } catch (error) {
+    console.error('Error al obtener última consulta completa:', error);
+    return c.json({
+      success: false,
+      message: 'Error al obtener última consulta completa',
+      error: error.message
+    }, 500);
+  }
+});
+
+/**
+ * GET /consultas/frecuentes/:pacienteId
+ * Obtiene medicamentos, diagnósticos y órdenes más frecuentes del paciente
+ */
+consultasRouter.get('/frecuentes/:pacienteId', async (c) => {
+  try {
+    const { pacienteId } = c.req.param();
+
+    const frecuentes = await consultaService.obtenerFrecuentes(pacienteId);
+
+    return c.json({
+      success: true,
+      data: frecuentes
+    });
+  } catch (error) {
+    console.error('Error al obtener datos frecuentes:', error);
+    return c.json({
+      success: false,
+      message: 'Error al obtener datos frecuentes',
+      error: error.message
+    }, 500);
+  }
+});
 
 /**
  * POST /consultas/finalizar
@@ -30,6 +137,10 @@ consultasRouter.post('/finalizar', async (c) => {
       alertas,
       procedimientos,
       prescripciones,
+      motivoConsulta,
+      enfermedadActual,
+      esPrimeraConsulta,
+      planManejo, // Nuevo: para kits de medicamentos
     } = body;
 
     // Validar que venga el SOAP (obligatorio)
@@ -37,12 +148,53 @@ consultasRouter.post('/finalizar', async (c) => {
       return c.json({ message: 'Los datos SOAP son obligatorios' }, 400);
     }
 
+    // Validar diagnósticos especiales (cáncer y enfermedades huérfanas)
+    if (diagnostico?.principal?.codigoCIE10) {
+      const { requiereValidacionEspecial } = require('../constants/diagnosticosEspeciales');
+      const requiere = requiereValidacionEspecial(diagnostico.principal.codigoCIE10);
+
+      if (requiere.requiereValidacion) {
+        const val = diagnostico.validacionEspecial;
+
+        if (!val?.fechaDiagnosticoExacta || !val?.estadoConfirmacion) {
+          return c.json({
+            success: false,
+            message: `Diagnóstico de ${requiere.nombre} requiere validación completa: fecha exacta y estado de confirmación son obligatorios`
+          }, 400);
+        }
+
+        // Si está confirmado, requiere método
+        if (val.estadoConfirmacion === 'confirmado' && !val.metodoConfirmacion) {
+          return c.json({
+            success: false,
+            message: 'Diagnóstico confirmado requiere especificar método de confirmación'
+          }, 400);
+        }
+
+        // Si método es "otro", requiere detalle
+        if (val.metodoConfirmacion === 'otro' && !val.metodoConfirmacionDetalle) {
+          return c.json({
+            success: false,
+            message: 'Método de confirmación "otro" requiere especificar detalles'
+          }, 400);
+        }
+      }
+    }
+
     // Usar transacción para garantizar atomicidad
     const resultado = await prisma.$transaction(async (tx) => {
       const resultados = {};
+      const fechaActual = new Date();
 
       // 1. Guardar Evolución SOAP (obligatorio)
-      const evolucion = await tx.evolucionClinica.create({
+      let planFinal = soap.plan;
+      // Incorporar Kits de Medicamentos al Plan (Point of Care)
+      if (planManejo && planManejo.kitsAplicados && planManejo.kitsAplicados.length > 0) {
+        const kitsTexto = planManejo.kitsAplicados.map(k => `${k.nombre} (${k.medicamentos.join(', ')})`).join('; ');
+        planFinal += `\n\n[APLICACIÓN INMEDIATA DE MEDICAMENTOS]\nSe aplicaron los siguientes kits: ${kitsTexto}`;
+      }
+
+      let evolucion = await tx.evolucionClinica.create({
         data: {
           pacienteId,
           citaId,
@@ -50,11 +202,59 @@ consultasRouter.post('/finalizar', async (c) => {
           subjetivo: soap.subjetivo,
           objetivo: soap.objetivo,
           analisis: soap.analisis,
-          plan: soap.plan,
-          tipoEvolucion: 'Seguimiento', // Seguimiento para consulta ambulatoria
+          plan: planFinal,
+          tipoEvolucion: 'Seguimiento',
+          fechaEvolucion: fechaActual,
+          // Nuevos campos para mejoras de consulta
+          motivoConsulta: motivoConsulta || null,
+          enfermedadActual: enfermedadActual || null,
+          esPrimeraConsulta: esPrimeraConsulta || false,
+        },
+      });
+
+      // 1.1 FIRMA DIGITAL Y HASH
+      // Generar firma digital
+      const dataParaFirmar = {
+        subjetivo: evolucion.subjetivo,
+        objetivo: evolucion.objetivo,
+        analisis: evolucion.analisis,
+        plan: evolucion.plan,
+        fechaEvolucion: evolucion.fechaEvolucion,
+      };
+      
+      const firma = firmaDigitalService.crearFirma(dataParaFirmar, doctorId);
+      
+      evolucion = await tx.evolucionClinica.update({
+        where: { id: evolucion.id },
+        data: {
+          firmada: true,
+          firmaDigital: firma.firmaDigital,
+          hashRegistro: firma.hashRegistro,
+          fechaFirma: firma.fechaFirma,
+          ipRegistro: c.req.header('x-forwarded-for') || '127.0.0.1',
         },
       });
       resultados.evolucion = evolucion;
+
+      // 1.2 Auditoría de Creación y Firma
+      // Nota: Auditoría se hace fuera de la transacción habitualmente para no bloquear, 
+      // pero aquí queremos asegurar que si falla la transacción no quede log.
+      // Sin embargo, el servicio de auditoría usa `prisma` (global), no `tx`.
+      // Por simplicidad y consistencia, lo llamaremos DESPUÉS de la transacción si todo sale bien,
+      // o podríamos instanciar el log aquí mismo usando `tx`.
+      await tx.auditoriaHCE.create({
+        data: {
+          entidad: 'EvolucionClinica',
+          entidadId: evolucion.id,
+          accion: 'Firma', // Valores válidos: Creacion, Modificacion, Eliminacion, Visualizacion, Firma, Descarga, Impresion
+          usuarioId: doctorId,
+          nombreUsuario: `${user?.nombre || ''} ${user?.apellido || ''}`.trim() || 'Doctor',
+          rol: user?.rol || 'Doctor',
+          valoresNuevos: evolucion,
+          hashRegistro: firma.hashRegistro,
+          ipOrigen: c.req.header('x-forwarded-for') || '127.0.0.1',
+        },
+      });
 
       // 2. Guardar Signos Vitales (si los hay)
       if (vitales) {
@@ -78,6 +278,27 @@ consultasRouter.post('/finalizar', async (c) => {
             saturacionOxigeno: vitales.saturacionOxigeno ? limitarValor(vitales.saturacionOxigeno, 100) : null,
             peso: vitales.peso ? limitarValor(vitales.peso, 999.99) : null,
             talla: vitales.talla ? limitarValor(vitales.talla, 999.99) : null,
+            // Nuevos campos de examen físico avanzado
+            perimetroAbdominal: vitales.perimetroAbdominal ? limitarValor(vitales.perimetroAbdominal, 999.99) : null,
+            perimetroCefalico: vitales.perimetroCefalico ? limitarValor(vitales.perimetroCefalico, 999.99) : null,
+            creatinina: vitales.creatinina ? limitarValor(vitales.creatinina, 99.99) : null,
+            tfgCkdEpi: vitales.tfg_ckdepi ? limitarValor(vitales.tfg_ckdepi, 999.99) : null,
+            glucosaAyunas: vitales.glucosaAyunas ? limitarValor(vitales.glucosaAyunas, 999.99) : null,
+            hba1c: vitales.hba1c ? limitarValor(vitales.hba1c, 99.99) : null,
+            colesterolTotal: vitales.colesterolTotal ? limitarValor(vitales.colesterolTotal, 999.99) : null,
+            colesterolHDL: vitales.colesterolHDL ? limitarValor(vitales.colesterolHDL, 999.99) : null,
+            colesterolLDL: vitales.colesterolLDL ? limitarValor(vitales.colesterolLDL, 999.99) : null,
+            trigliceridos: vitales.trigliceridos ? limitarValor(vitales.trigliceridos, 999.99) : null,
+            calcio: vitales.calcio ? limitarValor(vitales.calcio, 99.99) : null,
+            potasio: vitales.potasio ? limitarValor(vitales.potasio, 99.99) : null,
+            pth: vitales.pth ? limitarValor(vitales.pth, 999.99) : null,
+            // Perfil Tiroideo
+            tsh: vitales.tsh ? limitarValor(vitales.tsh, 999.999) : null,
+            tiroxinaLibre: vitales.tiroxinaLibre ? limitarValor(vitales.tiroxinaLibre, 99.99) : null,
+            tiroglobulina: vitales.tiroglobulina ? limitarValor(vitales.tiroglobulina, 99999.99) : null,
+            anticuerposAntitiroglobulina: vitales.anticuerposAntitiroglobulina ? limitarValor(vitales.anticuerposAntitiroglobulina, 99999.99) : null,
+            analisisTiroideo: vitales.analisisTiroideo || null,
+
             // Calcular IMC si hay peso y talla
             imc: (vitales.peso && vitales.talla) 
               ? parseFloat((parseFloat(vitales.peso) / Math.pow(parseFloat(vitales.talla) / 100, 2)).toFixed(2))
@@ -89,17 +310,42 @@ consultasRouter.post('/finalizar', async (c) => {
 
       // 3. Guardar Diagnóstico (si lo hay)
       if (diagnostico) {
+        const dataDiagnostico = {
+          pacienteId,
+          evolucionId: evolucion.id,
+          doctorId,
+          codigoCIE11: diagnostico.codigoCIE11,
+          descripcionCIE11: diagnostico.descripcionCIE11,
+          tipoDiagnostico: diagnostico.tipoDiagnostico || 'Principal',
+          estadoDiagnostico: 'Activo',
+          observaciones: diagnostico.observaciones,
+        };
+
+        // Incluir campos de validación especial si existen
+        if (diagnostico.validacionEspecial) {
+          const val = diagnostico.validacionEspecial;
+          if (val.fechaDiagnosticoExacta) {
+            dataDiagnostico.fechaDiagnosticoExacta = new Date(val.fechaDiagnosticoExacta);
+          }
+          if (val.estadoConfirmacion) {
+            dataDiagnostico.estadoConfirmacion = val.estadoConfirmacion;
+          }
+          if (val.metodoConfirmacion) {
+            dataDiagnostico.metodoConfirmacion = val.metodoConfirmacion;
+          }
+          if (val.metodoConfirmacionDetalle) {
+            dataDiagnostico.metodoConfirmacionDetalle = val.metodoConfirmacionDetalle;
+          }
+          if (val.documentoRespaldoUrl) {
+            dataDiagnostico.documentoRespaldoUrl = val.documentoRespaldoUrl;
+          }
+          if (val.documentoRespaldoNombre) {
+            dataDiagnostico.documentoRespaldoNombre = val.documentoRespaldoNombre;
+          }
+        }
+
         const diagnosticoHCE = await tx.diagnosticoHCE.create({
-          data: {
-            pacienteId,
-            evolucionId: evolucion.id,
-            doctorId,
-            codigoCIE11: diagnostico.codigoCIE11,
-            descripcionCIE11: diagnostico.descripcionCIE11,
-            tipoDiagnostico: diagnostico.tipoDiagnostico || 'Principal',
-            estadoDiagnostico: 'Activo',
-            observaciones: diagnostico.observaciones,
-          },
+          data: dataDiagnostico,
         });
         resultados.diagnostico = diagnosticoHCE;
       }
@@ -133,43 +379,62 @@ consultasRouter.post('/finalizar', async (c) => {
         resultados.alerta = alerta;
       }
 
-      // 5. Guardar Procedimientos/Exámenes (múltiples órdenes)
+      // 5. Guardar Procedimientos/Exámenes/Interconsultas
       if (procedimientos && Array.isArray(procedimientos) && procedimientos.length > 0) {
         const ordenesCreadas = [];
         const citasCreadas = [];
+        const interconsultasCreadas = [];
         
         for (const orden of procedimientos) {
-          // Crear OrdenMedica
-          const ordenMedica = await tx.ordenMedica.create({
-            data: {
-              pacienteId,
-              citaId, // La consulta actual que genera la orden
-              examenProcedimientoId: orden.servicioId,
-              doctorId,
-              precioAplicado: parseFloat(orden.costo),
-              observaciones: orden.observaciones || '',
-              estado: 'Pendiente',
-            },
-          });
-          ordenesCreadas.push(ordenMedica);
-          
-          // Crear Cita con estado PorAgendar (sin fecha/hora/doctor)
-          const citaPorAgendar = await tx.cita.create({
-            data: {
-              pacienteId,
-              tipoCita: orden.tipo, // 'Procedimiento' o 'Examen'
-              examenProcedimientoId: orden.servicioId,
-              costo: parseFloat(orden.costo),
-              motivo: orden.servicioNombre,
-              estado: 'PorAgendar',
-              // fecha, hora, doctorId son NULL
-            },
-          });
-          citasCreadas.push(citaPorAgendar);
+          if (orden.tipo === 'Interconsulta') {
+             // Crear Interconsulta
+             const interconsulta = await tx.interconsulta.create({
+               data: {
+                 pacienteId,
+                 citaId, // Vinculada a la cita actual
+                 // admisionId es opcional ahora, si hay admision vinculada a la cita se podria buscar, pero aqui es ambulatorio
+                 medicoSolicitanteId: doctorId,
+                 especialidadSolicitada: orden.servicioNombre, // Usamos el nombre del servicio como especialidad
+                 motivoConsulta: orden.observaciones || 'Remisión desde consulta externa',
+                 prioridad: 'Media',
+                 estado: 'Solicitada',
+                 observaciones: orden.observaciones,
+               }
+             });
+             interconsultasCreadas.push(interconsulta);
+          } else {
+             // Crear OrdenMedica y Cita (Procedimiento/Examen)
+             const ordenMedica = await tx.ordenMedica.create({
+               data: {
+                 pacienteId,
+                 citaId,
+                 examenProcedimientoId: orden.servicioId,
+                 doctorId,
+                 precioAplicado: parseFloat(orden.costo),
+                 observaciones: orden.observaciones || '',
+                 estado: 'Pendiente',
+               },
+             });
+             ordenesCreadas.push(ordenMedica);
+            
+             // Crear Cita con estado PorAgendar
+             const citaPorAgendar = await tx.cita.create({
+               data: {
+                 pacienteId,
+                 tipoCita: orden.tipo, 
+                 examenProcedimientoId: orden.servicioId,
+                 costo: parseFloat(orden.costo),
+                 motivo: orden.servicioNombre,
+                 estado: 'PorAgendar',
+               },
+             });
+             citasCreadas.push(citaPorAgendar);
+          }
         }
         
         resultados.ordenesMedicas = ordenesCreadas;
         resultados.citasPorAgendar = citasCreadas;
+        resultados.interconsultas = interconsultasCreadas;
       }
 
       // 6. Guardar Prescripciones (si las hay)
@@ -263,6 +528,79 @@ consultasRouter.post('/finalizar', async (c) => {
       },
       500
     );
+  }
+});
+
+/**
+ * POST /consultas/nota-ingreso
+ * Genera una nota de ingreso para hospitalización desde una consulta
+ */
+consultasRouter.post('/nota-ingreso', async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user) {
+      return c.json({ success: false, message: 'No autenticado' }, 401);
+    }
+
+    const body = await c.req.json();
+    const {
+      citaId,
+      pacienteId,
+      doctorId,
+      diagnostico,
+      evolucion,
+      vitales,
+      unidadId,
+      observaciones
+    } = body;
+
+    // Validaciones básicas
+    if (!pacienteId) {
+      return c.json({
+        success: false,
+        message: 'El ID del paciente es obligatorio'
+      }, 400);
+    }
+
+    // Generar nota de ingreso
+    const admision = await consultaService.generarNotaIngreso({
+      citaId,
+      pacienteId,
+      doctorId: doctorId || user.id,
+      diagnostico,
+      evolucion,
+      vitales,
+      unidadId,
+      observaciones
+    });
+
+    // Registrar auditoría
+    await prisma.auditoriaHCE.create({
+      data: {
+        entidad: 'Admision',
+        entidadId: admision.id,
+        accion: 'Creacion',
+        usuarioId: user.id,
+        nombreUsuario: `${user.nombre || ''} ${user.apellido || ''}`.trim() || 'Doctor',
+        rol: user.rol || 'Doctor',
+        valoresNuevos: admision,
+        ipOrigen: c.req.header('x-forwarded-for') || '127.0.0.1',
+      },
+    });
+
+    return c.json({
+      success: true,
+      message: 'Nota de ingreso generada exitosamente. El paciente ha sido registrado para hospitalización.',
+      data: admision
+    }, 201);
+
+  } catch (error) {
+    console.error('Error generando nota de ingreso:', error);
+    return c.json({
+      success: false,
+      message: 'Error al generar la nota de ingreso',
+      error: error.message
+    }, 500);
   }
 });
 

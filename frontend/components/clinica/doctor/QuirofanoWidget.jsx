@@ -50,7 +50,8 @@ const getTimeUntil = (fechaHora) => {
 };
 
 export default function QuirofanoWidget({
-  userId,
+  doctorId,
+  userId, // Deprecated: use doctorId instead
   onViewAll,
   onSelectProcedure,
   className = '',
@@ -60,9 +61,12 @@ export default function QuirofanoWidget({
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({ programadas: 0, enProceso: 0 });
 
+  // Support both props for backward compatibility
+  const effectiveDoctorId = doctorId || userId;
+
   useEffect(() => {
     const loadProcedures = async () => {
-      if (!userId) {
+      if (!effectiveDoctorId) {
         setLoading(false);
         return;
       }
@@ -73,7 +77,7 @@ export default function QuirofanoWidget({
         const today = new Date().toISOString().split('T')[0];
 
         const response = await fetch(
-          `${apiUrl}/procedimientos?medicoResponsableId=${userId}&fechaDesde=${today}&limit=${maxItems + 2}`,
+          `${apiUrl}/procedimientos?medicoResponsableId=${effectiveDoctorId}&fechaDesde=${today}&limit=${maxItems + 2}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -102,7 +106,7 @@ export default function QuirofanoWidget({
     };
 
     loadProcedures();
-  }, [userId, maxItems]);
+  }, [effectiveDoctorId, maxItems]);
 
   if (loading) {
     return (

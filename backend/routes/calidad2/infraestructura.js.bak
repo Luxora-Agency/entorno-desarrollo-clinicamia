@@ -1,0 +1,2420 @@
+const { Hono } = require('hono');
+const { authMiddleware, permissionMiddleware } = require('../../middleware/auth');
+const documentoLegalService = require('../../services/calidad2/infraestructura/documentoLegal.service');
+const alertaService = require('../../services/calidad2/infraestructura/alertaDocumentoLegal.service');
+const conceptoSanitarioService = require('../../services/calidad2/infraestructura/conceptoSanitario.service');
+const solicitudVisitaService = require('../../services/calidad2/infraestructura/solicitudVisita.service');
+const auditoriaService = require('../../services/calidad2/infraestructura/auditoria.service');
+const residuoRH1Service = require('../../services/calidad2/infraestructura/residuoRH1.service');
+const manifiestoService = require('../../services/calidad2/infraestructura/manifiestoRecoleccion.service');
+const actaDesactivacionService = require('../../services/calidad2/infraestructura/actaDesactivacion.service');
+const indicadorService = require('../../services/calidad2/infraestructura/indicadorPGIRASA.service');
+const medicionService = require('../../services/calidad2/infraestructura/medicionIndicador.service');
+const calculoService = require('../../services/calidad2/infraestructura/calculoIndicador.service');
+const formatoInfraestructuraService = require('../../services/calidad2/infraestructura/formatoInfraestructura.service');
+const reporteService = require('../../services/calidad2/infraestructura/reporte.service');
+const {
+  equipoInfraestructuraService,
+  mantenimientoInfraestructuraService,
+  documentoMantenimientoService,
+  cronogramaMantenimientoService,
+} = require('../../services/calidad2/infraestructura/mantenimientos');
+const { success, error, paginated } = require('../../utils/response');
+
+const router = new Hono();
+
+// Middleware global: requiere autenticación y permisos de Calidad 2.0
+router.use('/*', authMiddleware, permissionMiddleware('calidad2'));
+
+// ==========================================
+// DOCUMENTOS LEGALES
+// ==========================================
+
+/**
+ * GET /documentos-legales
+ * Listar todos los documentos legales con filtros
+ */
+router.get('/documentos-legales', async (c) => {
+  try {
+    const filters = {
+      carpetaId: c.req.query('carpetaId'),
+      tipoDocumento: c.req.query('tipoDocumento'),
+      tieneVencimiento: c.req.query('tieneVencimiento'),
+      page: c.req.query('page') || 1,
+      limit: c.req.query('limit') || 50,
+      orderBy: c.req.query('orderBy') || 'createdAt',
+      orderDir: c.req.query('orderDir') || 'desc',
+    };
+
+    const result = await documentoLegalService.findAll(filters);
+
+    return c.json(paginated(result.documentos, result.pagination, 'Documentos legales obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener documentos legales:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /documentos-legales/stats
+ * Obtener estadísticas de documentos legales
+ * IMPORTANTE: Esta ruta debe ir ANTES de /documentos-legales/:id
+ */
+router.get('/documentos-legales/stats', async (c) => {
+  try {
+    const estadisticas = await documentoLegalService.getEstadisticas();
+    return c.json(success(estadisticas, 'Estadísticas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /documentos-legales/proximos-vencer
+ * Obtener documentos próximos a vencer
+ */
+router.get('/documentos-legales/proximos-vencer', async (c) => {
+  try {
+    const diasAnticipacion = parseInt(c.req.query('dias') || 30);
+    const documentos = await documentoLegalService.getProximosAVencer(diasAnticipacion);
+    return c.json(success(documentos, 'Documentos próximos a vencer obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener documentos próximos a vencer:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /documentos-legales/vencidos
+ * Obtener documentos vencidos
+ */
+router.get('/documentos-legales/vencidos', async (c) => {
+  try {
+    const documentos = await documentoLegalService.getVencidos();
+    return c.json(success(documentos, 'Documentos vencidos obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener documentos vencidos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /documentos-legales/:id
+ * Obtener un documento legal por ID
+ */
+router.get('/documentos-legales/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const documento = await documentoLegalService.findById(id);
+    return c.json(success(documento, 'Documento legal obtenido'));
+  } catch (err) {
+    console.error('Error al obtener documento legal:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /documentos-legales
+ * Crear un nuevo documento legal con archivo
+ */
+router.post('/documentos-legales', async (c) => {
+  try {
+    const body = await c.req.parseBody();
+    const userId = c.get('userId');
+
+    // Extraer datos del documento
+    const data = {
+      nombre: body.nombre,
+      descripcion: body.descripcion,
+      tipoDocumento: body.tipoDocumento,
+      numeroDocumento: body.numeroDocumento,
+      entidadEmisora: body.entidadEmisora,
+      fechaEmision: body.fechaEmision,
+      fechaVencimiento: body.fechaVencimiento,
+      tieneVencimiento: body.tieneVencimiento === 'true' || body.tieneVencimiento === true,
+      diasAlerta: body.diasAlerta ? JSON.parse(body.diasAlerta) : [30, 15, 7],
+      carpetaId: body.carpetaId || null,
+    };
+
+    // Extraer archivo (multipart form data)
+    const file = body.archivo;
+
+    if (!file) {
+      return c.json(error('El archivo es requerido'), 400);
+    }
+
+    // Procesar archivo (en producción, subir a S3/Cloud Storage)
+    // Por ahora, simulamos la info del archivo
+    const archivo = {
+      archivoUrl: `/uploads/calidad2/infraestructura/${Date.now()}_${file.name}`,
+      archivoNombre: file.name,
+      archivoTipo: file.type,
+      archivoTamano: file.size,
+    };
+
+    const documento = await documentoLegalService.create(data, archivo, userId);
+
+    return c.json(success(documento, 'Documento legal creado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al crear documento legal:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /documentos-legales/:id
+ * Actualizar un documento legal
+ */
+router.put('/documentos-legales/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.parseBody();
+
+    const data = {
+      nombre: body.nombre,
+      descripcion: body.descripcion,
+      tipoDocumento: body.tipoDocumento,
+      numeroDocumento: body.numeroDocumento,
+      entidadEmisora: body.entidadEmisora,
+      fechaEmision: body.fechaEmision,
+      fechaVencimiento: body.fechaVencimiento,
+      tieneVencimiento: body.tieneVencimiento === 'true' || body.tieneVencimiento === true,
+      diasAlerta: body.diasAlerta ? JSON.parse(body.diasAlerta) : undefined,
+      carpetaId: body.carpetaId,
+    };
+
+    // Archivo opcional al actualizar
+    let archivo = null;
+    if (body.archivo) {
+      const file = body.archivo;
+      archivo = {
+        archivoUrl: `/uploads/calidad2/infraestructura/${Date.now()}_${file.name}`,
+        archivoNombre: file.name,
+        archivoTipo: file.type,
+        archivoTamano: file.size,
+      };
+    }
+
+    const documentoActualizado = await documentoLegalService.update(id, data, archivo);
+
+    return c.json(success(documentoActualizado, 'Documento legal actualizado'));
+  } catch (err) {
+    console.error('Error al actualizar documento legal:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /documentos-legales/:id
+ * Eliminar (soft delete) un documento legal
+ */
+router.delete('/documentos-legales/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await documentoLegalService.delete(id);
+    return c.json(success(null, 'Documento legal eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar documento legal:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// ALERTAS DE DOCUMENTOS LEGALES
+// ==========================================
+
+/**
+ * GET /alertas/dashboard
+ * Obtener dashboard de alertas
+ */
+router.get('/alertas/dashboard', async (c) => {
+  try {
+    const dashboard = await alertaService.getDashboard();
+    return c.json(success(dashboard, 'Dashboard de alertas obtenido'));
+  } catch (err) {
+    console.error('Error al obtener dashboard de alertas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /alertas
+ * Listar todas las alertas con filtros
+ */
+router.get('/alertas', async (c) => {
+  try {
+    const filters = {
+      estado: c.req.query('estado'),
+      tipo: c.req.query('tipo'),
+      documentoId: c.req.query('documentoId'),
+      page: c.req.query('page') || 1,
+      limit: c.req.query('limit') || 50,
+    };
+
+    const result = await alertaService.findAll(filters);
+
+    return c.json(paginated(result.alertas, result.pagination, 'Alertas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener alertas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /alertas/documento/:documentoId
+ * Obtener alertas por documento
+ */
+router.get('/alertas/documento/:documentoId', async (c) => {
+  try {
+    const { documentoId } = c.req.param();
+    const alertas = await alertaService.getAlertasPorDocumento(documentoId);
+    return c.json(success(alertas, 'Alertas del documento obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener alertas del documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /alertas/:id/resolver
+ * Marcar una alerta como resuelta
+ */
+router.post('/alertas/:id/resolver', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const alerta = await alertaService.marcarComoResuelto(id);
+    return c.json(success(alerta, 'Alerta marcada como resuelta'));
+  } catch (err) {
+    console.error('Error al resolver alerta:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /alertas/:id/reenviar
+ * Reenviar email de alerta
+ */
+router.post('/alertas/:id/reenviar', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const alerta = await alertaService.reenviarEmail(id);
+    return c.json(success(alerta, 'Email de alerta reenviado'));
+  } catch (err) {
+    console.error('Error al reenviar email de alerta:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /alertas/generar
+ * Generar alertas pendientes manualmente (normalmente ejecutado por cron)
+ */
+router.post('/alertas/generar', async (c) => {
+  try {
+    const resultado = await alertaService.generarAlertasPendientes();
+    return c.json(success(resultado, 'Alertas generadas'));
+  } catch (err) {
+    console.error('Error al generar alertas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// CONCEPTOS SANITARIOS
+// ==========================================
+
+/**
+ * GET /conceptos-sanitarios
+ * Listar conceptos sanitarios con filtros
+ */
+router.get('/conceptos-sanitarios', async (c) => {
+  try {
+    const anio = c.req.query('anio');
+    const tipoInspeccion = c.req.query('tipoInspeccion');
+    const estadoGeneral = c.req.query('estadoGeneral');
+    const page = parseInt(c.req.query('page')) || 1;
+    const limit = parseInt(c.req.query('limit')) || 50;
+
+    const result = await conceptoSanitarioService.findAll({
+      anio,
+      tipoInspeccion,
+      estadoGeneral,
+      page,
+      limit,
+    });
+
+    return c.json(paginated(result.data, result.pagination));
+  } catch (err) {
+    console.error('Error al listar conceptos sanitarios:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /conceptos-sanitarios/anios
+ * Obtener lista de años disponibles
+ */
+router.get('/conceptos-sanitarios/anios', async (c) => {
+  try {
+    const anios = await conceptoSanitarioService.getAniosDisponibles();
+    return c.json(success(anios, 'Años disponibles'));
+  } catch (err) {
+    console.error('Error al obtener años:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /conceptos-sanitarios/anio/:anio
+ * Obtener conceptos de un año específico
+ */
+router.get('/conceptos-sanitarios/anio/:anio', async (c) => {
+  try {
+    const { anio } = c.req.param();
+    const conceptos = await conceptoSanitarioService.findByAnio(anio);
+    return c.json(success(conceptos, 'Conceptos sanitarios del año'));
+  } catch (err) {
+    console.error('Error al obtener conceptos por año:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /conceptos-sanitarios/estadisticas/:anio
+ * Obtener estadísticas por año
+ */
+router.get('/conceptos-sanitarios/estadisticas/:anio', async (c) => {
+  try {
+    const { anio } = c.req.param();
+    const stats = await conceptoSanitarioService.getEstadisticasPorAnio(anio);
+    return c.json(success(stats, 'Estadísticas por año'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /conceptos-sanitarios/:id
+ * Obtener concepto sanitario por ID
+ */
+router.get('/conceptos-sanitarios/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const concepto = await conceptoSanitarioService.findById(id);
+    return c.json(success(concepto, 'Concepto sanitario encontrado'));
+  } catch (err) {
+    console.error('Error al obtener concepto sanitario:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /conceptos-sanitarios
+ * Crear nuevo concepto sanitario
+ */
+router.post('/conceptos-sanitarios', async (c) => {
+  try {
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const concepto = await conceptoSanitarioService.create(data, userId);
+    return c.json(success(concepto, 'Concepto sanitario creado'), 201);
+  } catch (err) {
+    console.error('Error al crear concepto sanitario:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /conceptos-sanitarios/:id
+ * Actualizar concepto sanitario
+ */
+router.put('/conceptos-sanitarios/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const concepto = await conceptoSanitarioService.update(id, data, userId);
+    return c.json(success(concepto, 'Concepto sanitario actualizado'));
+  } catch (err) {
+    console.error('Error al actualizar concepto:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /conceptos-sanitarios/:conceptoId/items/:itemId
+ * Actualizar un ítem específico del checklist
+ */
+router.put('/conceptos-sanitarios/:conceptoId/items/:itemId', async (c) => {
+  try {
+    const { conceptoId, itemId } = c.req.param();
+    const data = await c.req.json();
+    const item = await conceptoSanitarioService.updateItem(conceptoId, itemId, data);
+    return c.json(success(item, 'Ítem actualizado'));
+  } catch (err) {
+    console.error('Error al actualizar ítem:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /conceptos-sanitarios/:id
+ * Eliminar concepto sanitario (soft delete)
+ */
+router.delete('/conceptos-sanitarios/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await conceptoSanitarioService.delete(id);
+    return c.json(success(null, 'Concepto sanitario eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar concepto:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /conceptos-sanitarios/:id/documentos
+ * Subir documento a concepto sanitario
+ */
+router.post('/conceptos-sanitarios/:id/documentos', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.parseBody();
+    const userId = c.get('userId');
+
+    const file = body.archivo;
+    const archivo = {
+      archivoUrl: `/uploads/calidad2/conceptos/${Date.now()}_${file.name}`,
+      archivoNombre: file.name,
+      archivoTipo: file.type,
+      archivoTamano: file.size,
+    };
+
+    const metadata = {
+      nombre: body.nombre,
+      descripcion: body.descripcion || null,
+      tipoDocumento: body.tipoDocumento || 'EVIDENCIA',
+    };
+
+    const documento = await conceptoSanitarioService.uploadDocumento(id, archivo, metadata, userId);
+    return c.json(success(documento, 'Documento subido'), 201);
+  } catch (err) {
+    console.error('Error al subir documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /conceptos-sanitarios/documentos/:documentoId
+ * Eliminar documento de concepto sanitario
+ */
+router.delete('/conceptos-sanitarios/documentos/:documentoId', async (c) => {
+  try {
+    const { documentoId } = c.req.param();
+    await conceptoSanitarioService.deleteDocumento(documentoId);
+    return c.json(success(null, 'Documento eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// SOLICITUDES DE VISITA
+// ==========================================
+
+/**
+ * GET /solicitudes-visita
+ * Listar solicitudes de visita con filtros
+ */
+router.get('/solicitudes-visita', async (c) => {
+  try {
+    const anio = c.req.query('anio');
+    const estado = c.req.query('estado');
+    const page = parseInt(c.req.query('page')) || 1;
+    const limit = parseInt(c.req.query('limit')) || 50;
+
+    const result = await solicitudVisitaService.findAll({ anio, estado, page, limit });
+    return c.json(paginated(result.data, result.pagination));
+  } catch (err) {
+    console.error('Error al listar solicitudes:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /solicitudes-visita/anio/:anio
+ * Obtener solicitudes de un año
+ */
+router.get('/solicitudes-visita/anio/:anio', async (c) => {
+  try {
+    const { anio } = c.req.param();
+    const solicitudes = await solicitudVisitaService.findByAnio(anio);
+    return c.json(success(solicitudes, 'Solicitudes del año'));
+  } catch (err) {
+    console.error('Error al obtener solicitudes:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /solicitudes-visita/proximas
+ * Obtener solicitudes próximas (30 días)
+ */
+router.get('/solicitudes-visita/proximas', async (c) => {
+  try {
+    const dias = parseInt(c.req.query('dias')) || 30;
+    const solicitudes = await solicitudVisitaService.getProximas(dias);
+    return c.json(success(solicitudes, 'Solicitudes próximas'));
+  } catch (err) {
+    console.error('Error al obtener solicitudes próximas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /solicitudes-visita/estadisticas/:anio
+ * Estadísticas de solicitudes por año
+ */
+router.get('/solicitudes-visita/estadisticas/:anio', async (c) => {
+  try {
+    const { anio } = c.req.param();
+    const stats = await solicitudVisitaService.getEstadisticasPorAnio(anio);
+    return c.json(success(stats, 'Estadísticas de solicitudes'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /solicitudes-visita/:id
+ * Obtener solicitud por ID
+ */
+router.get('/solicitudes-visita/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const solicitud = await solicitudVisitaService.findById(id);
+    return c.json(success(solicitud, 'Solicitud encontrada'));
+  } catch (err) {
+    console.error('Error al obtener solicitud:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /solicitudes-visita
+ * Crear solicitud de visita
+ */
+router.post('/solicitudes-visita', async (c) => {
+  try {
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const solicitud = await solicitudVisitaService.create(data, userId);
+    return c.json(success(solicitud, 'Solicitud creada'), 201);
+  } catch (err) {
+    console.error('Error al crear solicitud:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /solicitudes-visita/:id
+ * Actualizar solicitud
+ */
+router.put('/solicitudes-visita/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const solicitud = await solicitudVisitaService.update(id, data);
+    return c.json(success(solicitud, 'Solicitud actualizada'));
+  } catch (err) {
+    console.error('Error al actualizar solicitud:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /solicitudes-visita/:id/estado
+ * Cambiar estado de solicitud
+ */
+router.post('/solicitudes-visita/:id/estado', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { estado } = await c.req.json();
+    const solicitud = await solicitudVisitaService.cambiarEstado(id, estado);
+    return c.json(success(solicitud, 'Estado actualizado'));
+  } catch (err) {
+    console.error('Error al cambiar estado:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /solicitudes-visita/:id
+ * Eliminar solicitud (soft delete)
+ */
+router.delete('/solicitudes-visita/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await solicitudVisitaService.delete(id);
+    return c.json(success(null, 'Solicitud eliminada'));
+  } catch (err) {
+    console.error('Error al eliminar solicitud:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /solicitudes-visita/:id/documentos
+ * Subir documento a solicitud
+ */
+router.post('/solicitudes-visita/:id/documentos', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.parseBody();
+    const userId = c.get('userId');
+
+    const file = body.archivo;
+    const archivo = {
+      archivoUrl: `/uploads/calidad2/solicitudes/${Date.now()}_${file.name}`,
+      archivoNombre: file.name,
+      archivoTipo: file.type,
+      archivoTamano: file.size,
+    };
+
+    const metadata = {
+      nombre: body.nombre,
+      descripcion: body.descripcion || null,
+      tipoDocumento: body.tipoDocumento || 'REQUISITO',
+    };
+
+    const documento = await solicitudVisitaService.uploadDocumento(id, archivo, metadata, userId);
+    return c.json(success(documento, 'Documento subido'), 201);
+  } catch (err) {
+    console.error('Error al subir documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /solicitudes-visita/documentos/:documentoId
+ * Eliminar documento de solicitud
+ */
+router.delete('/solicitudes-visita/documentos/:documentoId', async (c) => {
+  try {
+    const { documentoId } = c.req.param();
+    await solicitudVisitaService.deleteDocumento(documentoId);
+    return c.json(success(null, 'Documento eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// AUDITORÍAS (INTERNAS Y EXTERNAS)
+// ==========================================
+
+/**
+ * GET /auditorias
+ * Listar todas las auditorías con filtros
+ */
+router.get('/auditorias', async (c) => {
+  try {
+    const { tipo, estado, anio, page, limit } = c.req.query();
+    const result = await auditoriaService.findAll({ tipo, estado, anio, page, limit });
+    return c.json(paginated(result.auditorias, result.pagination));
+  } catch (err) {
+    console.error('Error al listar auditorías:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /auditorias/proximas
+ * Obtener auditorías próximas (programadas o en curso)
+ */
+router.get('/auditorias/proximas', async (c) => {
+  try {
+    const { limit } = c.req.query();
+    const auditorias = await auditoriaService.getProximas(limit ? parseInt(limit) : 10);
+    return c.json(success(auditorias, 'Auditorías próximas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener auditorías próximas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /auditorias/estadisticas
+ * Obtener estadísticas de auditorías
+ */
+router.get('/auditorias/estadisticas', async (c) => {
+  try {
+    const { anio } = c.req.query();
+    const estadisticas = await auditoriaService.getEstadisticas(anio);
+    return c.json(success(estadisticas, 'Estadísticas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /auditorias/anios-disponibles
+ * Obtener años con auditorías registradas
+ */
+router.get('/auditorias/anios-disponibles', async (c) => {
+  try {
+    const anios = await auditoriaService.getAniosDisponibles();
+    return c.json(success(anios, 'Años disponibles obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener años disponibles:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /auditorias/:id
+ * Obtener auditoría por ID
+ */
+router.get('/auditorias/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const auditoria = await auditoriaService.findById(id);
+    return c.json(success(auditoria, 'Auditoría obtenida'));
+  } catch (err) {
+    console.error('Error al obtener auditoría:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /auditorias
+ * Crear nueva auditoría
+ */
+router.post('/auditorias', async (c) => {
+  try {
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const auditoria = await auditoriaService.create(data, userId);
+    return c.json(success(auditoria, 'Auditoría creada exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al crear auditoría:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /auditorias/:id
+ * Actualizar auditoría
+ */
+router.put('/auditorias/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const auditoria = await auditoriaService.update(id, data);
+    return c.json(success(auditoria, 'Auditoría actualizada'));
+  } catch (err) {
+    console.error('Error al actualizar auditoría:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /auditorias/:id
+ * Eliminar auditoría (soft delete)
+ */
+router.delete('/auditorias/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await auditoriaService.delete(id);
+    return c.json(success(result, 'Auditoría eliminada'));
+  } catch (err) {
+    console.error('Error al eliminar auditoría:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PATCH /auditorias/:id/estado
+ * Cambiar estado de auditoría
+ */
+router.patch('/auditorias/:id/estado', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { estado } = await c.req.json();
+    const auditoria = await auditoriaService.cambiarEstado(id, estado);
+    return c.json(success(auditoria, 'Estado actualizado'));
+  } catch (err) {
+    console.error('Error al cambiar estado:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /auditorias/:id/documentos
+ * Subir documento a auditoría
+ */
+router.post('/auditorias/:id/documentos', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const documento = await auditoriaService.uploadDocumento(id, data, userId);
+    return c.json(success(documento, 'Documento subido exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al subir documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /auditorias/documentos/:documentoId
+ * Eliminar documento de auditoría
+ */
+router.delete('/auditorias/documentos/:documentoId', async (c) => {
+  try {
+    const { documentoId } = c.req.param();
+    const result = await auditoriaService.deleteDocumento(documentoId);
+    return c.json(success(result, 'Documento eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// RH1 (RESIDUOS HOSPITALARIOS)
+// ==========================================
+
+/**
+ * GET /rh1/mes/:mes/anio/:anio
+ * Obtener registros del mes completo (31 días)
+ */
+router.get('/rh1/mes/:mes/anio/:anio', async (c) => {
+  try {
+    const { mes, anio } = c.req.param();
+    const registros = await residuoRH1Service.findByMesAnio(mes, anio);
+    return c.json(success(registros, 'Registros obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener registros RH1:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /rh1/totales/:mes/:anio
+ * Obtener totales del mes
+ */
+router.get('/rh1/totales/:mes/:anio', async (c) => {
+  try {
+    const { mes, anio } = c.req.param();
+    const totales = await residuoRH1Service.getTotalesMes(mes, anio);
+    return c.json(success(totales, 'Totales obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener totales:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /rh1/estadisticas
+ * Obtener estadísticas generales
+ */
+router.get('/rh1/estadisticas', async (c) => {
+  try {
+    const { anio } = c.req.query();
+    const estadisticas = await residuoRH1Service.getEstadisticas(anio);
+    return c.json(success(estadisticas, 'Estadísticas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /rh1/anios-disponibles
+ * Obtener años con registros
+ */
+router.get('/rh1/anios-disponibles', async (c) => {
+  try {
+    const anios = await residuoRH1Service.getAniosDisponibles();
+    return c.json(success(anios, 'Años disponibles obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener años:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /rh1/validar-consistencia/:mes/:anio
+ * Validar consistencia de totales
+ */
+router.get('/rh1/validar-consistencia/:mes/:anio', async (c) => {
+  try {
+    const { mes, anio } = c.req.param();
+    const resultado = await residuoRH1Service.validateConsistencia(mes, anio);
+    return c.json(success(resultado, 'Validación completada'));
+  } catch (err) {
+    console.error('Error al validar consistencia:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /rh1
+ * Crear o actualizar registro diario
+ */
+router.post('/rh1', async (c) => {
+  try {
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const registro = await residuoRH1Service.upsert(data, userId);
+    return c.json(success(registro, 'Registro guardado'), 201);
+  } catch (err) {
+    console.error('Error al guardar registro:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /rh1/batch
+ * Guardar múltiples registros
+ */
+router.post('/rh1/batch', async (c) => {
+  try {
+    const { registros } = await c.req.json();
+    const userId = c.get('userId');
+    const results = await residuoRH1Service.upsertBatch(registros, userId);
+    return c.json(success(results, 'Registros guardados'), 201);
+  } catch (err) {
+    console.error('Error al guardar registros:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /rh1/:id
+ * Eliminar registro
+ */
+router.delete('/rh1/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await residuoRH1Service.delete(id);
+    return c.json(success(result, 'Registro eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar registro:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// MANIFIESTOS DE RECOLECCIÓN
+// ==========================================
+
+/**
+ * GET /manifiestos
+ * Listar manifiestos con filtros
+ */
+router.get('/manifiestos', async (c) => {
+  try {
+    const { tipoResiduo, anio, mes, page, limit } = c.req.query();
+    const result = await manifiestoService.findAll({ tipoResiduo, anio, mes, page, limit });
+    return c.json(paginated(result.manifiestos, result.pagination));
+  } catch (err) {
+    console.error('Error al listar manifiestos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /manifiestos/totales
+ * Obtener totales por tipo de residuo
+ */
+router.get('/manifiestos/totales', async (c) => {
+  try {
+    const { anio, mes } = c.req.query();
+    const totales = await manifiestoService.getTotalesPorTipo(anio, mes);
+    return c.json(success(totales, 'Totales obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener totales:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /manifiestos/:id
+ * Obtener manifiesto por ID
+ */
+router.get('/manifiestos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const manifiesto = await manifiestoService.findById(id);
+    return c.json(success(manifiesto, 'Manifiesto obtenido'));
+  } catch (err) {
+    console.error('Error al obtener manifiesto:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /manifiestos
+ * Crear manifiesto
+ */
+router.post('/manifiestos', async (c) => {
+  try {
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const manifiesto = await manifiestoService.create(data, userId);
+    return c.json(success(manifiesto, 'Manifiesto creado'), 201);
+  } catch (err) {
+    console.error('Error al crear manifiesto:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /manifiestos/:id
+ * Actualizar manifiesto
+ */
+router.put('/manifiestos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const manifiesto = await manifiestoService.update(id, data);
+    return c.json(success(manifiesto, 'Manifiesto actualizado'));
+  } catch (err) {
+    console.error('Error al actualizar manifiesto:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /manifiestos/:id
+ * Eliminar manifiesto
+ */
+router.delete('/manifiestos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await manifiestoService.delete(id);
+    return c.json(success(result, 'Manifiesto eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar manifiesto:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// ACTAS DE DESACTIVACIÓN
+// ==========================================
+
+/**
+ * GET /actas-desactivacion
+ * Listar actas con filtros
+ */
+router.get('/actas-desactivacion', async (c) => {
+  try {
+    const { tipoEquipo, anio, page, limit } = c.req.query();
+    const result = await actaDesactivacionService.findAll({ tipoEquipo, anio, page, limit });
+    return c.json(paginated(result.actas, result.pagination));
+  } catch (err) {
+    console.error('Error al listar actas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /actas-desactivacion/estadisticas
+ * Obtener estadísticas por tipo de equipo
+ */
+router.get('/actas-desactivacion/estadisticas', async (c) => {
+  try {
+    const { anio } = c.req.query();
+    const estadisticas = await actaDesactivacionService.getEstadisticasPorTipo(anio);
+    return c.json(success(estadisticas, 'Estadísticas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /actas-desactivacion/anios-disponibles
+ * Obtener años con actas
+ */
+router.get('/actas-desactivacion/anios-disponibles', async (c) => {
+  try {
+    const anios = await actaDesactivacionService.getAniosDisponibles();
+    return c.json(success(anios, 'Años disponibles obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener años:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /actas-desactivacion/:id
+ * Obtener acta por ID
+ */
+router.get('/actas-desactivacion/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const acta = await actaDesactivacionService.findById(id);
+    return c.json(success(acta, 'Acta obtenida'));
+  } catch (err) {
+    console.error('Error al obtener acta:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /actas-desactivacion
+ * Crear acta
+ */
+router.post('/actas-desactivacion', async (c) => {
+  try {
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const acta = await actaDesactivacionService.create(data, userId);
+    return c.json(success(acta, 'Acta creada'), 201);
+  } catch (err) {
+    console.error('Error al crear acta:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /actas-desactivacion/:id
+ * Actualizar acta
+ */
+router.put('/actas-desactivacion/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const acta = await actaDesactivacionService.update(id, data);
+    return c.json(success(acta, 'Acta actualizada'));
+  } catch (err) {
+    console.error('Error al actualizar acta:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /actas-desactivacion/:id
+ * Eliminar acta
+ */
+router.delete('/actas-desactivacion/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await actaDesactivacionService.delete(id);
+    return c.json(success(result, 'Acta eliminada'));
+  } catch (err) {
+    console.error('Error al eliminar acta:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// INDICADORES PGIRASA
+// ==========================================
+
+/**
+ * GET /indicadores
+ * Listar todos los indicadores con filtros
+ */
+router.get('/indicadores', async (c) => {
+  try {
+    const filters = {
+      dominio: c.req.query('dominio'),
+      tipoCalculo: c.req.query('tipoCalculo'),
+      frecuencia: c.req.query('frecuencia'),
+    };
+
+    const result = await indicadorService.findAll(filters);
+    return c.json(success(result, 'Indicadores obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener indicadores:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /indicadores/resumen
+ * Obtener resumen de todos los indicadores
+ * IMPORTANTE: Esta ruta debe ir ANTES de /indicadores/:id
+ */
+router.get('/indicadores/resumen', async (c) => {
+  try {
+    const anio = c.req.query('anio') ? parseInt(c.req.query('anio')) : null;
+    const result = await indicadorService.getResumen(anio);
+    return c.json(success(result, 'Resumen de indicadores obtenido'));
+  } catch (err) {
+    console.error('Error al obtener resumen:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /indicadores/dashboard
+ * Obtener dashboard completo con gráficas
+ * IMPORTANTE: Esta ruta debe ir ANTES de /indicadores/:id
+ */
+router.get('/indicadores/dashboard', async (c) => {
+  try {
+    const anio = c.req.query('anio') ? parseInt(c.req.query('anio')) : null;
+    const result = await calculoService.getDashboard(anio);
+    return c.json(success(result, 'Dashboard obtenido'));
+  } catch (err) {
+    console.error('Error al obtener dashboard:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /indicadores/estadisticas
+ * Obtener estadísticas generales de indicadores
+ * IMPORTANTE: Esta ruta debe ir ANTES de /indicadores/:id
+ */
+router.get('/indicadores/estadisticas', async (c) => {
+  try {
+    const result = await indicadorService.getEstadisticas();
+    return c.json(success(result, 'Estadísticas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /indicadores/:id
+ * Obtener indicador por ID
+ */
+router.get('/indicadores/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await indicadorService.findById(id);
+    return c.json(success(result, 'Indicador obtenido'));
+  } catch (err) {
+    console.error('Error al obtener indicador:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /indicadores/:id/ficha-tecnica
+ * Obtener ficha técnica completa del indicador
+ */
+router.get('/indicadores/:id/ficha-tecnica', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await indicadorService.getFichaTecnica(id);
+    return c.json(success(result, 'Ficha técnica obtenida'));
+  } catch (err) {
+    console.error('Error al obtener ficha técnica:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /indicadores
+ * Crear indicador
+ */
+router.post('/indicadores', async (c) => {
+  try {
+    const data = await c.req.json();
+    const result = await indicadorService.create(data);
+    return c.json(success(result, 'Indicador creado'), 201);
+  } catch (err) {
+    console.error('Error al crear indicador:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /indicadores/:id
+ * Actualizar indicador
+ */
+router.put('/indicadores/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const result = await indicadorService.update(id, data);
+    return c.json(success(result, 'Indicador actualizado'));
+  } catch (err) {
+    console.error('Error al actualizar indicador:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /indicadores/:id
+ * Eliminar indicador (soft delete)
+ */
+router.delete('/indicadores/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await indicadorService.delete(id);
+    return c.json(success(result, 'Indicador eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar indicador:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// MEDICIONES DE INDICADORES
+// ==========================================
+
+/**
+ * GET /indicadores/:indicadorId/mediciones
+ * Obtener mediciones de un indicador
+ */
+router.get('/indicadores/:indicadorId/mediciones', async (c) => {
+  try {
+    const { indicadorId } = c.req.param();
+    const filters = {
+      anio: c.req.query('anio'),
+      mes: c.req.query('mes'),
+      periodo: c.req.query('periodo'),
+    };
+
+    const result = await medicionService.findByIndicador(indicadorId, filters);
+    return c.json(success(result, 'Mediciones obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener mediciones:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /indicadores/:indicadorId/serie-historica
+ * Obtener serie histórica para gráficas
+ */
+router.get('/indicadores/:indicadorId/serie-historica', async (c) => {
+  try {
+    const { indicadorId } = c.req.param();
+    const limite = c.req.query('limite') ? parseInt(c.req.query('limite')) : 12;
+    const result = await medicionService.getSerieHistorica(indicadorId, limite);
+    return c.json(success(result, 'Serie histórica obtenida'));
+  } catch (err) {
+    console.error('Error al obtener serie histórica:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mediciones/periodo/:periodo
+ * Obtener mediciones de un periodo específico
+ */
+router.get('/mediciones/periodo/:periodo', async (c) => {
+  try {
+    const { periodo } = c.req.param();
+    const result = await medicionService.findByPeriodo(periodo);
+    return c.json(success(result, 'Mediciones del periodo obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener mediciones del periodo:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mediciones/estadisticas
+ * Obtener estadísticas de mediciones
+ */
+router.get('/mediciones/estadisticas', async (c) => {
+  try {
+    const anio = c.req.query('anio') ? parseInt(c.req.query('anio')) : null;
+    const result = await medicionService.getEstadisticas(anio);
+    return c.json(success(result, 'Estadísticas de mediciones obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /indicadores/:indicadorId/mediciones
+ * Crear medición manual
+ */
+router.post('/indicadores/:indicadorId/mediciones', async (c) => {
+  try {
+    const { indicadorId } = c.req.param();
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const result = await medicionService.create(indicadorId, data, userId);
+    return c.json(success(result, 'Medición creada'), 201);
+  } catch (err) {
+    console.error('Error al crear medición:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /mediciones/:id
+ * Actualizar medición
+ */
+router.put('/mediciones/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+    const userId = c.get('userId');
+    const result = await medicionService.update(id, data, userId);
+    return c.json(success(result, 'Medición actualizada'));
+  } catch (err) {
+    console.error('Error al actualizar medición:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PATCH /mediciones/:id/verificar
+ * Verificar medición
+ */
+router.patch('/mediciones/:id/verificar', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const userId = c.get('userId');
+    const result = await medicionService.verificar(id, userId);
+    return c.json(success(result, 'Medición verificada'));
+  } catch (err) {
+    console.error('Error al verificar medición:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /mediciones/:id
+ * Eliminar medición (soft delete)
+ */
+router.delete('/mediciones/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await medicionService.delete(id);
+    return c.json(success(result, 'Medición eliminada'));
+  } catch (err) {
+    console.error('Error al eliminar medición:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// CÁLCULO AUTOMÁTICO DE INDICADORES
+// ==========================================
+
+/**
+ * POST /calcular-indicadores/:mes/:anio
+ * Calcular indicadores automáticos desde RH1
+ */
+router.post('/calcular-indicadores/:mes/:anio', async (c) => {
+  try {
+    const { mes, anio } = c.req.param();
+    const userId = c.get('userId');
+    const result = await calculoService.calcularDesdeRH1(parseInt(mes), parseInt(anio), userId);
+    return c.json(success(result, 'Indicadores calculados automáticamente'));
+  } catch (err) {
+    console.error('Error al calcular indicadores:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /calcular-indicadores/recalcular/:anio
+ * Recalcular todos los indicadores automáticos de un año
+ */
+router.post('/calcular-indicadores/recalcular/:anio', async (c) => {
+  try {
+    const { anio } = c.req.param();
+    const userId = c.get('userId');
+    const result = await calculoService.recalcularAnio(parseInt(anio), userId);
+    return c.json(success(result, 'Año recalculado exitosamente'));
+  } catch (err) {
+    console.error('Error al recalcular año:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /comparar-periodos
+ * Comparar rendimiento entre dos periodos
+ */
+router.post('/comparar-periodos', async (c) => {
+  try {
+    const { periodo1, periodo2 } = await c.req.json();
+    const result = await calculoService.compararPeriodos(periodo1, periodo2);
+    return c.json(success(result, 'Comparación generada'));
+  } catch (err) {
+    console.error('Error al comparar periodos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// FORMATOS
+// ==========================================
+
+/**
+ * GET /formatos
+ * Listar todos los formatos
+ */
+router.get('/formatos', async (c) => {
+  try {
+    const categoria = c.req.query('categoria');
+    const search = c.req.query('search');
+
+    const result = await formatoInfraestructuraService.findAll({ categoria, search });
+    return c.json(success(result, 'Formatos obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener formatos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /formatos/categorias
+ * Obtener categorías disponibles
+ */
+router.get('/formatos/categorias', async (c) => {
+  try {
+    const categorias = formatoInfraestructuraService.getCategorias();
+    return c.json(success(categorias, 'Categorías obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener categorías:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /formatos/estadisticas
+ * Obtener estadísticas de formatos
+ */
+router.get('/formatos/estadisticas', async (c) => {
+  try {
+    const stats = await formatoInfraestructuraService.getEstadisticas();
+    return c.json(success(stats, 'Estadísticas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /formatos/categoria/:categoria
+ * Obtener formatos por categoría
+ */
+router.get('/formatos/categoria/:categoria', async (c) => {
+  try {
+    const { categoria } = c.req.param();
+    const formatos = await formatoInfraestructuraService.findByCategoria(categoria);
+    return c.json(success(formatos, 'Formatos obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener formatos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /formatos/:id
+ * Obtener formato por ID
+ */
+router.get('/formatos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const formato = await formatoInfraestructuraService.findById(id);
+    return c.json(success(formato, 'Formato obtenido'));
+  } catch (err) {
+    console.error('Error al obtener formato:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /formatos
+ * Crear nuevo formato
+ */
+router.post('/formatos', async (c) => {
+  try {
+    const data = await c.req.json();
+    const userId = c.get('userId');
+
+    const formato = await formatoInfraestructuraService.create({
+      ...data,
+      creadoPor: userId,
+    });
+
+    return c.json(success(formato, 'Formato creado'), 201);
+  } catch (err) {
+    console.error('Error al crear formato:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /formatos/:id
+ * Actualizar formato
+ */
+router.put('/formatos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await c.req.json();
+
+    const formato = await formatoInfraestructuraService.update(id, data);
+    return c.json(success(formato, 'Formato actualizado'));
+  } catch (err) {
+    console.error('Error al actualizar formato:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /formatos/:id
+ * Eliminar formato
+ */
+router.delete('/formatos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await formatoInfraestructuraService.delete(id);
+    return c.json(success(null, 'Formato eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar formato:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /formatos/:id/duplicar
+ * Duplicar formato
+ */
+router.post('/formatos/:id/duplicar', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { codigo } = await c.req.json();
+    const userId = c.get('userId');
+
+    const duplicado = await formatoInfraestructuraService.duplicar(id, codigo, userId);
+    return c.json(success(duplicado, 'Formato duplicado'), 201);
+  } catch (err) {
+    console.error('Error al duplicar formato:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// REPORTES
+// ==========================================
+
+/**
+ * GET /reportes
+ * Listar todos los reportes
+ */
+router.get('/reportes', async (c) => {
+  try {
+    const tipo = c.req.query('tipo');
+    const estado = c.req.query('estado');
+    const periodo = c.req.query('periodo');
+    const limit = c.req.query('limit');
+
+    const result = await reporteService.findAll({ tipo, estado, periodo, limit });
+    return c.json(success(result, 'Reportes obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener reportes:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /reportes/tipos
+ * Obtener tipos de reportes disponibles
+ */
+router.get('/reportes/tipos', async (c) => {
+  try {
+    const tipos = reporteService.getTiposReportes();
+    return c.json(success(tipos, 'Tipos obtenidos'));
+  } catch (err) {
+    console.error('Error al obtener tipos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /reportes/estadisticas
+ * Obtener estadísticas de reportes
+ */
+router.get('/reportes/estadisticas', async (c) => {
+  try {
+    const stats = await reporteService.getEstadisticas();
+    return c.json(success(stats, 'Estadísticas obtenidas'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /reportes/:id
+ * Obtener reporte por ID
+ */
+router.get('/reportes/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const reporte = await reporteService.findById(id);
+    return c.json(success(reporte, 'Reporte obtenido'));
+  } catch (err) {
+    console.error('Error al obtener reporte:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /reportes/generar/rh1-mensual
+ * Generar reporte mensual RH1
+ */
+router.post('/reportes/generar/rh1-mensual', async (c) => {
+  try {
+    const { mes, anio } = await c.req.json();
+    const userId = c.get('userId');
+
+    const reporte = await reporteService.generarReporteMensualRH1(mes, anio, userId);
+    return c.json(success(reporte, 'Reporte generado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al generar reporte RH1:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /reportes/generar/indicadores-semestral
+ * Generar reporte semestral de indicadores
+ */
+router.post('/reportes/generar/indicadores-semestral', async (c) => {
+  try {
+    const { semestre, anio } = await c.req.json();
+    const userId = c.get('userId');
+
+    const reporte = await reporteService.generarReporteSemestralIndicadores(semestre, anio, userId);
+    return c.json(success(reporte, 'Reporte generado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al generar reporte de indicadores:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /reportes/generar/personalizado
+ * Generar reporte personalizado
+ */
+router.post('/reportes/generar/personalizado', async (c) => {
+  try {
+    const config = await c.req.json();
+    const userId = c.get('userId');
+
+    const reporte = await reporteService.generarReportePersonalizado(config, userId);
+    return c.json(success(reporte, 'Reporte generado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al generar reporte personalizado:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /reportes/:id
+ * Eliminar reporte
+ */
+router.delete('/reportes/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await reporteService.delete(id);
+    return c.json(success(null, 'Reporte eliminado'));
+  } catch (err) {
+    console.error('Error al eliminar reporte:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// MANTENIMIENTOS - EQUIPOS DE INFRAESTRUCTURA
+// ==========================================
+
+/**
+ * GET /mantenimientos/equipos/stats
+ * Estadísticas de equipos
+ */
+router.get('/mantenimientos/equipos/stats', async (c) => {
+  try {
+    const stats = await equipoInfraestructuraService.getEstadisticas();
+    return c.json(success(stats, 'Estadísticas obtenidas exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas de equipos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/equipos/tipo/:tipo
+ * Obtener equipos por tipo
+ */
+router.get('/mantenimientos/equipos/tipo/:tipo', async (c) => {
+  try {
+    const { tipo } = c.req.param();
+    const equipos = await equipoInfraestructuraService.findByTipo(tipo);
+    return c.json(success(equipos, 'Equipos obtenidos exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener equipos por tipo:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/equipos/:id
+ * Obtener equipo por ID (debe ir antes de /equipos para evitar conflictos)
+ */
+router.get('/mantenimientos/equipos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const equipo = await equipoInfraestructuraService.findById(id);
+    return c.json(success(equipo, 'Equipo obtenido exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener equipo:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/equipos
+ * Listar todos los equipos
+ */
+router.get('/mantenimientos/equipos', async (c) => {
+  try {
+    const filters = c.req.query();
+    const data = await equipoInfraestructuraService.findAll(filters);
+    return c.json(success(data, 'Equipos obtenidos exitosamente'));
+  } catch (err) {
+    console.error('Error al listar equipos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/equipos
+ * Crear equipo
+ */
+router.post('/mantenimientos/equipos', async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = c.get('userId');
+    const equipo = await equipoInfraestructuraService.create(body, userId);
+    return c.json(success(equipo, 'Equipo creado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al crear equipo:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /mantenimientos/equipos/:id
+ * Actualizar equipo
+ */
+router.put('/mantenimientos/equipos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.json();
+    const equipo = await equipoInfraestructuraService.update(id, body);
+    return c.json(success(equipo, 'Equipo actualizado exitosamente'));
+  } catch (err) {
+    console.error('Error al actualizar equipo:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PATCH /mantenimientos/equipos/:id/estado
+ * Cambiar estado de equipo
+ */
+router.patch('/mantenimientos/equipos/:id/estado', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { estado, observaciones } = await c.req.json();
+    const equipo = await equipoInfraestructuraService.cambiarEstado(id, estado, observaciones);
+    return c.json(success(equipo, 'Estado actualizado exitosamente'));
+  } catch (err) {
+    console.error('Error al cambiar estado de equipo:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /mantenimientos/equipos/:id
+ * Eliminar equipo
+ */
+router.delete('/mantenimientos/equipos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await equipoInfraestructuraService.delete(id);
+    return c.json(success(null, 'Equipo eliminado exitosamente'));
+  } catch (err) {
+    console.error('Error al eliminar equipo:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// MANTENIMIENTOS - REGISTROS
+// ==========================================
+
+/**
+ * GET /mantenimientos/mantenimientos/stats
+ * Estadísticas de mantenimientos
+ */
+router.get('/mantenimientos/mantenimientos/stats', async (c) => {
+  try {
+    const filters = c.req.query();
+    const stats = await mantenimientoInfraestructuraService.getEstadisticas(filters);
+    return c.json(success(stats, 'Estadísticas obtenidas exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas de mantenimientos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/mantenimientos/proximos
+ * Próximos mantenimientos
+ */
+router.get('/mantenimientos/mantenimientos/proximos', async (c) => {
+  try {
+    const { limit } = c.req.query();
+    const mantenimientos = await mantenimientoInfraestructuraService.getProximos(
+      parseInt(limit) || 10
+    );
+    return c.json(success(mantenimientos, 'Próximos mantenimientos obtenidos exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener próximos mantenimientos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/mantenimientos/timeline/:equipoId
+ * Timeline de mantenimientos de un equipo
+ */
+router.get('/mantenimientos/mantenimientos/timeline/:equipoId', async (c) => {
+  try {
+    const { equipoId } = c.req.param();
+    const timeline = await mantenimientoInfraestructuraService.getTimelineEquipo(equipoId);
+    return c.json(success(timeline, 'Timeline obtenido exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener timeline:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/mantenimientos/:id
+ * Obtener mantenimiento por ID
+ */
+router.get('/mantenimientos/mantenimientos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const mantenimiento = await mantenimientoInfraestructuraService.findById(id);
+    return c.json(success(mantenimiento, 'Mantenimiento obtenido exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener mantenimiento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/mantenimientos
+ * Listar mantenimientos
+ */
+router.get('/mantenimientos/mantenimientos', async (c) => {
+  try {
+    const filters = c.req.query();
+    const data = await mantenimientoInfraestructuraService.findAll(filters);
+    return c.json(success(data, 'Mantenimientos obtenidos exitosamente'));
+  } catch (err) {
+    console.error('Error al listar mantenimientos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/mantenimientos
+ * Crear mantenimiento
+ */
+router.post('/mantenimientos/mantenimientos', async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = c.get('userId');
+    const mantenimiento = await mantenimientoInfraestructuraService.create(body, userId);
+    return c.json(success(mantenimiento, 'Mantenimiento creado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al crear mantenimiento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /mantenimientos/mantenimientos/:id
+ * Actualizar mantenimiento
+ */
+router.put('/mantenimientos/mantenimientos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.json();
+    const mantenimiento = await mantenimientoInfraestructuraService.update(id, body);
+    return c.json(success(mantenimiento, 'Mantenimiento actualizado exitosamente'));
+  } catch (err) {
+    console.error('Error al actualizar mantenimiento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/mantenimientos/:id/completar
+ * Completar mantenimiento
+ */
+router.post('/mantenimientos/mantenimientos/:id/completar', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.json();
+    const mantenimiento = await mantenimientoInfraestructuraService.completar(id, body);
+    return c.json(success(mantenimiento, 'Mantenimiento completado exitosamente'));
+  } catch (err) {
+    console.error('Error al completar mantenimiento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/mantenimientos/:id/cancelar
+ * Cancelar mantenimiento
+ */
+router.post('/mantenimientos/mantenimientos/:id/cancelar', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { motivo } = await c.req.json();
+    const mantenimiento = await mantenimientoInfraestructuraService.cancelar(id, motivo);
+    return c.json(success(mantenimiento, 'Mantenimiento cancelado exitosamente'));
+  } catch (err) {
+    console.error('Error al cancelar mantenimiento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /mantenimientos/mantenimientos/:id
+ * Eliminar mantenimiento
+ */
+router.delete('/mantenimientos/mantenimientos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await mantenimientoInfraestructuraService.delete(id);
+    return c.json(success(null, 'Mantenimiento eliminado exitosamente'));
+  } catch (err) {
+    console.error('Error al eliminar mantenimiento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// MANTENIMIENTOS - DOCUMENTOS
+// ==========================================
+
+/**
+ * GET /mantenimientos/documentos/stats
+ * Estadísticas de documentos
+ */
+router.get('/mantenimientos/documentos/stats', async (c) => {
+  try {
+    const stats = await documentoMantenimientoService.getEstadisticas();
+    return c.json(success(stats, 'Estadísticas obtenidas exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas de documentos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/documentos
+ * Listar documentos
+ */
+router.get('/mantenimientos/documentos', async (c) => {
+  try {
+    const filters = c.req.query();
+    const data = await documentoMantenimientoService.findAll(filters);
+    return c.json(success(data, 'Documentos obtenidos exitosamente'));
+  } catch (err) {
+    console.error('Error al listar documentos:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/mantenimientos/:mantenimientoId/documentos
+ * Documentos de un mantenimiento
+ */
+router.get('/mantenimientos/mantenimientos/:mantenimientoId/documentos', async (c) => {
+  try {
+    const { mantenimientoId } = c.req.param();
+    const documentos = await documentoMantenimientoService.findByMantenimiento(mantenimientoId);
+    return c.json(success(documentos, 'Documentos obtenidos exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener documentos del mantenimiento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/mantenimientos/:mantenimientoId/documentos
+ * Crear documento
+ */
+router.post('/mantenimientos/mantenimientos/:mantenimientoId/documentos', async (c) => {
+  try {
+    const { mantenimientoId } = c.req.param();
+    const body = await c.req.json();
+    const userId = c.get('userId');
+    const documento = await documentoMantenimientoService.create(mantenimientoId, body, userId);
+    return c.json(success(documento, 'Documento creado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al crear documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /mantenimientos/documentos/:id
+ * Actualizar documento
+ */
+router.put('/mantenimientos/documentos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.json();
+    const documento = await documentoMantenimientoService.update(id, body);
+    return c.json(success(documento, 'Documento actualizado exitosamente'));
+  } catch (err) {
+    console.error('Error al actualizar documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /mantenimientos/documentos/:id
+ * Eliminar documento
+ */
+router.delete('/mantenimientos/documentos/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await documentoMantenimientoService.delete(id);
+    return c.json(success(null, 'Documento eliminado exitosamente'));
+  } catch (err) {
+    console.error('Error al eliminar documento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// MANTENIMIENTOS - CRONOGRAMA
+// ==========================================
+
+/**
+ * GET /mantenimientos/cronograma/stats/:anio
+ * Estadísticas del cronograma
+ */
+router.get('/mantenimientos/cronograma/stats/:anio', async (c) => {
+  try {
+    const { anio } = c.req.param();
+    const stats = await cronogramaMantenimientoService.getEstadisticas(anio);
+    return c.json(success(stats, 'Estadísticas obtenidas exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener estadísticas del cronograma:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/cronograma/equipo/:equipoId/anio/:anio
+ * Cronograma anual de un equipo
+ */
+router.get('/mantenimientos/cronograma/equipo/:equipoId/anio/:anio', async (c) => {
+  try {
+    const { equipoId, anio } = c.req.param();
+    const cronograma = await cronogramaMantenimientoService.getCronogramaAnual(equipoId, anio);
+    return c.json(success(cronograma, 'Cronograma obtenido exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener cronograma anual:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/cronograma/mes/:mes/anio/:anio
+ * Cronograma mensual (todos los equipos)
+ */
+router.get('/mantenimientos/cronograma/mes/:mes/anio/:anio', async (c) => {
+  try {
+    const { mes, anio } = c.req.param();
+    const cronograma = await cronogramaMantenimientoService.getCronogramaMensual(mes, anio);
+    return c.json(success(cronograma, 'Cronograma mensual obtenido exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener cronograma mensual:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/cronograma/:id
+ * Obtener cronograma por ID
+ */
+router.get('/mantenimientos/cronograma/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const cronograma = await cronogramaMantenimientoService.findById(id);
+    return c.json(success(cronograma, 'Cronograma obtenido exitosamente'));
+  } catch (err) {
+    console.error('Error al obtener cronograma:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * GET /mantenimientos/cronograma
+ * Listar cronogramas
+ */
+router.get('/mantenimientos/cronograma', async (c) => {
+  try {
+    const filters = c.req.query();
+    const data = await cronogramaMantenimientoService.findAll(filters);
+    return c.json(success(data, 'Cronogramas obtenidos exitosamente'));
+  } catch (err) {
+    console.error('Error al listar cronogramas:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/cronograma
+ * Crear entrada en cronograma
+ */
+router.post('/mantenimientos/cronograma', async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = c.get('userId');
+    const cronograma = await cronogramaMantenimientoService.create(body, userId);
+    return c.json(success(cronograma, 'Cronograma creado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al crear cronograma:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/cronograma/generar
+ * Generar cronograma anual automático
+ */
+router.post('/mantenimientos/cronograma/generar', async (c) => {
+  try {
+    const body = await c.req.json();
+    const userId = c.get('userId');
+    const { equipoId, anio, config } = body;
+    const resultado = await cronogramaMantenimientoService.generarCronogramaAnual(
+      equipoId,
+      anio,
+      config,
+      userId
+    );
+    return c.json(success(resultado, 'Cronograma anual generado exitosamente'), 201);
+  } catch (err) {
+    console.error('Error al generar cronograma anual:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * PUT /mantenimientos/cronograma/:id
+ * Actualizar cronograma
+ */
+router.put('/mantenimientos/cronograma/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.json();
+    const cronograma = await cronogramaMantenimientoService.update(id, body);
+    return c.json(success(cronograma, 'Cronograma actualizado exitosamente'));
+  } catch (err) {
+    console.error('Error al actualizar cronograma:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/cronograma/:id/completar
+ * Marcar cronograma como completado
+ */
+router.post('/mantenimientos/cronograma/:id/completar', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { mantenimientoId } = await c.req.json();
+    const userId = c.get('userId');
+    const cronograma = await cronogramaMantenimientoService.marcarCompletado(
+      id,
+      mantenimientoId,
+      userId
+    );
+    return c.json(success(cronograma, 'Cronograma marcado como completado'));
+  } catch (err) {
+    console.error('Error al completar cronograma:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/cronograma/:id/reprogramar
+ * Reprogramar mantenimiento
+ */
+router.post('/mantenimientos/cronograma/:id/reprogramar', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { nuevaFecha } = await c.req.json();
+    const cronograma = await cronogramaMantenimientoService.reprogramar(id, nuevaFecha);
+    return c.json(success(cronograma, 'Mantenimiento reprogramado exitosamente'));
+  } catch (err) {
+    console.error('Error al reprogramar mantenimiento:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /mantenimientos/cronograma/:id/cancelar
+ * Cancelar mantenimiento programado
+ */
+router.post('/mantenimientos/cronograma/:id/cancelar', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { motivo } = await c.req.json();
+    const cronograma = await cronogramaMantenimientoService.cancelar(id, motivo);
+    return c.json(success(cronograma, 'Mantenimiento cancelado exitosamente'));
+  } catch (err) {
+    console.error('Error al cancelar mantenimiento programado:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /mantenimientos/cronograma/:id
+ * Eliminar cronograma
+ */
+router.delete('/mantenimientos/cronograma/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    await cronogramaMantenimientoService.delete(id);
+    return c.json(success(null, 'Cronograma eliminado exitosamente'));
+  } catch (err) {
+    console.error('Error al eliminar cronograma:', err);
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+module.exports = router;

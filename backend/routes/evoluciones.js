@@ -12,7 +12,99 @@ const evoluciones = new Hono();
 evoluciones.use('*', authMiddleware);
 
 /**
- * GET /evoluciones - Obtener todas las evoluciones
+ * @swagger
+ * components:
+ *   schemas:
+ *     Evolucion:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         medico_id:
+ *           type: string
+ *           format: uuid
+ *         subjetivo:
+ *           type: string
+ *           description: Componente S del SOAP
+ *         objetivo:
+ *           type: string
+ *           description: Componente O del SOAP
+ *         analisis:
+ *           type: string
+ *           description: Componente A del SOAP
+ *         plan:
+ *           type: string
+ *           description: Componente P del SOAP
+ *         firmado:
+ *           type: boolean
+ *         fecha_creacion:
+ *           type: string
+ *           format: date-time
+ *     EvolucionInput:
+ *       type: object
+ *       required:
+ *         - paciente_id
+ *         - subjetivo
+ *         - objetivo
+ *         - analisis
+ *         - plan
+ *       properties:
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         subjetivo:
+ *           type: string
+ *         objetivo:
+ *           type: string
+ *         analisis:
+ *           type: string
+ *         plan:
+ *           type: string
+ * tags:
+ *   name: Evoluciones
+ *   description: Gestión de evoluciones clínicas (SOAP)
+ */
+
+/**
+ * @swagger
+ * /evoluciones:
+ *   get:
+ *     summary: Obtener todas las evoluciones
+ *     tags: [Evoluciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: paciente_id
+ *         schema:
+ *           type: string
+ *         description: Filtrar por paciente
+ *       - in: query
+ *         name: medico_id
+ *         schema:
+ *           type: string
+ *         description: Filtrar por médico
+ *     responses:
+ *       200:
+ *         description: Lista de evoluciones
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Evolucion'
+ *       500:
+ *         description: Error del servidor
  */
 evoluciones.get('/', async (c) => {
   try {
@@ -25,7 +117,41 @@ evoluciones.get('/', async (c) => {
 });
 
 /**
- * GET /evoluciones/:id - Obtener una evolución por ID
+ * @swagger
+ * /evoluciones/{id}:
+ *   get:
+ *     summary: Obtener una evolución por ID
+ *     tags: [Evoluciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la evolución
+ *     responses:
+ *       200:
+ *         description: Datos de la evolución
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     evolucion:
+ *                       $ref: '#/components/schemas/Evolucion'
+ *       404:
+ *         description: Evolución no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 evoluciones.get('/:id', async (c) => {
   try {
@@ -38,7 +164,37 @@ evoluciones.get('/:id', async (c) => {
 });
 
 /**
- * POST /evoluciones - Crear nueva evolución clínica
+ * @swagger
+ * /evoluciones:
+ *   post:
+ *     summary: Crear nueva evolución clínica
+ *     tags: [Evoluciones]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/EvolucionInput'
+ *     responses:
+ *       201:
+ *         description: Evolución clínica creada correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     evolucion:
+ *                       $ref: '#/components/schemas/Evolucion'
+ *       500:
+ *         description: Error del servidor
  */
 evoluciones.post('/', async (c) => {
   try {
@@ -54,7 +210,28 @@ evoluciones.post('/', async (c) => {
 });
 
 /**
- * POST /evoluciones/:id/firmar - Firmar evolución clínica
+ * @swagger
+ * /evoluciones/{id}/firmar:
+ *   post:
+ *     summary: Firmar evolución clínica
+ *     tags: [Evoluciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la evolución
+ *     responses:
+ *       200:
+ *         description: Evolución firmada correctamente
+ *       404:
+ *         description: Evolución no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 evoluciones.post('/:id/administrar', async (c) => {
   try {
@@ -70,7 +247,30 @@ evoluciones.post('/:id/administrar', async (c) => {
 });
 
 /**
- * DELETE /evoluciones/:id - Eliminar evolución (solo si no está firmada)
+ * @swagger
+ * /evoluciones/{id}:
+ *   delete:
+ *     summary: Eliminar evolución (solo si no está firmada)
+ *     tags: [Evoluciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la evolución
+ *     responses:
+ *       200:
+ *         description: Evolución eliminada correctamente
+ *       400:
+ *         description: No se puede eliminar una evolución firmada
+ *       404:
+ *         description: Evolución no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 evoluciones.delete('/:id', async (c) => {
   try {

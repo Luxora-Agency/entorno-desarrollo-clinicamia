@@ -7,8 +7,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Stethoscope, Plus, X, AlertCircle, Trash2, TestTube } from 'lucide-react';
+import { Stethoscope, Plus, X, AlertCircle, Trash2, TestTube, FileStack } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import PlantillasOrdenesModal from './PlantillasOrdenesModal';
 
 export default function FormularioProcedimientosExamenesConsulta({ onChange, data }) {
   const { toast } = useToast();
@@ -23,6 +24,7 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
   });
   const [servicios, setServicios] = useState([]);
   const [loadingServicios, setLoadingServicios] = useState(false);
+  const [showPlantillasModal, setShowPlantillasModal] = useState(false);
 
   useEffect(() => {
     if (quiereAgregar && ordenActual.tipo) {
@@ -68,8 +70,8 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
       setOrdenActual({
         ...ordenActual,
         servicioId: servicio.id,
-        servicioNombre: servicio.nombre,
-        costo: servicio.precio || 0,
+        servicioNombre: servicio.nombre + (servicio.codigoCUPS ? ` (CUPS: ${servicio.codigoCUPS})` : ''),
+        costo: servicio.costoBase || 0,
       });
     }
   };
@@ -98,6 +100,45 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
     const nuevasOrdenes = ordenes.filter((_, i) => i !== index);
     setOrdenes(nuevasOrdenes);
     onChange(nuevasOrdenes, true);
+  };
+
+  // Agregar exámenes desde plantillas CUPS
+  const handleAgregarDesdeTemplate = (examenes) => {
+    const nuevasOrdenes = [...ordenes];
+    let agregados = 0;
+
+    examenes.forEach(examen => {
+      // Verificar si ya existe este examen (por código CUPS)
+      const yaExiste = nuevasOrdenes.some(o =>
+        o.servicioNombre?.includes(examen.codigoCups) ||
+        o.codigoCups === examen.codigoCups
+      );
+
+      if (!yaExiste) {
+        nuevasOrdenes.push({
+          tipo: 'Examen',
+          servicioId: `cups_${examen.codigoCups}`,
+          servicioNombre: `${examen.nombre} (CUPS: ${examen.codigoCups})`,
+          codigoCups: examen.codigoCups,
+          costo: 0,
+          observaciones: examen.plantillaOrigen ? `Desde plantilla: ${examen.plantillaOrigen}` : '',
+        });
+        agregados++;
+      }
+    });
+
+    if (agregados > 0) {
+      setOrdenes(nuevasOrdenes);
+      onChange(nuevasOrdenes, true);
+      toast({
+        title: 'Exámenes agregados',
+        description: `Se agregaron ${agregados} examen(es) desde la plantilla`,
+      });
+    } else {
+      toast({
+        description: 'Todos los exámenes seleccionados ya estaban en la lista',
+      });
+    }
   };
 
   if (!quiereAgregar) {
@@ -147,7 +188,10 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
               <div key={index} className="bg-indigo-50 border border-indigo-200 rounded-md p-3 flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge className={orden.tipo === 'Procedimiento' ? 'bg-indigo-600' : 'bg-teal-600'}>
+                    <Badge className={
+                      orden.tipo === 'Procedimiento' ? 'bg-indigo-600' : 
+                      orden.tipo === 'Examen' ? 'bg-teal-600' : 'bg-orange-600'
+                    }>
                       {orden.tipo}
                     </Badge>
                     <p className="font-semibold text-indigo-900">{orden.servicioNombre}</p>
@@ -171,7 +215,18 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
 
         {/* Formulario para agregar orden */}
         <div className="border-t pt-4 space-y-3">
-          <Label className="text-base font-semibold">Agregar Procedimiento o Examen</Label>
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-semibold">Agregar Procedimiento o Examen</Label>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPlantillasModal(true)}
+              className="border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+            >
+              <FileStack className="h-4 w-4 mr-2" />
+              Usar Plantillas CUPS
+            </Button>
+          </div>
           
           <div>
             <Label htmlFor="tipo" className="text-sm">Tipo</Label>
@@ -185,6 +240,7 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
               <SelectContent>
                 <SelectItem value="Procedimiento">Procedimiento</SelectItem>
                 <SelectItem value="Examen">Examen</SelectItem>
+                <SelectItem value="Interconsulta">Interconsulta / Remisión</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -234,6 +290,14 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
             Agregar a la solicitud
           </Button>
         </div>
+
+        {/* Modal de Plantillas CUPS */}
+        {showPlantillasModal && (
+          <PlantillasOrdenesModal
+            onSelect={handleAgregarDesdeTemplate}
+            onClose={() => setShowPlantillasModal(false)}
+          />
+        )}
       </CardContent>
     </Card>
   );

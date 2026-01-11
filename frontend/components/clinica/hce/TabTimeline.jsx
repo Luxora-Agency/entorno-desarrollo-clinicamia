@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { 
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
   Clock,
   FileText,
   Activity,
@@ -12,14 +14,38 @@ import {
   Stethoscope,
   Pill,
   Calendar,
-  Filter
+  Filter,
+  Lock,
+  ShieldCheck,
+  TestTubes,
+  Scan,
+  Search,
+  X,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  User
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 export default function TabTimeline({ pacienteId }) {
   const [eventos, setEventos] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filtroTipo, setFiltroTipo] = useState('todos');
+
+  // Filtros avanzados
+  const [filtros, setFiltros] = useState({
+    tipo: 'todos',
+    fechaDesde: '',
+    fechaHasta: '',
+    doctor: 'todos',
+    busqueda: ''
+  });
+  const [filtrosExpandido, setFiltrosExpandido] = useState(false);
+
+  // Lista de doctores únicos para el filtro
+  const [doctoresUnicos, setDoctoresUnicos] = useState([]);
 
   useEffect(() => {
     if (pacienteId) {
@@ -34,28 +60,32 @@ export default function TabTimeline({ pacienteId }) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
       // Cargar datos de todos los módulos en paralelo
-      const [evoluciones, signos, diagnosticos, alertas, procedimientos, prescripciones] = await Promise.all([
+      const [evoluciones, signos, diagnosticos, alertas, procedimientos, prescripciones, ordenesMedicas] = await Promise.all([
         fetch(`${apiUrl}/evoluciones?paciente_id=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
-        
+
         fetch(`${apiUrl}/signos-vitales?paciente_id=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
-        
+
         fetch(`${apiUrl}/diagnosticos?paciente_id=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
-        
+
         fetch(`${apiUrl}/alertas?paciente_id=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
-        
+
         fetch(`${apiUrl}/procedimientos?paciente_id=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
-        
+
         fetch(`${apiUrl}/prescripciones?paciente_id=${pacienteId}&limit=50`, {
+          headers: { Authorization: `Bearer ${token}` }
+        }).then(r => r.ok ? r.json() : { data: [] }),
+
+        fetch(`${apiUrl}/ordenes-medicas?paciente_id=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
       ]);
@@ -68,6 +98,8 @@ export default function TabTimeline({ pacienteId }) {
           fecha: e.createdAt,
           titulo: 'Evolución SOAP',
           descripcion: e.subjetivo?.substring(0, 100) + '...',
+          firmada: e.firmada,
+          hashRegistro: e.hashRegistro,
         })),
         ...(signos.data || []).map(s => ({
           ...s,
@@ -104,12 +136,37 @@ export default function TabTimeline({ pacienteId }) {
           titulo: 'Prescripción Médica',
           descripcion: `${p.medicamentos?.length || 0} medicamento(s)`,
         })),
+        // Órdenes Médicas (Laboratorio, Exámenes, Procedimientos)
+        ...(ordenesMedicas.data || []).map(o => ({
+          ...o,
+          tipo: 'laboratorio',
+          fecha: o.fechaEjecucion || o.fechaOrden || o.createdAt,
+          titulo: o.estado === 'Completada'
+            ? `Resultado: ${o.examenProcedimiento?.nombre || 'Examen'}`
+            : `Orden: ${o.examenProcedimiento?.nombre || 'Examen'}`,
+          descripcion: o.estado === 'Completada' && o.resultados
+            ? 'Ver resultados disponibles'
+            : `Estado: ${o.estado}`,
+        })),
       ];
 
       // Ordenar por fecha descendente
-      const ordenados = eventosUnificados.sort((a, b) => 
+      const ordenados = eventosUnificados.sort((a, b) =>
         new Date(b.fecha) - new Date(a.fecha)
       );
+
+      // Extraer doctores únicos para el filtro
+      const doctores = new Map();
+      ordenados.forEach(e => {
+        const doc = e.doctor || e.profesional || e.medicoResponsable || e.medico || e.registrador;
+        if (doc?.id && doc?.nombre) {
+          doctores.set(doc.id, {
+            id: doc.id,
+            nombre: `${doc.nombre} ${doc.apellido || ''}`.trim()
+          });
+        }
+      });
+      setDoctoresUnicos(Array.from(doctores.values()));
 
       setEventos(ordenados);
     } catch (error) {
@@ -144,21 +201,84 @@ export default function TabTimeline({ pacienteId }) {
       case 'procedimiento':
         return { icon: Stethoscope, color: 'bg-indigo-100 text-indigo-700', borderColor: 'border-indigo-300' };
       case 'prescripcion':
-        return { icon: Pill, color: 'bg-teal-100 text-teal-700', borderColor: 'border-teal-300' };
+        return { icon: Pill, color: 'bg-green-100 text-green-700', borderColor: 'border-green-300' };
+      case 'laboratorio':
+        return { icon: TestTubes, color: 'bg-teal-100 text-teal-700', borderColor: 'border-teal-300' };
+      case 'imagenologia':
+        return { icon: Scan, color: 'bg-cyan-100 text-cyan-700', borderColor: 'border-cyan-300' };
       default:
         return { icon: Calendar, color: 'bg-gray-100 text-gray-700', borderColor: 'border-gray-300' };
     }
   };
 
-  const eventosFiltrados = filtroTipo === 'todos' 
-    ? eventos 
-    : eventos.filter(e => e.tipo === filtroTipo);
+  // Aplicar todos los filtros
+  const eventosFiltrados = useMemo(() => {
+    let resultado = [...eventos];
+
+    // Filtrar por tipo
+    if (filtros.tipo !== 'todos') {
+      resultado = resultado.filter(e => e.tipo === filtros.tipo);
+    }
+
+    // Filtrar por fecha desde
+    if (filtros.fechaDesde) {
+      const fechaDesde = new Date(filtros.fechaDesde);
+      fechaDesde.setHours(0, 0, 0, 0);
+      resultado = resultado.filter(e => new Date(e.fecha) >= fechaDesde);
+    }
+
+    // Filtrar por fecha hasta
+    if (filtros.fechaHasta) {
+      const fechaHasta = new Date(filtros.fechaHasta);
+      fechaHasta.setHours(23, 59, 59, 999);
+      resultado = resultado.filter(e => new Date(e.fecha) <= fechaHasta);
+    }
+
+    // Filtrar por doctor
+    if (filtros.doctor !== 'todos') {
+      resultado = resultado.filter(e => {
+        const doc = e.doctor || e.profesional || e.medicoResponsable || e.medico || e.registrador;
+        return doc?.id === filtros.doctor;
+      });
+    }
+
+    // Filtrar por búsqueda de texto
+    if (filtros.busqueda.trim()) {
+      const termino = filtros.busqueda.toLowerCase();
+      resultado = resultado.filter(e =>
+        e.titulo?.toLowerCase().includes(termino) ||
+        e.descripcion?.toLowerCase().includes(termino) ||
+        e.subjetivo?.toLowerCase().includes(termino) ||
+        e.objetivo?.toLowerCase().includes(termino) ||
+        e.analisis?.toLowerCase().includes(termino) ||
+        e.plan?.toLowerCase().includes(termino)
+      );
+    }
+
+    return resultado;
+  }, [eventos, filtros]);
+
+  // Limpiar todos los filtros
+  const limpiarFiltros = () => {
+    setFiltros({
+      tipo: 'todos',
+      fechaDesde: '',
+      fechaHasta: '',
+      doctor: 'todos',
+      busqueda: ''
+    });
+  };
+
+  // Verificar si hay filtros activos
+  const hayFiltrosActivos = filtros.tipo !== 'todos' ||
+    filtros.fechaDesde || filtros.fechaHasta ||
+    filtros.doctor !== 'todos' || filtros.busqueda.trim();
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <Card className="border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-white">
-        <CardHeader>
+        <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-cyan-600 rounded-lg">
@@ -171,27 +291,131 @@ export default function TabTimeline({ pacienteId }) {
                 </p>
               </div>
             </div>
-            
-            {/* Filtro */}
+
+            {/* Acciones */}
             <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-600" />
-              <Select value={filtroTipo} onValueChange={setFiltroTipo}>
-                <SelectTrigger className="w-48">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos los eventos</SelectItem>
-                  <SelectItem value="evolucion">Evoluciones SOAP</SelectItem>
-                  <SelectItem value="signos">Signos Vitales</SelectItem>
-                  <SelectItem value="diagnostico">Diagnósticos</SelectItem>
-                  <SelectItem value="alerta">Alertas</SelectItem>
-                  <SelectItem value="procedimiento">Procedimientos</SelectItem>
-                  <SelectItem value="prescripcion">Prescripciones</SelectItem>
-                </SelectContent>
-              </Select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={loadEventos}
+                disabled={loading}
+                className="gap-2"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                Actualizar
+              </Button>
+              <Button
+                variant={filtrosExpandido ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFiltrosExpandido(!filtrosExpandido)}
+                className="gap-2"
+              >
+                <Filter className="h-4 w-4" />
+                Filtros
+                {hayFiltrosActivos && (
+                  <Badge className="bg-red-500 text-white text-[10px] px-1.5">!</Badge>
+                )}
+                {filtrosExpandido ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+              </Button>
             </div>
           </div>
         </CardHeader>
+
+        {/* Barra de Filtros Avanzados */}
+        <Collapsible open={filtrosExpandido}>
+          <CollapsibleContent className="px-6 pb-4">
+            <div className="bg-white border border-cyan-200 rounded-lg p-4 mt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
+                {/* Búsqueda de texto */}
+                <div className="lg:col-span-2">
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Buscar en contenido</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Input
+                      placeholder="Buscar en títulos, descripciones, SOAP..."
+                      value={filtros.busqueda}
+                      onChange={(e) => setFiltros({ ...filtros, busqueda: e.target.value })}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                {/* Tipo de evento */}
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Tipo de evento</label>
+                  <Select value={filtros.tipo} onValueChange={(v) => setFiltros({ ...filtros, tipo: v })}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos los eventos</SelectItem>
+                      <SelectItem value="evolucion">Evoluciones SOAP</SelectItem>
+                      <SelectItem value="signos">Signos Vitales</SelectItem>
+                      <SelectItem value="diagnostico">Diagnósticos</SelectItem>
+                      <SelectItem value="alerta">Alertas</SelectItem>
+                      <SelectItem value="procedimiento">Procedimientos</SelectItem>
+                      <SelectItem value="prescripcion">Prescripciones</SelectItem>
+                      <SelectItem value="laboratorio">Órdenes/Laboratorio</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Fecha desde */}
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Desde</label>
+                  <Input
+                    type="date"
+                    value={filtros.fechaDesde}
+                    onChange={(e) => setFiltros({ ...filtros, fechaDesde: e.target.value })}
+                  />
+                </div>
+
+                {/* Fecha hasta */}
+                <div>
+                  <label className="text-xs font-medium text-gray-600 mb-1 block">Hasta</label>
+                  <Input
+                    type="date"
+                    value={filtros.fechaHasta}
+                    onChange={(e) => setFiltros({ ...filtros, fechaHasta: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between mt-3 pt-3 border-t">
+                {/* Filtro por doctor */}
+                <div className="flex items-center gap-2">
+                  <User className="h-4 w-4 text-gray-500" />
+                  <Select value={filtros.doctor} onValueChange={(v) => setFiltros({ ...filtros, doctor: v })}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filtrar por doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos los profesionales</SelectItem>
+                      {doctoresUnicos.map(doc => (
+                        <SelectItem key={doc.id} value={doc.id}>
+                          Dr. {doc.nombre}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Limpiar filtros y contador */}
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-600">
+                    Mostrando <strong>{eventosFiltrados.length}</strong> de <strong>{eventos.length}</strong> eventos
+                  </span>
+                  {hayFiltrosActivos && (
+                    <Button variant="ghost" size="sm" onClick={limpiarFiltros} className="gap-1 text-red-600 hover:text-red-700">
+                      <X className="h-3 w-3" />
+                      Limpiar filtros
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </Card>
 
       {/* Timeline */}
@@ -216,7 +440,7 @@ export default function TabTimeline({ pacienteId }) {
       ) : (
         <div className="space-y-4">
           {/* Stats */}
-          <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+          <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
             <Card className="border-blue-200 bg-blue-50">
               <CardContent className="p-3 text-center">
                 <FileText className="h-6 w-6 text-blue-600 mx-auto mb-1" />
@@ -262,13 +486,22 @@ export default function TabTimeline({ pacienteId }) {
                 <p className="text-xs text-indigo-600">Proc</p>
               </CardContent>
             </Card>
-            <Card className="border-teal-200 bg-teal-50">
+            <Card className="border-green-200 bg-green-50">
               <CardContent className="p-3 text-center">
-                <Pill className="h-6 w-6 text-teal-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-teal-700">
+                <Pill className="h-6 w-6 text-green-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-green-700">
                   {eventos.filter(e => e.tipo === 'prescripcion').length}
                 </p>
-                <p className="text-xs text-teal-600">Rx</p>
+                <p className="text-xs text-green-600">Rx</p>
+              </CardContent>
+            </Card>
+            <Card className="border-teal-200 bg-teal-50">
+              <CardContent className="p-3 text-center">
+                <TestTubes className="h-6 w-6 text-teal-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-teal-700">
+                  {eventos.filter(e => e.tipo === 'laboratorio').length}
+                </p>
+                <p className="text-xs text-teal-600">Órdenes</p>
               </CardContent>
             </Card>
           </div>
@@ -306,6 +539,30 @@ export default function TabTimeline({ pacienteId }) {
                           </div>
                         </div>
                         <p className="text-sm text-gray-700 mt-2">{evento.descripcion}</p>
+                        
+                        {/* Indicador de Firma Digital */}
+                        {evento.firmada && (
+                          <div className="mt-3 flex items-center gap-2 bg-green-50 p-2 rounded-md border border-green-200">
+                            <ShieldCheck className="h-4 w-4 text-green-600" />
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-green-800">Firmado Digitalmente</p>
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger>
+                                    <p className="text-[10px] font-mono text-green-600 truncate max-w-[200px] cursor-help">
+                                      Hash: {evento.hashRegistro}
+                                    </p>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p className="font-mono text-xs">{evento.hashRegistro}</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            </div>
+                            <Lock className="h-3 w-3 text-green-500" />
+                          </div>
+                        )}
+
                         {evento.profesional?.nombre && (
                           <p className="text-xs text-gray-500 mt-2">
                             Por: {evento.profesional.nombre} {evento.profesional.apellido}

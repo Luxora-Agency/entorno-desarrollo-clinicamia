@@ -69,27 +69,34 @@ export default function CitasModule() {
       const citasRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas?${params.toString()}`, { headers });
       const citasData = await citasRes.json();
 
-      if (citasData.success) {
-        const citas = citasData.data;
-        
-        // Cargar información de facturación para cada cita
-        const citasConFactura = await Promise.all(citas.map(async (cita) => {
+      // Soportar ambas estructuras de respuesta: { success, data } o { status, citas }
+      const isSuccess = citasData.success === true || citasData.status === 'success';
+
+      if (isSuccess) {
+        const citas = citasData.data || citasData.citas || [];
+
+        // Cargar información de facturación en batch (optimizado)
+        let facturasMap = {};
+        if (citas.length > 0) {
           try {
-            const facturaResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/facturas?limit=100`, { headers });
-            const facturaData = await facturaResponse.json();
-            
-            // Buscar factura relacionada con esta cita
-            const factura = facturaData.data?.find(f => 
-              f.items?.some(item => item.citaId === cita.id)
+            const citaIds = citas.map(c => c.id).join(',');
+            const facturaResponse = await fetch(
+              `${process.env.NEXT_PUBLIC_API_URL}/facturas/batch?citaIds=${citaIds}`,
+              { headers }
             );
-            
-            return { ...cita, factura };
+            const facturaData = await facturaResponse.json();
+            facturasMap = facturaData.data || {};
           } catch (error) {
-            console.error('Error cargando factura:', error);
-            return cita;
+            console.error('Error cargando facturas en batch:', error);
           }
+        }
+
+        // Asociar facturas a las citas
+        const citasConFactura = citas.map(cita => ({
+          ...cita,
+          factura: facturasMap[cita.id] || null
         }));
-        
+
         setCitas(citasConFactura);
       }
     } catch (error) {
@@ -142,7 +149,7 @@ export default function CitasModule() {
       const token = localStorage.getItem('token');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/facturas/${facturaId}`, {
         method: 'PUT',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -150,8 +157,9 @@ export default function CitasModule() {
       });
 
       const data = await res.json();
+      const isSuccess = data.success === true || data.status === 'success';
 
-      if (data.success) {
+      if (isSuccess) {
         toast({
           title: 'Éxito',
           description: `${campo === 'estado' ? 'Estado de pago' : 'Método de pago'} actualizado correctamente`,
@@ -180,7 +188,7 @@ export default function CitasModule() {
       const token = localStorage.getItem('token');
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas/estado/${citaId}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -188,8 +196,9 @@ export default function CitasModule() {
       });
 
       const data = await res.json();
+      const isSuccess = data.success === true || data.status === 'success';
 
-      if (data.success) {
+      if (isSuccess) {
         toast({
           title: 'Éxito',
           description: `Estado cambiado a: ${nuevoEstado}`,
@@ -218,13 +227,14 @@ export default function CitasModule() {
 
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas/${id}`, { 
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/citas/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
+      const isSuccess = data.success === true || data.status === 'success';
 
-      if (data.success) {
+      if (isSuccess) {
         toast({
           title: '✅ Cita eliminada',
           description: 'La cita se ha eliminado exitosamente',
@@ -630,15 +640,27 @@ export default function CitasModule() {
 
       {/* Modal con Formulario Reutilizable */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingCita ? 'Editar Cita' : 'Nueva Cita'}</DialogTitle>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="px-6 py-4 border-b bg-gradient-to-r from-emerald-50 to-teal-50 sticky top-0 z-10">
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <div className="p-2 rounded-lg bg-emerald-100">
+                <Stethoscope className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <span className="text-gray-900">{editingCita ? 'Editar Cita Médica' : 'Agendar Nueva Cita'}</span>
+                <p className="text-sm font-normal text-gray-500 mt-0.5">
+                  {editingCita ? 'Modifica los datos de la cita seleccionada' : 'Complete los datos para programar una cita'}
+                </p>
+              </div>
+            </DialogTitle>
           </DialogHeader>
-          <FormularioCita
-            editingCita={editingCita}
-            onSuccess={handleFormSuccess}
-            onCancel={handleFormCancel}
-          />
+          <div className="px-6 py-4">
+            <FormularioCita
+              editingCita={editingCita}
+              onSuccess={handleFormSuccess}
+              onCancel={handleFormCancel}
+            />
+          </div>
         </DialogContent>
       </Dialog>
     </div>

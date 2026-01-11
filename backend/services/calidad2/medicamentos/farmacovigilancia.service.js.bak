@@ -1,0 +1,425 @@
+const prisma = require('../../../db/prisma');
+const { ValidationError, NotFoundError } = require('../../../utils/errors');
+
+class FarmacovigilanciaService {
+  /**
+   * Find all reports with filters and pagination
+   */
+  async findAll(query = {}) {
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      estado = '',
+      gravedadReaccion = '',
+      causalidad = '',
+      reportadoINVIMA = '',
+      fechaInicio = '',
+      fechaFin = '',
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    const where = {
+      activo: true,
+    };
+
+    // Search filter
+    if (search) {
+      where.OR = [
+        { medicamento: { contains: search, mode: 'insensitive' } },
+        { laboratorio: { contains: search, mode: 'insensitive' } },
+        { lote: { contains: search, mode: 'insensitive' } },
+        { numeroReporteINVIMA: { contains: search, mode: 'insensitive' } },
+        { paciente: { nombre: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    // Estado filter
+    if (estado) {
+      where.estado = estado;
+    }
+
+    // Gravedad filter
+    if (gravedadReaccion) {
+      where.gravedadReaccion = gravedadReaccion;
+    }
+
+    // Causalidad filter
+    if (causalidad) {
+      where.causalidad = causalidad;
+    }
+
+    // INVIMA filter
+    if (reportadoINVIMA === 'true') {
+      where.reportadoINVIMA = true;
+    } else if (reportadoINVIMA === 'false') {
+      where.reportadoINVIMA = false;
+    }
+
+    // Date range filter
+    if (fechaInicio || fechaFin) {
+      where.fechaEvento = {};
+      if (fechaInicio) {
+        where.fechaEvento.gte = new Date(fechaInicio);
+      }
+      if (fechaFin) {
+        where.fechaEvento.lte = new Date(fechaFin);
+      }
+    }
+
+    const [reportes, total] = await Promise.all([
+      prisma.reporteFarmacovigilancia.findMany({
+        where,
+        include: {
+          paciente: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              cedula: true,
+              tipoDocumento: true,
+            },
+          },
+          documentos: {
+            where: { activo: true },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        skip,
+        take,
+        orderBy: { [sortBy]: sortOrder },
+      }),
+      prisma.reporteFarmacovigilancia.count({ where }),
+    ]);
+
+    return {
+      data: reportes,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    };
+  }
+
+  /**
+   * Find by ID
+   */
+  async findById(id) {
+    const reporte = await prisma.reporteFarmacovigilancia.findUnique({
+      where: { id },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+            tipoDocumento: true,
+            fechaNacimiento: true,
+            sexo: true,
+          },
+        },
+        documentos: {
+          where: { activo: true },
+          include: {
+            cargador: {
+              select: { id: true, nombre: true, email: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!reporte || !reporte.activo) {
+      throw new NotFoundError('Reporte de farmacovigilancia no encontrado');
+    }
+
+    return reporte;
+  }
+
+  /**
+   * Create RAM report
+   */
+  async create(data, userId) {
+    // Verify patient exists
+    const paciente = await prisma.paciente.findUnique({
+      where: { id: data.pacienteId },
+    });
+
+    if (!paciente) {
+      throw new ValidationError('Paciente no encontrado');
+    }
+
+    const reporte = await prisma.reporteFarmacovigilancia.create({
+      data: {
+        ...data,
+        reportadoPor: userId,
+        estado: 'BORRADOR',
+      },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+            tipoDocumento: true,
+          },
+        },
+      },
+    });
+
+    return reporte;
+  }
+
+  /**
+   * Update RAM report
+   */
+  async update(id, data, userId) {
+    const existing = await this.findById(id);
+
+    // Cannot edit if already reported to INVIMA (unless changing to CERRADO)
+    if (existing.estado === 'REPORTADO_INVIMA' && data.estado !== 'CERRADO') {
+      throw new ValidationError(
+        'No se puede editar un reporte ya enviado a INVIMA. Solo puede cerrarlo.'
+      );
+    }
+
+    const updated = await prisma.reporteFarmacovigilancia.update({
+      where: { id },
+      data,
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+            tipoDocumento: true,
+          },
+        },
+        documentos: {
+          where: { activo: true },
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Soft delete report
+   */
+  async delete(id) {
+    const existing = await this.findById(id);
+
+    // Cannot delete if reported to INVIMA
+    if (existing.reportadoINVIMA) {
+      throw new ValidationError(
+        'No se puede eliminar un reporte ya enviado a INVIMA'
+      );
+    }
+
+    await prisma.reporteFarmacovigilancia.update({
+      where: { id },
+      data: { activo: false },
+    });
+
+    return { message: 'Reporte eliminado exitosamente' };
+  }
+
+  /**
+   * Mark as reported to INVIMA
+   */
+  async reportarINVIMA(id, data, userId) {
+    const existing = await this.findById(id);
+
+    if (existing.reportadoINVIMA) {
+      throw new ValidationError('Este reporte ya fue enviado a INVIMA');
+    }
+
+    const updated = await prisma.reporteFarmacovigilancia.update({
+      where: { id },
+      data: {
+        reportadoINVIMA: true,
+        numeroReporteINVIMA: data.numeroReporteINVIMA,
+        fechaReporteINVIMA: new Date(),
+        estado: 'REPORTADO_INVIMA',
+        verificadoPor: userId,
+        fechaVerificacion: new Date(),
+      },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+          },
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Get statistics for dashboard
+   */
+  async getEstadisticas(filters = {}) {
+    const { fechaInicio, fechaFin } = filters;
+
+    const whereBase = {
+      activo: true,
+    };
+
+    // Date range
+    if (fechaInicio || fechaFin) {
+      whereBase.fechaEvento = {};
+      if (fechaInicio) whereBase.fechaEvento.gte = new Date(fechaInicio);
+      if (fechaFin) whereBase.fechaEvento.lte = new Date(fechaFin);
+    }
+
+    const [
+      totalReportes,
+      porEstado,
+      porGravedad,
+      porCausalidad,
+      reportadosINVIMA,
+      pendientesINVIMA,
+      ultimoMes,
+    ] = await Promise.all([
+      // Total reportes
+      prisma.reporteFarmacovigilancia.count({ where: whereBase }),
+
+      // Por estado
+      prisma.reporteFarmacovigilancia.groupBy({
+        by: ['estado'],
+        where: whereBase,
+        _count: true,
+      }),
+
+      // Por gravedad
+      prisma.reporteFarmacovigilancia.groupBy({
+        by: ['gravedadReaccion'],
+        where: whereBase,
+        _count: true,
+      }),
+
+      // Por causalidad
+      prisma.reporteFarmacovigilancia.groupBy({
+        by: ['causalidad'],
+        where: whereBase,
+        _count: true,
+      }),
+
+      // Reportados a INVIMA
+      prisma.reporteFarmacovigilancia.count({
+        where: { ...whereBase, reportadoINVIMA: true },
+      }),
+
+      // Pendientes de INVIMA
+      prisma.reporteFarmacovigilancia.count({
+        where: {
+          ...whereBase,
+          reportadoINVIMA: false,
+          estado: { in: ['ENVIADO', 'BORRADOR'] },
+        },
+      }),
+
+      // Último mes
+      prisma.reporteFarmacovigilancia.count({
+        where: {
+          activo: true,
+          createdAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          },
+        },
+      }),
+    ]);
+
+    return {
+      total: totalReportes,
+      porEstado: porEstado.reduce((acc, item) => {
+        acc[item.estado] = item._count;
+        return acc;
+      }, {}),
+      porGravedad: porGravedad.reduce((acc, item) => {
+        acc[item.gravedadReaccion] = item._count;
+        return acc;
+      }, {}),
+      porCausalidad: porCausalidad.reduce((acc, item) => {
+        acc[item.causalidad] = item._count;
+        return acc;
+      }, {}),
+      reportadosINVIMA,
+      pendientesINVIMA,
+      ultimoMes,
+    };
+  }
+
+  /**
+   * Get reports pending INVIMA
+   */
+  async getPendientesINVIMA() {
+    const reportes = await prisma.reporteFarmacovigilancia.findMany({
+      where: {
+        activo: true,
+        reportadoINVIMA: false,
+        estado: { in: ['ENVIADO', 'BORRADOR'] },
+      },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+          },
+        },
+      },
+      orderBy: { fechaEvento: 'desc' },
+    });
+
+    return reportes;
+  }
+
+  /**
+   * Upload document to report
+   */
+  async uploadDocumento(reporteId, file, metadata, userId) {
+    const reporte = await this.findById(reporteId);
+
+    // This would integrate with your file upload service
+    // For now, we'll just create the document record
+    const documento = await prisma.documentoReporte.create({
+      data: {
+        reporteFarmacovigilanciaId: reporteId,
+        nombre: metadata.nombre || file.name,
+        archivoUrl: metadata.archivoUrl, // This should come from your upload service
+        archivoNombre: file.name,
+        archivoTipo: file.type,
+        archivoTamano: file.size,
+        cargadoPor: userId,
+      },
+    });
+
+    return documento;
+  }
+
+  /**
+   * Delete document from report
+   */
+  async deleteDocumento(documentoId) {
+    await prisma.documentoReporte.update({
+      where: { id: documentoId },
+      data: { activo: false },
+    });
+
+    return { message: 'Documento eliminado exitosamente' };
+  }
+}
+
+module.exports = new FarmacovigilanciaService();

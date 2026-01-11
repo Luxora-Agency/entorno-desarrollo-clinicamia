@@ -12,7 +12,101 @@ const movimiento = new Hono();
 movimiento.use('*', authMiddleware);
 
 /**
- * GET /movimientos - Obtener todos los movimientos
+ * @swagger
+ * components:
+ *   schemas:
+ *     Movimiento:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         admision_id:
+ *           type: string
+ *           format: uuid
+ *         tipo:
+ *           type: string
+ *           enum: [Ingreso, Traslado, CambioCama, CambioUnidad, Egreso]
+ *         unidad_origen_id:
+ *           type: string
+ *           format: uuid
+ *         unidad_destino_id:
+ *           type: string
+ *           format: uuid
+ *         cama_origen_id:
+ *           type: string
+ *           format: uuid
+ *         cama_destino_id:
+ *           type: string
+ *           format: uuid
+ *         motivo:
+ *           type: string
+ *         observaciones:
+ *           type: string
+ *         fecha_movimiento:
+ *           type: string
+ *           format: date-time
+ *     MovimientoInput:
+ *       type: object
+ *       required:
+ *         - admision_id
+ *         - tipo
+ *       properties:
+ *         admision_id:
+ *           type: string
+ *           format: uuid
+ *         tipo:
+ *           type: string
+ *           enum: [Ingreso, Traslado, CambioCama, CambioUnidad, Egreso]
+ *         unidad_destino_id:
+ *           type: string
+ *           format: uuid
+ *         cama_destino_id:
+ *           type: string
+ *           format: uuid
+ *         motivo:
+ *           type: string
+ *         observaciones:
+ *           type: string
+ * tags:
+ *   name: Movimientos
+ *   description: Historial de movimientos de pacientes
+ */
+
+/**
+ * @swagger
+ * /movimientos:
+ *   get:
+ *     summary: Obtener todos los movimientos
+ *     tags: [Movimientos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: admision_id
+ *         schema:
+ *           type: string
+ *         description: Filtrar por admisión
+ *     responses:
+ *       200:
+ *         description: Lista de movimientos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     movimientos:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Movimiento'
+ *       500:
+ *         description: Error del servidor
  */
 movimiento.get('/', async (c) => {
   try {
@@ -25,7 +119,41 @@ movimiento.get('/', async (c) => {
 });
 
 /**
- * GET /movimientos/:id - Obtener un movimiento por ID
+ * @swagger
+ * /movimientos/{id}:
+ *   get:
+ *     summary: Obtener un movimiento por ID
+ *     tags: [Movimientos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del movimiento
+ *     responses:
+ *       200:
+ *         description: Datos del movimiento
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     movimiento:
+ *                       $ref: '#/components/schemas/Movimiento'
+ *       404:
+ *         description: Movimiento no encontrado
+ *       500:
+ *         description: Error del servidor
  */
 movimiento.get('/:id', async (c) => {
   try {
@@ -38,7 +166,37 @@ movimiento.get('/:id', async (c) => {
 });
 
 /**
- * POST /movimientos - Crear un movimiento (traslado)
+ * @swagger
+ * /movimientos:
+ *   post:
+ *     summary: Crear un movimiento (traslado)
+ *     tags: [Movimientos]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/MovimientoInput'
+ *     responses:
+ *       201:
+ *         description: Movimiento registrado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     movimiento:
+ *                       $ref: '#/components/schemas/Movimiento'
+ *       500:
+ *         description: Error del servidor
  */
 movimiento.post('/', async (c) => {
   try {
@@ -51,7 +209,28 @@ movimiento.post('/', async (c) => {
 });
 
 /**
- * DELETE /movimientos/:id - Eliminar un movimiento
+ * @swagger
+ * /movimientos/{id}:
+ *   delete:
+ *     summary: Eliminar un movimiento
+ *     tags: [Movimientos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del movimiento
+ *     responses:
+ *       200:
+ *         description: Movimiento eliminado correctamente
+ *       404:
+ *         description: Movimiento no encontrado
+ *       500:
+ *         description: Error del servidor
  */
 movimiento.delete('/:id', async (c) => {
   try {

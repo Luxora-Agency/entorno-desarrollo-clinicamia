@@ -1,0 +1,486 @@
+const prisma = require('../../../db/prisma');
+const { ValidationError, NotFoundError } = require('../../../utils/errors');
+
+class TecnovigilanciaService {
+  /**
+   * Find all reports with filters and pagination
+   */
+  async findAll(query = {}) {
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      estado = '',
+      clasificacion = '',
+      tipoEvento = '',
+      gravedadEvento = '',
+      reportadoINVIMA = '',
+      fechaInicio = '',
+      fechaFin = '',
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = query;
+
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    const take = parseInt(limit);
+
+    const where = {
+      activo: true,
+    };
+
+    // Search filter
+    if (search) {
+      where.OR = [
+        { dispositivoMedico: { contains: search, mode: 'insensitive' } },
+        { fabricante: { contains: search, mode: 'insensitive' } },
+        { modelo: { contains: search, mode: 'insensitive' } },
+        { numeroSerie: { contains: search, mode: 'insensitive' } },
+        { numeroReporteINVIMA: { contains: search, mode: 'insensitive' } },
+        { paciente: { nombre: { contains: search, mode: 'insensitive' } } },
+      ];
+    }
+
+    // Filters
+    if (estado) where.estado = estado;
+    if (clasificacion) where.clasificacion = clasificacion;
+    if (tipoEvento) where.tipoEvento = tipoEvento;
+    if (gravedadEvento) where.gravedadEvento = gravedadEvento;
+
+    if (reportadoINVIMA === 'true') {
+      where.reportadoINVIMA = true;
+    } else if (reportadoINVIMA === 'false') {
+      where.reportadoINVIMA = false;
+    }
+
+    // Date range
+    if (fechaInicio || fechaFin) {
+      where.fechaEvento = {};
+      if (fechaInicio) where.fechaEvento.gte = new Date(fechaInicio);
+      if (fechaFin) where.fechaEvento.lte = new Date(fechaFin);
+    }
+
+    const [reportes, total] = await Promise.all([
+      prisma.reporteTecnovigilancia.findMany({
+        where,
+        include: {
+          paciente: {
+            select: {
+              id: true,
+              nombre: true,
+              numeroDocumento: true,
+              tipoDocumento: true,
+            },
+          },
+          documentos: {
+            where: { activo: true },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
+        skip,
+        take,
+        orderBy: { [sortBy]: sortOrder },
+      }),
+      prisma.reporteTecnovigilancia.count({ where }),
+    ]);
+
+    return {
+      data: reportes,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        totalPages: Math.ceil(total / parseInt(limit)),
+      },
+    };
+  }
+
+  /**
+   * Find by ID
+   */
+  async findById(id) {
+    const reporte = await prisma.reporteTecnovigilancia.findUnique({
+      where: { id },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+            tipoDocumento: true,
+            fechaNacimiento: true,
+            sexo: true,
+          },
+        },
+        documentos: {
+          where: { activo: true },
+          include: {
+            cargador: {
+              select: { id: true, nombre: true, email: true },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
+      },
+    });
+
+    if (!reporte || !reporte.activo) {
+      throw new NotFoundError('Reporte de tecnovigilancia no encontrado');
+    }
+
+    return reporte;
+  }
+
+  /**
+   * Create device event report
+   */
+  async create(data, userId) {
+    // Verify patient exists
+    const paciente = await prisma.paciente.findUnique({
+      where: { id: data.pacienteId },
+    });
+
+    if (!paciente) {
+      throw new ValidationError('Paciente no encontrado');
+    }
+
+    const reporte = await prisma.reporteTecnovigilancia.create({
+      data: {
+        ...data,
+        reportadoPor: userId,
+        estado: 'BORRADOR',
+      },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+            tipoDocumento: true,
+          },
+        },
+      },
+    });
+
+    return reporte;
+  }
+
+  /**
+   * Update report
+   */
+  async update(id, data, userId) {
+    const existing = await this.findById(id);
+
+    // Cannot edit if already reported to INVIMA
+    if (existing.estado === 'REPORTADO_INVIMA' && data.estado !== 'CERRADO') {
+      throw new ValidationError(
+        'No se puede editar un reporte ya enviado a INVIMA. Solo puede cerrarlo.'
+      );
+    }
+
+    const updated = await prisma.reporteTecnovigilancia.update({
+      where: { id },
+      data,
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+            tipoDocumento: true,
+          },
+        },
+        documentos: {
+          where: { activo: true },
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Soft delete report
+   */
+  async delete(id) {
+    const existing = await this.findById(id);
+
+    if (existing.reportadoINVIMA) {
+      throw new ValidationError(
+        'No se puede eliminar un reporte ya enviado a INVIMA'
+      );
+    }
+
+    await prisma.reporteTecnovigilancia.update({
+      where: { id },
+      data: { activo: false },
+    });
+
+    return { message: 'Reporte eliminado exitosamente' };
+  }
+
+  /**
+   * Mark as reported to INVIMA
+   */
+  async reportarINVIMA(id, data, userId) {
+    const existing = await this.findById(id);
+
+    if (existing.reportadoINVIMA) {
+      throw new ValidationError('Este reporte ya fue enviado a INVIMA');
+    }
+
+    const updated = await prisma.reporteTecnovigilancia.update({
+      where: { id },
+      data: {
+        reportadoINVIMA: true,
+        numeroReporteINVIMA: data.numeroReporteINVIMA,
+        fechaReporteINVIMA: new Date(),
+        estado: 'REPORTADO_INVIMA',
+        verificadoPor: userId,
+        fechaVerificacion: new Date(),
+      },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+          },
+        },
+      },
+    });
+
+    return updated;
+  }
+
+  /**
+   * Get quarterly consolidation
+   */
+  async getConsolidadoTrimestral(trimestre, anio) {
+    if (!trimestre || !anio) {
+      throw new ValidationError('Trimestre y año son requeridos');
+    }
+
+    const trimestreNum = parseInt(trimestre);
+    const anioNum = parseInt(anio);
+
+    if (trimestreNum < 1 || trimestreNum > 4) {
+      throw new ValidationError('Trimestre debe estar entre 1 y 4');
+    }
+
+    // Calculate date range for quarter
+    const startMonth = (trimestreNum - 1) * 3;
+    const fechaInicio = new Date(anioNum, startMonth, 1);
+    const fechaFin = new Date(anioNum, startMonth + 3, 0, 23, 59, 59);
+
+    const reportes = await prisma.reporteTecnovigilancia.findMany({
+      where: {
+        activo: true,
+        fechaEvento: {
+          gte: fechaInicio,
+          lte: fechaFin,
+        },
+      },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+          },
+        },
+      },
+      orderBy: { fechaEvento: 'asc' },
+    });
+
+    // Group by type and severity
+    const porTipo = {};
+    const porGravedad = {};
+    const porClasificacion = {};
+
+    reportes.forEach(reporte => {
+      // By type
+      const tipo = reporte.tipoEvento || 'SIN_CLASIFICAR';
+      porTipo[tipo] = (porTipo[tipo] || 0) + 1;
+
+      // By severity
+      const gravedad = reporte.gravedadEvento || 'SIN_CLASIFICAR';
+      porGravedad[gravedad] = (porGravedad[gravedad] || 0) + 1;
+
+      // By classification
+      const clasificacion = reporte.clasificacion || 'SIN_CLASIFICAR';
+      porClasificacion[clasificacion] = (porClasificacion[clasificacion] || 0) + 1;
+    });
+
+    return {
+      trimestre: trimestreNum,
+      anio: anioNum,
+      fechaInicio,
+      fechaFin,
+      total: reportes.length,
+      reportes,
+      resumen: {
+        porTipo,
+        porGravedad,
+        porClasificacion,
+      },
+    };
+  }
+
+  /**
+   * Get statistics for dashboard
+   */
+  async getEstadisticas(filters = {}) {
+    const { fechaInicio, fechaFin } = filters;
+
+    const whereBase = {
+      activo: true,
+    };
+
+    if (fechaInicio || fechaFin) {
+      whereBase.fechaEvento = {};
+      if (fechaInicio) whereBase.fechaEvento.gte = new Date(fechaInicio);
+      if (fechaFin) whereBase.fechaEvento.lte = new Date(fechaFin);
+    }
+
+    const [
+      totalReportes,
+      porEstado,
+      porTipoEvento,
+      porGravedadEvento,
+      porClasificacion,
+      reportadosINVIMA,
+      pendientesINVIMA,
+      ultimoMes,
+    ] = await Promise.all([
+      prisma.reporteTecnovigilancia.count({ where: whereBase }),
+
+      prisma.reporteTecnovigilancia.groupBy({
+        by: ['estado'],
+        where: whereBase,
+        _count: true,
+      }),
+
+      prisma.reporteTecnovigilancia.groupBy({
+        by: ['tipoEvento'],
+        where: whereBase,
+        _count: true,
+      }),
+
+      prisma.reporteTecnovigilancia.groupBy({
+        by: ['gravedadEvento'],
+        where: whereBase,
+        _count: true,
+      }),
+
+      prisma.reporteTecnovigilancia.groupBy({
+        by: ['clasificacion'],
+        where: whereBase,
+        _count: true,
+      }),
+
+      prisma.reporteTecnovigilancia.count({
+        where: { ...whereBase, reportadoINVIMA: true },
+      }),
+
+      prisma.reporteTecnovigilancia.count({
+        where: {
+          ...whereBase,
+          reportadoINVIMA: false,
+          estado: { in: ['ENVIADO', 'BORRADOR'] },
+        },
+      }),
+
+      prisma.reporteTecnovigilancia.count({
+        where: {
+          activo: true,
+          createdAt: {
+            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          },
+        },
+      }),
+    ]);
+
+    return {
+      total: totalReportes,
+      porEstado: porEstado.reduce((acc, item) => {
+        acc[item.estado] = item._count;
+        return acc;
+      }, {}),
+      porTipoEvento: porTipoEvento.reduce((acc, item) => {
+        if (item.tipoEvento) acc[item.tipoEvento] = item._count;
+        return acc;
+      }, {}),
+      porGravedadEvento: porGravedadEvento.reduce((acc, item) => {
+        if (item.gravedadEvento) acc[item.gravedadEvento] = item._count;
+        return acc;
+      }, {}),
+      porClasificacion: porClasificacion.reduce((acc, item) => {
+        acc[item.clasificacion] = item._count;
+        return acc;
+      }, {}),
+      reportadosINVIMA,
+      pendientesINVIMA,
+      ultimoMes,
+    };
+  }
+
+  /**
+   * Get reports pending INVIMA
+   */
+  async getPendientesINVIMA() {
+    const reportes = await prisma.reporteTecnovigilancia.findMany({
+      where: {
+        activo: true,
+        reportadoINVIMA: false,
+        estado: { in: ['ENVIADO', 'BORRADOR'] },
+      },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            numeroDocumento: true,
+          },
+        },
+      },
+      orderBy: { fechaEvento: 'desc' },
+    });
+
+    return reportes;
+  }
+
+  /**
+   * Upload document to report
+   */
+  async uploadDocumento(reporteId, file, metadata, userId) {
+    await this.findById(reporteId);
+
+    const documento = await prisma.documentoReporte.create({
+      data: {
+        reporteTecnovigilanciaId: reporteId,
+        nombre: metadata.nombre || file.name,
+        archivoUrl: metadata.archivoUrl,
+        archivoNombre: file.name,
+        archivoTipo: file.type,
+        archivoTamano: file.size,
+        cargadoPor: userId,
+      },
+    });
+
+    return documento;
+  }
+
+  /**
+   * Delete document from report
+   */
+  async deleteDocumento(documentoId) {
+    await prisma.documentoReporte.update({
+      where: { id: documentoId },
+      data: { activo: false },
+    });
+
+    return { message: 'Documento eliminado exitosamente' };
+  }
+}
+
+module.exports = new TecnovigilanciaService();

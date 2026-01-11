@@ -47,6 +47,12 @@ class OrdenMedicaService {
               tipo: true,
               descripcion: true,
               duracionMinutos: true,
+              categoria: {
+                select: {
+                  id: true,
+                  nombre: true,
+                },
+              },
             },
           },
           doctor: {
@@ -207,11 +213,17 @@ class OrdenMedicaService {
   async completar(id, data, ejecutadoPorId) {
     await this.getById(id);
 
+    // Ensure resultados is stored as a string if it's an object
+    let resultados = data.resultados;
+    if (typeof resultados === 'object' && resultados !== null) {
+      resultados = JSON.stringify(resultados);
+    }
+
     const orden = await prisma.ordenMedica.update({
       where: { id },
       data: {
         estado: 'Completada',
-        resultados: data.resultados,
+        resultados: resultados,
         archivoResultado: data.archivo_resultado || null,
         fechaEjecucion: new Date(),
         ejecutadoPor: ejecutadoPorId,

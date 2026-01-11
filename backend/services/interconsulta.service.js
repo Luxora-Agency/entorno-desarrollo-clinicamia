@@ -3,8 +3,7 @@
  * Permite solicitar y responder interconsultas entre especialidades
  */
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../db/prisma');
 
 class InterconsultaService {
   /**

@@ -12,7 +12,80 @@ const habitacion = new Hono();
 habitacion.use('*', authMiddleware);
 
 /**
- * GET /habitaciones - Obtener todas las habitaciones
+ * @swagger
+ * components:
+ *   schemas:
+ *     Habitacion:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         numero:
+ *           type: string
+ *         unidad_id:
+ *           type: string
+ *           format: uuid
+ *         piso:
+ *           type: integer
+ *         capacidad_camas:
+ *           type: integer
+ *         activo:
+ *           type: boolean
+ *     HabitacionInput:
+ *       type: object
+ *       required:
+ *         - numero
+ *         - unidad_id
+ *       properties:
+ *         numero:
+ *           type: string
+ *         unidad_id:
+ *           type: string
+ *           format: uuid
+ *         piso:
+ *           type: integer
+ *         capacidad_camas:
+ *           type: integer
+ * tags:
+ *   name: Habitaciones
+ *   description: Gestión de habitaciones hospitalarias
+ */
+
+/**
+ * @swagger
+ * /habitaciones:
+ *   get:
+ *     summary: Obtener todas las habitaciones
+ *     tags: [Habitaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: unidad_id
+ *         schema:
+ *           type: string
+ *         description: Filtrar por unidad
+ *     responses:
+ *       200:
+ *         description: Lista de habitaciones
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     habitaciones:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Habitacion'
+ *       500:
+ *         description: Error del servidor
  */
 habitacion.get('/', async (c) => {
   try {
@@ -25,7 +98,41 @@ habitacion.get('/', async (c) => {
 });
 
 /**
- * GET /habitaciones/:id - Obtener una habitación por ID
+ * @swagger
+ * /habitaciones/{id}:
+ *   get:
+ *     summary: Obtener una habitación por ID
+ *     tags: [Habitaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la habitación
+ *     responses:
+ *       200:
+ *         description: Datos de la habitación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     habitacion:
+ *                       $ref: '#/components/schemas/Habitacion'
+ *       404:
+ *         description: Habitación no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 habitacion.get('/:id', async (c) => {
   try {
@@ -38,7 +145,37 @@ habitacion.get('/:id', async (c) => {
 });
 
 /**
- * POST /habitaciones - Crear una habitación
+ * @swagger
+ * /habitaciones:
+ *   post:
+ *     summary: Crear una habitación
+ *     tags: [Habitaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/HabitacionInput'
+ *     responses:
+ *       201:
+ *         description: Habitación creada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     habitacion:
+ *                       $ref: '#/components/schemas/Habitacion'
+ *       500:
+ *         description: Error del servidor
  */
 habitacion.post('/', async (c) => {
   try {
@@ -51,7 +188,34 @@ habitacion.post('/', async (c) => {
 });
 
 /**
- * PUT /habitaciones/:id - Actualizar una habitación
+ * @swagger
+ * /habitaciones/{id}:
+ *   put:
+ *     summary: Actualizar una habitación
+ *     tags: [Habitaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la habitación
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/HabitacionInput'
+ *     responses:
+ *       200:
+ *         description: Habitación actualizada exitosamente
+ *       404:
+ *         description: Habitación no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 habitacion.put('/:id', async (c) => {
   try {
@@ -65,7 +229,28 @@ habitacion.put('/:id', async (c) => {
 });
 
 /**
- * DELETE /habitaciones/:id - Eliminar una habitación
+ * @swagger
+ * /habitaciones/{id}:
+ *   delete:
+ *     summary: Eliminar una habitación
+ *     tags: [Habitaciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la habitación
+ *     responses:
+ *       200:
+ *         description: Habitación eliminada correctamente
+ *       404:
+ *         description: Habitación no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 habitacion.delete('/:id', async (c) => {
   try {

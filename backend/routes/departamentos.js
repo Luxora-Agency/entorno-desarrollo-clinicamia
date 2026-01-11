@@ -12,7 +12,64 @@ const departamentos = new Hono();
 departamentos.use('*', authMiddleware);
 
 /**
- * GET /departamentos - Obtener todos los departamentos
+ * @swagger
+ * components:
+ *   schemas:
+ *     Departamento:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *     DepartamentoInput:
+ *       type: object
+ *       required:
+ *         - nombre
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ * tags:
+ *   name: Departamentos
+ *   description: Gestión de departamentos
+ */
+
+/**
+ * @swagger
+ * /departamentos:
+ *   get:
+ *     summary: Obtener todos los departamentos
+ *     tags: [Departamentos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: nombre
+ *         schema:
+ *           type: string
+ *         description: Filtrar por nombre
+ *     responses:
+ *       200:
+ *         description: Lista de departamentos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Departamento'
+ *       500:
+ *         description: Error del servidor
  */
 departamentos.get('/', async (c) => {
   try {
@@ -25,7 +82,41 @@ departamentos.get('/', async (c) => {
 });
 
 /**
- * GET /departamentos/:id - Obtener un departamento por ID
+ * @swagger
+ * /departamentos/{id}:
+ *   get:
+ *     summary: Obtener un departamento por ID
+ *     tags: [Departamentos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del departamento
+ *     responses:
+ *       200:
+ *         description: Datos del departamento
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     departamento:
+ *                       $ref: '#/components/schemas/Departamento'
+ *       404:
+ *         description: Departamento no encontrado
+ *       500:
+ *         description: Error del servidor
  */
 departamentos.get('/:id', async (c) => {
   try {
@@ -38,7 +129,37 @@ departamentos.get('/:id', async (c) => {
 });
 
 /**
- * POST /departamentos - Crear un departamento
+ * @swagger
+ * /departamentos:
+ *   post:
+ *     summary: Crear un departamento
+ *     tags: [Departamentos]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/DepartamentoInput'
+ *     responses:
+ *       201:
+ *         description: Departamento creado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     departamento:
+ *                       $ref: '#/components/schemas/Departamento'
+ *       500:
+ *         description: Error del servidor
  */
 departamentos.post('/', async (c) => {
   try {
@@ -51,7 +172,34 @@ departamentos.post('/', async (c) => {
 });
 
 /**
- * PUT /departamentos/:id - Actualizar un departamento
+ * @swagger
+ * /departamentos/{id}:
+ *   put:
+ *     summary: Actualizar un departamento
+ *     tags: [Departamentos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del departamento
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/DepartamentoInput'
+ *     responses:
+ *       200:
+ *         description: Departamento actualizado exitosamente
+ *       404:
+ *         description: Departamento no encontrado
+ *       500:
+ *         description: Error del servidor
  */
 departamentos.put('/:id', async (c) => {
   try {
@@ -65,7 +213,28 @@ departamentos.put('/:id', async (c) => {
 });
 
 /**
- * DELETE /departamentos/:id - Eliminar un departamento
+ * @swagger
+ * /departamentos/{id}:
+ *   delete:
+ *     summary: Eliminar un departamento
+ *     tags: [Departamentos]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del departamento
+ *     responses:
+ *       200:
+ *         description: Departamento eliminado correctamente
+ *       404:
+ *         description: Departamento no encontrado
+ *       500:
+ *         description: Error del servidor
  */
 departamentos.delete('/:id', async (c) => {
   try {

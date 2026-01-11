@@ -12,7 +12,70 @@ const urgencias = new Hono();
 urgencias.use('*', authMiddleware);
 
 /**
- * POST /urgencias/triaje - Crear triaje (ingreso a urgencias)
+ * @swagger
+ * components:
+ *   schemas:
+ *     AtencionUrgencia:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         motivo_consulta:
+ *           type: string
+ *         triaje:
+ *           type: string
+ *           enum: [Reanimacion, Emergencia, Urgencia, UrgenciaMenor, SinUrgencia]
+ *         estado:
+ *           type: string
+ *           enum: [EsperaTriaje, EsperaAtencion, EnAtencion, Observacion, Alta, Hospitalizado]
+ *         fecha_ingreso:
+ *           type: string
+ *           format: date-time
+ *     TriajeInput:
+ *       type: object
+ *       required:
+ *         - paciente_id
+ *         - motivo_consulta
+ *         - triaje
+ *       properties:
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         motivo_consulta:
+ *           type: string
+ *         triaje:
+ *           type: string
+ *           enum: [Reanimacion, Emergencia, Urgencia, UrgenciaMenor, SinUrgencia]
+ *         signos_vitales:
+ *           type: object
+ * tags:
+ *   name: Urgencias
+ *   description: Gestión de urgencias y triaje
+ */
+
+/**
+ * @swagger
+ * /urgencias/triaje:
+ *   post:
+ *     summary: Crear triaje (ingreso a urgencias)
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TriajeInput'
+ *     responses:
+ *       201:
+ *         description: Triaje registrado exitosamente
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.post('/triaje', async (c) => {
   try {
@@ -25,12 +88,35 @@ urgencias.post('/triaje', async (c) => {
 });
 
 /**
- * GET /urgencias - Listar atenciones
+ * @swagger
+ * /urgencias:
+ *   get:
+ *     summary: Listar atenciones de urgencia
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: estado
+ *         schema:
+ *           type: string
+ *         description: Filtrar por estado
+ *       - in: query
+ *         name: fecha
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filtrar por fecha
+ *     responses:
+ *       200:
+ *         description: Lista de atenciones
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.get('/', async (c) => {
   try {
-    const { estado, fecha, limit } = c.req.query();
-    const atenciones = await urgenciaService.listar({ estado, fecha, limit });
+    const { estado, fecha, pacienteId, paciente_id, limit } = c.req.query();
+    const atenciones = await urgenciaService.listar({ estado, fecha, pacienteId, paciente_id, limit });
     return c.json(success({ atenciones }));
   } catch (err) {
     return c.json(error(err.message), err.statusCode || 500);
@@ -38,7 +124,25 @@ urgencias.get('/', async (c) => {
 });
 
 /**
- * GET /urgencias/estadisticas - Estadísticas del día
+ * @swagger
+ * /urgencias/estadisticas:
+ *   get:
+ *     summary: Estadísticas de urgencias del día
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: fecha
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha para estadísticas
+ *     responses:
+ *       200:
+ *         description: Estadísticas de urgencias
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.get('/estadisticas', async (c) => {
   try {
@@ -51,7 +155,28 @@ urgencias.get('/estadisticas', async (c) => {
 });
 
 /**
- * GET /urgencias/:id - Obtener atención específica
+ * @swagger
+ * /urgencias/{id}:
+ *   get:
+ *     summary: Obtener atención de urgencia específica
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la atención
+ *     responses:
+ *       200:
+ *         description: Datos de la atención
+ *       404:
+ *         description: Atención no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.get('/:id', async (c) => {
   try {
@@ -64,7 +189,26 @@ urgencias.get('/:id', async (c) => {
 });
 
 /**
- * PUT /urgencias/:id/atender - Iniciar atención médica
+ * @swagger
+ * /urgencias/{id}/atender:
+ *   put:
+ *     summary: Iniciar atención médica
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la atención
+ *     responses:
+ *       200:
+ *         description: Atención iniciada
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.put('/:id/atender', async (c) => {
   try {
@@ -78,7 +222,42 @@ urgencias.put('/:id/atender', async (c) => {
 });
 
 /**
- * PUT /urgencias/:id/alta - Dar de alta
+ * @swagger
+ * /urgencias/{id}/alta:
+ *   put:
+ *     summary: Dar de alta de urgencias
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la atención
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - diagnostico_egreso
+ *               - tipo_alta
+ *             properties:
+ *               diagnostico_egreso:
+ *                 type: string
+ *               tipo_alta:
+ *                 type: string
+ *               indicaciones:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Alta registrada
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.put('/:id/alta', async (c) => {
   try {
@@ -92,7 +271,40 @@ urgencias.put('/:id/alta', async (c) => {
 });
 
 /**
- * PUT /urgencias/:id/hospitalizar - Hospitalizar paciente
+ * @swagger
+ * /urgencias/{id}/hospitalizar:
+ *   put:
+ *     summary: Hospitalizar paciente desde urgencias
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la atención
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cama_id
+ *             properties:
+ *               cama_id:
+ *                 type: string
+ *                 format: uuid
+ *               observaciones:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Paciente hospitalizado
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.put('/:id/hospitalizar', async (c) => {
   try {
@@ -106,7 +318,42 @@ urgencias.put('/:id/hospitalizar', async (c) => {
 });
 
 /**
- * PUT /urgencias/:id/programar-cita - Programar cita de seguimiento
+ * @swagger
+ * /urgencias/{id}/programar-cita:
+ *   put:
+ *     summary: Programar cita de seguimiento desde urgencias
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la atención
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - fecha
+ *               - especialidad_id
+ *             properties:
+ *               fecha:
+ *                 type: string
+ *                 format: date-time
+ *               especialidad_id:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Cita programada
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.put('/:id/programar-cita', async (c) => {
   try {
@@ -120,7 +367,37 @@ urgencias.put('/:id/programar-cita', async (c) => {
 });
 
 /**
- * PUT /urgencias/:id - Actualizar atención
+ * @swagger
+ * /urgencias/{id}:
+ *   put:
+ *     summary: Actualizar atención de urgencia
+ *     tags: [Urgencias]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la atención
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               motivo_consulta:
+ *                 type: string
+ *               observaciones:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Atención actualizada
+ *       500:
+ *         description: Error del servidor
  */
 urgencias.put('/:id', async (c) => {
   try {

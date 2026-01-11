@@ -1,5 +1,6 @@
 import './globals.css'
 import { Toaster } from '@/components/ui/toaster'
+import { Toaster as SonnerToaster } from '@/components/ui/sonner'
 
 export const metadata = {
   title: 'Clínica Mía - Sistema de Gestión Hospitalaria',
@@ -12,6 +13,7 @@ export default function RootLayout({ children }) {
       <body>
         {children}
         <Toaster />
+        <SonnerToaster />
       </body>
     </html>
   )

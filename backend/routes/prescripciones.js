@@ -12,16 +12,93 @@ const prescripciones = new Hono();
 prescripciones.use('/*', authMiddleware);
 
 /**
- * GET / - Listar prescripciones
+ * @swagger
+ * components:
+ *   schemas:
+ *     Prescripcion:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         medico_id:
+ *           type: string
+ *           format: uuid
+ *         estado:
+ *           type: string
+ *           enum: [Activa, Suspendida, Completada, Cancelada]
+ *         fecha_inicio:
+ *           type: string
+ *           format: date-time
+ *     PrescripcionInput:
+ *       type: object
+ *       required:
+ *         - paciente_id
+ *         - medicamentos
+ *       properties:
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         admision_id:
+ *           type: string
+ *           format: uuid
+ *         medicamentos:
+ *           type: array
+ *           items:
+ *             type: object
+ *             properties:
+ *               producto_id:
+ *                 type: string
+ *                 format: uuid
+ *               dosis:
+ *                 type: string
+ *               frecuencia:
+ *                 type: string
+ *               via_administracion:
+ *                 type: string
+ *               duracion_dias:
+ *                 type: integer
+ * tags:
+ *   name: Prescripciones
+ *   description: Gestión de recetas y prescripciones
+ */
+
+/**
+ * @swagger
+ * /prescripciones:
+ *   get:
+ *     summary: Listar prescripciones
+ *     tags: [Prescripciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: pacienteId
+ *         schema:
+ *           type: string
+ *         description: Filtrar por paciente
+ *       - in: query
+ *         name: estado
+ *         schema:
+ *           type: string
+ *         description: Filtrar por estado
+ *     responses:
+ *       200:
+ *         description: Lista de prescripciones
+ *       500:
+ *         description: Error del servidor
  */
 prescripciones.get('/', async (c) => {
   try {
-    const { page, limit, pacienteId, admisionId, medicoId, estado } = c.req.query();
+    const { page, limit, pacienteId, paciente_id, admisionId, medicoId, estado } = c.req.query();
 
     const result = await prescripcionService.getAll({
       page,
       limit,
-      pacienteId,
+      pacienteId: pacienteId || paciente_id,
       admisionId,
       medicoId,
       estado,
@@ -37,7 +114,26 @@ prescripciones.get('/', async (c) => {
 });
 
 /**
- * GET /activas/:pacienteId - Obtener prescripciones activas de un paciente
+ * @swagger
+ * /prescripciones/activas/{pacienteId}:
+ *   get:
+ *     summary: Obtener prescripciones activas de un paciente
+ *     tags: [Prescripciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: pacienteId
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del paciente
+ *     responses:
+ *       200:
+ *         description: Prescripciones activas
+ *       500:
+ *         description: Error del servidor
  */
 prescripciones.get('/activas/:pacienteId', async (c) => {
   try {
@@ -50,7 +146,28 @@ prescripciones.get('/activas/:pacienteId', async (c) => {
 });
 
 /**
- * GET /:id - Obtener prescripción por ID
+ * @swagger
+ * /prescripciones/{id}:
+ *   get:
+ *     summary: Obtener prescripción por ID
+ *     tags: [Prescripciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la prescripción
+ *     responses:
+ *       200:
+ *         description: Datos de la prescripción
+ *       404:
+ *         description: Prescripción no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 prescripciones.get('/:id', async (c) => {
   try {
@@ -63,7 +180,24 @@ prescripciones.get('/:id', async (c) => {
 });
 
 /**
- * POST / - Crear prescripción (solo Doctor)
+ * @swagger
+ * /prescripciones:
+ *   post:
+ *     summary: Crear prescripción (solo Doctor)
+ *     tags: [Prescripciones]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PrescripcionInput'
+ *     responses:
+ *       201:
+ *         description: Prescripción creada exitosamente
+ *       500:
+ *         description: Error del servidor
  */
 prescripciones.post('/', async (c) => {
   try {
@@ -83,16 +217,50 @@ prescripciones.post('/', async (c) => {
 });
 
 /**
- * POST /:id/suspender-producto - Suspender producto de una prescripción
+ * @swagger
+ * /prescripciones/{id}/suspender-producto:
+ *   post:
+ *     summary: Suspender producto de una prescripción
+ *     tags: [Prescripciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la prescripción
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - prescripcionProductoId
+ *               - motivo
+ *             properties:
+ *               prescripcionProductoId:
+ *                 type: string
+ *                 format: uuid
+ *               motivo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Producto suspendido
+ *       500:
+ *         description: Error del servidor
  */
-prescripciones.post('/:id/administrar', async (c) => {
+prescripciones.post('/medicamentos/:id/suspender', async (c) => {
   try {
     const user = c.get('user');
-    const { prescripcionProductoId } = c.req.param();
+    const { id } = c.req.param();
     const { motivo } = await c.req.json();
     
-    const result = await prescripcionService.suspenderProducto(
-      prescripcionProductoId,
+    const result = await prescripcionService.suspenderMedicamento(
+      id,
       motivo,
       user.id
     );
@@ -104,9 +272,28 @@ prescripciones.post('/:id/administrar', async (c) => {
 });
 
 /**
- * POST /:id/completar - Completar prescripción
+ * @swagger
+ * /prescripciones/{id}/completar:
+ *   post:
+ *     summary: Completar prescripción
+ *     tags: [Prescripciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la prescripción
+ *     responses:
+ *       200:
+ *         description: Prescripción completada
+ *       500:
+ *         description: Error del servidor
  */
-prescripciones.post('/:id/administrar', async (c) => {
+prescripciones.post('/:id/completar', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();
@@ -118,9 +305,39 @@ prescripciones.post('/:id/administrar', async (c) => {
 });
 
 /**
- * POST /:id/cancelar - Cancelar prescripción
+ * @swagger
+ * /prescripciones/{id}/cancelar:
+ *   post:
+ *     summary: Cancelar prescripción
+ *     tags: [Prescripciones]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la prescripción
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - motivo
+ *             properties:
+ *               motivo:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Prescripción cancelada
+ *       500:
+ *         description: Error del servidor
  */
-prescripciones.post('/:id/administrar', async (c) => {
+prescripciones.post('/:id/cancelar', async (c) => {
   try {
     const user = c.get('user');
     const { id } = c.req.param();

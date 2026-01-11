@@ -17,6 +17,8 @@ class ExamenProcedimientoService {
         OR: [
           { nombre: { contains: search, mode: 'insensitive' } },
           { descripcion: { contains: search, mode: 'insensitive' } },
+          { codigoCUPS: { contains: search, mode: 'insensitive' } },
+          { codigoCIE11: { contains: search, mode: 'insensitive' } },
         ],
       }),
       ...(tipo && tipo !== 'todos' && { tipo }),
@@ -46,6 +48,8 @@ class ExamenProcedimientoService {
       id: item.id,
       tipo: item.tipo,
       nombre: item.nombre,
+      codigoCUPS: item.codigoCUPS,
+      codigoCIE11: item.codigoCIE11,
       descripcion: item.descripcion,
       categoriaId: item.categoriaId,
       categoriaNombre: item.categoria?.nombre || 'Sin categoría',
@@ -98,6 +102,8 @@ class ExamenProcedimientoService {
     const {
       tipo,
       nombre,
+      codigoCUPS,
+      codigoCIE11,
       descripcion,
       categoriaId,
       duracionMinutos,
@@ -117,10 +123,22 @@ class ExamenProcedimientoService {
       throw new ValidationError('El tipo debe ser "Examen" o "Procedimiento"');
     }
 
+    // Validar unicidad de CUPS si se proporciona
+    if (codigoCUPS) {
+      const existingCUPS = await prisma.examenProcedimiento.findUnique({
+        where: { codigoCUPS },
+      });
+      if (existingCUPS) {
+        throw new ValidationError(`El código CUPS ${codigoCUPS} ya está registrado`);
+      }
+    }
+
     const item = await prisma.examenProcedimiento.create({
       data: {
         tipo,
         nombre,
+        codigoCUPS,
+        codigoCIE11,
         descripcion,
         categoriaId: categoriaId || null,
         duracionMinutos: parseInt(duracionMinutos),
@@ -147,6 +165,8 @@ class ExamenProcedimientoService {
     const {
       tipo,
       nombre,
+      codigoCUPS,
+      codigoCIE11,
       descripcion,
       categoriaId,
       duracionMinutos,
@@ -164,11 +184,23 @@ class ExamenProcedimientoService {
       throw new NotFoundError('Examen/Procedimiento no encontrado');
     }
 
+    // Validar unicidad de CUPS si cambia
+    if (codigoCUPS && codigoCUPS !== itemExistente.codigoCUPS) {
+      const existingCUPS = await prisma.examenProcedimiento.findUnique({
+        where: { codigoCUPS },
+      });
+      if (existingCUPS) {
+        throw new ValidationError(`El código CUPS ${codigoCUPS} ya está registrado`);
+      }
+    }
+
     const item = await prisma.examenProcedimiento.update({
       where: { id },
       data: {
         ...(tipo && { tipo }),
         ...(nombre && { nombre }),
+        ...(codigoCUPS !== undefined && { codigoCUPS }),
+        ...(codigoCIE11 !== undefined && { codigoCIE11 }),
         ...(descripcion !== undefined && { descripcion }),
         ...(categoriaId !== undefined && { categoriaId: categoriaId || null }),
         ...(duracionMinutos && { duracionMinutos: parseInt(duracionMinutos) }),

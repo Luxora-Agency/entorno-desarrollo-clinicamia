@@ -17,9 +17,9 @@ export default function SuccessModal({ isOpen, onClose, pacienteId, pacienteNomb
     window.location.href = '/?module=pacientes';
   };
 
-  const handleGoToAdmisiones = () => {
+  const handleViewPatient = () => {
     onClose();
-    window.location.href = `/?module=admisiones&pacienteId=${pacienteId}`;
+    window.location.href = `/?module=pacientes&pacienteId=${pacienteId}`;
   };
 
   return (
@@ -45,7 +45,7 @@ export default function SuccessModal({ isOpen, onClose, pacienteId, pacienteNomb
 
         <DialogFooter className="flex flex-col sm:flex-col gap-2 mt-4">
           <Button
-            onClick={handleGoToAdmisiones}
+            onClick={handleViewPatient}
             className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold"
           >
             Ver Información del Paciente

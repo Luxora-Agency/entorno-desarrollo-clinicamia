@@ -1,54 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { miaPassService } from '@/services/miaPass.service';
+import { useToast } from '@/hooks/use-toast';
 
 export default function PlanesMiaPassModule() {
-  const [planes, setPlanes] = useState([
-    {
-      id: 1,
-      nombre: 'Plan Básico',
-      descripcion: 'Plan básico con consultas mensuales',
-      costo: 29.99,
-      duracion: 1,
-      color: '#10B981',
-      icono: 'medical-services',
-      activo: true,
-      destacado: false,
-      beneficios: ['2 consultas generales', 'Descuento 10% en medicamentos'],
-      descuentos: {
-        consultas: { tipo: 'porcentaje', valor: 10 },
-        examenes: { tipo: 'porcentaje', valor: 5 },
-        farmacia: { tipo: 'porcentaje', valor: 10 },
-        procedimientos: { tipo: 'porcentaje', valor: 0 }
-      },
-      itemsConsumibles: []
-    },
-    {
-      id: 2,
-      nombre: 'Plan Premium',
-      descripcion: 'Plan premium con beneficios extendidos',
-      costo: 49.99,
-      duracion: 1,
-      color: '#3B82F6',
-      icono: 'medical-services',
-      activo: true,
-      destacado: true,
-      beneficios: ['Consultas ilimitadas', 'Descuento 20% en medicamentos', 'Prioridad en citas'],
-      descuentos: {
-        consultas: { tipo: 'porcentaje', valor: 20 },
-        examenes: { tipo: 'porcentaje', valor: 15 },
-        farmacia: { tipo: 'porcentaje', valor: 20 },
-        procedimientos: { tipo: 'porcentaje', valor: 10 }
-      },
-      itemsConsumibles: []
-    }
-  ]);
-
+  const { toast } = useToast();
+  const [planes, setPlanes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
@@ -56,7 +20,7 @@ export default function PlanesMiaPassModule() {
     nombre: '',
     descripcion: '',
     costo: '',
-    duracion: 12,
+    duracion_meses: 12,
     color: '#3B82F6',
     icono: 'medical-services',
     activo: true,
@@ -68,12 +32,34 @@ export default function PlanesMiaPassModule() {
       farmacia: { tipo: 'porcentaje', valor: 0 },
       procedimientos: { tipo: 'porcentaje', valor: 0 }
     },
-    itemsConsumibles: []
+    items_consumibles: []
   });
+
+  const fetchPlanes = async () => {
+    try {
+      setLoading(true);
+      const response = await miaPassService.getPlanes();
+      if (response.status === 'success') {
+        setPlanes(response.data.planes);
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar los planes',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPlanes();
+  }, []);
 
   const filteredPlanes = planes.filter(plan =>
     plan.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    plan.descripcion.toLowerCase().includes(searchTerm.toLowerCase())
+    (plan.descripcion && plan.descripcion.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleAddNew = () => {
@@ -82,7 +68,7 @@ export default function PlanesMiaPassModule() {
       nombre: '',
       descripcion: '',
       costo: '',
-      duracion: 12,
+      duracion_meses: 12,
       color: '#3B82F6',
       icono: 'medical-services',
       activo: true,
@@ -94,7 +80,7 @@ export default function PlanesMiaPassModule() {
         farmacia: { tipo: 'porcentaje', valor: 0 },
         procedimientos: { tipo: 'porcentaje', valor: 0 }
       },
-      itemsConsumibles: []
+      items_consumibles: []
     });
     setShowModal(true);
   };
@@ -103,61 +89,76 @@ export default function PlanesMiaPassModule() {
     setEditingPlan(plan);
     setFormData({
       nombre: plan.nombre,
-      descripcion: plan.descripcion,
+      descripcion: plan.descripcion || '',
       costo: plan.costo,
-      duracion: plan.duracion,
-      color: plan.color,
-      icono: plan.icono,
+      duracion_meses: plan.duracion_meses,
+      color: plan.color || '#3B82F6',
+      icono: plan.icono || 'medical-services',
       activo: plan.activo,
       destacado: plan.destacado,
-      beneficios: plan.beneficios.length > 0 ? plan.beneficios : [''],
-      descuentos: plan.descuentos,
-      itemsConsumibles: plan.itemsConsumibles || []
+      beneficios: plan.beneficios && plan.beneficios.length > 0 ? plan.beneficios : [''],
+      descuentos: plan.descuentos || {
+        consultas: { tipo: 'porcentaje', valor: 0 },
+        examenes: { tipo: 'porcentaje', valor: 0 },
+        farmacia: { tipo: 'porcentaje', valor: 0 },
+        procedimientos: { tipo: 'porcentaje', valor: 0 }
+      },
+      items_consumibles: plan.items_consumibles || []
     });
     setShowModal(true);
   };
 
-  const handleDelete = (id) => {
-    if (confirm('¿Está seguro de eliminar este plan?')) {
-      setPlanes(planes.filter(p => p.id !== id));
-    }
-  };
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     const beneficiosFiltrados = formData.beneficios.filter(b => b.trim().length > 0);
+    const dataToSend = {
+      ...formData,
+      costo: parseFloat(formData.costo),
+      duracion_meses: parseInt(formData.duracion_meses),
+      beneficios: beneficiosFiltrados
+    };
 
-    if (editingPlan) {
-      setPlanes(planes.map(p => 
-        p.id === editingPlan.id 
-          ? { 
-              ...p, 
-              ...formData, 
-              costo: parseFloat(formData.costo),
-              duracion: parseInt(formData.duracion),
-              beneficios: beneficiosFiltrados
-            }
-          : p
-      ));
-    } else {
-      const newPlan = {
-        id: Math.max(...planes.map(p => p.id), 0) + 1,
-        ...formData,
-        costo: parseFloat(formData.costo),
-        duracion: parseInt(formData.duracion),
-        beneficios: beneficiosFiltrados
-      };
-      setPlanes([...planes, newPlan]);
+    try {
+      if (editingPlan) {
+        await miaPassService.updatePlan(editingPlan.id, dataToSend);
+        toast({
+          title: 'Éxito',
+          description: 'Plan actualizado correctamente',
+        });
+      } else {
+        await miaPassService.createPlan(dataToSend);
+        toast({
+          title: 'Éxito',
+          description: 'Plan creado correctamente',
+        });
+      }
+      fetchPlanes();
+      setShowModal(false);
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Ocurrió un error al guardar el plan',
+        variant: 'destructive',
+      });
     }
-    
-    setShowModal(false);
   };
 
-  const toggleActivo = (id) => {
-    setPlanes(planes.map(p => 
-      p.id === id ? { ...p, activo: !p.activo } : p
-    ));
+  const toggleActivo = async (id) => {
+    try {
+      await miaPassService.togglePlan(id);
+      fetchPlanes();
+      toast({
+        title: 'Éxito',
+        description: 'Estado del plan actualizado',
+      });
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo cambiar el estado del plan',
+        variant: 'destructive',
+      });
+    }
   };
 
   const addBeneficio = () => {
@@ -199,8 +200,8 @@ export default function PlanesMiaPassModule() {
   const addItemConsumible = () => {
     setFormData({
       ...formData,
-      itemsConsumibles: [
-        ...formData.itemsConsumibles,
+      items_consumibles: [
+        ...formData.items_consumibles,
         {
           tipo: 'Examen',
           especialidad: 'Todos',
@@ -218,19 +219,19 @@ export default function PlanesMiaPassModule() {
   const removeItemConsumible = (index) => {
     setFormData({
       ...formData,
-      itemsConsumibles: formData.itemsConsumibles.filter((_, i) => i !== index)
+      items_consumibles: formData.items_consumibles.filter((_, i) => i !== index)
     });
   };
 
   const updateItemConsumible = (index, field, value) => {
-    const newItems = [...formData.itemsConsumibles];
+    const newItems = [...formData.items_consumibles];
     newItems[index] = {
       ...newItems[index],
       [field]: value
     };
     setFormData({
       ...formData,
-      itemsConsumibles: newItems
+      items_consumibles: newItems
     });
   };
 
@@ -266,80 +267,79 @@ export default function PlanesMiaPassModule() {
       </Card>
 
       {/* Plans Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPlanes.map((plan) => (
-          <Card key={plan.id} className="p-6 hover:shadow-xl transition-shadow relative">
-            {plan.destacado && (
-              <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">
-                DESTACADO
-              </div>
-            )}
-            
-            <div className="flex justify-between items-start mb-4 mt-2">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">{plan.nombre}</h3>
-                <p className="text-sm text-gray-600 mt-1">{plan.descripcion}</p>
-              </div>
-              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                plan.activo 
-                  ? 'bg-green-100 text-green-800' 
-                  : 'bg-gray-100 text-gray-800'
-              }`}>
-                {plan.activo ? 'Activo' : 'Inactivo'}
-              </span>
-            </div>
-
-            <div className="mb-4">
-              <div className="flex items-baseline">
-                <span className="text-3xl font-bold" style={{ color: plan.color }}>
-                  ${plan.costo}
+      {loading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredPlanes.map((plan) => (
+            <Card key={plan.id} className="p-6 hover:shadow-xl transition-shadow relative">
+              {plan.destacado && (
+                <div className="absolute top-0 right-0 bg-yellow-400 text-yellow-900 text-xs font-bold px-3 py-1 rounded-bl-lg rounded-tr-lg">
+                  DESTACADO
+                </div>
+              )}
+              
+              <div className="flex justify-between items-start mb-4 mt-2">
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">{plan.nombre}</h3>
+                  <p className="text-sm text-gray-600 mt-1">{plan.descripcion}</p>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  plan.activo 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-gray-100 text-gray-800'
+                }`}>
+                  {plan.activo ? 'Activo' : 'Inactivo'}
                 </span>
-                <span className="text-gray-600 ml-2">/ {plan.duracion} {plan.duracion === 1 ? 'mes' : 'meses'}</span>
               </div>
-            </div>
 
-            <div className="mb-6">
-              <p className="text-sm font-semibold text-gray-700 mb-2">Beneficios:</p>
-              <ul className="space-y-1">
-                {plan.beneficios?.map((beneficio, idx) => (
-                  <li key={idx} className="text-sm text-gray-600 flex items-start">
-                    <Check className="w-4 h-4 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
-                    <span>{beneficio}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+              <div className="mb-4">
+                <div className="flex items-baseline">
+                  <span className="text-3xl font-bold" style={{ color: plan.color }}>
+                    ${parseFloat(plan.costo).toLocaleString()}
+                  </span>
+                  <span className="text-gray-600 ml-2">/ {plan.duracion_meses} {plan.duracion_meses === 1 ? 'mes' : 'meses'}</span>
+                </div>
+              </div>
 
-            <div className="flex gap-2 pt-4 border-t">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toggleActivo(plan.id)}
-                className="flex-1"
-              >
-                {plan.activo ? 'Desactivar' : 'Activar'}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleEdit(plan)}
-              >
-                <Edit2 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDelete(plan.id)}
-                className="text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
+              <div className="mb-6">
+                <p className="text-sm font-semibold text-gray-700 mb-2">Beneficios:</p>
+                <ul className="space-y-1">
+                  {plan.beneficios?.map((beneficio, idx) => (
+                    <li key={idx} className="text-sm text-gray-600 flex items-start">
+                      <Check className="w-4 h-4 text-emerald-600 mr-2 flex-shrink-0 mt-0.5" />
+                      <span>{beneficio}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-      {filteredPlanes.length === 0 && (
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => toggleActivo(plan.id)}
+                  className="flex-1"
+                >
+                  {plan.activo ? 'Desactivar' : 'Activar'}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleEdit(plan)}
+                >
+                  <Edit2 className="w-4 h-4" />
+                </Button>
+                {/* Delete button removed as API does not support delete yet, usually we just deactivate */}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {!loading && filteredPlanes.length === 0 && (
         <div className="text-center py-12">
           <p className="text-gray-500">No se encontraron planes</p>
         </div>
@@ -391,8 +391,8 @@ export default function PlanesMiaPassModule() {
                       <Input
                         type="number"
                         min="1"
-                        value={formData.duracion}
-                        onChange={(e) => setFormData({ ...formData, duracion: e.target.value })}
+                        value={formData.duracion_meses}
+                        onChange={(e) => setFormData({ ...formData, duracion_meses: e.target.value })}
                         required
                       />
                     </div>
@@ -558,7 +558,7 @@ export default function PlanesMiaPassModule() {
                   </div>
 
                   <div className="space-y-4">
-                    {formData.itemsConsumibles.map((item, index) => (
+                    {formData.items_consumibles.map((item, index) => (
                       <div key={index} className="border rounded-lg p-4 bg-gray-50">
                         <div className="flex justify-between items-center mb-3">
                           <h4 className="font-medium text-gray-900">Item {index + 1}</h4>
@@ -670,7 +670,7 @@ export default function PlanesMiaPassModule() {
                       </div>
                     ))}
 
-                    {formData.itemsConsumibles.length === 0 && (
+                    {formData.items_consumibles.length === 0 && (
                       <p className="text-sm text-gray-500 text-center py-4">
                         No hay items consumibles. Haz clic en "Agregar Item" para añadir uno.
                       </p>

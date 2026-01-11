@@ -250,11 +250,11 @@ export default function TabInformacion({ paciente }) {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <span className="text-sm text-gray-600">Tipo de Sangre:</span>
-              <p className="font-semibold">
+              <div className="font-semibold">
                 {paciente.tipoSangre ? (
                   <Badge className="bg-red-100 text-red-700">{paciente.tipoSangre}</Badge>
                 ) : 'N/A'}
-              </p>
+              </div>
             </div>
             <div>
               <span className="text-sm text-gray-600">Peso:</span>

@@ -37,7 +37,7 @@ cd frontend && npm test -- --testPathPattern=component   # Match frontend test
 **Seeders:**
 ```bash
 cd backend && node seeders/rolesAndPermissions.js   # Initialize roles and permissions
-cd backend && node run_all_seeds.js                 # Run all seeders
+cd backend && node run_all_seeds.js                 # Run all seeders sequentially
 ```
 
 **Docker:**
@@ -56,6 +56,7 @@ Frontend Component → Hook → api.js → Backend Route → Auth Middleware →
 ### Backend (`/backend`)
 - **Routes** (`/routes`): HTTP handlers only, call services and return standardized responses. Routes mounted in `server.js`
   - **CRITICAL**: Hono.js requires specific routes BEFORE dynamic param routes (e.g., `/stats` before `/:id`)
+  - All 84+ route files are imported and mounted in `server.js` - check there for route organization
 - **Services** (`/services`): Business logic, validation, Prisma queries. Exported as singleton instances (`module.exports = new ServiceClass()`)
 - **Middleware** (`/middleware`):
   - `auth.js`: `authMiddleware` verifies JWT (header or query param), `permissionMiddleware('module')` checks dynamic permissions, `requirePermission('resource.action')` for granular RBAC
@@ -64,13 +65,13 @@ Frontend Component → Hook → api.js → Backend Route → Auth Middleware →
 - **Validators** (`/validators`): Zod schemas for request validation (e.g., `paciente.schema.js`). Use `.partial()` for update schemas
 - **Utils** (`/utils`): `response.js` (response helpers), `auth.js` (JWT/bcrypt), `validators.js` (simple validators), `errors.js` (custom error classes)
 - **Database**: Prisma client singleton in `/db/prisma.js`, schema in `/prisma/schema.prisma`
-- **Seeders** (`/seeders`): Database seed scripts for initial data
+- **Seeders** (`/seeders`): Database seed scripts organized by domain (catalogs, calidad, roles, etc.)
 - **See** `backend/CLAUDE.md` for backend-specific details and patterns
 
 ### Frontend (`/frontend`)
 - **Components**: `/components/ui` (shadcn/ui), `/components/clinica` (domain modules)
 - **Hooks**: `/hooks` - `useAuth`, `useApi`, `usePacientes`, `useCitas`, `useFarmacia`, `useImagenologia`, etc.
-- **Services**: `/services/api.js` (centralized HTTP client with auto token refresh and 401 retry)
+- **Services**: `/services/api.js` (centralized HTTP client with auto token refresh and 401 retry queue)
 - **Constants**: `/constants` - `roles.js`, `estados.js`, `colors.js`
 - **Data**: `/data` - Static JSON files (e.g., `colombia.json` for geographic data)
 - **Schemas**: `/schemas` - Zod validation schemas for forms
@@ -81,11 +82,16 @@ Frontend Component → Hook → api.js → Backend Route → Auth Middleware →
 ```javascript
 const { validate } = require('../middleware/validate');
 const { createPacienteSchema } = require('../validators/paciente.schema');
+const { success, error } = require('../utils/response');
 
 router.post('/', authMiddleware, permissionMiddleware('pacientes'), validate(createPacienteSchema), async (c) => {
-  const data = c.req.validData; // Validated and transformed data
-  const result = await pacienteService.create(data);
-  return success(c, 'Paciente creado', result, 201);
+  try {
+    const data = c.req.validData; // Validated and transformed data
+    const result = await pacienteService.create(data);
+    return c.json(success(result, 'Paciente creado'), 201);
+  } catch (err) {
+    return c.json(error(err.message, err.details), err.statusCode || 500);
+  }
 });
 ```
 
@@ -107,19 +113,30 @@ module.exports = new MyService();
 - `ValidationError` (400), `UnauthorizedError` (401), `ForbiddenError` (403), `NotFoundError` (404), `AppError` (500)
 - Services throw these; routes catch and return via `error()` helper
 
-### Standardized Response Format
+### Standardized Response Format (from `utils/response.js`)
 ```javascript
 // Success: { success: true, message: string, data: any }
+success(data, message)       // Return from routes: c.json(success(...))
+
 // Paginated: { success: true, data: [], pagination: { page, limit, total, totalPages } }
+paginated(data, pagination)  // Return: c.json(paginated(...))
+
 // Error: { success: false, message: string, details?: any }
+error(message, details)      // Return: c.json(error(...), statusCode)
 ```
 
 ### Frontend API Usage
 ```javascript
 import { apiGet, apiPost, apiPut, apiDelete, apiPatch } from '@/services/api';
+
 const pacientes = await apiGet('/pacientes', { limit: 50 });
 const nuevo = await apiPost('/pacientes', { nombre: 'Juan', ... });
-// Token management: setTokens(), clearTokens(), getAuthToken()
+
+// Token management functions:
+// setTokens(accessToken, refreshToken), clearTokens(), getAuthToken()
+
+// Token refresh is automatic - failed requests during refresh are queued
+// and retried once new token is obtained
 ```
 
 ### Frontend Hook Pattern
@@ -231,7 +248,7 @@ All other routes require `authMiddleware` and optionally `permissionMiddleware` 
 
 ## Module Domains
 
-Backend has 60+ route/service pairs:
+Backend has 84+ route/service pairs:
 - **Auth/Users**: auth, usuarios, roles, doctores, permissions, audit
 - **Clinical**: pacientes, citas, agenda, departamentos, especialidades, consultas, disponibilidad, interconsultas, antecedentes
 - **Hospitalization**: unidades, habitaciones, camas, admisiones, movimientos, egresos
@@ -260,13 +277,18 @@ Backend has 60+ route/service pairs:
 ## Key Libraries
 
 **Backend:**
+- `hono` - Fast HTTP framework
+- `@prisma/client` - Database ORM
 - `pdfkit` - PDF generation (invoices, medical records, reports)
 - `exceljs` - Excel export for reports
 - `xmlbuilder2` - XML generation for integrations
 - `date-fns` - Date manipulation
 - `zod` / `joi` - Request validation (prefer zod for new code)
+- `openai` - AI Medical Assistant integration
+- `node-cron` - Scheduled task management
 
 **Frontend:**
+- `next` 16 - React framework
 - `react-big-calendar` - Calendar/agenda views
 - `echarts-for-react` / `recharts` - Charts and dashboards
 - `react-hook-form` + `zod` - Form handling with validation
@@ -276,8 +298,20 @@ Backend has 60+ route/service pairs:
 - `xlsx` - Excel export
 - `react-markdown` - Markdown rendering
 - `next-themes` - Dark mode support
+- `@radix-ui/*` - shadcn/ui primitives
 
 ## Important Notes
+
+### Route Mounting Order (Hono.js)
+When adding new routes to `server.js`, specific routes MUST come before dynamic parameter routes:
+```javascript
+// CORRECT ORDER:
+app.route('/pacientes/stats', statsRoute);     // Specific first
+app.route('/pacientes/:id/history', history);  // Specific with params
+app.route('/pacientes/:id', byId);             // Dynamic last
+
+// WRONG: /:id before /stats would match "stats" as an id
+```
 
 ### Cron Jobs
 Backend includes scheduled tasks (`backend/cron/`) managed by `node-cron`. Jobs are registered in `server.js` and run automatically when server starts.
@@ -297,3 +331,10 @@ Comprehensive quality management system compliant with Colombian IPS regulations
 2. **Medicamentos** (Medications): Farmacovigilancia, tecnovigilancia, inventory, alerts
 3. **Procesos Prioritarios** (Priority Processes): Protocols, indicators, checklists, capacity management
 4. **Talento Humano** (Human Resources): Personnel training, certifications, induction
+
+### Frontend Token Refresh
+The `api.js` service implements automatic token refresh with a queue mechanism:
+- When a request fails with 401, refresh is triggered automatically
+- During refresh, all failed requests are queued
+- Once new token is obtained, all queued requests retry automatically
+- This prevents multiple simultaneous refresh attempts and ensures zero interruption

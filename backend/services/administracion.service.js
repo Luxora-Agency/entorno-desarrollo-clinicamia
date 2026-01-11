@@ -23,13 +23,12 @@ class AdministracionService {
     
     if (fecha) {
       const fechaInicio = new Date(fecha);
-      fechaInicio.setHours(0, 0, 0, 0);
       const fechaFin = new Date(fecha);
-      fechaFin.setHours(23, 59, 59, 999);
+      fechaFin.setDate(fechaFin.getDate() + 1);
       
       where.fechaProgramada = {
         gte: fechaInicio,
-        lte: fechaFin,
+        lt: fechaFin,
       };
     }
     
@@ -73,13 +72,13 @@ class AdministracionService {
           },
           prescripcionMedicamento: {
             include: {
-              medicamento: {
+              producto: {
                 select: {
                   id: true,
-                  nombreGenerico: true,
-                  nombreComercial: true,
+                  nombre: true, // Also usually 'nombre' in Producto model, not nombreGenerico
+                  // nombreComercial: true, // Producto has 'nombre'
                   concentracion: true,
-                  formaFarmaceutica: true,
+                  // formaFarmaceutica: true, // Maybe 'presentacion'?
                 },
               },
               prescripcion: {
@@ -124,7 +123,7 @@ class AdministracionService {
       include: {
         prescripcionMedicamento: {
           include: {
-            medicamento: true,
+            producto: true,
           },
         },
       },
@@ -157,10 +156,10 @@ class AdministracionService {
       await prisma.alertaClinica.create({
         data: {
           pacienteId: administracion.pacienteId,
-          tipo: 'ReaccionAdversa',
-          titulo: `Reacción adversa a ${administracion.prescripcionMedicamento.medicamento.nombreGenerico}`,
+          tipoAlerta: 'AlergiaMedicamento', // Matching enum in schema
+          titulo: `Reacción adversa a ${administracion.prescripcionMedicamento.producto.nombre}`,
           descripcion: data.descripcionReaccion || 'Reacción adversa al medicamento',
-          severidad: 'Alta',
+          severidad: 'Moderada', // Matching enum
           activa: true,
         },
       });

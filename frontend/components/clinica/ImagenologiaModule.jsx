@@ -29,104 +29,30 @@ import {
   Radio,
   Activity,
   Microscope,
+  Edit
 } from 'lucide-react';
+import { useImagenologia } from '../../hooks/useImagenologia';
+import PatientSelect from './PatientSelect'; // Asegúrate de que la ruta sea correcta
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
 
 export default function ImagenologiaModule({ user }) {
+  const { estudios, loading, stats, fetchEstudios, fetchStats, createEstudio, updateInforme, updateEstado } = useImagenologia();
   const [activeTab, setActiveTab] = useState('pendientes');
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedStudy, setSelectedStudy] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Datos mockeados de estudios de imagenología
-  const [estudios, setEstudios] = useState([
-    {
-      id: 'IMG-2025-001',
-      paciente: { nombre: 'Carlos Mendoza', cedula: '1122334455', edad: 58 },
-      medico: { nombre: 'Dr. Jorge Ramírez', especialidad: 'Cardiología' },
-      tipoEstudio: 'Radiografía',
-      zona: 'Tórax AP y Lateral',
-      prioridad: 'Alta',
-      estado: 'Pendiente',
-      fechaSolicitud: '2025-01-15 09:00',
-      fechaProgramada: '2025-01-15 14:00',
-      indicacionClinica: 'Dolor torácico. Descartar neumotórax.',
-      observaciones: 'Paciente con EPOC',
-    },
-    {
-      id: 'IMG-2025-002',
-      paciente: { nombre: 'Ana Martínez', cedula: '9988776655', edad: 42 },
-      medico: { nombre: 'Dra. Patricia Gómez', especialidad: 'Neurología' },
-      tipoEstudio: 'TAC',
-      zona: 'Cráneo Simple',
-      prioridad: 'Urgente',
-      estado: 'EnProceso',
-      fechaSolicitud: '2025-01-15 10:30',
-      fechaProgramada: '2025-01-15 11:00',
-      indicacionClinica: 'Cefalea intensa súbita. R/O HSA',
-      observaciones: 'Sin contraindicaciones',
-    },
-    {
-      id: 'IMG-2025-003',
-      paciente: { nombre: 'Roberto Silva', cedula: '5544332211', edad: 35 },
-      medico: { nombre: 'Dr. Eduardo Torres', especialidad: 'Traumatología' },
-      tipoEstudio: 'Radiografía',
-      zona: 'Rodilla Derecha',
-      prioridad: 'Normal',
-      estado: 'Completado',
-      fechaSolicitud: '2025-01-14 15:20',
-      fechaRealizacion: '2025-01-14 16:30',
-      indicacionClinica: 'Trauma deportivo. Dolor e inflamación.',
-      resultado: {
-        hallazgos: 'Fractura no desplazada de meseta tibial lateral. Sin compromiso articular evidente.',
-        conclusion: 'Fractura de Schatzker tipo I.',
-        recomendaciones: 'Control con ortopedia. Considerar TAC para planificación quirúrgica.',
-        imagenes: 3,
-      },
-      radiologo: 'Dr. Andrés Vargas',
-      fechaInforme: '2025-01-14 18:00',
-    },
-    {
-      id: 'IMG-2025-004',
-      paciente: { nombre: 'María López', cedula: '3344556677', edad: 28 },
-      medico: { nombre: 'Dra. Sandra Reyes', especialidad: 'Ginecología' },
-      tipoEstudio: 'Ecografía',
-      zona: 'Obstétrica',
-      prioridad: 'Normal',
-      estado: 'Completado',
-      fechaSolicitud: '2025-01-13 11:00',
-      fechaRealizacion: '2025-01-13 14:00',
-      indicacionClinica: 'Control prenatal. 22 semanas de gestación.',
-      resultado: {
-        hallazgos: 'Feto único vivo intrauterino en presentación cefálica. Movimientos fetales presentes. Frecuencia cardíaca: 145 lpm. Líquido amniótico normal. Placenta anterior grado I.',
-        conclusion: 'Embarazo de 22 semanas + 3 días. Sin alteraciones morfológicas evidentes.',
-        recomendaciones: 'Control prenatal según protocolo.',
-        imagenes: 8,
-      },
-      radiologo: 'Dr. Luis Moreno',
-      fechaInforme: '2025-01-13 15:30',
-    },
-    {
-      id: 'IMG-2025-005',
-      paciente: { nombre: 'Pedro Jiménez', cedula: '7788990011', edad: 65 },
-      medico: { nombre: 'Dr. Carlos Méndez', especialidad: 'Medicina Interna' },
-      tipoEstudio: 'Resonancia Magnética',
-      zona: 'Columna Lumbar',
-      prioridad: 'Alta',
-      estado: 'Completado',
-      fechaSolicitud: '2025-01-12 08:00',
-      fechaRealizacion: '2025-01-13 10:00',
-      indicacionClinica: 'Lumbalgia crónica. Radiculopatía L5-S1.',
-      resultado: {
-        hallazgos: 'Hernia discal central y foraminal izquierda L5-S1 con compresión radicular. Discopatía degenerativa L4-L5. Canal espinal sin estenosis significativa.',
-        conclusion: 'Hernia discal L5-S1 con compromiso radicular. Cambios degenerativos multinivel.',
-        recomendaciones: 'Valoración por neurocirugía.',
-        imagenes: 24,
-      },
-      radiologo: 'Dra. Carmen Ruiz',
-      fechaInforme: '2025-01-13 16:00',
-    },
-  ]);
+  useEffect(() => {
+    fetchEstudios({ estado: activeTab === 'todos' ? '' : (activeTab === 'proceso' ? 'EnProceso' : (activeTab === 'completados' ? 'Completado' : 'Pendiente')) });
+    fetchStats();
+  }, [activeTab, fetchEstudios, fetchStats]);
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    fetchEstudios({ search: searchTerm, estado: activeTab === 'todos' ? '' : (activeTab === 'proceso' ? 'EnProceso' : (activeTab === 'completados' ? 'Completado' : 'Pendiente')) });
+  };
 
   const getBadgeColor = (estado) => {
     switch (estado) {
@@ -160,21 +86,6 @@ export default function ImagenologiaModule({ user }) {
     }
   };
 
-  const estudiosFiltrados = estudios.filter(estudio => {
-    const matchSearch = searchTerm === '' ||
-      estudio.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      estudio.paciente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      estudio.paciente.cedula.includes(searchTerm);
-    
-    const matchTab = 
-      (activeTab === 'pendientes' && estudio.estado === 'Pendiente') ||
-      (activeTab === 'proceso' && estudio.estado === 'EnProceso') ||
-      (activeTab === 'completados' && estudio.estado === 'Completado') ||
-      (activeTab === 'todos');
-    
-    return matchSearch && matchTab;
-  });
-
   return (
     <div className="p-6 lg:p-8 bg-gradient-to-br from-cyan-50 via-blue-50 to-indigo-50 min-h-screen">
       <div className="w-full">
@@ -200,7 +111,15 @@ export default function ImagenologiaModule({ user }) {
               <DialogHeader>
                 <DialogTitle>Nueva Solicitud de Estudio</DialogTitle>
               </DialogHeader>
-              <FormularioNuevoEstudio onClose={() => setShowNewOrder(false)} />
+              <FormularioNuevoEstudio 
+                onClose={() => setShowNewOrder(false)} 
+                onSubmit={async (data) => {
+                  await createEstudio(data);
+                  setShowNewOrder(false);
+                  fetchStats();
+                  fetchEstudios();
+                }}
+              />
             </DialogContent>
           </Dialog>
         </div>
@@ -212,7 +131,7 @@ export default function ImagenologiaModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Pendientes</p>
-                  <p className="text-2xl font-bold text-gray-900">1</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.pendientes || 0}</p>
                 </div>
                 <Clock className="w-8 h-8 text-yellow-500" />
               </div>
@@ -224,7 +143,7 @@ export default function ImagenologiaModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">En Proceso</p>
-                  <p className="text-2xl font-bold text-gray-900">1</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.enProceso || 0}</p>
                 </div>
                 <Activity className="w-8 h-8 text-blue-500" />
               </div>
@@ -236,7 +155,7 @@ export default function ImagenologiaModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Completados Hoy</p>
-                  <p className="text-2xl font-bold text-gray-900">3</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.completadosHoy || 0}</p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
@@ -248,7 +167,7 @@ export default function ImagenologiaModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Total Mes</p>
-                  <p className="text-2xl font-bold text-gray-900">186</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats?.totalMes || 0}</p>
                 </div>
                 <Scan className="w-8 h-8 text-cyan-500" />
               </div>
@@ -259,7 +178,7 @@ export default function ImagenologiaModule({ user }) {
         {/* Búsqueda */}
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2">
+            <form onSubmit={handleSearch} className="flex items-center gap-2">
               <Search className="w-5 h-5 text-gray-400" />
               <Input
                 placeholder="Buscar por ID, paciente o cédula..."
@@ -267,7 +186,8 @@ export default function ImagenologiaModule({ user }) {
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="flex-1"
               />
-            </div>
+              <Button type="submit" variant="ghost">Buscar</Button>
+            </form>
           </CardContent>
         </Card>
 
@@ -306,27 +226,30 @@ export default function ImagenologiaModule({ user }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {estudiosFiltrados.length === 0 ? (
+                    {loading ? (
+                       <TableRow>
+                        <TableCell colSpan={9} className="text-center py-8">Cargando...</TableCell>
+                       </TableRow>
+                    ) : estudios.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={9} className="text-center text-gray-500 py-8">
                           No se encontraron estudios
                         </TableCell>
                       </TableRow>
                     ) : (
-                      estudiosFiltrados.map((estudio) => (
+                      estudios.map((estudio) => (
                         <TableRow key={estudio.id}>
-                          <TableCell className="font-medium">{estudio.id}</TableCell>
+                          <TableCell className="font-medium text-xs">{estudio.codigo || estudio.id.substring(0, 8)}</TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{estudio.paciente.nombre}</p>
-                              <p className="text-xs text-gray-500">CC: {estudio.paciente.cedula}</p>
-                              <p className="text-xs text-gray-500">{estudio.paciente.edad} años</p>
+                              <p className="font-medium">{estudio.paciente?.nombre} {estudio.paciente?.apellido}</p>
+                              <p className="text-xs text-gray-500">CC: {estudio.paciente?.cedula}</p>
+                              <p className="text-xs text-gray-500">{estudio.paciente?.edad} años</p>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div>
-                              <p className="text-sm">{estudio.medico.nombre}</p>
-                              <p className="text-xs text-gray-500">{estudio.medico.especialidad}</p>
+                              <p className="text-sm">{estudio.medicoSolicitante?.nombre} {estudio.medicoSolicitante?.apellido}</p>
                             </div>
                           </TableCell>
                           <TableCell>
@@ -335,7 +258,7 @@ export default function ImagenologiaModule({ user }) {
                               <span className="text-sm">{estudio.tipoEstudio}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm">{estudio.zona}</TableCell>
+                          <TableCell className="text-sm">{estudio.zonaCuerpo}</TableCell>
                           <TableCell>
                             <Badge className={getPrioridadColor(estudio.prioridad)}>
                               {estudio.prioridad}
@@ -347,7 +270,7 @@ export default function ImagenologiaModule({ user }) {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm">
-                            {estudio.fechaSolicitud}
+                            {estudio.fechaSolicitud && format(new Date(estudio.fechaSolicitud), 'dd/MM/yyyy', { locale: es })}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
@@ -359,13 +282,8 @@ export default function ImagenologiaModule({ user }) {
                                   setShowResults(true);
                                 }}
                               >
-                                <Eye className="w-4 h-4" />
+                                {estudio.estado === 'Completado' ? <Eye className="w-4 h-4" /> : <Edit className="w-4 h-4" />}
                               </Button>
-                              {estudio.estado === 'Completado' && (
-                                <Button size="sm" variant="outline">
-                                  <Download className="w-4 h-4" />
-                                </Button>
-                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -382,10 +300,20 @@ export default function ImagenologiaModule({ user }) {
         <Dialog open={showResults} onOpenChange={setShowResults}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Informe Radiológico</DialogTitle>
+              <DialogTitle>
+                  {selectedStudy?.estado === 'Completado' ? 'Informe Radiológico' : 'Gestión de Estudio'}
+              </DialogTitle>
             </DialogHeader>
             {selectedStudy && (
-              <DetalleInforme estudio={selectedStudy} />
+              <DetalleInforme 
+                estudio={selectedStudy} 
+                onUpdate={updateInforme} 
+                onStatusChange={updateEstado}
+                refresh={() => {
+                    fetchEstudios();
+                    setShowResults(false);
+                }}
+              />
             )}
           </DialogContent>
         </Dialog>
@@ -395,11 +323,11 @@ export default function ImagenologiaModule({ user }) {
 }
 
 // Componente de Formulario de Nuevo Estudio
-function FormularioNuevoEstudio({ onClose }) {
+function FormularioNuevoEstudio({ onClose, onSubmit }) {
   const [formData, setFormData] = useState({
-    paciente: '',
+    pacienteId: '',
     tipoEstudio: '',
-    zona: '',
+    zonaCuerpo: '',
     prioridad: 'Normal',
     indicacionClinica: '',
     observaciones: '',
@@ -415,20 +343,21 @@ function FormularioNuevoEstudio({ onClose }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    alert('Estudio solicitado exitosamente (mockup)');
-    onClose();
+    if (!formData.pacienteId) {
+        alert('Seleccione un paciente');
+        return;
+    }
+    onSubmit(formData);
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <div>
           <Label>Paciente *</Label>
-          <Input placeholder="Buscar paciente..." required />
-        </div>
-        <div>
-          <Label>Médico Solicitante *</Label>
-          <Input value="Usuario actual" disabled />
+          <PatientSelect 
+            onSelect={(p) => setFormData({...formData, pacienteId: p.id})} 
+          />
         </div>
       </div>
 
@@ -448,7 +377,7 @@ function FormularioNuevoEstudio({ onClose }) {
         </div>
         <div>
           <Label>Zona Anatómica *</Label>
-          <Select value={formData.zona} onValueChange={(val) => setFormData({...formData, zona: val})} required>
+          <Select value={formData.zonaCuerpo} onValueChange={(val) => setFormData({...formData, zonaCuerpo: val})} required>
             <SelectTrigger>
               <SelectValue placeholder="Seleccione tipo primero..." />
             </SelectTrigger>
@@ -509,8 +438,26 @@ function FormularioNuevoEstudio({ onClose }) {
   );
 }
 
-// Componente de Detalle de Informe
-function DetalleInforme({ estudio }) {
+// Componente de Detalle de Informe (Lectura/Escritura)
+function DetalleInforme({ estudio, onUpdate, onStatusChange, refresh }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [reportData, setReportData] = useState({
+      hallazgos: estudio.hallazgos || '',
+      conclusion: estudio.conclusion || '',
+      recomendaciones: estudio.recomendaciones || ''
+  });
+
+  const handleSave = async () => {
+      await onUpdate(estudio.id, reportData);
+      setIsEditing(false);
+      refresh();
+  };
+
+  const handleStatus = async (newStatus) => {
+      await onStatusChange(estudio.id, newStatus);
+      refresh();
+  };
+
   return (
     <div className="space-y-6">
       {/* Información del Estudio */}
@@ -522,7 +469,7 @@ function DetalleInforme({ estudio }) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <p className="text-sm text-gray-600">ID Estudio</p>
-              <p className="font-medium">{estudio.id}</p>
+              <p className="font-medium">{estudio.codigo || estudio.id}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Estado</p>
@@ -532,13 +479,12 @@ function DetalleInforme({ estudio }) {
             </div>
             <div>
               <p className="text-sm text-gray-600">Paciente</p>
-              <p className="font-medium">{estudio.paciente.nombre}</p>
-              <p className="text-xs text-gray-500">CC: {estudio.paciente.cedula} - {estudio.paciente.edad} años</p>
+              <p className="font-medium">{estudio.paciente?.nombre} {estudio.paciente?.apellido}</p>
+              <p className="text-xs text-gray-500">CC: {estudio.paciente?.cedula}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Médico Solicitante</p>
-              <p className="font-medium">{estudio.medico.nombre}</p>
-              <p className="text-xs text-gray-500">{estudio.medico.especialidad}</p>
+              <p className="font-medium">{estudio.medicoSolicitante?.nombre} {estudio.medicoSolicitante?.apellido}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Tipo de Estudio</p>
@@ -546,7 +492,7 @@ function DetalleInforme({ estudio }) {
             </div>
             <div>
               <p className="text-sm text-gray-600">Zona</p>
-              <p className="font-medium">{estudio.zona}</p>
+              <p className="font-medium">{estudio.zonaCuerpo}</p>
             </div>
           </div>
           <div className="pt-3 border-t">
@@ -556,84 +502,129 @@ function DetalleInforme({ estudio }) {
         </CardContent>
       </Card>
 
-      {/* Informe Radiológico */}
-      {estudio.resultado && (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Informe Radiológico</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm font-semibold text-gray-700 mb-2">HALLAZGOS:</p>
-                <p className="text-sm text-gray-700 leading-relaxed">
-                  {estudio.resultado.hallazgos}
-                </p>
-              </div>
-
-              <div className="pt-3 border-t">
-                <p className="text-sm font-semibold text-gray-700 mb-2">CONCLUSIÓN:</p>
-                <p className="text-sm text-gray-700 font-medium">
-                  {estudio.resultado.conclusion}
-                </p>
-              </div>
-
-              <div className="pt-3 border-t">
-                <p className="text-sm font-semibold text-gray-700 mb-2">RECOMENDACIONES:</p>
-                <p className="text-sm text-gray-700">
-                  {estudio.resultado.recomendaciones}
-                </p>
-              </div>
-
-              <div className="pt-3 border-t flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">Radiólogo</p>
-                  <p className="text-sm font-medium">{estudio.radiologo}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Fecha de Informe</p>
-                  <p className="text-sm font-medium">{estudio.fechaInforme}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Simulación de Visor de Imágenes */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <ImageIcon className="w-5 h-5" />
-                Imágenes ({estudio.resultado.imagenes})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-4">
-                {[...Array(Math.min(estudio.resultado.imagenes, 6))].map((_, idx) => (
-                  <div key={idx} className="aspect-square bg-gray-900 rounded-lg flex items-center justify-center relative group cursor-pointer hover:ring-2 hover:ring-cyan-500 transition-all">
-                    <div className="text-center text-gray-500">
-                      <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                      <p className="text-xs">Imagen {idx + 1}</p>
-                    </div>
-                    <div className="absolute inset-0 bg-cyan-500 bg-opacity-0 group-hover:bg-opacity-10 rounded-lg transition-all" />
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm text-blue-800">
-                  <Eye className="w-4 h-4 inline mr-1" />
-                  Click en las imágenes para ver en visor DICOM (Simulación)
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </>
+      {/* Acciones de estado */}
+      {estudio.estado === 'Pendiente' && (
+          <div className="flex justify-end">
+              <Button onClick={() => handleStatus('EnProceso')} className="bg-blue-600">
+                  Iniciar Estudio
+              </Button>
+          </div>
       )}
 
+      {/* Informe Radiológico */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg">Informe Radiológico</CardTitle>
+          {!isEditing && estudio.estado !== 'Pendiente' && (
+              <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                  <Edit className="w-4 h-4 mr-2" />
+                  {estudio.estado === 'Completado' ? 'Editar Informe' : 'Redactar Informe'}
+              </Button>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {isEditing ? (
+              <div className="space-y-4">
+                  <div>
+                      <Label>Hallazgos</Label>
+                      <Textarea 
+                          value={reportData.hallazgos} 
+                          onChange={e => setReportData({...reportData, hallazgos: e.target.value})}
+                          rows={6}
+                      />
+                  </div>
+                  <div>
+                      <Label>Conclusión</Label>
+                      <Textarea 
+                          value={reportData.conclusion} 
+                          onChange={e => setReportData({...reportData, conclusion: e.target.value})}
+                          rows={3}
+                      />
+                  </div>
+                  <div>
+                      <Label>Recomendaciones</Label>
+                      <Textarea 
+                          value={reportData.recomendaciones} 
+                          onChange={e => setReportData({...reportData, recomendaciones: e.target.value})}
+                          rows={2}
+                      />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setIsEditing(false)}>Cancelar</Button>
+                      <Button onClick={handleSave}>Guardar y Finalizar</Button>
+                  </div>
+              </div>
+          ) : (
+              <>
+                {estudio.hallazgos ? (
+                    <>
+                        <div>
+                            <p className="text-sm font-semibold text-gray-700 mb-2">HALLAZGOS:</p>
+                            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                            {estudio.hallazgos}
+                            </p>
+                        </div>
+
+                        <div className="pt-3 border-t">
+                            <p className="text-sm font-semibold text-gray-700 mb-2">CONCLUSIÓN:</p>
+                            <p className="text-sm text-gray-700 font-medium whitespace-pre-wrap">
+                            {estudio.conclusion}
+                            </p>
+                        </div>
+
+                        <div className="pt-3 border-t">
+                            <p className="text-sm font-semibold text-gray-700 mb-2">RECOMENDACIONES:</p>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                            {estudio.recomendaciones}
+                            </p>
+                        </div>
+
+                        <div className="pt-3 border-t flex items-center justify-between">
+                            <div>
+                            <p className="text-sm text-gray-600">Radiólogo</p>
+                            <p className="text-sm font-medium">{estudio.radiologo?.nombre} {estudio.radiologo?.apellido}</p>
+                            </div>
+                            <div className="text-right">
+                            <p className="text-sm text-gray-600">Fecha de Informe</p>
+                            <p className="text-sm font-medium">{estudio.fechaInforme && format(new Date(estudio.fechaInforme), 'dd/MM/yyyy HH:mm')}</p>
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <p className="text-gray-500 italic text-center py-4">Informe pendiente de redacción</p>
+                )}
+              </>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Simulación de Visor de Imágenes (Solo visual) */}
+      <Card>
+        <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+            <ImageIcon className="w-5 h-5" />
+            Imágenes
+            </CardTitle>
+        </CardHeader>
+        <CardContent>
+            <div className="p-8 border-2 border-dashed border-gray-300 rounded-lg text-center bg-gray-50">
+                <ImageIcon className="w-12 h-12 mx-auto text-gray-400 mb-2" />
+                <p className="text-gray-500">Módulo de carga y visualización de imágenes (PACS)</p>
+                <p className="text-xs text-gray-400">Integración con servidor DICOM pendiente</p>
+                <Button variant="outline" className="mt-4">
+                    <Download className="w-4 h-4 mr-2" /> Subir Imágenes (Simulación)
+                </Button>
+            </div>
+        </CardContent>
+      </Card>
+      
       <div className="flex justify-end gap-2">
-        <Button variant="outline">
-          <Download className="w-4 h-4 mr-2" />
-          Descargar PDF
-        </Button>
+        {estudio.estado === 'Completado' && (
+             <Button variant="outline">
+                <Download className="w-4 h-4 mr-2" />
+                Descargar PDF
+            </Button>
+        )}
         <Button className="bg-gradient-to-r from-cyan-600 to-blue-700">
           <FileText className="w-4 h-4 mr-2" />
           Enviar a HCE

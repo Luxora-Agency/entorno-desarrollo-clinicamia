@@ -59,7 +59,8 @@ export default function AdmisionesModule({ user }) {
         });
         
         const citasData = await citasResponse.json();
-        const citas = citasData.data || [];
+        // Soportar ambas estructuras: { data: [...] } o { citas: [...] }
+        const citas = citasData.data || citasData.citas || [];
         
         // Cargar información de facturación para cada cita
         const citasConFactura = await Promise.all(citas.map(async (cita) => {

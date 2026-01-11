@@ -1,101 +1,117 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, Search, Calendar, Filter, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Search, Calendar, Filter, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { miaPassService } from '@/services/miaPass.service';
+import { useToast } from '@/hooks/use-toast';
 
 export default function SuscripcionesMiaPassModule() {
-  const [suscripciones, setSuscripciones] = useState([
-    {
-      id: 1,
-      planNombre: 'Plan Premium',
-      usuarioNombre: 'María García',
-      usuarioEmail: 'maria.garcia@email.com',
-      fechaInicio: '2024-01-15',
-      fechaFin: '2025-01-15',
-      estado: 'activa',
-      metodoPago: 'Tarjeta de Crédito',
-      precio: 49.99
-    },
-    {
-      id: 2,
-      planNombre: 'Plan Básico',
-      usuarioNombre: 'Juan Pérez',
-      usuarioEmail: 'juan.perez@email.com',
-      fechaInicio: '2024-02-01',
-      fechaFin: '2025-02-01',
-      estado: 'activa',
-      metodoPago: 'PayPal',
-      precio: 29.99
-    },
-    {
-      id: 3,
-      planNombre: 'Plan Familiar',
-      usuarioNombre: 'Ana Martínez',
-      usuarioEmail: 'ana.martinez@email.com',
-      fechaInicio: '2023-12-01',
-      fechaFin: '2024-12-01',
-      estado: 'vencida',
-      metodoPago: 'Transferencia',
-      precio: 89.99
-    },
-    {
-      id: 4,
-      planNombre: 'Plan Premium',
-      usuarioNombre: 'Carlos López',
-      usuarioEmail: 'carlos.lopez@email.com',
-      fechaInicio: '2024-03-15',
-      fechaFin: '2024-06-20',
-      estado: 'pendiente',
-      metodoPago: 'Tarjeta de Débito',
-      precio: 49.99
-    }
-  ]);
-
+  const { toast } = useToast();
+  const [suscripciones, setSuscripciones] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todas');
 
+  const fetchSuscripciones = async () => {
+    try {
+      setLoading(true);
+      const response = await miaPassService.getAllSuscripciones();
+      if (response.success) {
+        setSuscripciones(response.data?.suscripciones || []);
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'No se pudieron cargar las suscripciones',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSuscripciones();
+  }, []);
+
   const filteredSuscripciones = suscripciones.filter(sub => {
-    const matchesSearch = 
-      sub.usuarioNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.usuarioEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      sub.planNombre.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesEstado = filterEstado === 'todas' || sub.estado === filterEstado;
-    
+    const pacienteNombre = sub.paciente ? `${sub.paciente.nombre} ${sub.paciente.apellido}` : 'Usuario desconocido';
+    const pacienteEmail = sub.paciente?.email || '';
+    const planNombre = sub.plan?.nombre || 'Plan desconocido';
+
+    const matchesSearch =
+      pacienteNombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pacienteEmail.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      planNombre.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesEstado = filterEstado === 'todas' || sub.estado?.toLowerCase() === filterEstado;
+
     return matchesSearch && matchesEstado;
   });
 
+  // Calcular días restantes para vencimiento
+  const getDiasRestantes = (fechaFin) => {
+    const hoy = new Date();
+    const fin = new Date(fechaFin);
+    const diffTime = fin - hoy;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
+
   const getEstadoBadge = (estado) => {
+    const estadoLower = estado?.toLowerCase() || 'pendiente';
     const configs = {
-      activa: { bg: 'bg-green-100', text: 'text-green-800', icon: CheckCircle },
-      vencida: { bg: 'bg-red-100', text: 'text-red-800', icon: XCircle },
-      pendiente: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: Clock }
+      activa: { bg: 'bg-green-100', text: 'text-green-800', icon: CheckCircle, label: 'Activa' },
+      vencida: { bg: 'bg-red-100', text: 'text-red-800', icon: XCircle, label: 'Vencida' },
+      pendiente: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: Clock, label: 'Pendiente' },
+      pendiente_pago: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: Clock, label: 'Pendiente Pago' },
+      pagada: { bg: 'bg-blue-100', text: 'text-blue-800', icon: CheckCircle, label: 'Pagada' },
+      cancelada: { bg: 'bg-gray-100', text: 'text-gray-800', icon: XCircle, label: 'Cancelada' },
+      anulada: { bg: 'bg-gray-100', text: 'text-gray-800', icon: XCircle, label: 'Anulada' },
+      devuelta: { bg: 'bg-orange-100', text: 'text-orange-800', icon: XCircle, label: 'Devuelta' }
     };
-    
-    const config = configs[estado] || configs.pendiente;
+
+    const config = configs[estadoLower] || configs.pendiente;
     const Icon = config.icon;
-    
+
     return (
       <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${config.bg} ${config.text}`}>
         <Icon className="w-3 h-3" />
-        {estado.charAt(0).toUpperCase() + estado.slice(1)}
+        {config.label}
       </span>
     );
   };
 
-  const handleCambiarEstado = (id, nuevoEstado) => {
-    setSuscripciones(suscripciones.map(sub =>
-      sub.id === id ? { ...sub, estado: nuevoEstado } : sub
-    ));
+  const handleCancelarSuscripcion = async (id) => {
+    if (!confirm('¿Está seguro de cancelar esta suscripción?')) return;
+    
+    try {
+      await miaPassService.cancelSuscripcion(id);
+      toast({
+        title: 'Éxito',
+        description: 'Suscripción cancelada correctamente',
+      });
+      fetchSuscripciones();
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Error al cancelar la suscripción',
+        variant: 'destructive',
+      });
+    }
   };
 
   const stats = {
-    activas: suscripciones.filter(s => s.estado === 'activa').length,
-    vencidas: suscripciones.filter(s => s.estado === 'vencida').length,
-    pendientes: suscripciones.filter(s => s.estado === 'pendiente').length,
+    activas: suscripciones.filter(s => s.estado?.toUpperCase() === 'ACTIVA').length,
+    vencidas: suscripciones.filter(s => s.estado?.toUpperCase() === 'VENCIDA').length,
+    pendientes: suscripciones.filter(s => ['PENDIENTE', 'PENDIENTE_PAGO'].includes(s.estado?.toUpperCase())).length,
+    proximasVencer: suscripciones.filter(s => {
+      if (s.estado?.toUpperCase() !== 'ACTIVA') return false;
+      const dias = getDiasRestantes(s.fechaFin);
+      return dias > 0 && dias <= 30;
+    }).length,
     total: suscripciones.length
   };
 
@@ -110,7 +126,7 @@ export default function SuscripcionesMiaPassModule() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
           <div className="flex items-center justify-between">
             <div>
@@ -128,6 +144,16 @@ export default function SuscripcionesMiaPassModule() {
               <p className="text-2xl font-bold text-green-900">{stats.activas}</p>
             </div>
             <CheckCircle className="w-8 h-8 text-green-600" />
+          </div>
+        </Card>
+
+        <Card className="p-4 bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-amber-600 font-medium">Por Vencer</p>
+              <p className="text-2xl font-bold text-amber-900">{stats.proximasVencer}</p>
+            </div>
+            <AlertTriangle className="w-8 h-8 text-amber-600" />
           </div>
         </Card>
 
@@ -177,6 +203,7 @@ export default function SuscripcionesMiaPassModule() {
               <option value="activa">Activas</option>
               <option value="pendiente">Pendientes</option>
               <option value="vencida">Vencidas</option>
+              <option value="cancelada">Canceladas</option>
             </select>
           </div>
         </div>
@@ -211,57 +238,85 @@ export default function SuscripcionesMiaPassModule() {
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSuscripciones.map((sub) => (
-                <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{sub.usuarioNombre}</div>
-                      <div className="text-sm text-gray-500">{sub.usuarioEmail}</div>
+            {loading ? (
+              <tbody>
+                <tr>
+                  <td colSpan="7" className="text-center py-8">
+                    <div className="flex justify-center items-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{sub.planNombre}</div>
-                    <div className="text-sm text-gray-500">{sub.metodoPago}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {new Date(sub.fechaInicio).toLocaleDateString('es-ES', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                    {new Date(sub.fechaFin).toLocaleDateString('es-ES', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric'
-                    })}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {getEstadoBadge(sub.estado)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                    ${sub.precio}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <select
-                      value={sub.estado}
-                      onChange={(e) => handleCambiarEstado(sub.id, e.target.value)}
-                      className="px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    >
-                      <option value="activa">Activa</option>
-                      <option value="pendiente">Pendiente</option>
-                      <option value="vencida">Vencida</option>
-                    </select>
-                  </td>
                 </tr>
-              ))}
-            </tbody>
+              </tbody>
+            ) : (
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredSuscripciones.map((sub) => {
+                  const diasRestantes = getDiasRestantes(sub.fechaFin);
+                  const proximaAVencer = sub.estado?.toUpperCase() === 'ACTIVA' && diasRestantes > 0 && diasRestantes <= 30;
+
+                  return (
+                    <tr key={sub.id} className={`hover:bg-gray-50 transition-colors ${proximaAVencer ? 'bg-amber-50' : ''}`}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">
+                            {sub.paciente ? `${sub.paciente.nombre} ${sub.paciente.apellido}` : 'Usuario desconocido'}
+                          </div>
+                          <div className="text-sm text-gray-500">{sub.paciente?.email || 'Sin email'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{sub.plan?.nombre || 'Plan desconocido'}</div>
+                        <div className="text-sm text-gray-500">{sub.metodoPago}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {new Date(sub.fechaInicio).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        <div>
+                          {new Date(sub.fechaFin).toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })}
+                        </div>
+                        {proximaAVencer && (
+                          <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">
+                            <AlertTriangle className="w-3 h-3" />
+                            Vence en {diasRestantes} día{diasRestantes !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {getEstadoBadge(sub.estado)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                        ${parseFloat(sub.precioPagado || 0).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {sub.estado?.toUpperCase() === 'ACTIVA' && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleCancelarSuscripcion(sub.id)}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            Cancelar
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            )}
           </table>
         </div>
 
-        {filteredSuscripciones.length === 0 && (
+        {!loading && filteredSuscripciones.length === 0 && (
           <div className="text-center py-12">
             <p className="text-gray-500">No se encontraron suscripciones</p>
           </div>

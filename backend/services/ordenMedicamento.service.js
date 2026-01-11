@@ -251,33 +251,54 @@ class OrdenMedicamentoService {
       throw new ValidationError('No se puede despachar una orden cancelada');
     }
 
-    // Actualizar inventario de productos
+    // Verificar stock disponible para todos los items
     for (const item of orden.items) {
-      await prisma.producto.update({
+      const producto = await prisma.producto.findUnique({
         where: { id: item.productoId },
+      });
+
+      if (!producto) {
+        throw new NotFoundError(`Producto no encontrado: ${item.productoId}`);
+      }
+
+      const disponible = producto.cantidadTotal - producto.cantidadConsumida;
+      if (disponible < item.cantidad) {
+        throw new ValidationError(
+          `Stock insuficiente para ${producto.nombre}. Solicitado: ${item.cantidad}, Disponible: ${disponible}`
+        );
+      }
+    }
+
+    // Actualizar inventario de productos y marcar orden como despachada
+    // Usar transacción para asegurar consistencia
+    const ordenActualizada = await prisma.$transaction(async (tx) => {
+      for (const item of orden.items) {
+        await tx.producto.update({
+          where: { id: item.productoId },
+          data: {
+            cantidadConsumida: {
+              increment: item.cantidad,
+            },
+          },
+        });
+      }
+
+      return await tx.ordenMedicamento.update({
+        where: { id },
         data: {
-          cantidadConsumida: {
-            increment: item.cantidad,
+          estado: 'Despachada',
+          fechaDespacho: new Date(),
+          despachadoPor: despachadoPorId,
+        },
+        include: {
+          paciente: true,
+          items: {
+            include: {
+              producto: true,
+            },
           },
         },
       });
-    }
-
-    const ordenActualizada = await prisma.ordenMedicamento.update({
-      where: { id },
-      data: {
-        estado: 'Despachada',
-        fechaDespacho: new Date(),
-        despachadoPor: despachadoPorId,
-      },
-      include: {
-        paciente: true,
-        items: {
-          include: {
-            producto: true,
-          },
-        },
-      },
     });
 
     return ordenActualizada;

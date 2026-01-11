@@ -12,7 +12,97 @@ const signosVitales = new Hono();
 signosVitales.use('*', authMiddleware);
 
 /**
- * GET /signos-vitales - Obtener todos los signos vitales
+ * @swagger
+ * components:
+ *   schemas:
+ *     SignoVital:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         fecha_registro:
+ *           type: string
+ *           format: date-time
+ *         temperatura:
+ *           type: number
+ *         presion_sistolica:
+ *           type: integer
+ *         presion_diastolica:
+ *           type: integer
+ *         frecuencia_cardiaca:
+ *           type: integer
+ *         frecuencia_respiratoria:
+ *           type: integer
+ *         saturacion_oxigeno:
+ *           type: integer
+ *         peso:
+ *           type: number
+ *         talla:
+ *           type: number
+ *     SignoVitalInput:
+ *       type: object
+ *       required:
+ *         - paciente_id
+ *       properties:
+ *         paciente_id:
+ *           type: string
+ *           format: uuid
+ *         temperatura:
+ *           type: number
+ *         presion_sistolica:
+ *           type: integer
+ *         presion_diastolica:
+ *           type: integer
+ *         frecuencia_cardiaca:
+ *           type: integer
+ *         frecuencia_respiratoria:
+ *           type: integer
+ *         saturacion_oxigeno:
+ *           type: integer
+ *         peso:
+ *           type: number
+ *         talla:
+ *           type: number
+ * tags:
+ *   name: SignosVitales
+ *   description: Registro de signos vitales
+ */
+
+/**
+ * @swagger
+ * /signos-vitales:
+ *   get:
+ *     summary: Obtener todos los signos vitales
+ *     tags: [SignosVitales]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: paciente_id
+ *         schema:
+ *           type: string
+ *         description: Filtrar por paciente
+ *     responses:
+ *       200:
+ *         description: Lista de signos vitales
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/SignoVital'
+ *       500:
+ *         description: Error del servidor
  */
 signosVitales.get('/', async (c) => {
   try {
@@ -25,7 +115,37 @@ signosVitales.get('/', async (c) => {
 });
 
 /**
- * POST /signos-vitales - Registrar signos vitales
+ * @swagger
+ * /signos-vitales:
+ *   post:
+ *     summary: Registrar signos vitales
+ *     tags: [SignosVitales]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SignoVitalInput'
+ *     responses:
+ *       201:
+ *         description: Signos vitales registrados correctamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     signoVital:
+ *                       $ref: '#/components/schemas/SignoVital'
+ *       500:
+ *         description: Error del servidor
  */
 signosVitales.post('/', async (c) => {
   try {
@@ -41,7 +161,39 @@ signosVitales.post('/', async (c) => {
 });
 
 /**
- * GET /signos-vitales/grafica/:paciente_id - Obtener gráfica de evolución
+ * @swagger
+ * /signos-vitales/grafica/{paciente_id}:
+ *   get:
+ *     summary: Obtener gráfica de evolución
+ *     tags: [SignosVitales]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: paciente_id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID del paciente
+ *       - in: query
+ *         name: tipo
+ *         schema:
+ *           type: string
+ *           enum: [temperatura, presion, frecuencia, peso]
+ *           default: temperatura
+ *         description: Tipo de signo vital a graficar
+ *       - in: query
+ *         name: dias
+ *         schema:
+ *           type: integer
+ *           default: 7
+ *         description: Número de días atrás a consultar
+ *     responses:
+ *       200:
+ *         description: Datos para gráfica
+ *       500:
+ *         description: Error del servidor
  */
 signosVitales.get('/grafica/:paciente_id', async (c) => {
   try {

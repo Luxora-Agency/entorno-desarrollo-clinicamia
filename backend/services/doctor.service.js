@@ -1,10 +1,28 @@
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../db/prisma');
 const bcrypt = require('bcryptjs');
+const { ValidationError, NotFoundError, AppError } = require('../utils/errors');
+const { saveBase64Image, deleteFile } = require('../utils/upload');
 
 class DoctorService {
   async crear(data) {
-    const { nombre, apellido, cedula, email, telefono, genero, fecha_nacimiento, direccion, licencia_medica, universidad, anios_experiencia, biografia, especialidades_ids, horarios, activo } = data;
+    const {
+      nombre,
+      apellido,
+      cedula,
+      email,
+      telefono,
+      genero,
+      fecha_nacimiento,
+      direccion,
+      licencia_medica,
+      universidad,
+      anios_experiencia,
+      biografia,
+      foto,
+      especialidades_ids,
+      horarios,
+      activo
+    } = data;
 
     // Verificar si el email o cédula ya existen
     const usuarioExiste = await prisma.usuario.findFirst({
@@ -17,51 +35,79 @@ class DoctorService {
     });
 
     if (usuarioExiste) {
-      throw new Error('El email o cédula ya están registrados');
+      throw new ValidationError('El email o cédula ya están registrados');
     }
 
-    // Crear usuario con rol DOCTOR
-    const password = await bcrypt.hash(cedula, 10); // Password temporal = cédula
-    
-    const usuario = await prisma.usuario.create({
-      data: {
-        email,
-        password,
-        nombre,
-        apellido,
-        cedula,
-        rol: 'DOCTOR',
-        telefono,
-        activo: activo !== undefined ? activo : true,
+    try {
+      // Procesar foto si se proporciona como base64
+      let fotoUrl = null;
+      if (foto && foto.startsWith('data:')) {
+        fotoUrl = await saveBase64Image(foto, 'doctors');
+      } else if (foto) {
+        fotoUrl = foto; // Ya es una URL
       }
-    });
 
-    // Crear perfil de doctor
-    const doctor = await prisma.doctor.create({
-      data: {
-        usuarioId: usuario.id,
-        licenciaMedica: licencia_medica,
-        universidad,
-        aniosExperiencia: anios_experiencia ? parseInt(anios_experiencia) : null,
-        biografia,
-        horarios: horarios || {},
-      },
-      include: {
-        usuario: true,
-      }
-    });
+      // Uso de transacción para asegurar consistencia
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Crear usuario con rol DOCTOR
+        const password = await bcrypt.hash(cedula, 10); // Password temporal = cédula
 
-    // Asignar especialidades
-    if (especialidades_ids && especialidades_ids.length > 0) {
-      await prisma.doctorEspecialidad.createMany({
-        data: especialidades_ids.map(espId => ({
-          doctorId: doctor.id,
-          especialidadId: espId
-        }))
+        const usuario = await tx.usuario.create({
+          data: {
+            email,
+            password,
+            nombre,
+            apellido,
+            cedula,
+            rol: 'DOCTOR',
+            telefono,
+            activo: activo !== undefined ? activo : true,
+          }
+        });
+
+        // 2. Crear perfil de doctor
+        const doctor = await tx.doctor.create({
+          data: {
+            usuarioId: usuario.id,
+            licenciaMedica: licencia_medica,
+            universidad,
+            aniosExperiencia: anios_experiencia ? parseInt(anios_experiencia) : null,
+            biografia,
+            foto: fotoUrl,
+            horarios: horarios || {},
+          },
+          include: {
+            usuario: true,
+          }
+        });
+
+        // 3. Asignar especialidades
+        if (especialidades_ids && especialidades_ids.length > 0) {
+          // Verificar que las especialidades existan
+          const count = await tx.especialidad.count({
+            where: { id: { in: especialidades_ids } }
+          });
+          
+          if (count !== especialidades_ids.length) {
+            throw new ValidationError('Una o más especialidades no existen');
+          }
+
+          await tx.doctorEspecialidad.createMany({
+            data: especialidades_ids.map(espId => ({
+              doctorId: doctor.id,
+              especialidadId: espId
+            }))
+          });
+        }
+
+        return doctor;
       });
-    }
 
-    return this.obtenerPorId(doctor.id);
+      return this.obtenerPorId(result.id);
+    } catch (error) {
+      if (error instanceof ValidationError) throw error;
+      throw new AppError('Error al crear el doctor: ' + error.message);
+    }
   }
 
   async listar({ search = '', limit = 50, page = 1, usuarioId = '' }) {
@@ -85,166 +131,252 @@ class DoctorService {
       };
     }
 
-    const [doctores, total] = await Promise.all([
-      prisma.doctor.findMany({
-        where,
-        include: {
-          usuario: {
-            select: {
-              id: true,
-              nombre: true,
-              apellido: true,
-              cedula: true,
-              email: true,
-              telefono: true,
-              activo: true,
-            }
-          },
-          especialidades: {
-            include: {
-              especialidad: {
-                select: {
-                  id: true,
-                  titulo: true,
+    try {
+      const [doctores, total] = await Promise.all([
+        prisma.doctor.findMany({
+          where,
+          include: {
+            usuario: {
+              select: {
+                id: true,
+                nombre: true,
+                apellido: true,
+                cedula: true,
+                email: true,
+                telefono: true,
+                activo: true,
+              }
+            },
+            especialidades: {
+              include: {
+                especialidad: {
+                  select: {
+                    id: true,
+                    titulo: true,
+                  }
                 }
               }
             }
-          }
-        },
-        take: limit,
-        skip,
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.doctor.count({ where }),
-    ]);
+          },
+          take: limit,
+          skip,
+          orderBy: { createdAt: 'desc' },
+        }),
+        prisma.doctor.count({ where }),
+      ]);
 
-    const doctoresFormateados = doctores.map(doctor => ({
-      id: doctor.id, // ID del doctor (tabla doctores)
-      usuarioId: doctor.usuarioId, // ID del usuario asociado
-      nombre: doctor.usuario?.nombre,
-      apellido: doctor.usuario?.apellido,
-      cedula: doctor.usuario?.cedula,
-      email: doctor.usuario?.email,
-      telefono: doctor.usuario?.telefono,
-      activo: doctor.usuario?.activo,
-      licenciaMedica: doctor.licenciaMedica,
-      universidad: doctor.universidad,
-      aniosExperiencia: doctor.aniosExperiencia,
-      biografia: doctor.biografia,
-      horarios: doctor.horarios,
-      especialidades: doctor.especialidades.map(de => de.especialidad.titulo),
-      especialidadesIds: doctor.especialidades.map(de => de.especialidad.id),
-      createdAt: doctor.createdAt,
-    }));
+      const doctoresFormateados = doctores.map(doctor => ({
+        id: doctor.id, // ID del doctor (tabla doctores)
+        usuarioId: doctor.usuarioId, // ID del usuario asociado
+        nombre: doctor.usuario?.nombre,
+        apellido: doctor.usuario?.apellido,
+        cedula: doctor.usuario?.cedula,
+        email: doctor.usuario?.email,
+        telefono: doctor.usuario?.telefono,
+        activo: doctor.usuario?.activo,
+        licenciaMedica: doctor.licenciaMedica,
+        universidad: doctor.universidad,
+        aniosExperiencia: doctor.aniosExperiencia,
+        biografia: doctor.biografia,
+        foto: doctor.foto,
+        horarios: doctor.horarios,
+        especialidades: doctor.especialidades.map(de => de.especialidad.titulo),
+        especialidadesIds: doctor.especialidades.map(de => de.especialidad.id),
+        createdAt: doctor.createdAt,
+      }));
 
-    return {
-      doctores: doctoresFormateados,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      }
-    };
+      return {
+        doctores: doctoresFormateados,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        }
+      };
+    } catch (error) {
+      throw new AppError('Error al listar doctores: ' + error.message);
+    }
   }
 
   async obtenerPorId(id) {
-    const doctor = await prisma.doctor.findUnique({
-      where: { id },
-      include: {
-        usuario: true,
-        especialidades: {
-          include: {
-            especialidad: true,
+    try {
+      const doctor = await prisma.doctor.findUnique({
+        where: { id },
+        include: {
+          usuario: true,
+          especialidades: {
+            include: {
+              especialidad: true,
+            }
           }
         }
-      }
-    });
+      });
 
     if (!doctor) {
-      throw new Error('Doctor no encontrado');
+      throw new NotFoundError('Doctor no encontrado');
     }
+
+    // Extraer datos del usuario para evitar sobreescribir el ID del doctor
+    const { id: userId, ...usuarioData } = doctor.usuario;
 
     return {
       id: doctor.id,
-      ...doctor.usuario,
+      usuarioId: userId,
+      ...usuarioData,
       licenciaMedica: doctor.licenciaMedica,
       universidad: doctor.universidad,
       aniosExperiencia: doctor.aniosExperiencia,
       biografia: doctor.biografia,
+      foto: doctor.foto,
       horarios: doctor.horarios,
       especialidades: doctor.especialidades.map(de => de.especialidad.titulo),
       especialidadesIds: doctor.especialidades.map(de => de.especialidad.id),
     };
+    } catch (error) {
+      if (error instanceof NotFoundError) throw error;
+      throw new AppError('Error al obtener doctor: ' + error.message);
+    }
   }
 
   async actualizar(id, data) {
     const doctorExiste = await prisma.doctor.findUnique({ where: { id } });
     if (!doctorExiste) {
-      throw new Error('Doctor no encontrado');
+      throw new NotFoundError('Doctor no encontrado');
     }
 
-    const { nombre, apellido, cedula, email, telefono, genero, fecha_nacimiento, direccion, licencia_medica, universidad, anios_experiencia, biografia, especialidades_ids, horarios, activo } = data;
+    const {
+      nombre,
+      apellido,
+      cedula,
+      email,
+      telefono,
+      genero,
+      fecha_nacimiento,
+      direccion,
+      licencia_medica,
+      universidad,
+      anios_experiencia,
+      biografia,
+      foto,
+      especialidades_ids,
+      horarios,
+      activo
+    } = data;
 
-    // Actualizar usuario
-    await prisma.usuario.update({
-      where: { id: doctorExiste.usuarioId },
-      data: {
-        nombre,
-        apellido,
-        cedula,
-        email,
-        telefono,
-        activo,
+    try {
+      // Procesar nueva foto si se proporciona
+      let fotoUrl = undefined; // undefined significa no actualizar
+      if (foto && foto.startsWith('data:')) {
+        // Nueva foto en base64 - guardarla
+        fotoUrl = await saveBase64Image(foto, 'doctors');
+        // Eliminar foto anterior si existe
+        if (doctorExiste.foto) {
+          await deleteFile(doctorExiste.foto);
+        }
+      } else if (foto === null) {
+        // Se quiere eliminar la foto
+        if (doctorExiste.foto) {
+          await deleteFile(doctorExiste.foto);
+        }
+        fotoUrl = null;
+      } else if (foto) {
+        // Ya es una URL, usarla directamente
+        fotoUrl = foto;
       }
-    });
 
-    // Actualizar doctor
-    await prisma.doctor.update({
-      where: { id },
-      data: {
-        licenciaMedica: licencia_medica,
-        universidad,
-        aniosExperiencia: anios_experiencia ? parseInt(anios_experiencia) : null,
-        biografia,
-        horarios,
-      }
-    });
+      await prisma.$transaction(async (tx) => {
+        // 1. Actualizar usuario
+        await tx.usuario.update({
+          where: { id: doctorExiste.usuarioId },
+          data: {
+            nombre,
+            apellido,
+            cedula,
+            email,
+            telefono,
+            activo,
+          }
+        });
 
-    // Actualizar especialidades
-    if (especialidades_ids) {
-      // Eliminar especialidades anteriores
-      await prisma.doctorEspecialidad.deleteMany({
-        where: { doctorId: id }
+        // 2. Actualizar doctor
+        const doctorUpdateData = {
+          licenciaMedica: licencia_medica,
+          universidad,
+          aniosExperiencia: anios_experiencia ? parseInt(anios_experiencia) : null,
+          biografia,
+          horarios: horarios,
+        };
+
+        // Solo incluir foto si se proporcionó
+        if (fotoUrl !== undefined) {
+          doctorUpdateData.foto = fotoUrl;
+        }
+
+        await tx.doctor.update({
+          where: { id },
+          data: doctorUpdateData
+        });
+
+        // 3. Actualizar especialidades
+        if (especialidades_ids) {
+          // Verificar que las especialidades existan
+          if (especialidades_ids.length > 0) {
+            const count = await tx.especialidad.count({
+              where: { id: { in: especialidades_ids } }
+            });
+            
+            if (count !== especialidades_ids.length) {
+              throw new ValidationError('Una o más especialidades no existen');
+            }
+          }
+
+          // Eliminar especialidades anteriores
+          await tx.doctorEspecialidad.deleteMany({
+            where: { doctorId: id }
+          });
+
+          // Crear nuevas especialidades
+          if (especialidades_ids.length > 0) {
+            await tx.doctorEspecialidad.createMany({
+              data: especialidades_ids.map(espId => ({
+                doctorId: id,
+                especialidadId: espId
+              }))
+            });
+          }
+        }
       });
 
-      // Crear nuevas especialidades
-      if (especialidades_ids.length > 0) {
-        await prisma.doctorEspecialidad.createMany({
-          data: especialidades_ids.map(espId => ({
-            doctorId: id,
-            especialidadId: espId
-          }))
-        });
-      }
+      return this.obtenerPorId(id);
+    } catch (error) {
+      if (error instanceof NotFoundError || error instanceof ValidationError) throw error;
+      throw new AppError('Error al actualizar doctor: ' + error.message);
     }
-
-    return this.obtenerPorId(id);
   }
 
   async eliminar(id) {
     const doctor = await prisma.doctor.findUnique({ where: { id } });
     if (!doctor) {
-      throw new Error('Doctor no encontrado');
+      throw new NotFoundError('Doctor no encontrado');
     }
 
-    // Eliminar doctor (las especialidades se eliminan en cascada)
-    await prisma.doctor.delete({ where: { id } });
-    
-    // Eliminar usuario
-    await prisma.usuario.delete({ where: { id: doctor.usuarioId } });
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Eliminar doctor (las especialidades se eliminan en cascada por la definición del modelo)
+        // Pero es buena práctica ser explícito o confiar en el onDelete: Cascade del schema
+        
+        // Primero eliminamos el doctor
+        await tx.doctor.delete({ where: { id } });
+        
+        // Luego eliminamos el usuario asociado
+        await tx.usuario.delete({ where: { id: doctor.usuarioId } });
+      });
 
-    return { message: 'Doctor eliminado exitosamente' };
+      return { message: 'Doctor eliminado exitosamente' };
+    } catch (error) {
+      throw new AppError('Error al eliminar doctor: ' + error.message);
+    }
   }
 }
 

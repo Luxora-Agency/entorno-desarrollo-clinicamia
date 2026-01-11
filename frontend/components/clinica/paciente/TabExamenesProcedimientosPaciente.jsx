@@ -61,6 +61,69 @@ export default function TabExamenesProcedimientosPaciente({ pacienteId }) {
     });
   };
 
+  const getResultadoColor = (estado) => {
+    switch (estado) {
+      case 'Alto': return 'text-red-600 font-semibold';
+      case 'Bajo': return 'text-orange-600 font-semibold';
+      case 'Critico': return 'text-red-800 font-bold';
+      case 'Normal': return 'text-green-600';
+      case 'Positivo': return 'text-blue-600 font-semibold';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const renderResultados = (resultadosRaw) => {
+    let resultados = resultadosRaw;
+    if (typeof resultados === 'string') {
+      try {
+        resultados = JSON.parse(resultados);
+      } catch (e) {
+        // Fallback to text
+      }
+    }
+
+    const isStructured = typeof resultados === 'object' && resultados !== null;
+
+    if (!isStructured) {
+      return (
+        <p className="mt-1 p-3 bg-green-50 rounded text-sm whitespace-pre-wrap">{String(resultados)}</p>
+      );
+    }
+
+    return (
+      <div className="mt-2 border rounded-md overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-gray-50">
+              <TableHead className="py-2">Examen</TableHead>
+              <TableHead className="py-2">Resultado</TableHead>
+              <TableHead className="py-2">Unidad</TableHead>
+              <TableHead className="py-2">Ref.</TableHead>
+              <TableHead className="py-2">Estado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Object.entries(resultados).map(([examen, datos]) => (
+              <TableRow key={examen}>
+                <TableCell className="font-medium py-2">{examen}</TableCell>
+                <TableCell className={`py-2 ${getResultadoColor(datos.estado)}`}>
+                  {datos.valor}
+                </TableCell>
+                <TableCell className="text-gray-500 py-2">{datos.unidad}</TableCell>
+                <TableCell className="text-gray-600 py-2">{datos.referencia}</TableCell>
+                <TableCell className="py-2">
+                  <Badge className={`bg-${datos.estado === 'Normal' ? 'green' : datos.estado === 'Alto' ? 'red' : 'orange'}-100 text-${datos.estado === 'Normal' ? 'green' : datos.estado === 'Alto' ? 'red' : 'orange'}-800 border-0`}>
+                    {datos.estado}
+                  </Badge>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <Card>
@@ -165,7 +228,7 @@ export default function TabExamenesProcedimientosPaciente({ pacienteId }) {
       )}
 
       <Dialog open={mostrarModal} onOpenChange={setMostrarModal}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Detalle</DialogTitle>
           </DialogHeader>
@@ -192,7 +255,7 @@ export default function TabExamenesProcedimientosPaciente({ pacienteId }) {
               {ordenSeleccionada.resultados && (
                 <div>
                   <span className="text-sm text-gray-600">Resultados:</span>
-                  <p className="mt-1 p-3 bg-green-50 rounded text-sm">{ordenSeleccionada.resultados}</p>
+                  {renderResultados(ordenSeleccionada.resultados)}
                 </div>
               )}
             </div>

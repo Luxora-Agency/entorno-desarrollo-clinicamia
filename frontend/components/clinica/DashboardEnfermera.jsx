@@ -19,6 +19,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
+import PanelPacienteEnfermeria from './enfermeria/PanelPacienteEnfermeria';
+
 export default function DashboardEnfermera({ user }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,7 @@ export default function DashboardEnfermera({ user }) {
   const [showNotaModal, setShowNotaModal] = useState(false);
   const [selectedMedicamento, setSelectedMedicamento] = useState(null);
   const [selectedPaciente, setSelectedPaciente] = useState(null);
+  const [selectedPatientForDetail, setSelectedPatientForDetail] = useState(null);
   
   // Datos reales del backend
   const [asignaciones, setAsignaciones] = useState([]);
@@ -37,15 +40,15 @@ export default function DashboardEnfermera({ user }) {
   const [turnoActual, setTurnoActual] = useState('Tarde');
   const [signosVitalesPendientes, setSignosVitalesPendientes] = useState([]);
   const [tareasDelTurno, setTareasDelTurno] = useState([]);
+  const [alertasActivas, setAlertasActivas] = useState([]);
   
   // Form states
   const [formSignos, setFormSignos] = useState({
     temperatura: '',
-    presionSistolica: '',
-    presionDiastolica: '',
+    presionArterial: '',
     frecuenciaCardiaca: '',
     frecuenciaRespiratoria: '',
-    saturacionOxigeno: '',
+    saturacionO2: '',
     peso: '',
     talla: '',
     escalaDolor: 0,
@@ -94,22 +97,85 @@ export default function DashboardEnfermera({ user }) {
         headers: { Authorization: `Bearer ${token}` },
       });
       
+      let pacientesIds = [];
+      let pacientesData = [];
+
       if (pacientesRes.ok) {
         const data = await pacientesRes.json();
-        const pacientes = data.data?.pacientes || [];
-        setPacientesAsignados(pacientes);
+        const rawAdmissions = data.data?.pacientes || [];
         
-        // Cargar medicamentos de esos pacientes
-        if (pacientes.length > 0) {
-          const hoy = new Date().toISOString().split('T')[0];
-          const medicamentosRes = await fetch(`${apiUrl}/administraciones?fecha=${hoy}&estado=Programada&limit=100`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+        pacientesData = rawAdmissions.map(adm => ({
+          id: adm.id, // Using admisionId as the main key for the list
+          pacienteId: adm.paciente?.id,
+          admisionId: adm.id,
+          nombre: `${adm.paciente?.nombre || ''} ${adm.paciente?.apellido || ''}`,
+          habitacion: adm.cama?.habitacion?.numero || 'N/A',
+          diagnostico: adm.diagnosticosHCE?.[0]?.descripcionCIE11 || 'Sin diagnóstico',
+          signosVitalesUltimo: 'Pendiente' // Placeholder, could be fetched
+        }));
+
+        setPacientesAsignados(pacientesData);
+        pacientesIds = pacientesData.map(p => p.pacienteId);
+      }
+
+      if (pacientesIds.length > 0) {
+        // 1. Cargar medicamentos (filtrar por pacientes asignados client-side)
+        const hoy = new Date().toISOString().split('T')[0];
+        const medicamentosRes = await fetch(`${apiUrl}/administraciones?fecha=${hoy}&estado=Programada&limit=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        
+        if (medicamentosRes.ok) {
+          const medData = await medicamentosRes.json();
+          const allMeds = medData.data || [];
+          // Filtrar solo de mis pacientes
+          setMedicamentosProgramados(allMeds.filter(m => pacientesIds.includes(m.pacienteId)));
+        }
+
+        // 2. Cargar Órdenes Médicas Pendientes (Tareas)
+        const ordenesRes = await fetch(`${apiUrl}/ordenes-medicas?estado=Pendiente&limit=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (ordenesRes.ok) {
+          const ordenesData = await ordenesRes.json();
+          const allOrdenes = ordenesData.data || [];
           
-          if (medicamentosRes.ok) {
-            const medData = await medicamentosRes.json();
-            setMedicamentosProgramados(medData.data || []);
-          }
+          // Filtrar órdenes de mis pacientes y mapear a formato de Tareas
+          const misOrdenes = allOrdenes
+            .filter(o => pacientesIds.includes(o.pacienteId))
+            .map(o => ({
+              id: o.id,
+              tipo: o.tipoOrden || 'Orden Médica',
+              prioridad: o.prioridad || 'Media',
+              paciente: `${o.paciente.nombre} ${o.paciente.apellido}`,
+              pacienteId: o.pacienteId,
+              habitacion: 'N/A', // TODO: Obtener habitación
+              descripcion: o.descripcion,
+              horaProgramada: new Date(o.createdAt).toLocaleTimeString('es-CO', {hour: '2-digit', minute:'2-digit'}),
+              estado: 'Pendiente',
+              origen: 'OrdenMedica'
+            }));
+            
+          setTareasDelTurno(misOrdenes);
+        }
+
+        // 3. Cargar Alertas Activas
+        const alertasRes = await fetch(`${apiUrl}/alertas?activa=true&limit=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (alertasRes.ok) {
+          const alertasData = await alertasRes.json();
+          const allAlertas = alertasData.data || []; // paginated returns data inside
+          // Si paginated retorna { data: [], pagination: {} }, ajustar según respuesta real. 
+          // AlertaService.getAll retorna { alertas: [], pagination: {} }. 
+          // El controller hace c.json(paginated(result.alertas...)). 
+          // Utils response paginated suele retornar { status: 'success', data: [...], pagination: ... }
+          
+          const alertasArray = Array.isArray(alertasData.data) ? alertasData.data : (alertasData.alertas || []);
+          
+          setAlertasActivas(alertasArray.filter(a => pacientesIds.includes(a.pacienteId)));
         }
       }
 
@@ -136,8 +202,8 @@ export default function DashboardEnfermera({ user }) {
     pacientesAsignados: pacientesAsignados.length,
     medicamentosPendientes: medicamentosProgramados.filter(m => m.estado === 'Programada' || m.estado === 'Pendiente').length,
     signosVitalesPendientes: pacientesAsignados.length, // Simplificado: uno por paciente
-    tareasDelTurno: 0, // Por implementar
-    alertasActivas: 0, // Por implementar
+    tareasDelTurno: tareasDelTurno.length,
+    alertasActivas: alertasActivas.length,
   };
 
   // Funciones de acción
@@ -215,6 +281,15 @@ export default function DashboardEnfermera({ user }) {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
+      let sistolica = null;
+      let diastolica = null;
+
+      if (formSignos.presionArterial && formSignos.presionArterial.includes('/')) {
+        const partes = formSignos.presionArterial.split('/');
+        sistolica = parseInt(partes[0]);
+        diastolica = parseInt(partes[1]);
+      }
+
       const response = await fetch(`${apiUrl}/signos-vitales`, {
         method: 'POST',
         headers: {
@@ -222,15 +297,15 @@ export default function DashboardEnfermera({ user }) {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          paciente_id: selectedPaciente.pacienteId,
-          admision_id: selectedPaciente.id,
+          paciente_id: selectedPaciente.pacienteId || selectedPaciente.id, // Handle different object structures
+          admision_id: selectedPaciente.admisionId || selectedPaciente.id, // Fallback if admisionId not present
           registrado_por: user.id,
           temperatura: formSignos.temperatura ? parseFloat(formSignos.temperatura) : null,
-          presion_sistolica: formSignos.presionSistolica ? parseInt(formSignos.presionSistolica) : null,
-          presion_diastolica: formSignos.presionDiastolica ? parseInt(formSignos.presionDiastolica) : null,
+          presion_sistolica: sistolica,
+          presion_diastolica: diastolica,
           frecuencia_cardiaca: formSignos.frecuenciaCardiaca ? parseInt(formSignos.frecuenciaCardiaca) : null,
           frecuencia_respiratoria: formSignos.frecuenciaRespiratoria ? parseInt(formSignos.frecuenciaRespiratoria) : null,
-          saturacion_oxigeno: formSignos.saturacionOxigeno ? parseFloat(formSignos.saturacionOxigeno) : null,
+          saturacion_oxigeno: formSignos.saturacionO2 ? parseFloat(formSignos.saturacionO2) : null,
           peso: formSignos.peso ? parseFloat(formSignos.peso) : null,
           talla: formSignos.talla ? parseFloat(formSignos.talla) : null,
           escala_dolor: formSignos.escalaDolor ? parseInt(formSignos.escalaDolor) : null,
@@ -244,11 +319,10 @@ export default function DashboardEnfermera({ user }) {
         setSelectedPaciente(null);
         setFormSignos({
           temperatura: '',
-          presionSistolica: '',
-          presionDiastolica: '',
+          presionArterial: '',
           frecuenciaCardiaca: '',
           frecuenciaRespiratoria: '',
-          saturacionOxigeno: '',
+          saturacionO2: '',
           peso: '',
           talla: '',
           escalaDolor: 0,
@@ -341,6 +415,18 @@ export default function DashboardEnfermera({ user }) {
     };
     return colores[prioridad] || 'bg-gray-100 text-gray-700 border-gray-300';
   };
+
+  if (selectedPatientForDetail) {
+    return (
+      <div className="p-6 bg-gradient-to-br from-green-50 via-white to-teal-50 min-h-screen">
+        <PanelPacienteEnfermeria 
+            paciente={selectedPatientForDetail} 
+            onBack={() => setSelectedPatientForDetail(null)} 
+            user={user}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6 bg-gradient-to-br from-green-50 via-white to-teal-50 min-h-screen">
@@ -671,17 +757,28 @@ export default function DashboardEnfermera({ user }) {
                       <p className="text-xs text-gray-500 mb-3">
                         Último registro: {paciente.signosVitalesUltimo}
                       </p>
-                      <Button
-                        size="sm"
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                        onClick={() => {
-                          setSelectedPaciente(paciente);
-                          setShowSignosModal(true);
-                        }}
-                      >
-                        <Thermometer className="w-4 h-4 mr-2" />
-                        Registrar
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1 bg-blue-600 hover:bg-blue-700"
+                          onClick={() => {
+                            setSelectedPaciente(paciente);
+                            setShowSignosModal(true);
+                          }}
+                        >
+                          <Thermometer className="w-4 h-4 mr-2" />
+                          Signos
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex-1"
+                          onClick={() => setSelectedPatientForDetail(paciente)}
+                        >
+                          <ClipboardList className="w-4 h-4 mr-2" />
+                          Detalle
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))}

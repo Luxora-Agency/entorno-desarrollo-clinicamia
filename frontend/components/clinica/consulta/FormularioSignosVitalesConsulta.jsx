@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Activity, Plus, X, AlertCircle, TrendingUp, Scale, Calculator, TestTube } from 'lucide-react';
+import { Activity, Plus, X, AlertCircle, TrendingUp, Scale, Calculator, TestTube, Sparkles } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import HistoricoSignosVitalesModal from './HistoricoSignosVitalesModal';
 
@@ -102,6 +103,12 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
     calcio: '',
     potasio: '',
     pth: '',
+    // Perfil Tiroideo
+    tsh: '',
+    tiroxinaLibre: '',
+    tiroglobulina: '',
+    anticuerposAntitiroglobulina: '',
+    analisisTiroideo: '',
   });
 
   // Calcular IMC en tiempo real
@@ -344,6 +351,62 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
               <div>
                  <Label className="flex items-center gap-1">LDL (Calc) <Calculator className="h-3 w-3 text-gray-400" /></Label>
                  <Input value={formData.colesterolLDL} readOnly className="bg-gray-100" placeholder="Friedewald" />
+              </div>
+
+              {/* Perfil Tiroideo */}
+              <div className="col-span-2 md:col-span-4 border-b border-blue-200 pb-2 mb-2 mt-2 text-xs font-bold text-blue-600 uppercase flex items-center gap-2">
+                <Sparkles className="h-3 w-3" />
+                Perfil Tiroideo
+              </div>
+              <div>
+                <Label>TSH (mUI/L)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.tsh}
+                  onChange={(e) => handleChange('tsh', e.target.value)}
+                  placeholder="0.4-4.0"
+                />
+              </div>
+              <div>
+                <Label>T4 Libre (ng/dL)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={formData.tiroxinaLibre}
+                  onChange={(e) => handleChange('tiroxinaLibre', e.target.value)}
+                  placeholder="0.8-1.8"
+                />
+              </div>
+              <div>
+                <Label>Tiroglobulina (ng/mL)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.tiroglobulina}
+                  onChange={(e) => handleChange('tiroglobulina', e.target.value)}
+                  placeholder="<55"
+                />
+              </div>
+              <div>
+                <Label>Anti-TG (UI/mL)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={formData.anticuerposAntitiroglobulina}
+                  onChange={(e) => handleChange('anticuerposAntitiroglobulina', e.target.value)}
+                  placeholder="<4.0"
+                />
+              </div>
+              <div className="col-span-2 md:col-span-4">
+                <Label>Análisis/Concepto Tiroideo</Label>
+                <Textarea
+                  value={formData.analisisTiroideo}
+                  onChange={(e) => handleChange('analisisTiroideo', e.target.value)}
+                  placeholder="Interpretación clínica del perfil tiroideo..."
+                  className="mt-1"
+                  rows={2}
+                />
               </div>
             </div>
         </div>

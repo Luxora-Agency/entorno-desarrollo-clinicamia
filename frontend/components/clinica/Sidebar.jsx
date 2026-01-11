@@ -1,14 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, Users, Calendar, X, Menu, Building2, ChevronDown, LogOut, 
-  Stethoscope, ClipboardList, Beaker, Pill, Tags, 
-  CreditCard, UserCheck, Ticket, Megaphone, FileText, 
-  Activity, Bed, Receipt, Scissors, BarChart3, Scan, Settings
+import {
+  LayoutDashboard, Users, Calendar, X, Menu, Building2, ChevronDown, LogOut,
+  Stethoscope, ClipboardList, Beaker, Pill, Tags,
+  CreditCard, UserCheck, Ticket, Megaphone, FileText,
+  Activity, Bed, Receipt, Scissors, BarChart3, Scan, Settings, Shield,
+  UserCog, Store, Calculator, Landmark, Package, ShoppingCart, Cloud,
+  Heart, Clock, Siren, Bot, FolderOpen, TrendingUp, CalendarCheck
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 export default function Sidebar({ user, activeModule, setActiveModule, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,8 +21,22 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
   const [isHospitalizacionOpen, setIsHospitalizacionOpen] = useState(false);
   const [isMiaPassOpen, setIsMiaPassOpen] = useState(false);
   const [isPublicacionesOpen, setIsPublicacionesOpen] = useState(false);
+  const [isCalidad2Open, setIsCalidad2Open] = useState(false);
+  const [isTalentoHumanoOpen, setIsTalentoHumanoOpen] = useState(false);
+  const [isContabilidadOpen, setIsContabilidadOpen] = useState(false);
   const [userPermissions, setUserPermissions] = useState([]);
   const [loadingPermissions, setLoadingPermissions] = useState(true);
+
+  // Estados para contadores del doctor
+  const [doctorStats, setDoctorStats] = useState({
+    citasHoy: 0,
+    pacientesHospitalizados: 0,
+    cirugiasProgramadas: 0,
+    pendientesEspera: 0
+  });
+
+  // Doctor profile state (para obtener el ID real del doctor)
+  const [doctorId, setDoctorId] = useState(null);
 
   // Configuración de permisos por rol
   const userRole = (user?.rol || 'admin').toLowerCase();
@@ -28,7 +45,17 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
   useEffect(() => {
     const cargarPermisos = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/roles/permisos/${userRole}`);
+        const token = localStorage.getItem('token');
+        if (!token) {
+           console.log('No token found, skipping permission load');
+           setUserPermissions(['dashboard']); // Default public/minimal
+           return;
+        }
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const res = await fetch(`${apiUrl}/roles/permisos/${userRole}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
         const data = await res.json();
         
         if (data.success) {
@@ -63,6 +90,416 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
     }
     // De lo contrario, verificar en los permisos cargados de la BD
     return userPermissions.includes(module);
+  };
+
+  // Cargar perfil del doctor para obtener el doctorId real
+  useEffect(() => {
+    const cargarDoctorProfile = async () => {
+      if (userRole !== 'doctor' || !user?.id) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const response = await fetch(`${apiUrl}/doctores?usuarioId=${user.id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await response.json();
+        if (data.success && data.data?.length > 0) {
+          setDoctorId(data.data[0].id);
+        }
+      } catch (error) {
+        console.error('Error loading doctor profile:', error);
+      }
+    };
+    cargarDoctorProfile();
+  }, [userRole, user?.id]);
+
+  // Cargar estadísticas del doctor
+  useEffect(() => {
+    const cargarStatsDoctor = async () => {
+      if (userRole !== 'doctor' || !doctorId) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const today = new Date().toISOString().split('T')[0];
+
+        // Cargar citas del día del doctor
+        const citasRes = await fetch(`${apiUrl}/citas?doctorId=${doctorId}&fecha=${today}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const citasData = await citasRes.json();
+
+        if (citasData.success) {
+          const citas = citasData.data || [];
+          const pendientes = citas.filter(c => c.estado === 'EnEspera' || c.estado === 'Confirmada').length;
+
+          setDoctorStats(prev => ({
+            ...prev,
+            citasHoy: citas.length,
+            pendientesEspera: pendientes
+          }));
+        }
+      } catch (error) {
+        console.error('Error cargando stats del doctor:', error);
+      }
+    };
+
+    cargarStatsDoctor();
+    // Actualizar cada 60 segundos
+    const interval = setInterval(cargarStatsDoctor, 60000);
+    return () => clearInterval(interval);
+  }, [userRole, doctorId]);
+
+  // Renderizar sidebar específico para doctores
+  const renderDoctorSidebar = () => {
+    return (
+      <nav className="flex-1 py-4 px-3 overflow-y-auto">
+        <div className="space-y-1">
+          {/* MI PRÁCTICA */}
+          <div className="px-3 mb-3">
+            <p className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-2">
+              <Heart className="w-3 h-3" />
+              Mi Práctica
+            </p>
+          </div>
+
+          {/* Mi Panel */}
+          <button
+            onClick={() => {
+              setActiveModule('dashboard');
+              setIsOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeModule === 'dashboard'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-200'
+                : 'text-gray-700 hover:bg-emerald-50 hover:text-emerald-700'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <LayoutDashboard className="w-5 h-5" />
+              <span>Mi Panel</span>
+            </div>
+            {doctorStats.pendientesEspera > 0 && (
+              <Badge className="bg-red-500 text-white text-xs px-2 animate-pulse">
+                {doctorStats.pendientesEspera}
+              </Badge>
+            )}
+          </button>
+
+          {/* Mis Citas del Día */}
+          <button
+            onClick={() => {
+              setActiveModule('mis-citas');
+              setIsOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeModule === 'mis-citas'
+                ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-200'
+                : 'text-gray-700 hover:bg-blue-50 hover:text-blue-700'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <CalendarCheck className="w-5 h-5" />
+              <span>Mis Citas del Día</span>
+            </div>
+            {doctorStats.citasHoy > 0 && (
+              <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs px-2">
+                {doctorStats.citasHoy}
+              </Badge>
+            )}
+          </button>
+
+          {/* Mis Pacientes Hospitalizados */}
+          <button
+            onClick={() => {
+              setActiveModule('mis-hospitalizados');
+              setIsOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeModule === 'mis-hospitalizados'
+                ? 'bg-gradient-to-r from-purple-500 to-violet-600 text-white shadow-lg shadow-purple-200'
+                : 'text-gray-700 hover:bg-purple-50 hover:text-purple-700'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Bed className="w-5 h-5" />
+              <span>Mis Hospitalizados</span>
+            </div>
+            {doctorStats.pacientesHospitalizados > 0 && (
+              <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-xs px-2">
+                {doctorStats.pacientesHospitalizados}
+              </Badge>
+            )}
+          </button>
+
+          {/* Mis Cirugías */}
+          <button
+            onClick={() => {
+              setActiveModule('mis-cirugias');
+              setIsOpen(false);
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeModule === 'mis-cirugias'
+                ? 'bg-gradient-to-r from-rose-500 to-red-600 text-white shadow-lg shadow-rose-200'
+                : 'text-gray-700 hover:bg-rose-50 hover:text-rose-700'
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <Scissors className="w-5 h-5" />
+              <span>Mis Cirugías</span>
+            </div>
+          </button>
+
+          {/* Mis Plantillas */}
+          <button
+            onClick={() => {
+              setActiveModule('plantillas-doctor');
+              setIsOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeModule === 'plantillas-doctor'
+                ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-200'
+                : 'text-gray-700 hover:bg-amber-50 hover:text-amber-700'
+            }`}
+          >
+            <FileText className="w-5 h-5" />
+            <span>Mis Plantillas</span>
+          </button>
+
+          {/* ATENCIÓN CLÍNICA */}
+          <div className="pt-5 mt-4 border-t border-gray-100">
+            <div className="px-3 mb-3">
+              <p className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-2">
+                <Stethoscope className="w-3 h-3" />
+                Atención Clínica
+              </p>
+            </div>
+
+            {/* Consulta Externa */}
+            <button
+              onClick={() => {
+                setActiveModule('consulta-externa');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'consulta-externa'
+                  ? 'bg-blue-100 text-blue-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Stethoscope className="w-4 h-4" />
+              <span>Consulta Externa</span>
+            </button>
+
+            {/* Urgencias */}
+            <button
+              onClick={() => {
+                setActiveModule('urgencias');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'urgencias'
+                  ? 'bg-red-100 text-red-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Siren className="w-4 h-4" />
+              <span>Urgencias</span>
+            </button>
+
+            {/* Hospitalización */}
+            <button
+              onClick={() => {
+                setActiveModule('hospitalizacion');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'hospitalizacion'
+                  ? 'bg-purple-100 text-purple-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Bed className="w-4 h-4" />
+              <span>Hospitalización</span>
+            </button>
+
+            {/* Quirófano */}
+            <button
+              onClick={() => {
+                setActiveModule('quirofano');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'quirofano'
+                  ? 'bg-rose-100 text-rose-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Scissors className="w-4 h-4" />
+              <span>Quirófano</span>
+            </button>
+          </div>
+
+          {/* ÓRDENES Y RESULTADOS */}
+          <div className="pt-5 mt-4 border-t border-gray-100">
+            <div className="px-3 mb-3">
+              <p className="text-xs font-bold text-cyan-600 uppercase tracking-wider flex items-center gap-2">
+                <ClipboardList className="w-3 h-3" />
+                Órdenes y Resultados
+              </p>
+            </div>
+
+            {/* Órdenes Médicas */}
+            <button
+              onClick={() => {
+                setActiveModule('ordenes-medicas');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'ordenes-medicas'
+                  ? 'bg-cyan-100 text-cyan-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <ClipboardList className="w-4 h-4" />
+              <span>Órdenes Médicas</span>
+            </button>
+
+            {/* Laboratorio */}
+            <button
+              onClick={() => {
+                setActiveModule('laboratorio');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'laboratorio'
+                  ? 'bg-purple-100 text-purple-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Beaker className="w-4 h-4" />
+              <span>Laboratorio</span>
+            </button>
+
+            {/* Imagenología */}
+            <button
+              onClick={() => {
+                setActiveModule('imagenologia');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'imagenologia'
+                  ? 'bg-sky-100 text-sky-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Scan className="w-4 h-4" />
+              <span>Imagenología</span>
+            </button>
+
+            {/* Farmacia */}
+            <button
+              onClick={() => {
+                setActiveModule('farmacia');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'farmacia'
+                  ? 'bg-green-100 text-green-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Pill className="w-4 h-4" />
+              <span>Farmacia</span>
+            </button>
+          </div>
+
+          {/* HISTORIA CLÍNICA */}
+          <div className="pt-5 mt-4 border-t border-gray-100">
+            <div className="px-3 mb-3">
+              <p className="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-2">
+                <FolderOpen className="w-3 h-3" />
+                Historia Clínica
+              </p>
+            </div>
+
+            {/* HCE */}
+            <button
+              onClick={() => {
+                setActiveModule('hce');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'hce'
+                  ? 'bg-indigo-100 text-indigo-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span>HCE (Buscar Paciente)</span>
+            </button>
+
+            {/* Asistente IA */}
+            <button
+              onClick={() => {
+                setActiveModule('asistente-ia');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'asistente-ia'
+                  ? 'bg-violet-100 text-violet-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Bot className="w-4 h-4" />
+              <span>Asistente IA</span>
+            </button>
+          </div>
+
+          {/* OTROS */}
+          <div className="pt-5 mt-4 border-t border-gray-100">
+            <div className="px-3 mb-3">
+              <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                Otros
+              </p>
+            </div>
+
+            {/* Publicaciones */}
+            <button
+              onClick={() => {
+                setActiveModule('publicaciones');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'publicaciones'
+                  ? 'bg-gray-100 text-gray-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Megaphone className="w-4 h-4" />
+              <span>Publicaciones</span>
+            </button>
+
+            {/* Reportes */}
+            <button
+              onClick={() => {
+                setActiveModule('reportes');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'reportes'
+                  ? 'bg-gray-100 text-gray-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+              <span>Mis Reportes</span>
+            </button>
+          </div>
+        </div>
+      </nav>
+    );
   };
 
   // Mostrar un loader mientras se cargan los permisos
@@ -113,45 +550,58 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
             </div>
             
             {/* User Profile */}
-            <div className="flex items-center gap-3 p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl border border-emerald-100">
-              <Avatar className="h-10 w-10 bg-gradient-to-br from-emerald-500 to-teal-600 border-2 border-white shadow-sm">
+            <div className={`flex items-center gap-3 p-3 rounded-xl border ${
+              userRole === 'doctor'
+                ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100'
+                : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100'
+            }`}>
+              <Avatar className={`h-10 w-10 border-2 border-white shadow-sm ${
+                userRole === 'doctor'
+                  ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+                  : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+              }`}>
                 <AvatarFallback className="text-white font-semibold text-sm">
                   {user.nombre?.[0]}{user.apellido?.[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">
-                  {user.nombre} {user.apellido}
+                  {userRole === 'doctor' ? `Dr. ${user.nombre} ${user.apellido}` : `${user.nombre} ${user.apellido}`}
                 </p>
-                <p className="text-xs text-gray-600 truncate">{user.rol}</p>
+                <p className={`text-xs truncate ${userRole === 'doctor' ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
+                  {userRole === 'doctor' ? 'Médico' : user.rol}
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Navigation */}
-          <nav className="flex-1 py-4 px-3">
-            <div className="space-y-1">
-              {/* GESTIÓN PRINCIPAL */}
-              <div className="px-3 mb-2">
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Gestión Principal</p>
-              </div>
+          {/* Navigation - Render doctor-specific or general sidebar */}
+          {userRole === 'doctor' ? (
+            renderDoctorSidebar()
+          ) : (
+            <nav className="flex-1 py-4 px-3">
+              <div className="space-y-1">
+                {/* GESTIÓN PRINCIPAL */}
+                <div className="px-3 mb-2">
+                  <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Gestión Principal</p>
+                </div>
 
-              {hasAccess('dashboard') && (
-                <button
-                  onClick={() => {
-                    setActiveModule('dashboard');
-                    setIsOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                    activeModule === 'dashboard'
-                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <LayoutDashboard className="w-4 h-4" />
-                  <span>Panel</span>
-                </button>
-              )}
+                {hasAccess('dashboard') && (
+                  <button
+                    onClick={() => {
+                      setActiveModule('dashboard');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'dashboard'
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <LayoutDashboard className="w-4 h-4" />
+                    <span>Panel</span>
+                  </button>
+                )}
               
               {hasAccess('admisiones') && (
                 <button
@@ -241,7 +691,8 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 </>
               )}
 
-              {hasAccess('pacientes') && (
+              {/* Ocultar Pacientes para rol doctor - solo admisiones/recepcionistas pueden crear pacientes */}
+              {hasAccess('pacientes') && userRole !== 'doctor' && (
                 <button
                   onClick={() => {
                     setActiveModule('pacientes');
@@ -258,7 +709,8 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 </button>
               )}
 
-              {hasAccess('citas') && (
+              {/* Ocultar Citas para rol doctor - doctores usan su panel específico */}
+              {hasAccess('citas') && userRole !== 'doctor' && (
                 <button
                   onClick={() => {
                     setActiveModule('citas');
@@ -370,8 +822,26 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                   </button>
                 )}
 
+                {/* Plantillas (Solo Doctores) */}
+                {userRole === 'doctor' && (
+                  <button
+                    onClick={() => {
+                      setActiveModule('plantillas-doctor');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'plantillas-doctor'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Mis Plantillas</span>
+                  </button>
+                )}
+
                 {/* Farmacia */}
-                {(hasAccess('farmacia') || hasAccess('ordenes-medicas') || hasAccess('categorias-productos') || hasAccess('etiquetas-productos')) && (
+                {(hasAccess('farmacia') || hasAccess('ordenes-medicas') || hasAccess('categorias-productos') || hasAccess('etiquetas-productos') || hasAccess('ordenes-tienda')) && (
                   <>
                     <button
                       onClick={() => setIsFarmaciaOpen(!isFarmaciaOpen)}
@@ -404,7 +874,25 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                             <span>Inventario</span>
                           </button>
                         )}
-                        
+
+                        {/* Pedidos Tienda Online */}
+                        {hasAccess('ordenes-tienda') && (
+                          <button
+                            onClick={() => {
+                              setActiveModule('ordenes-tienda');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'ordenes-tienda'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Pedidos Tienda</span>
+                          </button>
+                        )}
+
                         {/* Órdenes Médicas */}
                         {hasAccess('ordenes-medicas') && (
                           <button
@@ -628,6 +1116,61 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                     <span>Quirófano</span>
                   </button>
                 )}
+
+                {/* Publicaciones */}
+                {(hasAccess('publicaciones') || hasAccess('categorias-publicaciones')) && (
+                  <>
+                    <button
+                      onClick={() => setIsPublicacionesOpen(!isPublicacionesOpen)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Megaphone className="w-4 h-4" />
+                        <span>Publicaciones</span>
+                      </div>
+                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isPublicacionesOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                      isPublicacionesOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                    }`}>
+                      <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                        {hasAccess('publicaciones') && (
+                          <button
+                            onClick={() => {
+                              setActiveModule('publicaciones');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'publicaciones'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Todas</span>
+                          </button>
+                        )}
+                        {hasAccess('categorias-publicaciones') && (
+                          <button
+                            onClick={() => {
+                              setActiveModule('categorias-publicaciones');
+                              setIsOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                              activeModule === 'categorias-publicaciones'
+                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                                : 'text-gray-600 hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                            <span>Categorías</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* FINANCIERO Y REPORTES */}
@@ -669,10 +1212,260 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                     <span>Reportes</span>
                   </button>
                 )}
+
+                {/* Droguería Retail */}
+                {(hasAccess('drogueria') || userRole === 'superadmin') && (
+                  <button
+                    onClick={() => {
+                      setActiveModule('drogueria');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'drogueria'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Store className="w-4 h-4" />
+                    <span>Droguería (Retail)</span>
+                  </button>
+                )}
               </div>
 
+              {/* CONTABILIDAD */}
+              {(hasAccess('contabilidad') || userRole === 'superadmin' || userRole === 'admin') && (
+                <div className="pt-4 mt-4 border-t border-gray-100">
+                  <div className="px-3 mb-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Contabilidad</p>
+                  </div>
+
+                  {/* Contabilidad Principal */}
+                  <button
+                    onClick={() => {
+                      setActiveModule('contabilidad');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'contabilidad'
+                        ? 'bg-gradient-to-r from-indigo-600 to-purple-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Contabilidad</span>
+                  </button>
+
+                  {/* Dashboard Financiero */}
+                  <button
+                    onClick={() => {
+                      setActiveModule('dashboard-financiero');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'dashboard-financiero'
+                        ? 'bg-gradient-to-r from-emerald-600 to-green-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Calculator className="w-4 h-4" />
+                    <span>Dashboard Financiero</span>
+                  </button>
+
+                  {/* Activos Fijos */}
+                  <button
+                    onClick={() => {
+                      setActiveModule('activos-fijos');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'activos-fijos'
+                        ? 'bg-gradient-to-r from-violet-600 to-purple-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Package className="w-4 h-4" />
+                    <span>Activos Fijos</span>
+                  </button>
+
+                  {/* Bancos */}
+                  <button
+                    onClick={() => {
+                      setActiveModule('bancos');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'bancos'
+                        ? 'bg-gradient-to-r from-blue-600 to-cyan-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Landmark className="w-4 h-4" />
+                    <span>Bancos</span>
+                  </button>
+
+                  {/* Compras */}
+                  <button
+                    onClick={() => {
+                      setActiveModule('compras');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'compras'
+                        ? 'bg-gradient-to-r from-orange-600 to-amber-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>Compras</span>
+                  </button>
+                </div>
+              )}
+
+              {/* CALIDAD */}
+              {hasAccess('calidad') && (
+                <div className="pt-4 mt-4 border-t border-gray-100">
+                  <div className="px-3 mb-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Gestión de Calidad</p>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setActiveModule('calidad');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'calidad'
+                        ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span>Sistema de Calidad</span>
+                  </button>
+
+                  {/* Calidad 2.0 */}
+                  <button
+                    onClick={() => setIsCalidad2Open(!isCalidad2Open)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Shield className="w-4 h-4" />
+                      <span>Calidad 2.0</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isCalidad2Open ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isCalidad2Open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                      <button
+                        onClick={() => {
+                          setActiveModule('calidad2-inscripcion');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'calidad2-inscripcion'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Docs Inscripcion</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('calidad2-talento');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'calidad2-talento'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Talento Humano</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('calidad2-infraestructura');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'calidad2-infraestructura'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Infraestructura</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('calidad2-medicamentos');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'calidad2-medicamentos'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Medicamentos y Dispositivos</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('calidad2-procesos-prioritarios');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'calidad2-procesos-prioritarios'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Procesos Prioritarios</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setActiveModule('calidad2-historia-clinica');
+                          setIsOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                          activeModule === 'calidad2-historia-clinica'
+                            ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                            : 'text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                        <span>Historia Clínica</span>
+                      </button>
+                      {userRole === 'superadmin' && (
+                        <button
+                          onClick={() => {
+                            setActiveModule('calidad2-checklists');
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                            activeModule === 'calidad2-checklists'
+                              ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                          <span>Config. Checklists</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* PROGRAMA MÍA PASS */}
-              {(hasAccess('planes-miapass') || hasAccess('suscripciones-miapass') || hasAccess('suscriptores-miapass') || hasAccess('cupones-miapass')) && (
+              {(hasAccess('planes-miapass') || hasAccess('suscripciones-miapass') || hasAccess('suscriptores-miapass') || hasAccess('cupones-miapass') || hasAccess('formularios-miapass')) && (
                 <div className="pt-4 mt-4 border-t border-gray-100">
                   <div className="px-3 mb-2">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Programa Mía Pass</p>
@@ -764,6 +1557,42 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                           <span>Cupones</span>
                         </button>
                       )}
+
+                      {/* Formularios de Contacto */}
+                      {hasAccess('formularios-miapass') && (
+                        <button
+                          onClick={() => {
+                            setActiveModule('formularios-miapass');
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                            activeModule === 'formularios-miapass'
+                              ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                          <span>Formularios</span>
+                        </button>
+                      )}
+
+                      {/* Comisiones (Mis Ventas) */}
+                      {(hasAccess('comisiones-miapass') || userRole === 'superadmin') && (
+                        <button
+                          onClick={() => {
+                            setActiveModule('comisiones-miapass');
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                            activeModule === 'comisiones-miapass'
+                              ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                          <span>Mis Comisiones</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -848,13 +1677,75 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 </div>
               )}
 
+              {/* TALENTO HUMANO */}
+              {(hasAccess('talento-humano') || hasAccess('sst')) && (
+                <div className="pt-4 mt-4 border-t border-gray-100">
+                  <div className="px-3 mb-2">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Talento Humano</p>
+                  </div>
+
+                  <button
+                    onClick={() => setIsTalentoHumanoOpen(!isTalentoHumanoOpen)}
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
+                  >
+                    <div className="flex items-center gap-3">
+                      <UserCog className="w-4 h-4" />
+                      <span>Gestion de Personal</span>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isTalentoHumanoOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                    isTalentoHumanoOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
+                  }`}>
+                    <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
+                      {/* Gestion RRHH */}
+                      {hasAccess('talento-humano') && (
+                        <button
+                          onClick={() => {
+                            setActiveModule('rrhh');
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                            activeModule === 'rrhh'
+                              ? 'bg-blue-50 text-blue-700 font-semibold'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                          <span>Gestion RRHH</span>
+                        </button>
+                      )}
+
+                      {/* SST - Seguridad y Salud en el Trabajo */}
+                      {hasAccess('sst') && (
+                        <button
+                          onClick={() => {
+                            setActiveModule('sst');
+                            setIsOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
+                            activeModule === 'sst'
+                              ? 'bg-orange-50 text-orange-700 font-semibold'
+                              : 'text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
+                          <span>SST</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* CONFIGURACIÓN */}
               {hasAccess('usuarios-roles') && (
                 <div className="pt-4 mt-4 border-t border-gray-100">
                   <div className="px-3 mb-2">
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Configuración</p>
                   </div>
-                  
+
                   <button
                     onClick={() => {
                       setActiveModule('usuarios-roles');
@@ -869,10 +1760,47 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                     <Settings className="w-4 h-4" />
                     <span>Usuarios y Roles</span>
                   </button>
+
+                  {/* Configuración Siigo - Solo superadmin */}
+                  {userRole === 'superadmin' && (
+                    <button
+                      onClick={() => {
+                        setActiveModule('siigo-config');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        activeModule === 'siigo-config'
+                          ? 'bg-gradient-to-r from-sky-500 to-blue-600 text-white shadow-md'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Cloud className="w-4 h-4" />
+                      <span>Configuración Siigo</span>
+                    </button>
+                  )}
                 </div>
               )}
+
+              {/* FORMULARIOS MIA PASS */}
+              <div className="pt-4 mt-4 border-t border-gray-100">
+                <button
+                  onClick={() => {
+                    setActiveModule('formularios-miapass');
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                    activeModule === 'formularios-miapass'
+                      ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Formularios MiaPass</span>
+                </button>
+              </div>
             </div>
           </nav>
+          )}
 
           {/* Footer */}
           <div className="p-4 border-t border-gray-100 bg-gray-50">

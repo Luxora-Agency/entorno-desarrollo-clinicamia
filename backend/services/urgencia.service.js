@@ -42,34 +42,43 @@ class UrgenciaService {
   /**
    * Listar atenciones de urgencias
    */
-  async listar({ estado, fecha, limit = 50 }) {
+  async listar({ estado, fecha, pacienteId, paciente_id, limit = 50 }) {
     const where = {};
-    
+
+    // Filtrar por pacienteId si se proporciona
+    const patientId = pacienteId || paciente_id;
+    if (patientId) {
+      where.pacienteId = patientId;
+    }
+
     if (estado) {
       where.estado = estado;
     }
-    
-    if (fecha) {
-      const fechaInicio = new Date(fecha);
-      fechaInicio.setHours(0, 0, 0, 0);
-      const fechaFin = new Date(fecha);
-      fechaFin.setHours(23, 59, 59, 999);
-      
-      where.horaLlegada = {
-        gte: fechaInicio,
-        lte: fechaFin,
-      };
-    } else {
-      // Por defecto, solo hoy
-      const hoy = new Date();
-      hoy.setHours(0, 0, 0, 0);
-      const finHoy = new Date();
-      finHoy.setHours(23, 59, 59, 999);
-      
-      where.horaLlegada = {
-        gte: hoy,
-        lte: finHoy,
-      };
+
+    // Solo aplicar filtro de fecha si no hay pacienteId (para ver historial completo del paciente)
+    if (!patientId) {
+      if (fecha) {
+        const fechaInicio = new Date(fecha);
+        fechaInicio.setHours(0, 0, 0, 0);
+        const fechaFin = new Date(fecha);
+        fechaFin.setHours(23, 59, 59, 999);
+
+        where.horaLlegada = {
+          gte: fechaInicio,
+          lte: fechaFin,
+        };
+      } else {
+        // Por defecto, solo hoy
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        const finHoy = new Date();
+        finHoy.setHours(23, 59, 59, 999);
+
+        where.horaLlegada = {
+          gte: hoy,
+          lte: finHoy,
+        };
+      }
     }
 
     const atenciones = await prisma.atencionUrgencia.findMany({

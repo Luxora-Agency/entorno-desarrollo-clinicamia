@@ -12,7 +12,79 @@ const unidad = new Hono();
 unidad.use('*', authMiddleware);
 
 /**
- * GET /unidades - Obtener todas las unidades
+ * @swagger
+ * components:
+ *   schemas:
+ *     Unidad:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *         tipo:
+ *           type: string
+ *           description: Tipo de unidad (UCI, Hospitalización, etc.)
+ *         capacidad:
+ *           type: integer
+ *         activo:
+ *           type: boolean
+ *     UnidadInput:
+ *       type: object
+ *       required:
+ *         - nombre
+ *         - tipo
+ *       properties:
+ *         nombre:
+ *           type: string
+ *         descripcion:
+ *           type: string
+ *         tipo:
+ *           type: string
+ *         capacidad:
+ *           type: integer
+ * tags:
+ *   name: Unidades
+ *   description: Gestión de unidades hospitalarias
+ */
+
+/**
+ * @swagger
+ * /unidades:
+ *   get:
+ *     summary: Obtener todas las unidades
+ *     tags: [Unidades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: tipo
+ *         schema:
+ *           type: string
+ *         description: Filtrar por tipo de unidad
+ *     responses:
+ *       200:
+ *         description: Lista de unidades
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     unidades:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Unidad'
+ *       500:
+ *         description: Error del servidor
  */
 unidad.get('/', async (c) => {
   try {
@@ -25,7 +97,41 @@ unidad.get('/', async (c) => {
 });
 
 /**
- * GET /unidades/:id - Obtener una unidad por ID
+ * @swagger
+ * /unidades/{id}:
+ *   get:
+ *     summary: Obtener una unidad por ID
+ *     tags: [Unidades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la unidad
+ *     responses:
+ *       200:
+ *         description: Datos de la unidad
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     unidad:
+ *                       $ref: '#/components/schemas/Unidad'
+ *       404:
+ *         description: Unidad no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 unidad.get('/:id', async (c) => {
   try {
@@ -38,7 +144,37 @@ unidad.get('/:id', async (c) => {
 });
 
 /**
- * POST /unidades - Crear una unidad
+ * @swagger
+ * /unidades:
+ *   post:
+ *     summary: Crear una unidad
+ *     tags: [Unidades]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UnidadInput'
+ *     responses:
+ *       201:
+ *         description: Unidad creada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     unidad:
+ *                       $ref: '#/components/schemas/Unidad'
+ *       500:
+ *         description: Error del servidor
  */
 unidad.post('/', async (c) => {
   try {
@@ -51,7 +187,34 @@ unidad.post('/', async (c) => {
 });
 
 /**
- * PUT /unidades/:id - Actualizar una unidad
+ * @swagger
+ * /unidades/{id}:
+ *   put:
+ *     summary: Actualizar una unidad
+ *     tags: [Unidades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la unidad
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/UnidadInput'
+ *     responses:
+ *       200:
+ *         description: Unidad actualizada exitosamente
+ *       404:
+ *         description: Unidad no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 unidad.put('/:id', async (c) => {
   try {
@@ -65,7 +228,28 @@ unidad.put('/:id', async (c) => {
 });
 
 /**
- * DELETE /unidades/:id - Eliminar una unidad
+ * @swagger
+ * /unidades/{id}:
+ *   delete:
+ *     summary: Eliminar una unidad
+ *     tags: [Unidades]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la unidad
+ *     responses:
+ *       200:
+ *         description: Unidad eliminada correctamente
+ *       404:
+ *         description: Unidad no encontrada
+ *       500:
+ *         description: Error del servidor
  */
 unidad.delete('/:id', async (c) => {
   try {

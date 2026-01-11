@@ -40,13 +40,14 @@ export default function TabCitas({ pacienteId, paciente, user }) {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
+
       // Cargar citas del paciente
       const citasRes = await fetch(`${apiUrl}/citas?paciente_id=${pacienteId}&limit=100`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const citasData = await citasRes.json();
-      setCitas(citasData.data || []);
+      // Soportar ambas estructuras: { data: [...] } o { citas: [...] }
+      setCitas(citasData.data || citasData.citas || []);
 
       // Cargar doctores
       const doctoresRes = await fetch(`${apiUrl}/doctores?limit=100`, {
@@ -109,8 +110,9 @@ export default function TabCitas({ pacienteId, paciente, user }) {
       });
 
       const data = await response.json();
+      const isSuccess = data.success === true || data.status === 'success';
 
-      if (data.success) {
+      if (isSuccess) {
         alert('Cita creada exitosamente');
         setIsDialogOpen(false);
         resetForm();
@@ -141,8 +143,9 @@ export default function TabCitas({ pacienteId, paciente, user }) {
       });
 
       const data = await response.json();
+      const isSuccess = data.success === true || data.status === 'success';
 
-      if (data.success) {
+      if (isSuccess) {
         alert('Cita cancelada exitosamente');
         loadData();
       } else {

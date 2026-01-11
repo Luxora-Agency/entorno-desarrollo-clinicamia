@@ -27,93 +27,79 @@ import {
   TrendingUp,
   Activity,
   BarChart3,
+  Trash2,
 } from 'lucide-react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { apiGet, apiPost } from '@/services/api';
+import { toast } from 'sonner';
 
 export default function LaboratorioModule({ user }) {
-  const [activeTab, setActiveTab] = useState('pendientes');
+  const [activeTab, setActiveTab] = useState('Pendiente');
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showEnterResults, setShowEnterResults] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [ordenes, setOrdenes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({ pendientes: 0, proceso: 0, completados: 0, total: 0 });
 
-  // Datos mockeados de órdenes de laboratorio
-  const [ordenes, setOrdenes] = useState([
-    {
-      id: 'LAB-2025-001',
-      paciente: { nombre: 'María González', cedula: '1234567890', edad: 45 },
-      medico: { nombre: 'Dr. Carlos Méndez', especialidad: 'Medicina Interna' },
-      examenes: ['Hemograma Completo', 'Glucosa', 'Creatinina', 'Perfil Lipídico'],
-      prioridad: 'Alta',
-      estado: 'Pendiente',
-      fechaSolicitud: '2025-01-15 08:30',
-      fechaProgramada: '2025-01-15 10:00',
-      observaciones: 'Paciente en ayunas desde las 6am',
-    },
-    {
-      id: 'LAB-2025-002',
-      paciente: { nombre: 'Juan Pérez', cedula: '9876543210', edad: 62 },
-      medico: { nombre: 'Dra. Ana Martínez', especialidad: 'Cardiología' },
-      examenes: ['Troponinas', 'CPK-MB', 'BNP', 'Electrolitos'],
-      prioridad: 'Urgente',
-      estado: 'EnProceso',
-      fechaSolicitud: '2025-01-15 09:15',
-      fechaProgramada: '2025-01-15 09:30',
-      observaciones: 'Sospecha de IAM',
-    },
-    {
-      id: 'LAB-2025-003',
-      paciente: { nombre: 'Laura Rodríguez', cedula: '4567891230', edad: 28 },
-      medico: { nombre: 'Dr. Roberto Silva', especialidad: 'Ginecología' },
-      examenes: ['Beta-HCG', 'Grupo Sanguíneo', 'TSH', 'Hemograma'],
-      prioridad: 'Normal',
-      estado: 'Completado',
-      fechaSolicitud: '2025-01-14 14:20',
-      fechaRealizacion: '2025-01-14 16:45',
-      fechaValidacion: '2025-01-14 17:30',
-      resultados: {
-        'Beta-HCG': { valor: '1200 mUI/mL', referencia: '<5 mUI/mL', estado: 'Positivo' },
-        'Grupo Sanguíneo': { valor: 'O+', referencia: '-', estado: 'Normal' },
-        'TSH': { valor: '2.3 µUI/mL', referencia: '0.4-4.0 µUI/mL', estado: 'Normal' },
-        'Hemoglobina': { valor: '12.5 g/dL', referencia: '12-16 g/dL', estado: 'Normal' },
-      },
-    },
-    {
-      id: 'LAB-2025-004',
-      paciente: { nombre: 'Pedro Jiménez', cedula: '7891234560', edad: 55 },
-      medico: { nombre: 'Dr. Carlos Méndez', especialidad: 'Medicina Interna' },
-      examenes: ['HbA1c', 'Glucosa', 'Insulina', 'Microalbuminuria'],
-      prioridad: 'Alta',
-      estado: 'Completado',
-      fechaSolicitud: '2025-01-13 10:00',
-      fechaRealizacion: '2025-01-13 15:30',
-      fechaValidacion: '2025-01-13 18:00',
-      resultados: {
-        'HbA1c': { valor: '8.5%', referencia: '<5.7%', estado: 'Alto' },
-        'Glucosa': { valor: '180 mg/dL', referencia: '70-100 mg/dL', estado: 'Alto' },
-        'Insulina': { valor: '15 µU/mL', referencia: '2-20 µU/mL', estado: 'Normal' },
-      },
-    },
-  ]);
+  useEffect(() => {
+    loadOrdenes();
+  }, [activeTab]);
 
-  // Datos mockeados para gráficas de evolución
-  const datosGlucosa = [
-    { fecha: '01/12', valor: 165 },
-    { fecha: '08/12', valor: 172 },
-    { fecha: '15/12', valor: 168 },
-    { fecha: '22/12', valor: 180 },
-    { fecha: '29/12', valor: 175 },
-    { fecha: '05/01', valor: 185 },
-    { fecha: '12/01', valor: 180 },
-  ];
+  const loadOrdenes = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (activeTab !== 'todos') {
+        params.estado = activeTab;
+      }
+      
+      // Also fetch stats - ideally this would be a separate endpoint
+      const response = await apiGet('/ordenes-medicas', params);
+      if (response.data) {
+        setOrdenes(response.data);
+        
+        // Calculate basic stats from current fetch (approximate)
+        // In a real app, you'd want a specific endpoint for dashboard stats
+        const allResponse = await apiGet('/ordenes-medicas', { limit: 1000 });
+        if (allResponse.data) {
+          const all = allResponse.data;
+          setStats({
+            pendientes: all.filter(o => o.estado === 'Pendiente').length,
+            proceso: all.filter(o => o.estado === 'EnProceso').length,
+            completados: all.filter(o => o.estado === 'Completada').length,
+            total: all.length
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      toast.error('Error al cargar órdenes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOrderCreated = () => {
+    setShowNewOrder(false);
+    loadOrdenes();
+    toast.success('Orden creada exitosamente');
+  };
+
+  const handleResultsSaved = () => {
+    setShowEnterResults(false);
+    loadOrdenes();
+    toast.success('Resultados guardados exitosamente');
+  };
 
   const getBadgeVariant = (estado) => {
     switch (estado) {
       case 'Pendiente': return 'secondary';
       case 'EnProceso': return 'default';
-      case 'Completado': return 'default';
-      case 'Validado': return 'default';
-      case 'Cancelado': return 'destructive';
+      case 'Completada': return 'default';
+      case 'Cancelada': return 'destructive';
       default: return 'secondary';
     }
   };
@@ -122,9 +108,8 @@ export default function LaboratorioModule({ user }) {
     switch (estado) {
       case 'Pendiente': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
       case 'EnProceso': return 'bg-blue-100 text-blue-800 border-blue-300';
-      case 'Completado': return 'bg-green-100 text-green-800 border-green-300';
-      case 'Validado': return 'bg-emerald-100 text-emerald-800 border-emerald-300';
-      case 'Cancelado': return 'bg-red-100 text-red-800 border-red-300';
+      case 'Completada': return 'bg-green-100 text-green-800 border-green-300';
+      case 'Cancelada': return 'bg-red-100 text-red-800 border-red-300';
       default: return 'bg-gray-100 text-gray-800 border-gray-300';
     }
   };
@@ -139,30 +124,15 @@ export default function LaboratorioModule({ user }) {
     }
   };
 
-  const getResultadoColor = (estado) => {
-    switch (estado) {
-      case 'Alto': return 'text-red-600 font-semibold';
-      case 'Bajo': return 'text-orange-600 font-semibold';
-      case 'Crítico': return 'text-red-800 font-bold';
-      case 'Normal': return 'text-green-600';
-      case 'Positivo': return 'text-blue-600 font-semibold';
-      default: return 'text-gray-600';
-    }
-  };
-
   const ordenesFiltradas = ordenes.filter(orden => {
-    const matchSearch = searchTerm === '' ||
-      orden.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      orden.paciente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      orden.paciente.cedula.includes(searchTerm);
-    
-    const matchTab = 
-      (activeTab === 'pendientes' && orden.estado === 'Pendiente') ||
-      (activeTab === 'proceso' && orden.estado === 'EnProceso') ||
-      (activeTab === 'completados' && orden.estado === 'Completado') ||
-      (activeTab === 'todos');
-    
-    return matchSearch && matchTab;
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      searchTerm === '' ||
+      orden.id.toLowerCase().includes(searchLower) ||
+      (orden.paciente?.nombre || '').toLowerCase().includes(searchLower) ||
+      (orden.paciente?.apellido || '').toLowerCase().includes(searchLower) ||
+      (orden.paciente?.cedula || '').includes(searchLower)
+    );
   });
 
   return (
@@ -190,7 +160,7 @@ export default function LaboratorioModule({ user }) {
               <DialogHeader>
                 <DialogTitle>Nueva Orden de Laboratorio</DialogTitle>
               </DialogHeader>
-              <FormularioNuevaOrden onClose={() => setShowNewOrder(false)} />
+              <FormularioNuevaOrden onSuccess={handleOrderCreated} onCancel={() => setShowNewOrder(false)} user={user} />
             </DialogContent>
           </Dialog>
         </div>
@@ -202,7 +172,7 @@ export default function LaboratorioModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">Pendientes</p>
-                  <p className="text-2xl font-bold text-gray-900">1</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.pendientes}</p>
                 </div>
                 <Clock className="w-8 h-8 text-yellow-500" />
               </div>
@@ -214,7 +184,7 @@ export default function LaboratorioModule({ user }) {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600">En Proceso</p>
-                  <p className="text-2xl font-bold text-gray-900">1</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.proceso}</p>
                 </div>
                 <Activity className="w-8 h-8 text-blue-500" />
               </div>
@@ -225,8 +195,8 @@ export default function LaboratorioModule({ user }) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Completados Hoy</p>
-                  <p className="text-2xl font-bold text-gray-900">2</p>
+                  <p className="text-sm text-gray-600">Completados</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.completados}</p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-green-500" />
               </div>
@@ -237,8 +207,8 @@ export default function LaboratorioModule({ user }) {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Total Mes</p>
-                  <p className="text-2xl font-bold text-gray-900">248</p>
+                  <p className="text-sm text-gray-600">Total</p>
+                  <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
                 </div>
                 <BarChart3 className="w-8 h-8 text-purple-500" />
               </div>
@@ -264,13 +234,13 @@ export default function LaboratorioModule({ user }) {
         {/* Tabs de Órdenes */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 bg-white border shadow-sm">
-            <TabsTrigger value="pendientes" className="data-[state=active]:bg-yellow-100 data-[state=active]:text-yellow-700">
+            <TabsTrigger value="Pendiente" className="data-[state=active]:bg-yellow-100 data-[state=active]:text-yellow-700">
               Pendientes
             </TabsTrigger>
-            <TabsTrigger value="proceso" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
+            <TabsTrigger value="EnProceso" className="data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
               En Proceso
             </TabsTrigger>
-            <TabsTrigger value="completados" className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700">
+            <TabsTrigger value="Completada" className="data-[state=active]:bg-green-100 data-[state=active]:text-green-700">
               Completados
             </TabsTrigger>
             <TabsTrigger value="todos" className="data-[state=active]:bg-purple-100 data-[state=active]:text-purple-700">
@@ -284,53 +254,43 @@ export default function LaboratorioModule({ user }) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID Orden</TableHead>
+                      <TableHead>Fecha</TableHead>
                       <TableHead>Paciente</TableHead>
                       <TableHead>Médico</TableHead>
-                      <TableHead>Exámenes</TableHead>
+                      <TableHead>Examen</TableHead>
                       <TableHead>Prioridad</TableHead>
                       <TableHead>Estado</TableHead>
-                      <TableHead>Fecha</TableHead>
                       <TableHead>Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {ordenesFiltradas.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-gray-500 py-8">
-                          No se encontraron órdenes
+                        <TableCell colSpan={7} className="text-center text-gray-500 py-8">
+                          {loading ? 'Cargando...' : 'No se encontraron órdenes'}
                         </TableCell>
                       </TableRow>
                     ) : (
                       ordenesFiltradas.map((orden) => (
                         <TableRow key={orden.id}>
-                          <TableCell className="font-medium">{orden.id}</TableCell>
+                          <TableCell className="text-sm">
+                            {new Date(orden.fechaOrden).toLocaleDateString()}
+                          </TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{orden.paciente.nombre}</p>
-                              <p className="text-xs text-gray-500">CC: {orden.paciente.cedula}</p>
-                              <p className="text-xs text-gray-500">{orden.paciente.edad} años</p>
+                              <p className="font-medium">{orden.paciente?.nombre} {orden.paciente?.apellido}</p>
+                              <p className="text-xs text-gray-500">CC: {orden.paciente?.cedula}</p>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div>
-                              <p className="text-sm">{orden.medico.nombre}</p>
-                              <p className="text-xs text-gray-500">{orden.medico.especialidad}</p>
+                              <p className="text-sm">{orden.doctor?.nombre} {orden.doctor?.apellido}</p>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="max-w-xs">
-                              {orden.examenes.slice(0, 2).map((examen, idx) => (
-                                <Badge key={idx} variant="outline" className="mr-1 mb-1 text-xs">
-                                  {examen}
-                                </Badge>
-                              ))}
-                              {orden.examenes.length > 2 && (
-                                <Badge variant="outline" className="text-xs">
-                                  +{orden.examenes.length - 2} más
-                                </Badge>
-                              )}
-                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {orden.examenProcedimiento?.nombre}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge className={getPrioridadColor(orden.prioridad)}>
@@ -341,9 +301,6 @@ export default function LaboratorioModule({ user }) {
                             <Badge className={getBadgeColor(orden.estado)}>
                               {orden.estado}
                             </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {orden.fechaSolicitud}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">
@@ -357,7 +314,19 @@ export default function LaboratorioModule({ user }) {
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              {orden.estado === 'Completado' && (
+                              {(orden.estado === 'Pendiente' || orden.estado === 'EnProceso') && (
+                                <Button 
+                                  size="sm" 
+                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                  onClick={() => {
+                                    setSelectedOrder(orden);
+                                    setShowEnterResults(true);
+                                  }}
+                                >
+                                  <FileText className="w-4 h-4" />
+                                </Button>
+                              )}
+                              {orden.estado === 'Completada' && (
                                 <Button size="sm" variant="outline">
                                   <Download className="w-4 h-4" />
                                 </Button>
@@ -374,7 +343,7 @@ export default function LaboratorioModule({ user }) {
           </TabsContent>
         </Tabs>
 
-        {/* Dialog de Resultados */}
+        {/* Dialog de Ver Resultados */}
         <Dialog open={showResults} onOpenChange={setShowResults}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -385,45 +354,80 @@ export default function LaboratorioModule({ user }) {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Dialog de Ingresar Resultados */}
+        <Dialog open={showEnterResults} onOpenChange={setShowEnterResults}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Ingresar Resultados</DialogTitle>
+            </DialogHeader>
+            {selectedOrder && (
+              <IngresarResultados 
+                orden={selectedOrder} 
+                onSuccess={handleResultsSaved} 
+                onCancel={() => setShowEnterResults(false)} 
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
 }
 
 // Componente de Formulario de Nueva Orden
-function FormularioNuevaOrden({ onClose }) {
+function FormularioNuevaOrden({ onSuccess, onCancel, user }) {
   const [formData, setFormData] = useState({
-    paciente: '',
-    medico: '',
+    paciente_id: '',
+    examen_procedimiento_id: '',
+    doctor_id: user?.id || '', // Should be current user if doctor, or select
     prioridad: 'Normal',
-    examenes: [],
     observaciones: '',
+    precio_aplicado: 0
   });
+  const [pacientes, setPacientes] = useState([]);
+  const [examenes, setExamenes] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-  const examenesDisponibles = [
-    'Hemograma Completo',
-    'Glucosa',
-    'Creatinina',
-    'Perfil Lipídico',
-    'TSH',
-    'T3',
-    'T4',
-    'HbA1c',
-    'Troponinas',
-    'CPK-MB',
-    'BNP',
-    'Electrolitos',
-    'Urea',
-    'Ácido Úrico',
-    'Transaminasas',
-    'Bilirrubinas',
-  ];
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const handleSubmit = (e) => {
+  const loadData = async () => {
+    try {
+      const [pacientesRes, examenesRes] = await Promise.all([
+        apiGet('/pacientes', { limit: 100 }),
+        apiGet('/examenes-procedimientos', { limit: 100 }) // Assuming filter by 'Examen' if needed
+      ]);
+      
+      if (pacientesRes.data) setPacientes(pacientesRes.data);
+      if (examenesRes.data) setExamenes(examenesRes.data);
+    } catch (error) {
+      console.error('Error loading form data:', error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Aquí iría la lógica para enviar al backend
-    alert('Orden creada exitosamente (mockup)');
-    onClose();
+    setLoading(true);
+    try {
+      await apiPost('/ordenes-medicas', formData);
+      onSuccess();
+    } catch (error) {
+      console.error('Error creating order:', error);
+      toast.error('Error al crear la orden');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleExamenChange = (val) => {
+    const examen = examenes.find(e => e.id === val);
+    setFormData({
+      ...formData, 
+      examen_procedimiento_id: val,
+      precio_aplicado: examen ? examen.costoBase : 0
+    });
   };
 
   return (
@@ -431,38 +435,60 @@ function FormularioNuevaOrden({ onClose }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label>Paciente *</Label>
-          <Input placeholder="Buscar paciente..." required />
+          <Select 
+            value={formData.paciente_id} 
+            onValueChange={(val) => setFormData({...formData, paciente_id: val})}
+            required
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar paciente" />
+            </SelectTrigger>
+            <SelectContent>
+              {pacientes.map(p => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.nombre} {p.apellido} - {p.cedula}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Label>Médico Solicitante *</Label>
-          <Input value="Usuario actual" disabled />
+          <Input value={user?.nombre || 'Usuario Actual'} disabled />
         </div>
       </div>
 
-      <div>
-        <Label>Prioridad *</Label>
-        <Select value={formData.prioridad} onValueChange={(val) => setFormData({...formData, prioridad: val})}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Urgente">Urgente</SelectItem>
-            <SelectItem value="Alta">Alta</SelectItem>
-            <SelectItem value="Normal">Normal</SelectItem>
-            <SelectItem value="Baja">Baja</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div>
-        <Label>Exámenes Solicitados *</Label>
-        <div className="grid grid-cols-2 gap-2 mt-2 max-h-48 overflow-y-auto border rounded p-3">
-          {examenesDisponibles.map((examen) => (
-            <label key={examen} className="flex items-center gap-2 text-sm">
-              <input type="checkbox" className="rounded" />
-              {examen}
-            </label>
-          ))}
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Examen / Procedimiento *</Label>
+          <Select 
+            value={formData.examen_procedimiento_id} 
+            onValueChange={handleExamenChange}
+            required
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Seleccionar examen" />
+            </SelectTrigger>
+            <SelectContent>
+              {examenes.map(e => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.nombre} - ${e.costoBase}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Prioridad *</Label>
+          <Select value={formData.prioridad} onValueChange={(val) => setFormData({...formData, prioridad: val})}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Urgente">Urgente</SelectItem>
+              <SelectItem value="Normal">Normal</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -477,11 +503,163 @@ function FormularioNuevaOrden({ onClose }) {
       </div>
 
       <div className="flex justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onClose}>
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancelar
         </Button>
-        <Button type="submit" className="bg-gradient-to-r from-purple-600 to-pink-700">
-          Crear Orden
+        <Button type="submit" className="bg-gradient-to-r from-purple-600 to-pink-700" disabled={loading}>
+          {loading ? 'Creando...' : 'Crear Orden'}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Componente para Ingresar Resultados
+function IngresarResultados({ orden, onSuccess, onCancel }) {
+  const [rows, setRows] = useState([
+    { parametro: '', valor: '', unidad: '', referencia: '', estado: 'Normal' }
+  ]);
+  const [loading, setLoading] = useState(false);
+
+  const addRow = () => {
+    setRows([...rows, { parametro: '', valor: '', unidad: '', referencia: '', estado: 'Normal' }]);
+  };
+
+  const removeRow = (index) => {
+    if (rows.length > 1) {
+      setRows(rows.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateRow = (index, field, value) => {
+    const newRows = [...rows];
+    newRows[index][field] = value;
+    setRows(newRows);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    // Convert rows to structured object
+    const resultados = {};
+    rows.forEach(row => {
+      if (row.parametro) {
+        resultados[row.parametro] = {
+          valor: row.valor,
+          unidad: row.unidad,
+          referencia: row.referencia,
+          estado: row.estado
+        };
+      }
+    });
+
+    try {
+      await apiPost(`/ordenes-medicas/${orden.id}/completar`, { resultados });
+      onSuccess();
+    } catch (error) {
+      console.error('Error saving results:', error);
+      toast.error('Error al guardar resultados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="bg-gray-50 p-4 rounded-lg mb-4">
+        <h3 className="font-semibold text-gray-900">{orden.examenProcedimiento?.nombre}</h3>
+        <p className="text-sm text-gray-500">Paciente: {orden.paciente?.nombre} {orden.paciente?.apellido}</p>
+      </div>
+
+      <div className="border rounded-md overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Parámetro</TableHead>
+              <TableHead>Valor</TableHead>
+              <TableHead>Unidad</TableHead>
+              <TableHead>Ref.</TableHead>
+              <TableHead>Estado</TableHead>
+              <TableHead className="w-[50px]"></TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row, index) => (
+              <TableRow key={index}>
+                <TableCell>
+                  <Input 
+                    value={row.parametro} 
+                    onChange={(e) => updateRow(index, 'parametro', e.target.value)}
+                    placeholder="Ej. Hemoglobina"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input 
+                    value={row.valor} 
+                    onChange={(e) => updateRow(index, 'valor', e.target.value)}
+                    placeholder="Valor"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input 
+                    value={row.unidad} 
+                    onChange={(e) => updateRow(index, 'unidad', e.target.value)}
+                    placeholder="Unidad"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input 
+                    value={row.referencia} 
+                    onChange={(e) => updateRow(index, 'referencia', e.target.value)}
+                    placeholder="Rango"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Select 
+                    value={row.estado} 
+                    onValueChange={(val) => updateRow(index, 'estado', val)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Normal">Normal</SelectItem>
+                      <SelectItem value="Alto">Alto</SelectItem>
+                      <SelectItem value="Bajo">Bajo</SelectItem>
+                      <SelectItem value="Critico">Crítico</SelectItem>
+                      <SelectItem value="Positivo">Positivo</SelectItem>
+                      <SelectItem value="Negativo">Negativo</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => removeRow(index)}
+                    disabled={rows.length === 1}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <Button type="button" variant="outline" onClick={addRow} className="w-full border-dashed">
+        <Plus className="w-4 h-4 mr-2" /> Agregar Parámetro
+      </Button>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancelar
+        </Button>
+        <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white" disabled={loading}>
+          {loading ? 'Guardando...' : 'Guardar y Completar'}
         </Button>
       </div>
     </form>
@@ -490,6 +668,18 @@ function FormularioNuevaOrden({ onClose }) {
 
 // Componente de Detalle de Resultados
 function DetalleResultados({ orden }) {
+  // Parse results if string
+  let resultados = orden.resultados;
+  if (typeof resultados === 'string') {
+    try {
+      resultados = JSON.parse(resultados);
+    } catch (e) {
+      // If not JSON, treat as plain text/object
+    }
+  }
+
+  const isStructured = typeof resultados === 'object' && resultados !== null;
+
   return (
     <div className="space-y-6">
       {/* Información de la Orden */}
@@ -505,92 +695,61 @@ function DetalleResultados({ orden }) {
             </div>
             <div>
               <p className="text-sm text-gray-600">Estado</p>
-              <Badge className={`bg-${orden.estado === 'Completado' ? 'green' : 'yellow'}-100 text-${orden.estado === 'Completado' ? 'green' : 'yellow'}-800`}>
-                {orden.estado}
-              </Badge>
+              <Badge variant="outline">{orden.estado}</Badge>
             </div>
             <div>
               <p className="text-sm text-gray-600">Paciente</p>
-              <p className="font-medium">{orden.paciente.nombre}</p>
-              <p className="text-xs text-gray-500">CC: {orden.paciente.cedula} - {orden.paciente.edad} años</p>
+              <p className="font-medium">{orden.paciente?.nombre} {orden.paciente?.apellido}</p>
             </div>
             <div>
               <p className="text-sm text-gray-600">Médico</p>
-              <p className="font-medium">{orden.medico.nombre}</p>
-              <p className="text-xs text-gray-500">{orden.medico.especialidad}</p>
+              <p className="font-medium">{orden.doctor?.nombre} {orden.doctor?.apellido}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Resultados */}
-      {orden.resultados && (
+      {resultados && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Resultados</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Examen</TableHead>
-                  <TableHead>Resultado</TableHead>
-                  <TableHead>Valores de Referencia</TableHead>
-                  <TableHead>Estado</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {Object.entries(orden.resultados).map(([examen, datos]) => (
-                  <TableRow key={examen}>
-                    <TableCell className="font-medium">{examen}</TableCell>
-                    <TableCell className={getResultadoColor(datos.estado)}>
-                      {datos.valor}
-                    </TableCell>
-                    <TableCell className="text-gray-600">{datos.referencia}</TableCell>
-                    <TableCell>
-                      <Badge className={`bg-${datos.estado === 'Normal' ? 'green' : datos.estado === 'Alto' ? 'red' : 'orange'}-100 text-${datos.estado === 'Normal' ? 'green' : datos.estado === 'Alto' ? 'red' : 'orange'}-800`}>
-                        {datos.estado}
-                      </Badge>
-                    </TableCell>
+            {isStructured ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Examen</TableHead>
+                    <TableHead>Resultado</TableHead>
+                    <TableHead>Unidad</TableHead>
+                    <TableHead>Ref.</TableHead>
+                    <TableHead>Estado</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Gráfica de Evolución (ejemplo con glucosa) */}
-      {orden.resultados && orden.resultados['Glucosa'] && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Evolución de Glucosa</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={250}>
-              <LineChart data={[
-                { fecha: '01/12', valor: 165 },
-                { fecha: '08/12', valor: 172 },
-                { fecha: '15/12', valor: 168 },
-                { fecha: '22/12', valor: 180 },
-                { fecha: '29/12', valor: 175 },
-                { fecha: '05/01', valor: 185 },
-                { fecha: '12/01', valor: 180 },
-              ]}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="fecha" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="valor" stroke="#8b5cf6" strokeWidth={2} name="Glucosa (mg/dL)" />
-              </LineChart>
-            </ResponsiveContainer>
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-              <p className="text-sm text-yellow-800">
-                <AlertTriangle className="w-4 h-4 inline mr-1" />
-                Tendencia al alza. Considerar ajuste de tratamiento.
-              </p>
-            </div>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(resultados).map(([examen, datos]) => (
+                    <TableRow key={examen}>
+                      <TableCell className="font-medium">{examen}</TableCell>
+                      <TableCell className={getResultadoColor(datos.estado)}>
+                        {datos.valor}
+                      </TableCell>
+                      <TableCell className="text-gray-500">{datos.unidad}</TableCell>
+                      <TableCell className="text-gray-600">{datos.referencia}</TableCell>
+                      <TableCell>
+                        <Badge className={`bg-${datos.estado === 'Normal' ? 'green' : datos.estado === 'Alto' ? 'red' : 'orange'}-100 text-${datos.estado === 'Normal' ? 'green' : datos.estado === 'Alto' ? 'red' : 'orange'}-800`}>
+                          {datos.estado}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="p-4 bg-gray-50 rounded text-gray-800 whitespace-pre-wrap">
+                {String(resultados)}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
@@ -599,10 +758,6 @@ function DetalleResultados({ orden }) {
         <Button variant="outline">
           <Download className="w-4 h-4 mr-2" />
           Descargar PDF
-        </Button>
-        <Button className="bg-gradient-to-r from-purple-600 to-pink-700">
-          <FileText className="w-4 h-4 mr-2" />
-          Enviar a HCE
         </Button>
       </div>
     </div>
@@ -613,7 +768,7 @@ function getResultadoColor(estado) {
   switch (estado) {
     case 'Alto': return 'text-red-600 font-semibold';
     case 'Bajo': return 'text-orange-600 font-semibold';
-    case 'Crítico': return 'text-red-800 font-bold';
+    case 'Critico': return 'text-red-800 font-bold';
     case 'Normal': return 'text-green-600';
     case 'Positivo': return 'text-blue-600 font-semibold';
     default: return 'text-gray-600';

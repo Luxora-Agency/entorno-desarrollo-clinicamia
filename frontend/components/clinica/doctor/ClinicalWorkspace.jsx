@@ -14,6 +14,7 @@ import { apiGet } from '@/services/api';
 
 // Componentes
 import PatientContextBar from './PatientContextBar';
+import { useConsultationTimer } from './ConsultationTimer';
 import AnamnesisForm from './AnamnesisForm';
 import FormularioMotivoConsulta from '../consulta/FormularioMotivoConsulta';
 import FormularioSignosVitalesConsulta from '../consulta/FormularioSignosVitalesConsulta';
@@ -45,6 +46,27 @@ export default function ClinicalWorkspace({
   const [activeStep, setActiveStep] = useState('anamnesis');
   const [loading, setLoading] = useState(false);
   const [aiPanelOpen, setAIPanelOpen] = useState(false);
+
+  // Timer de consulta
+  const consultationTimer = useConsultationTimer({
+    autoStart: true,
+    warningThreshold: 20 * 60, // 20 minutos
+    criticalThreshold: 30 * 60, // 30 minutos
+    onWarning: () => {
+      toast({
+        title: 'Tiempo de consulta extendido',
+        description: 'La consulta lleva más de 20 minutos.',
+        variant: 'default',
+      });
+    },
+    onCritical: () => {
+      toast({
+        title: 'Consulta prolongada',
+        description: 'La consulta ha superado los 30 minutos.',
+        variant: 'destructive',
+      });
+    },
+  });
 
   // Tipo de consulta (primera vs control)
   const [tipoConsulta, setTipoConsulta] = useState(null);
@@ -678,7 +700,19 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                 </Button>
             </div>
         </div>
-        <PatientContextBar paciente={cita.paciente} vitalesActuales={consultaData.vitales} cita={cita} />
+        <PatientContextBar
+          paciente={cita.paciente}
+          vitalesActuales={consultaData.vitales}
+          cita={cita}
+          timerProps={{
+            seconds: consultationTimer.seconds,
+            isRunning: consultationTimer.isRunning,
+            isWarning: consultationTimer.isWarning,
+            isCritical: consultationTimer.isCritical,
+            onToggle: consultationTimer.toggle,
+            onReset: consultationTimer.reset,
+          }}
+        />
 
         {/* Banner de Motivo de Consulta */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3">

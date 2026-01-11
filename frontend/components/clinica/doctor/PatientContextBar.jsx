@@ -7,9 +7,10 @@ import {
   Thermometer, Droplet, Scale, Ruler,
   Building2, CheckCircle, Clock, DollarSign,
   AlertCircle, Siren, ArrowRight, Phone, FileText,
-  ClipboardList, ExternalLink
+  ClipboardList, ExternalLink, Timer
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { CompactTimer } from './ConsultationTimer';
 
 export default function PatientContextBar({
   paciente,
@@ -17,7 +18,9 @@ export default function PatientContextBar({
   cita = null,
   compact = false,
   onOpenHCE = null,
-  showQuickActions = true
+  showQuickActions = true,
+  // Props para el timer de consulta
+  timerProps = null
 }) {
   if (!paciente) return null;
 
@@ -346,6 +349,20 @@ export default function PatientContextBar({
             <p className="text-xs text-slate-300 truncate" title={cita.motivo}>
               {cita.motivo}
             </p>
+          </div>
+        )}
+
+        {/* Timer de consulta */}
+        {timerProps && (
+          <div className="ml-auto pl-4">
+            <CompactTimer
+              seconds={timerProps.seconds}
+              isRunning={timerProps.isRunning}
+              isWarning={timerProps.isWarning}
+              isCritical={timerProps.isCritical}
+              onToggle={timerProps.onToggle}
+              onReset={timerProps.onReset}
+            />
           </div>
         )}
       </CardContent>

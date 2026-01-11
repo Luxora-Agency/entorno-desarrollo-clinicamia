@@ -55,11 +55,11 @@ export default function TabTimelinePaciente({ pacienteId }) {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
         
-        fetch(`${apiUrl}/procedimientos?paciente_id=${pacienteId}&limit=50`, {
+        fetch(`${apiUrl}/procedimientos?pacienteId=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
-        
-        fetch(`${apiUrl}/prescripciones?paciente_id=${pacienteId}&limit=50`, {
+
+        fetch(`${apiUrl}/prescripciones?pacienteId=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
       ]);
