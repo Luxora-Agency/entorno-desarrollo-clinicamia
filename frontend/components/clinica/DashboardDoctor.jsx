@@ -1,604 +1,1294 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { 
-  Calendar, Clock, User, Activity, CheckCircle, 
+import { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  Calendar, Clock, User, Activity, CheckCircle,
   AlertCircle, FileText, Stethoscope, Pill, ClipboardList,
-  Eye, Play, CheckCheck
+  Eye, Play, CheckCheck, LogOut, Settings, BedDouble, Brain,
+  RefreshCw, Sun, Moon, Sunrise, Sunset, TrendingUp, TrendingDown,
+  Heart, Phone, Mail, AlertTriangle, Timer, UserCircle, ChevronRight,
+  Sparkles, Award, Target, Zap, Bookmark, Plus, Search, Filter,
+  MoreVertical, MessageSquare, Printer
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { clearAttentionTypePreference } from './doctor/AttentionTypeSelector';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-// Componentes de formulario para consulta
-import FormularioSOAPConsulta from './consulta/FormularioSOAPConsulta';
-import FormularioSignosVitalesConsulta from './consulta/FormularioSignosVitalesConsulta';
-import FormularioDiagnosticoConsulta from './consulta/FormularioDiagnosticoConsulta';
-import FormularioAlertasConsulta from './consulta/FormularioAlertasConsulta';
-import FormularioProcedimientosExamenesConsulta from './consulta/FormularioProcedimientosExamenesConsulta';
-import FormularioPrescripcionesConsulta from './consulta/FormularioPrescripcionesConsulta';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
-export default function DashboardDoctor({ user }) {
+// Componentes Nuevos del Módulo Doctor
+import ClinicalWorkspace from './doctor/ClinicalWorkspace';
+import EpicrisisGenerator from './doctor/EpicrisisGenerator';
+import DoctorScheduleManager from './DoctorScheduleManager';
+import AnalizadorHCE from './doctor/AnalizadorHCE';
+import DashboardDoctorQuirofano from './doctor/quirofano/DashboardDoctorQuirofano';
+import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
+import ProximasCitasWidget from './doctor/ProximasCitasWidget';
+import DoctorQuickActions from './doctor/DoctorQuickActions';
+import DoctorNotifications from './doctor/DoctorNotifications';
+import DoctorCommandPalette, { useDoctorCommandPalette } from './doctor/DoctorCommandPalette';
+import HospitalizedPatientsWidget from './doctor/HospitalizedPatientsWidget';
+import QuirofanoWidget from './doctor/QuirofanoWidget';
+import RecentPatientsWidget, { addRecentPatient } from './doctor/RecentPatientsWidget';
+import { ViewHeader } from './doctor/DoctorBreadcrumbs';
+import ClinicalAlertsWidget from './doctor/ClinicalAlertsWidget';
+import FloatingActionButton from './doctor/FloatingActionButton';
+import KeyboardShortcutsHelp, { useKeyboardShortcutsHelp } from './doctor/KeyboardShortcutsHelp';
+import useDisponibilidadRealtime from '@/hooks/useDisponibilidadRealtime';
+
+// Intervalo de auto-refresh para la cola de pacientes (30 segundos)
+const QUEUE_REFRESH_INTERVAL = 30000;
+
+// Helper para formatear hora desde ISO string o string simple
+const formatHora = (hora) => {
+  if (!hora) return '--:--';
+  if (hora.includes('T')) {
+    const timePart = hora.split('T')[1];
+    return timePart.substring(0, 5);
+  }
+  return hora.substring(0, 5);
+};
+
+// Obtener saludo según la hora del día
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return { text: 'Buenos días', icon: Sunrise, color: 'text-amber-500' };
+  if (hour >= 12 && hour < 18) return { text: 'Buenas tardes', icon: Sun, color: 'text-orange-500' };
+  return { text: 'Buenas noches', icon: Moon, color: 'text-indigo-500' };
+};
+
+// Calcular tiempo de espera
+const getWaitTime = (cita) => {
+  if (cita.estado !== 'EnEspera' || !cita.horaLlegada) return null;
+  const llegada = new Date(cita.horaLlegada);
+  const ahora = new Date();
+  const diffMinutes = Math.floor((ahora - llegada) / 60000);
+  return diffMinutes;
+};
+
+// Configuración de prioridad
+const getPriorityConfig = (cita) => {
+  const waitTime = getWaitTime(cita);
+  if (cita.prioridad === 'urgente' || cita.origenPaciente === 'urgencia') {
+    return { label: 'Urgente', color: 'bg-red-500', textColor: 'text-red-700', bgLight: 'bg-red-50' };
+  }
+  if (cita.origenPaciente === 'prioritaria' || cita.origenPaciente === 'consulta_prioritaria') {
+    return { label: 'Prioritaria', color: 'bg-orange-500', textColor: 'text-orange-700', bgLight: 'bg-orange-50' };
+  }
+  if (waitTime && waitTime > 30) {
+    return { label: 'Espera larga', color: 'bg-amber-500', textColor: 'text-amber-700', bgLight: 'bg-amber-50' };
+  }
+  return null;
+};
+
+export default function DashboardDoctor({ user, onChangeAttentionType, initialMode = 'dashboard' }) {
   const { toast } = useToast();
   const getFechaHoy = () => new Date().toISOString().split('T')[0];
-  
+
+  const handleCambiarTipoAtencion = () => {
+    clearAttentionTypePreference();
+    if (onChangeAttentionType) {
+      onChangeAttentionType();
+    }
+  };
+
   const [fechaSeleccionada, setFechaSeleccionada] = useState(getFechaHoy());
   const [citasHoy, setCitasHoy] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [citaActual, setCitaActual] = useState(null);
-  const [showModalAtencion, setShowModalAtencion] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+
+  // Perfil del doctor (contiene el ID real del doctor)
+  const [doctorProfile, setDoctorProfile] = useState(null);
+
+  // Modos de Vista
+  const [viewMode, setViewMode] = useState(initialMode);
+  const [activeCita, setActiveCita] = useState(null);
+  const [activeAdmision, setActiveAdmision] = useState(null);
+  const [showHCEAnalyzer, setShowHCEAnalyzer] = useState(false);
+
+  // Command Palette (Ctrl+K)
+  const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } = useDoctorCommandPalette();
+
+  // Keyboard Shortcuts Help (?)
+  const { isOpen: shortcutsHelpOpen, setIsOpen: setShortcutsHelpOpen } = useKeyboardShortcutsHelp();
+
+  // Refs para el polling
+  const refreshIntervalRef = useRef(null);
+  const isVisibleRef = useRef(true);
+
   const [stats, setStats] = useState({
     enEspera: 0,
     atendiendo: 0,
     completadas: 0,
     total: 0,
-  });
-  
-  // Estado para los datos de la consulta
-  const [consultaData, setConsultaData] = useState({
-    soap: null,
-    vitales: null,
-    diagnostico: null,
-    alertas: null,
-    procedimientos: null,
-    prescripciones: null,
-  });
-  
-  const [validacionForms, setValidacionForms] = useState({
-    soap: false,
-    vitales: true,
-    diagnostico: true,
-    alertas: true,
-    procedimientos: true,
-    prescripciones: true,
+    canceladas: 0,
   });
 
-  const loadCitasHoy = useCallback(async () => {
+  // Estadísticas adicionales
+  const [extraStats, setExtraStats] = useState({
+    hospitalizados: 0,
+    cirugiasProgramadas: 0,
+    proximaCita: null,
+  });
+
+  // Estadísticas de ayer para comparación de tendencias
+  const [yesterdayStats, setYesterdayStats] = useState({
+    total: 0,
+    completadas: 0,
+  });
+
+  const greeting = getGreeting();
+  const GreetingIcon = greeting.icon;
+
+  // Cargar perfil del doctor para obtener el doctorId real
+  useEffect(() => {
+    const loadDoctorProfile = async () => {
+      if (!user?.id) return;
+      try {
+        const token = localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const response = await fetch(`${apiUrl}/doctores?usuarioId=${user.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (data.success && data.data?.length > 0) {
+          setDoctorProfile(data.data[0]);
+        }
+      } catch (error) {
+        console.error('Error loading doctor profile:', error);
+      }
+    };
+    loadDoctorProfile();
+  }, [user?.id]);
+
+  const loadCitasHoy = useCallback(async (silent = false) => {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
-      console.log('🔍 Cargando citas con:');
-      console.log('  - fecha:', fechaSeleccionada);
-      console.log('  - doctorId (user.id):', user.id);
-      
-      if (!user.id) {
-        console.log('⚠️ user.id es null, no se pueden cargar citas');
+
+      // Usar el doctorId real del perfil del doctor
+      const doctorId = doctorProfile?.id;
+      if (!doctorId) {
         setLoading(false);
         return;
       }
-      
-      // Cargar citas del doctor para la fecha seleccionada
-      const url = `${apiUrl}/citas?fecha=${fechaSeleccionada}&doctorId=${user.id}&limit=100`;
-      console.log('📡 URL citas:', url);
-      
+
+      if (silent) {
+        setIsRefreshing(true);
+      }
+
+      const url = `${apiUrl}/citas?fecha=${fechaSeleccionada}&doctorId=${doctorId}&limit=100`;
+
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       const data = await response.json();
-      console.log('📦 Respuesta citas:', data);
-      
-      const citas = data.data || [];
-      console.log('✅ Total citas:', citas.length);
-      
+      const citas = data.data || data.citas || [];
+
       setCitasHoy(citas);
-      
-      // Calcular estadísticas
+
+      // Encontrar próxima cita en espera
+      const citasEnEspera = citas.filter(c => c.estado === 'EnEspera').sort((a, b) =>
+        formatHora(a.hora).localeCompare(formatHora(b.hora))
+      );
+
       setStats({
         enEspera: citas.filter(c => c.estado === 'EnEspera').length,
         atendiendo: citas.filter(c => c.estado === 'Atendiendo').length,
         completadas: citas.filter(c => c.estado === 'Completada').length,
+        canceladas: citas.filter(c => c.estado === 'Cancelada').length,
         total: citas.length,
       });
-      
+
+      setExtraStats(prev => ({
+        ...prev,
+        proximaCita: citasEnEspera[0] || null,
+      }));
+
+      setLastRefresh(new Date());
       setLoading(false);
+      setIsRefreshing(false);
     } catch (error) {
-      console.error('❌ Error loading citas:', error);
+      console.error('Error loading citas:', error);
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, [fechaSeleccionada, user.id]);
+  }, [fechaSeleccionada, doctorProfile?.id]);
 
   useEffect(() => {
-    loadCitasHoy();
-  }, [fechaSeleccionada, loadCitasHoy]);
+    if (doctorProfile?.id) {
+      loadCitasHoy();
+    }
+  }, [fechaSeleccionada, doctorProfile?.id, loadCitasHoy]);
+
+  // Cargar estadísticas de ayer para comparación
+  useEffect(() => {
+    const loadYesterdayStats = async () => {
+      if (!doctorProfile?.id) return;
+      try {
+        const token = localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+        const response = await fetch(
+          `${apiUrl}/citas?doctorId=${doctorProfile.id}&fecha=${yesterdayStr}&limit=100`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const data = await response.json();
+        const citas = data.data || data.citas || [];
+
+        setYesterdayStats({
+          total: citas.length,
+          completadas: citas.filter(c => c.estado === 'Completada').length,
+        });
+      } catch (error) {
+        console.error('Error loading yesterday stats:', error);
+      }
+    };
+
+    loadYesterdayStats();
+  }, [doctorProfile?.id]);
+
+  const { hasChanges: agendaHasChanges, acknowledgeChanges } = useDisponibilidadRealtime({
+    doctorId: doctorProfile?.id,
+    fecha: fechaSeleccionada,
+    enabled: viewMode === 'dashboard' && !!doctorProfile?.id,
+    onUpdate: () => {
+      toast({
+        title: 'Agenda actualizada',
+        description: 'Se detectaron cambios en la disponibilidad.',
+      });
+      loadCitasHoy(true);
+    },
+  });
+
+  useEffect(() => {
+    if (viewMode !== 'dashboard') {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+      return;
+    }
+
+    const handleVisibilityChange = () => {
+      isVisibleRef.current = document.visibilityState === 'visible';
+      if (isVisibleRef.current) {
+        loadCitasHoy(true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    refreshIntervalRef.current = setInterval(() => {
+      if (isVisibleRef.current) {
+        loadCitasHoy(true);
+      }
+    }, QUEUE_REFRESH_INTERVAL);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [viewMode, loadCitasHoy]);
+
+  const handleManualRefresh = useCallback(() => {
+    loadCitasHoy(true);
+    acknowledgeChanges();
+  }, [loadCitasHoy, acknowledgeChanges]);
 
   const cambiarEstado = async (citaId, nuevoEstado) => {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
+
       await fetch(`${apiUrl}/citas/estado/${citaId}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ estado: nuevoEstado }),
       });
-      
-      // Recargar datos
+
       loadCitasHoy();
     } catch (error) {
       console.error('Error cambiando estado:', error);
     }
   };
 
-  const abrirHistoriaClinica = (pacienteId, citaId) => {
-    // Navegar al módulo HCE con el paciente seleccionado
-    window.location.href = `/?module=hce&pacienteId=${pacienteId}&citaId=${citaId}`;
+  const iniciarConsulta = async (cita) => {
+    if (cita.estado === 'EnEspera') {
+        await cambiarEstado(cita.id, 'Atendiendo');
+    }
+    setActiveCita(cita);
+    setViewMode('consulta');
   };
 
-  const getEstadoBadge = (estado) => {
-    const estilos = {
-      Programada: 'bg-blue-100 text-blue-700 border-blue-300',
-      EnEspera: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-      Atendiendo: 'bg-green-100 text-green-700 border-green-300',
-      Completada: 'bg-gray-100 text-gray-700 border-gray-300',
-    };
-    
-    const labels = {
-      Programada: 'Programada',
-      EnEspera: 'En Espera',
-      Atendiendo: 'Atendiendo',
-      Completada: 'Completada',
-    };
-    
-    return (
-      <Badge variant="outline" className={estilos[estado] || 'bg-gray-100'}>
-        {labels[estado] || estado}
-      </Badge>
-    );
-  };
-
-  const formatHora = (hora) => {
-    if (!hora) return 'Sin hora';
+  const handleFinishConsulta = async (data) => {
     try {
-      // Si hora es una fecha completa ISO
-      if (hora.includes('T')) {
-        const date = new Date(hora);
-        return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-      }
-      // Si es solo la hora (HH:MM:SS o HH:MM)
-      const [hours, minutes] = hora.split(':');
-      return `${hours}:${minutes}`;
-    } catch (e) {
-      return hora;
+        const token = localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+        const response = await fetch(`${apiUrl}/consultas/finalizar`, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(data),
+        });
+
+        if (response.ok) {
+            // Agregar paciente a recientes
+            if (activeCita?.paciente && user?.id) {
+              addRecentPatient(user.id, activeCita.paciente, 'consulta');
+            }
+            toast({ title: 'Éxito', description: 'Consulta finalizada y firmada digitalmente.' });
+            setViewMode('dashboard');
+            setActiveCita(null);
+            loadCitasHoy();
+        } else {
+            const error = await response.json();
+            alert(`Error: ${error.message}`);
+        }
+    } catch (error) {
+        console.error('Error finalizando consulta:', error);
+        toast({ title: 'Error', description: 'Error de red al finalizar', variant: 'destructive' });
     }
   };
 
-  if (loading) {
+  // Filtrar citas
+  const filteredCitas = citasHoy
+    .filter(cita => {
+      const matchesSearch = searchTerm === '' ||
+        `${cita.paciente?.nombre} ${cita.paciente?.apellido}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        cita.motivo?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      const matchesStatus = filterStatus === 'all' || cita.estado === filterStatus;
+
+      return matchesSearch && matchesStatus;
+    })
+    .sort((a, b) => formatHora(a.hora).localeCompare(formatHora(b.hora)));
+
+  // Calcular progreso del día
+  const progressPercent = stats.total > 0 ? Math.round(((stats.completadas + stats.canceladas) / stats.total) * 100) : 0;
+
+  // Calcular tendencias comparando con ayer
+  const getTrend = (today, yesterday) => {
+    if (yesterday === 0) return { direction: 'neutral', percent: 0 };
+    const diff = today - yesterday;
+    const percent = Math.round((Math.abs(diff) / yesterday) * 100);
+    if (diff > 0) return { direction: 'up', percent };
+    if (diff < 0) return { direction: 'down', percent };
+    return { direction: 'neutral', percent: 0 };
+  };
+
+  const totalTrend = getTrend(stats.total, yesterdayStats.total);
+  const completadasTrend = getTrend(stats.completadas, yesterdayStats.completadas);
+
+  // Handler para acciones del CommandPalette
+  const handleCommandAction = useCallback((action) => {
+    switch (action.id) {
+      case 'new-appointment':
+        toast({ title: 'Nueva cita urgente', description: 'Función disponible próximamente.' });
+        break;
+      case 'new-prescription':
+        toast({ title: 'Nueva fórmula', description: 'Selecciona un paciente primero.' });
+        break;
+      case 'lab-order':
+      case 'imaging-order':
+        toast({ title: action.label, description: 'Selecciona un paciente primero.' });
+        break;
+      case 'certificate':
+        toast({ title: 'Certificado médico', description: 'Selecciona un paciente primero.' });
+        break;
+      case 'ai-assistant':
+        setShowHCEAnalyzer(true);
+        break;
+      case 'view-schedule':
+        setViewMode('agenda');
+        break;
+      default:
+        toast({ title: action.label, description: action.description });
+    }
+  }, [toast]);
+
+  // Handler para navegación desde CommandPalette
+  const handleCommandNavigate = useCallback((path) => {
+    if (path === '/dashboard') {
+      setViewMode('dashboard');
+    } else if (path === '/hospitalizacion') {
+      setViewMode('hospitalizacion');
+    } else if (path === '/hce') {
+      setShowHCEAnalyzer(true);
+    }
+  }, []);
+
+  // Handler para selección de paciente desde CommandPalette
+  const handleCommandPatientSelect = useCallback((patient) => {
+    toast({
+      title: 'Paciente seleccionado',
+      description: `${patient.nombre} ${patient.apellido} - ${patient.cedula}`,
+    });
+    // Aquí se podría abrir el HCE del paciente o iniciar una consulta
+  }, [toast]);
+
+  // Renderizado condicional de vistas completas
+  if (viewMode === 'consulta' && activeCita) {
     return (
-      <div className="p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando consultas...</p>
-        </div>
+        <ClinicalWorkspace
+            cita={activeCita}
+            user={user}
+            onClose={() => {
+                if(confirm('¿Salir sin finalizar? Se perderán los datos no guardados.')) {
+                    setViewMode('dashboard');
+                    setActiveCita(null);
+                }
+            }}
+            onFinish={handleFinishConsulta}
+        />
+    );
+  }
+
+  if (viewMode === 'agenda') {
+      return (
+          <div className="min-h-screen bg-gray-50">
+              <ViewHeader
+                currentView="agenda"
+                onNavigate={(view) => setViewMode(view)}
+                title="Mi Agenda Médica"
+                subtitle="Gestiona tu disponibilidad, bloqueos y citas"
+              />
+              <div className="p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-2 bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200">
+                        <DoctorScheduleManager
+                            doctorId={user.id}
+                            onChange={(newSchedule) => console.log('Schedule updated', newSchedule)}
+                        />
+                    </div>
+                    <div className="lg:col-span-1">
+                        <BloqueoAgendaManager
+                            doctorId={user.id}
+                            doctorNombre={`Dr. ${user.nombre || ''} ${user.apellido || ''}`}
+                        />
+                    </div>
+                </div>
+              </div>
+          </div>
+      );
+  }
+
+  if (viewMode === 'quirofano') {
+    return (
+      <div className="bg-gray-50 min-h-screen">
+        <ViewHeader
+          currentView="quirofano"
+          onNavigate={(view) => setViewMode(view)}
+          title="Quirófano"
+          subtitle="Gestión de cirugías y protocolos quirúrgicos"
+        />
+        <DashboardDoctorQuirofano user={user} />
       </div>
     );
   }
 
-  return (
-    <div className="p-6 lg:p-8 bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 min-h-screen">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-              <Stethoscope className="h-8 w-8 text-blue-600" />
-              Bienvenido, Dr(a). {user?.nombre} {user?.apellido}
-            </h1>
-            <p className="text-gray-600">Panel de Consultas</p>
+  if (viewMode === 'epicrisis') {
+      const pacienteName = activeAdmision?.paciente
+        ? `${activeAdmision.paciente.nombre} ${activeAdmision.paciente.apellido}`
+        : null;
+      return (
+          <div className="bg-gray-50 min-h-screen">
+               <ViewHeader
+                 currentView="epicrisis"
+                 patientName={pacienteName}
+                 onNavigate={(view) => setViewMode(view)}
+                 title="Generar Epicrisis"
+                 subtitle="Documento de resumen de hospitalización"
+               />
+               <div className="p-6 max-w-5xl mx-auto">
+                    <EpicrisisGenerator
+                        admisionId={activeAdmision?.id}
+                        paciente={activeAdmision?.paciente}
+                        onClose={() => setViewMode('dashboard')}
+                    />
+               </div>
           </div>
-          
-          {/* Filtro de Fecha */}
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-gray-600" />
-            <input
-              type="date"
-              value={fechaSeleccionada}
-              onChange={(e) => setFechaSeleccionada(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+      );
+  }
+
+  // VISTA DASHBOARD (DEFAULT) - REDISEÑADO
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      {/* Header Mejorado */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            {/* Saludo y Info del Doctor */}
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Avatar className="h-14 w-14 bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-white shadow-lg">
+                  <AvatarFallback className="text-white font-bold text-lg">
+                    {user?.nombre?.[0]}{user?.apellido?.[0]}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-1 -right-1 bg-green-500 h-4 w-4 rounded-full border-2 border-white"></div>
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <GreetingIcon className={`h-5 w-5 ${greeting.color}`} />
+                  <span className="text-gray-500 text-sm">{greeting.text}</span>
+                </div>
+                <h1 className="text-xl font-bold text-gray-900">
+                  Dr(a). {user?.nombre} {user?.apellido}
+                </h1>
+                <p className="text-sm text-gray-500">
+                  {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+              </div>
+            </div>
+
+            {/* Resumen del Día */}
+            <div className="flex items-center gap-6">
+              <div className="hidden md:flex items-center gap-6 px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
+                  <p className="text-xs text-gray-500">Citas hoy</p>
+                </div>
+                <div className="h-8 w-px bg-blue-200"></div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-amber-600">{stats.enEspera}</p>
+                  <p className="text-xs text-gray-500">En espera</p>
+                </div>
+                <div className="h-8 w-px bg-blue-200"></div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">{stats.completadas}</p>
+                  <p className="text-xs text-gray-500">Completadas</p>
+                </div>
+              </div>
+
+              {/* Selector de fecha */}
+              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-xl border shadow-sm">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <input
+                  type="date"
+                  value={fechaSeleccionada}
+                  onChange={(e) => setFechaSeleccionada(e.target.value)}
+                  className="text-sm outline-none text-gray-700 bg-transparent"
+                />
+              </div>
+
+              {/* Búsqueda rápida (Ctrl+K) */}
+              <button
+                onClick={() => setCommandPaletteOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border shadow-sm hover:bg-gray-50 transition-colors text-sm text-gray-500"
+              >
+                <Search className="h-4 w-4" />
+                <span className="hidden sm:inline">Buscar...</span>
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono text-gray-500">
+                  <span className="text-xs">⌘</span>K
+                </kbd>
+              </button>
+
+              {/* Notificaciones */}
+              <DoctorNotifications
+                doctorId={doctorProfile?.id}
+                className="bg-white rounded-xl border shadow-sm hover:bg-gray-50"
+                onNotificationClick={(notification) => {
+                  toast({
+                    title: notification.title,
+                    description: notification.message,
+                  });
+                }}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Card className="border-l-4 border-l-blue-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Total Hoy</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.total}</p>
-              </div>
-              <Calendar className="h-10 w-10 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="max-w-7xl mx-auto px-6 py-6">
+        {/* Tarjetas de estadísticas mejoradas */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {/* Pacientes en Espera */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="group hover:shadow-lg transition-all cursor-pointer border-0 bg-gradient-to-br from-amber-50 to-orange-50 hover:scale-[1.02]"
+                      onClick={() => setFilterStatus('EnEspera')}>
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-amber-700">En Espera</p>
+                        <p className="text-3xl font-bold text-amber-600 mt-1">{stats.enEspera}</p>
+                        {stats.enEspera > 0 && (
+                          <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                            <Timer className="h-3 w-3" />
+                            Siguiente: {extraStats.proximaCita ? formatHora(extraStats.proximaCita.hora) : '--'}
+                          </p>
+                        )}
+                      </div>
+                      <div className="p-3 bg-amber-100 rounded-xl group-hover:bg-amber-200 transition-colors">
+                        <Clock className="h-6 w-6 text-amber-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="font-medium">Pacientes esperando atención</p>
+                <p className="text-xs text-gray-400">Click para filtrar por este estado</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        <Card className="border-l-4 border-l-yellow-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">En Espera</p>
-                <p className="text-3xl font-bold text-yellow-600">{stats.enEspera}</p>
-              </div>
-              <Clock className="h-10 w-10 text-yellow-500" />
-            </div>
-          </CardContent>
-        </Card>
+          {/* En Consulta */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="group hover:shadow-lg transition-all cursor-pointer border-0 bg-gradient-to-br from-green-50 to-emerald-50 hover:scale-[1.02]"
+                      onClick={() => setFilterStatus('Atendiendo')}>
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-green-700">En Consulta</p>
+                        <p className="text-3xl font-bold text-green-600 mt-1">{stats.atendiendo}</p>
+                        {stats.atendiendo > 0 && (
+                          <p className="text-xs text-green-600 mt-1 flex items-center gap-1 animate-pulse">
+                            <Activity className="h-3 w-3" />
+                            Atendiendo ahora
+                          </p>
+                        )}
+                      </div>
+                      <div className="p-3 bg-green-100 rounded-xl group-hover:bg-green-200 transition-colors">
+                        <Stethoscope className="h-6 w-6 text-green-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="font-medium">Consultas activas</p>
+                <p className="text-xs text-gray-400">Pacientes siendo atendidos ahora</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        <Card className="border-l-4 border-l-green-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Atendiendo</p>
-                <p className="text-3xl font-bold text-green-600">{stats.atendiendo}</p>
-              </div>
-              <Activity className="h-10 w-10 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
+          {/* Completadas */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="group hover:shadow-lg transition-all cursor-pointer border-0 bg-gradient-to-br from-blue-50 to-indigo-50 hover:scale-[1.02]"
+                      onClick={() => setFilterStatus('Completada')}>
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-blue-700">Completadas</p>
+                        <p className="text-3xl font-bold text-blue-600 mt-1">{stats.completadas}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-xs text-blue-600 flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            {progressPercent}% del día
+                          </p>
+                          {completadasTrend.direction !== 'neutral' && (
+                            <span className={`text-[10px] flex items-center gap-0.5 px-1 py-0.5 rounded ${
+                              completadasTrend.direction === 'up'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {completadasTrend.direction === 'up' ? (
+                                <TrendingUp className="h-2.5 w-2.5" />
+                              ) : (
+                                <TrendingDown className="h-2.5 w-2.5" />
+                              )}
+                              {completadasTrend.percent}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="p-3 bg-blue-100 rounded-xl group-hover:bg-blue-200 transition-colors">
+                        <CheckCheck className="h-6 w-6 text-blue-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="font-medium">Consultas finalizadas</p>
+                <p className="text-xs text-gray-400">{stats.completadas} de {stats.total} citas completadas</p>
+                {yesterdayStats.completadas > 0 && (
+                  <p className="text-xs text-gray-400">Ayer: {yesterdayStats.completadas} completadas</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
-        <Card className="border-l-4 border-l-gray-500">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600 mb-1">Completadas</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.completadas}</p>
-              </div>
-              <CheckCircle className="h-10 w-10 text-gray-500" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          {/* Progreso del Día */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Card className="group hover:shadow-lg transition-all border-0 bg-gradient-to-br from-violet-50 to-purple-50 hover:scale-[1.02]"
+                      onClick={() => setFilterStatus('all')}>
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-violet-700">Total Citas</p>
+                          {totalTrend.direction !== 'neutral' && (
+                            <span className={`text-[10px] flex items-center gap-0.5 px-1 py-0.5 rounded ${
+                              totalTrend.direction === 'up'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {totalTrend.direction === 'up' ? (
+                                <TrendingUp className="h-2.5 w-2.5" />
+                              ) : (
+                                <TrendingDown className="h-2.5 w-2.5" />
+                              )}
+                              {totalTrend.percent}%
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-3xl font-bold text-violet-600 mt-1">{stats.total}</p>
+                        <Progress value={progressPercent} className="h-1.5 mt-2 bg-violet-100" />
+                      </div>
+                      <div className="p-3 bg-violet-100 rounded-xl group-hover:bg-violet-200 transition-colors">
+                        <Target className="h-6 w-6 text-violet-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                <p className="font-medium">Resumen del día</p>
+                <p className="text-xs text-gray-400">Total: {stats.total} citas • Canceladas: {stats.canceladas}</p>
+                {yesterdayStats.total > 0 && (
+                  <p className="text-xs text-gray-400">Ayer: {yesterdayStats.total} citas</p>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
 
-      {/* Lista de Pacientes */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5" />
-            Mis Pacientes de Hoy
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {citasHoy.length === 0 ? (
-            <div className="text-center py-12">
-              <Calendar className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">No tienes consultas programadas para hoy</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Hora</TableHead>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Motivo</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {citasHoy
-                    .sort((a, b) => a.hora.localeCompare(b.hora))
-                    .map((cita) => (
-                      <TableRow key={cita.id} className={cita.estado === 'Atendiendo' ? 'bg-green-50' : ''}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4 text-gray-500" />
-                            {formatHora(cita.hora)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-gray-500" />
-                            <div>
-                              <p className="font-medium">{cita.paciente?.nombre} {cita.paciente?.apellido}</p>
-                              <p className="text-xs text-gray-500">{cita.paciente?.cedula}</p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Cola de Pacientes Mejorada */}
+          <div className="lg:col-span-2">
+            <Card className="shadow-sm border-0 overflow-hidden">
+              <CardHeader className="bg-white border-b border-gray-100 pb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-lg">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <ClipboardList className="h-5 w-5 text-blue-600" />
+                      </div>
+                      Cola de Atención
+                      {isRefreshing && (
+                        <RefreshCw className="h-4 w-4 text-gray-400 animate-spin ml-2" />
+                      )}
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      {filteredCitas.length} pacientes
+                      {filterStatus !== 'all' && ` (filtrado: ${filterStatus})`}
+                      {agendaHasChanges && (
+                        <Badge variant="outline" className="ml-2 text-xs bg-yellow-50 text-yellow-700 border-yellow-200">
+                          Hay cambios
+                        </Badge>
+                      )}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* Búsqueda */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar paciente..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+                      />
+                    </div>
+                    {/* Filtro */}
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm" className="gap-2">
+                          <Filter className="h-4 w-4" />
+                          Filtrar
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => setFilterStatus('all')}>Todos</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setFilterStatus('EnEspera')}>En Espera</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setFilterStatus('Atendiendo')}>En Consulta</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setFilterStatus('Completada')}>Completados</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    {/* Refresh */}
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={handleManualRefresh}
+                            disabled={isRefreshing}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Actualizar lista</p>
+                          {lastRefresh && (
+                            <p className="text-xs text-gray-400">
+                              Última: {lastRefresh.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                {loading ? (
+                  <div className="p-12 text-center">
+                    <RefreshCw className="h-8 w-8 mx-auto text-gray-300 animate-spin" />
+                    <p className="text-gray-500 mt-3">Cargando pacientes...</p>
+                  </div>
+                ) : filteredCitas.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-3" />
+                    <p className="text-gray-500 font-medium">No hay citas</p>
+                    <p className="text-gray-400 text-sm mt-1">
+                      {filterStatus !== 'all' ? 'No hay citas con este filtro' : 'No hay citas programadas para esta fecha'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-50">
+                    {filteredCitas.map((cita, index) => {
+                      const priority = getPriorityConfig(cita);
+                      const waitTime = getWaitTime(cita);
+                      const isActive = cita.estado === 'Atendiendo';
+                      const isEnEspera = cita.estado === 'EnEspera';
+                      const queuePosition = filteredCitas
+                        .filter(c => c.estado === 'EnEspera')
+                        .findIndex(c => c.id === cita.id) + 1;
+
+                      // Calcular el porcentaje de la barra de espera (máximo 60 min = 100%)
+                      const waitPercent = waitTime ? Math.min((waitTime / 60) * 100, 100) : 0;
+                      const waitBarColor = waitTime > 45 ? 'bg-red-500' : waitTime > 30 ? 'bg-amber-500' : 'bg-blue-500';
+
+                      return (
+                        <div
+                          key={cita.id}
+                          className={`p-4 hover:bg-gray-50 transition-all relative group ${
+                            isActive ? 'bg-green-50 border-l-4 border-l-green-500' : ''
+                          } ${priority ? priority.bgLight : ''}`}
+                        >
+                          {/* Barra de progreso de espera */}
+                          {isEnEspera && waitTime > 0 && (
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-100">
+                              <div
+                                className={`h-full ${waitBarColor} transition-all duration-500`}
+                                style={{ width: `${waitPercent}%` }}
+                              />
+                            </div>
+                          )}
+
+                          <div className="flex items-center gap-4">
+                            {/* Número de posición en cola */}
+                            {isEnEspera && queuePosition > 0 && (
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <span className="text-sm font-bold text-blue-600">#{queuePosition}</span>
+                              </div>
+                            )}
+
+                            {/* Avatar con iniciales */}
+                            <Avatar className={`h-12 w-12 ${
+                              isActive ? 'ring-2 ring-green-500 ring-offset-2' : ''
+                            } ${isEnEspera && waitTime > 30 ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}>
+                              <AvatarFallback className={`font-semibold ${
+                                isActive ? 'bg-green-100 text-green-700' :
+                                waitTime > 45 ? 'bg-red-100 text-red-700' :
+                                waitTime > 30 ? 'bg-amber-100 text-amber-700' :
+                                'bg-blue-100 text-blue-700'
+                              }`}>
+                                {cita.paciente?.nombre?.[0]}{cita.paciente?.apellido?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+
+                            {/* Info del paciente */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold text-gray-900 truncate">
+                                  {cita.paciente?.nombre} {cita.paciente?.apellido}
+                                </p>
+                                {priority && (
+                                  <Badge className={`${priority.color} text-white text-xs`}>
+                                    {priority.label}
+                                  </Badge>
+                                )}
+                                {waitTime > 45 && isEnEspera && (
+                                  <Badge className="bg-red-500 text-white text-xs animate-pulse">
+                                    Urgente
+                                  </Badge>
+                                )}
+                              </div>
+                              <p className="text-sm text-gray-500 truncate">{cita.motivo || 'Consulta general'}</p>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatHora(cita.hora)}
+                                </span>
+                                {waitTime !== null && waitTime > 0 && (
+                                  <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${
+                                    waitTime > 45 ? 'bg-red-100 text-red-700' :
+                                    waitTime > 30 ? 'bg-amber-100 text-amber-700' :
+                                    'text-gray-500'
+                                  }`}>
+                                    <Timer className="h-3 w-3" />
+                                    {waitTime} min
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Estado y Acciones */}
+                            <div className="flex items-center gap-3">
+                              <Badge variant={
+                                cita.estado === 'EnEspera' ? 'warning' :
+                                cita.estado === 'Atendiendo' ? 'success' :
+                                cita.estado === 'Completada' ? 'secondary' : 'outline'
+                              } className={
+                                cita.estado === 'EnEspera' ? 'bg-amber-100 text-amber-700 border-amber-200' :
+                                cita.estado === 'Atendiendo' ? 'bg-green-100 text-green-700 border-green-200' :
+                                cita.estado === 'Completada' ? 'bg-gray-100 text-gray-600' : ''
+                              }>
+                                {cita.estado === 'EnEspera' ? 'En Espera' : cita.estado}
+                              </Badge>
+
+                              {cita.estado === 'EnEspera' && (
+                                <Button
+                                  onClick={() => iniciarConsulta(cita)}
+                                  className="bg-blue-600 hover:bg-blue-700 gap-2"
+                                >
+                                  <Play className="h-4 w-4" />
+                                  Llamar
+                                </Button>
+                              )}
+                              {cita.estado === 'Atendiendo' && (
+                                <Button
+                                  onClick={() => iniciarConsulta(cita)}
+                                  className="bg-green-600 hover:bg-green-700 gap-2 animate-pulse"
+                                >
+                                  <Stethoscope className="h-4 w-4" />
+                                  Continuar
+                                </Button>
+                              )}
+                              {cita.estado === 'Completada' && (
+                                <Button variant="ghost" size="sm" className="text-gray-400" disabled>
+                                  <CheckCheck className="h-4 w-4" />
+                                </Button>
+                              )}
+
+                              {/* Menú de más opciones */}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem>
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Ver HCE
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <Phone className="h-4 w-4 mr-2" />
+                                    Llamar paciente
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem>
+                                    <MessageSquare className="h-4 w-4 mr-2" />
+                                    Enviar mensaje
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm">{cita.motivo}</p>
-                          {cita.notas && (
-                            <p className="text-xs text-gray-500 mt-1">{cita.notas}</p>
-                          )}
-                        </TableCell>
-                        <TableCell>{getEstadoBadge(cita.estado)}</TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            {/* Ver Historia Clínica */}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => abrirHistoriaClinica(cita.pacienteId, cita.id)}
-                              className="gap-1"
-                            >
-                              <Eye className="h-4 w-4" />
-                              Ver HCE
-                            </Button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
 
-                            {/* Botón de acción según estado */}
-                            {cita.estado === 'EnEspera' && (
-                              <Button
-                                size="sm"
-                                onClick={() => cambiarEstado(cita.id, 'Atendiendo')}
-                                className="gap-1 bg-green-600 hover:bg-green-700"
-                              >
-                                <Play className="h-4 w-4" />
-                                Atender
-                              </Button>
-                            )}
+          {/* Panel Lateral de Accesos Rápidos */}
+          <div className="space-y-6">
+            {/* Próxima Cita Destacada */}
+            {extraStats.proximaCita && (
+              <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-0 shadow-lg">
+                <CardContent className="p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Sparkles className="h-4 w-4" />
+                    <p className="text-sm font-medium text-blue-100">Próximo Paciente</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-12 w-12 bg-white/20 border-2 border-white/30">
+                      <AvatarFallback className="text-white font-bold">
+                        {extraStats.proximaCita.paciente?.nombre?.[0]}{extraStats.proximaCita.paciente?.apellido?.[0]}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                      <p className="font-semibold">
+                        {extraStats.proximaCita.paciente?.nombre} {extraStats.proximaCita.paciente?.apellido}
+                      </p>
+                      <p className="text-sm text-blue-200 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatHora(extraStats.proximaCita.hora)}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full mt-4 bg-white text-blue-600 hover:bg-blue-50"
+                    onClick={() => iniciarConsulta(extraStats.proximaCita)}
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Iniciar Consulta
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
 
-                            {cita.estado === 'Atendiendo' && (
-                              <Button
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => {
-                                  setCitaActual(cita);
-                                  setShowModalAtencion(true);
-                                }}
-                              >
-                                Continuar Atención
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {/* Widget de Próximas Citas */}
+            <ProximasCitasWidget
+              doctorId={doctorProfile?.id}
+              maxCitas={4}
+              onSelectCita={(cita) => iniciarConsulta(cita)}
+              className="border-0 shadow-sm"
+            />
 
-      {/* Accesos Rápidos */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/?module=hce'}>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="bg-blue-100 p-3 rounded-xl">
-                <FileText className="h-6 w-6 text-blue-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Historia Clínica</p>
-                <p className="text-sm text-gray-600">Ver historias de pacientes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Widget de Pacientes Hospitalizados */}
+            <HospitalizedPatientsWidget
+              doctorId={doctorProfile?.id}
+              maxItems={3}
+              onViewAll={() => setViewMode('hospitalizacion')}
+              onSelectPatient={(admision) => {
+                toast({
+                  title: 'Paciente hospitalizado',
+                  description: `${admision.paciente?.nombre} ${admision.paciente?.apellido} - Cama: ${admision.cama?.codigo || 'Sin asignar'}`,
+                });
+                setViewMode('hospitalizacion');
+              }}
+            />
 
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/?module=citas'}>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="bg-purple-100 p-3 rounded-xl">
-                <Calendar className="h-6 w-6 text-purple-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Mi Agenda</p>
-                <p className="text-sm text-gray-600">Ver todas las citas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Widget de Cirugías del Día */}
+            <QuirofanoWidget
+              userId={user?.id}
+              maxItems={3}
+              onViewAll={() => setViewMode('quirofano')}
+              onSelectProcedure={(proc) => {
+                toast({
+                  title: 'Cirugía seleccionada',
+                  description: `${proc.paciente?.nombre} ${proc.paciente?.apellido} - ${proc.tipoProcedimiento || 'Procedimiento'}`,
+                });
+                setViewMode('quirofano');
+              }}
+            />
 
-        <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => window.location.href = '/?module=pacientes'}>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="bg-green-100 p-3 rounded-xl">
-                <User className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="font-semibold text-gray-900">Pacientes</p>
-                <p className="text-sm text-gray-600">Buscar pacientes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            {/* Acciones Rápidas */}
+            <DoctorQuickActions
+              className="border-0 shadow-sm"
+              onAction={(action) => {
+                switch (action.action) {
+                  case 'view-schedule':
+                    setViewMode('agenda');
+                    break;
+                  case 'new-prescription':
+                  case 'lab-order':
+                  case 'imaging-order':
+                  case 'certificate':
+                    toast({
+                      title: action.label,
+                      description: 'Seleccione un paciente primero para esta acción.',
+                    });
+                    break;
+                  default:
+                    break;
+                }
+              }}
+              onOpenAIAssistant={() => setShowHCEAnalyzer(true)}
+              onViewSchedule={() => setViewMode('agenda')}
+              onSearchPatient={(patient) => {
+                toast({
+                  title: 'Paciente seleccionado',
+                  description: `${patient.nombre} ${patient.apellido}`,
+                });
+              }}
+            />
+
+            {/* Pacientes Recientes */}
+            <RecentPatientsWidget
+              doctorId={user?.id}
+              maxItems={5}
+              onSelectPatient={(patient) => {
+                toast({
+                  title: 'Paciente seleccionado',
+                  description: `${patient.nombre} ${patient.apellido}`,
+                });
+              }}
+              onViewHCE={(patient) => {
+                toast({
+                  title: 'Ver Historia Clínica',
+                  description: `Abriendo HCE de ${patient.nombre} ${patient.apellido}`,
+                });
+                setShowHCEAnalyzer(true);
+              }}
+            />
+
+            {/* Acceso Rápido adicionales */}
+            <Card className="border-0 shadow-sm">
+              <CardContent className="p-4 space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-10 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200"
+                  onClick={() => setViewMode('quirofano')}
+                >
+                  <Activity className="h-4 w-4" />
+                  Ver Quirófano
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-10 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                  onClick={() => setViewMode('epicrisis')}
+                >
+                  <FileText className="h-4 w-4" />
+                  Generar Epicrisis
+                </Button>
+                {onChangeAttentionType && (
+                  <Button
+                    variant="outline"
+                    className="w-full justify-start gap-3 h-10 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
+                    onClick={handleCambiarTipoAtencion}
+                  >
+                    <BedDouble className="h-4 w-4" />
+                    Ir a Hospitalización
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Alertas Clínicas */}
+            <ClinicalAlertsWidget
+              doctorId={user?.id}
+              citasEnEspera={citasHoy.filter(c => c.estado === 'EnEspera')}
+              onAlertClick={(alert) => {
+                if (alert.data?.id && alert.type === 'long_wait') {
+                  iniciarConsulta(alert.data);
+                } else {
+                  toast({
+                    title: alert.title,
+                    description: alert.message,
+                  });
+                }
+              }}
+            />
+
+            {/* Estadísticas Adicionales */}
+            <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+              <CardContent className="p-5">
+                <p className="text-sm text-slate-400 mb-3">Rendimiento de Hoy</p>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Tiempo promedio por consulta</span>
+                    <span className="font-semibold">~18 min</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Consultas esta semana</span>
+                    <span className="font-semibold">{stats.completadas * 5}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">Satisfacción pacientes</span>
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold">4.8</span>
+                      <Award className="h-4 w-4 text-amber-400" />
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
 
-      {/* Modal de Atención - Formularios de Consulta */}
-      {showModalAtencion && citaActual && (
-        <Dialog open={showModalAtencion} onOpenChange={(open) => {
-          if (!open) {
-            // Reset al cerrar
-            setConsultaData({
-              soap: null,
-              vitales: null,
-              diagnostico: null,
-              alertas: null,
-              procedimientos: null,
-              prescripciones: null,
-            });
-            setValidacionForms({
-              soap: false,
-              vitales: true,
-              diagnostico: true,
-              alertas: true,
-              procedimientos: true,
-              prescripciones: true,
-            });
+      {/* Modal Analizador de HCE con IA */}
+      <Dialog open={showHCEAnalyzer} onOpenChange={setShowHCEAnalyzer}>
+        <DialogContent className="max-w-5xl h-[85vh] p-0 overflow-hidden">
+          <DialogTitle className="sr-only">Analizador de Historia Clínica con IA</DialogTitle>
+          <AnalizadorHCE onClose={() => setShowHCEAnalyzer(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Command Palette (Ctrl+K) */}
+      <DoctorCommandPalette
+        open={commandPaletteOpen}
+        onOpenChange={setCommandPaletteOpen}
+        onSelectPatient={handleCommandPatientSelect}
+        onAction={handleCommandAction}
+        onNavigate={handleCommandNavigate}
+      />
+
+      {/* Floating Action Button */}
+      <FloatingActionButton
+        onAction={(actionId) => {
+          switch (actionId) {
+            case 'search':
+              setCommandPaletteOpen(true);
+              break;
+            case 'prescription':
+            case 'lab':
+            case 'imaging':
+            case 'certificate':
+              toast({
+                title: 'Acción rápida',
+                description: 'Seleccione un paciente primero para esta acción.',
+              });
+              break;
+            case 'ai':
+              setShowHCEAnalyzer(true);
+              break;
+            default:
+              break;
           }
-          setShowModalAtencion(open);
-        }}>
-          <DialogContent className="max-w-7xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-2xl flex items-center gap-2">
-                <Stethoscope className="h-6 w-6 text-blue-600" />
-                Atención en Consulta - {citaActual.paciente?.nombre} {citaActual.paciente?.apellido}
-              </DialogTitle>
-              <p className="text-sm text-gray-600 mt-2">
-                Cédula: {citaActual.paciente?.cedula} | Cita: {citaActual.motivo}
-              </p>
-            </DialogHeader>
+        }}
+      />
 
-            <Tabs defaultValue="soap" className="w-full mt-4">
-              <TabsList className="grid w-full grid-cols-6">
-                <TabsTrigger value="soap" className="flex items-center gap-1">
-                  <FileText className="h-4 w-4" />
-                  SOAP {!validacionForms.soap && <span className="ml-1 text-red-500">*</span>}
-                </TabsTrigger>
-                <TabsTrigger value="diagnostico" className="flex items-center gap-1">
-                  <ClipboardList className="h-4 w-4" />
-                  Diagnóstico
-                </TabsTrigger>
-                <TabsTrigger value="vitales" className="flex items-center gap-1">
-                  <Activity className="h-4 w-4" />
-                  Vitales
-                </TabsTrigger>
-                <TabsTrigger value="alertas" className="flex items-center gap-1">
-                  <AlertCircle className="h-4 w-4" />
-                  Alertas
-                </TabsTrigger>
-                <TabsTrigger value="procedimientos" className="flex items-center gap-1">
-                  <Stethoscope className="h-4 w-4" />
-                  Procedimientos
-                </TabsTrigger>
-                <TabsTrigger value="prescripciones" className="flex items-center gap-1">
-                  <Pill className="h-4 w-4" />
-                  Prescripciones
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="soap" className="mt-4">
-                <FormularioSOAPConsulta
-                  data={consultaData.soap}
-                  onChange={(data, isValid) => {
-                    setConsultaData({ ...consultaData, soap: data });
-                    setValidacionForms({ ...validacionForms, soap: isValid });
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="diagnostico" className="mt-4">
-                <FormularioDiagnosticoConsulta
-                  data={consultaData.diagnostico}
-                  onChange={(data, isValid) => {
-                    setConsultaData({ ...consultaData, diagnostico: data });
-                    setValidacionForms({ ...validacionForms, diagnostico: isValid });
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="vitales" className="mt-4">
-                <FormularioSignosVitalesConsulta
-                  data={consultaData.vitales}
-                  onChange={(data, isValid) => {
-                    setConsultaData({ ...consultaData, vitales: data });
-                    setValidacionForms({ ...validacionForms, vitales: isValid });
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="alertas" className="mt-4">
-                <FormularioAlertasConsulta
-                  data={consultaData.alertas}
-                  onChange={(data, isValid) => {
-                    setConsultaData({ ...consultaData, alertas: data });
-                    setValidacionForms({ ...validacionForms, alertas: isValid });
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="procedimientos" className="mt-4">
-                <FormularioProcedimientosExamenesConsulta
-                  data={consultaData.procedimientos}
-                  onChange={(data, isValid) => {
-                    setConsultaData({ ...consultaData, procedimientos: data });
-                    setValidacionForms({ ...validacionForms, procedimientos: isValid });
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="prescripciones" className="mt-4">
-                <FormularioPrescripcionesConsulta
-                  data={consultaData.prescripciones}
-                  onChange={(data, isValid) => {
-                    setConsultaData({ ...consultaData, prescripciones: data });
-                    setValidacionForms({ ...validacionForms, prescripciones: isValid });
-                  }}
-                />
-              </TabsContent>
-            </Tabs>
-
-            {/* Botón para Finalizar Consulta */}
-            <div className="mt-6 flex justify-end gap-3 border-t pt-4">
-              <Button 
-                variant="outline" 
-                onClick={() => setShowModalAtencion(false)}
-              >
-                Cerrar
-              </Button>
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700"
-                disabled={!Object.values(validacionForms).every(v => v)}
-                onClick={async () => {
-                  if (!Object.values(validacionForms).every(v => v)) {
-                    toast({ description: '⚠️ Complete todos los campos obligatorios (SOAP) y los formularios que haya iniciado' });
-                    return;
-                  }
-                  
-                  if (!confirm('¿Confirmas que deseas finalizar esta consulta?')) {
-                    return;
-                  }
-                  
-                  try {
-                    const token = localStorage.getItem('token');
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-                    
-                    // Enviar todos los datos al endpoint
-                    const response = await fetch(`${apiUrl}/consultas/finalizar`, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
-                      },
-                      body: JSON.stringify({
-                        citaId: citaActual.id,
-                        pacienteId: citaActual.pacienteId,
-                        doctorId: user.id,
-                        ...consultaData,
-                      }),
-                    });
-                    
-                    if (response.ok) {
-                      toast({ title: 'Éxito', description: ' Consulta finalizada exitosamente' });
-                      setShowModalAtencion(false);
-                      setCitaActual(null);
-                      // Reset
-                      setConsultaData({
-                        soap: null,
-                        vitales: null,
-                        diagnostico: null,
-                        alertas: null,
-                        procedimientos: null,
-                        prescripciones: null,
-                      });
-                      loadCitasHoy();
-                    } else {
-                      const error = await response.json();
-                      alert(`❌ Error: ${error.message || 'No se pudo finalizar la consulta'}`);
-                    }
-                  } catch (error) {
-                    console.error('Error finalizando consulta:', error);
-                    toast({ title: 'Error', description: ' Error al finalizar la consulta', variant: 'destructive' });
-                  }
-                }}
-              >
-                <CheckCheck className="h-4 w-4 mr-2" />
-                Finalizar Consulta
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp
+        open={shortcutsHelpOpen}
+        onOpenChange={setShortcutsHelpOpen}
+      />
     </div>
   );
 }

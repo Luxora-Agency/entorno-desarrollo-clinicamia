@@ -5,7 +5,7 @@ import {
   Stethoscope, Activity, ClipboardList, Pill,
   CheckCircle, ChevronRight, ChevronLeft, Save,
   X, AlertTriangle, MessageSquare, FileText, ClipboardCheck,
-  Sparkles, RefreshCw, Brain
+  Sparkles, RefreshCw, Brain, History, Copy, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -22,12 +22,18 @@ import FormularioPrescripcionesConsulta from '../consulta/FormularioPrescripcion
 import FormularioProcedimientosExamenesConsulta from '../consulta/FormularioProcedimientosExamenesConsulta';
 import FormularioRevisionSistemas from '../consulta/FormularioRevisionSistemas';
 import FormularioPlanManejo from '../consulta/FormularioPlanManejo';
+import FormularioRecomendaciones from '../consulta/FormularioRecomendaciones';
 import AntecedentesEstructurados from './AntecedentesEstructurados';
 import AIMedicalAssistant from './AIMedicalAssistant';
 import { AIAssistantButton } from '../consulta/AIInlineSuggestions';
+import VisualizadorHistorialConsulta from '../consulta/VisualizadorHistorialConsulta';
 
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Building2 } from 'lucide-react';
 
 export default function ClinicalWorkspace({
   cita,
@@ -45,6 +51,17 @@ export default function ClinicalWorkspace({
   const [cargandoTipo, setCargandoTipo] = useState(true);
   const [ultimaConsulta, setUltimaConsulta] = useState(null);
 
+  // Consulta previa completa para controles
+  const [consultaCompletaPrevia, setConsultaCompletaPrevia] = useState(null);
+  const [showPreviousPanel, setShowPreviousPanel] = useState(false);
+  const [loadingPreviousConsulta, setLoadingPreviousConsulta] = useState(false);
+
+  // Visualizador de historial completo
+  const [showHistorialCompleto, setShowHistorialCompleto] = useState(false);
+
+  // Nota de ingreso para hospitalización
+  const [requiereHospitalizacion, setRequiereHospitalizacion] = useState(false);
+
   // Estado centralizado de la consulta
   const [consultaData, setConsultaData] = useState({
     anamnesis: null,
@@ -55,6 +72,7 @@ export default function ClinicalWorkspace({
     procedimientos: null,
     prescripciones: null,
     planManejo: null,
+    recomendaciones: null,
     motivoConsulta: '',
     enfermedadActual: '',
     esPrimeraConsulta: false,
@@ -71,11 +89,18 @@ export default function ClinicalWorkspace({
     prescripciones: true,
     procedimientos: true,
     planManejo: true, // Opcional
+    recomendaciones: true, // Opcional
   });
 
   // Referencia para evitar auto-save inicial
   const isInitialMount = useRef(true);
   const autoSaveTimeoutRef = useRef(null);
+
+  // Estado de guardado automático
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  const [lastSavedAt, setLastSavedAt] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const saveStatusTimeoutRef = useRef(null);
 
   // Clave única para el borrador en localStorage
   const draftKey = `consulta_draft_${cita?.id}`;
@@ -146,6 +171,7 @@ export default function ClinicalWorkspace({
 
     // Guardar después de 30 segundos de inactividad
     autoSaveTimeoutRef.current = setTimeout(() => {
+      setSaveStatus('saving');
       try {
         const draftData = {
           data: consultaData,
@@ -154,9 +180,21 @@ export default function ClinicalWorkspace({
           timestamp: Date.now()
         };
         localStorage.setItem(draftKey, JSON.stringify(draftData));
+        setSaveStatus('saved');
+        setLastSavedAt(new Date());
+        setHasUnsavedChanges(false);
         console.log('Auto-guardado realizado:', new Date().toLocaleTimeString());
+
+        // Resetear estado después de 3 segundos
+        if (saveStatusTimeoutRef.current) {
+          clearTimeout(saveStatusTimeoutRef.current);
+        }
+        saveStatusTimeoutRef.current = setTimeout(() => {
+          setSaveStatus('idle');
+        }, 3000);
       } catch (error) {
         console.error('Error en auto-guardado:', error);
+        setSaveStatus('error');
       }
     }, 30000); // 30 segundos
 
@@ -208,6 +246,41 @@ export default function ClinicalWorkspace({
     }
   }, [draftKey]);
 
+  // Guardar borrador manualmente
+  const saveDraftToLocalStorage = useCallback(() => {
+    setSaveStatus('saving');
+    try {
+      const draftData = {
+        data: consultaData,
+        step: activeStep,
+        stepsValidState: stepsValid,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(draftKey, JSON.stringify(draftData));
+      setSaveStatus('saved');
+      setLastSavedAt(new Date());
+      setHasUnsavedChanges(false);
+
+      // Resetear el estado a idle después de 3 segundos
+      if (saveStatusTimeoutRef.current) {
+        clearTimeout(saveStatusTimeoutRef.current);
+      }
+      saveStatusTimeoutRef.current = setTimeout(() => {
+        setSaveStatus('idle');
+      }, 3000);
+    } catch (error) {
+      console.error('Error guardando borrador:', error);
+      setSaveStatus('error');
+    }
+  }, [consultaData, activeStep, stepsValid, draftKey]);
+
+  // Marcar como cambios sin guardar cuando los datos cambian
+  useEffect(() => {
+    if (!isInitialMount.current) {
+      setHasUnsavedChanges(true);
+    }
+  }, [consultaData]);
+
   // Detectar tipo de consulta al cargar
   useEffect(() => {
     if (cita?.pacienteId) {
@@ -241,6 +314,8 @@ export default function ClinicalWorkspace({
           description: data.mensaje,
           duration: 5000,
         });
+        // Cargar consulta completa previa para controles
+        cargarConsultaCompletaPrevia();
       }
     } catch (error) {
       console.error('Error al detectar tipo de consulta:', error);
@@ -250,6 +325,49 @@ export default function ClinicalWorkspace({
     } finally {
       setCargandoTipo(false);
     }
+  };
+
+  // Cargar datos completos de la última consulta
+  const cargarConsultaCompletaPrevia = async () => {
+    setLoadingPreviousConsulta(true);
+    try {
+      const response = await apiGet(`/consultas/ultima-completa/${cita.pacienteId}`);
+      if (response.success && response.data) {
+        setConsultaCompletaPrevia(response.data);
+        setShowPreviousPanel(true); // Mostrar automáticamente
+      }
+    } catch (error) {
+      console.error('Error cargando consulta previa completa:', error);
+    } finally {
+      setLoadingPreviousConsulta(false);
+    }
+  };
+
+  // Copiar datos relevantes de la consulta previa
+  const copiarDatosConsultaPrevia = () => {
+    if (!consultaCompletaPrevia) return;
+
+    // Copiar diagnósticos activos
+    if (consultaCompletaPrevia.diagnosticos?.length > 0) {
+      const diagnosticoActivo = consultaCompletaPrevia.diagnosticos.find(d => d.estadoDiagnostico === 'Activo');
+      if (diagnosticoActivo) {
+        setConsultaData(prev => ({
+          ...prev,
+          diagnostico: {
+            ...prev.diagnostico,
+            codigoCIE11: diagnosticoActivo.codigoCIE11,
+            descripcionCIE11: diagnosticoActivo.descripcionCIE11,
+            tipoDiagnostico: 'Principal',
+            esControl: true
+          }
+        }));
+      }
+    }
+
+    toast({
+      title: 'Datos copiados',
+      description: 'Se han copiado los diagnósticos activos de la consulta anterior',
+    });
   };
 
   // Steps dinámicos según tipo de consulta
@@ -278,6 +396,14 @@ export default function ClinicalWorkspace({
     }
   }, [tipoConsulta]);
 
+  // Calcular progreso de la consulta
+  const progressData = useMemo(() => {
+    if (steps.length === 0) return { percentage: 0, currentStep: 0, totalSteps: 0 };
+    const currentIndex = steps.findIndex(s => s.id === activeStep);
+    const percentage = Math.round(((currentIndex + 1) / steps.length) * 100);
+    return { percentage, currentStep: currentIndex + 1, totalSteps: steps.length };
+  }, [steps, activeStep]);
+
   // Actualizar step activo cuando cambia el tipo de consulta
   useEffect(() => {
     if (!cargandoTipo && steps.length > 0) {
@@ -298,6 +424,68 @@ export default function ClinicalWorkspace({
       setActiveStep(steps[currentIndex - 1].id);
     }
   };
+
+  // Atajos de teclado para navegación rápida
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Ignorar si está escribiendo en un input/textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      // Alt + → : Siguiente paso
+      if (e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
+        toast({ title: 'Siguiente paso', duration: 1000 });
+      }
+
+      // Alt + ← : Paso anterior
+      if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handleBack();
+        toast({ title: 'Paso anterior', duration: 1000 });
+      }
+
+      // Alt + S : Guardar borrador manualmente
+      if (e.altKey && e.key === 's') {
+        e.preventDefault();
+        saveDraftToLocalStorage();
+        toast({ title: 'Borrador guardado', description: 'Se guardó el progreso de la consulta.', duration: 2000 });
+      }
+
+      // Alt + A : Abrir/cerrar asistente IA
+      if (e.altKey && e.key === 'a') {
+        e.preventDefault();
+        setAIPanelOpen(prev => !prev);
+      }
+
+      // Alt + H : Ver historial
+      if (e.altKey && e.key === 'h') {
+        e.preventDefault();
+        setShowHistorialCompleto(true);
+      }
+
+      // Escape : Cerrar paneles abiertos
+      if (e.key === 'Escape') {
+        if (aiPanelOpen) setAIPanelOpen(false);
+        if (showHistorialCompleto) setShowHistorialCompleto(false);
+      }
+
+      // Alt + 1-7 : Ir a paso específico
+      if (e.altKey && e.key >= '1' && e.key <= '7') {
+        const stepIndex = parseInt(e.key) - 1;
+        if (stepIndex < steps.length) {
+          e.preventDefault();
+          setActiveStep(steps[stepIndex].id);
+          toast({ title: `Paso ${e.key}: ${steps[stepIndex].label}`, duration: 1000 });
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [steps, activeStep, aiPanelOpen, showHistorialCompleto]);
 
   const handleFinish = async () => {
     if (!stepsValid.motivo) {
@@ -359,8 +547,41 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
         soap: soapData, // Agregamos el objeto SOAP requerido por el backend
         citaId: cita.id,
         pacienteId: cita.pacienteId,
-        doctorId: user.id
+        doctorId: user.id,
+        requiereHospitalizacion
       });
+
+      // Si requiere hospitalización, preguntar si desea generar nota de ingreso
+      if (requiereHospitalizacion) {
+        const generarNota = confirm(
+          '¿Desea generar una nota de ingreso para hospitalización?\n\n' +
+          'Esto creará una admisión con los datos de esta consulta.'
+        );
+        if (generarNota) {
+          try {
+            const { apiPost } = await import('@/services/api');
+            await apiPost('/consultas/nota-ingreso', {
+              citaId: cita.id,
+              pacienteId: cita.pacienteId,
+              doctorId: user.id,
+              diagnostico: consultaData.diagnostico,
+              evolucion: soapData,
+              vitales: consultaData.vitales
+            });
+            toast({
+              title: 'Nota de ingreso generada',
+              description: 'Se ha creado la admisión hospitalaria exitosamente.'
+            });
+          } catch (admisionError) {
+            console.error('Error creando nota de ingreso:', admisionError);
+            toast({
+              variant: 'destructive',
+              title: 'Error',
+              description: 'No se pudo crear la nota de ingreso, pero la consulta se guardó correctamente.'
+            });
+          }
+        }
+      }
 
       // Limpiar borrador después de finalizar exitosamente
       clearDraft();
@@ -439,7 +660,15 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                 <span className="text-slate-400 text-sm">
                     {new Date().toLocaleDateString()} | {new Date().toLocaleTimeString()}
                 </span>
-                <Button 
+                <Button
+                    variant="outline"
+                    className="border-slate-500 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    onClick={() => setShowHistorialCompleto(true)}
+                >
+                    <History className="h-4 w-4 mr-2" />
+                    Ver Historial
+                </Button>
+                <Button
                     className="bg-green-600 hover:bg-green-700 text-white"
                     onClick={handleFinish}
                     disabled={loading || !stepsValid.motivo}
@@ -449,7 +678,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                 </Button>
             </div>
         </div>
-        <PatientContextBar paciente={cita.paciente} vitalesActuales={consultaData.vitales} />
+        <PatientContextBar paciente={cita.paciente} vitalesActuales={consultaData.vitales} cita={cita} />
 
         {/* Banner de Motivo de Consulta */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-4 py-3">
@@ -475,7 +704,73 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
         {/* 2. Sidebar Navigation (Stepper) */}
         <div className="w-64 bg-white border-r border-gray-200 flex flex-col overflow-y-auto">
           <div className="p-4">
-            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4">Etapas de Consulta</h3>
+            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Etapas de Consulta</h3>
+
+            {/* Indicador de progreso */}
+            <div className="mb-4">
+              <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                <span>Progreso</span>
+                <span className="font-medium">{progressData.currentStep}/{progressData.totalSteps}</span>
+              </div>
+              <Progress
+                value={progressData.percentage}
+                className="h-2 bg-gray-100"
+              />
+              <p className="text-xs text-gray-400 mt-1 text-right">{progressData.percentage}% completado</p>
+            </div>
+
+            {/* Indicador de estado de guardado */}
+            <div className={`mb-4 p-2 rounded-lg border transition-all duration-300 ${
+              saveStatus === 'saving' ? 'bg-blue-50 border-blue-200' :
+              saveStatus === 'saved' ? 'bg-green-50 border-green-200' :
+              saveStatus === 'error' ? 'bg-red-50 border-red-200' :
+              hasUnsavedChanges ? 'bg-amber-50 border-amber-200' :
+              'bg-gray-50 border-gray-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {saveStatus === 'saving' ? (
+                    <>
+                      <RefreshCw className="h-3 w-3 text-blue-500 animate-spin" />
+                      <span className="text-xs font-medium text-blue-600">Guardando...</span>
+                    </>
+                  ) : saveStatus === 'saved' ? (
+                    <>
+                      <CheckCircle className="h-3 w-3 text-green-500" />
+                      <span className="text-xs font-medium text-green-600">Guardado</span>
+                    </>
+                  ) : saveStatus === 'error' ? (
+                    <>
+                      <AlertTriangle className="h-3 w-3 text-red-500" />
+                      <span className="text-xs font-medium text-red-600">Error</span>
+                    </>
+                  ) : hasUnsavedChanges ? (
+                    <>
+                      <Save className="h-3 w-3 text-amber-500" />
+                      <span className="text-xs font-medium text-amber-600">Sin guardar</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-3 w-3 text-gray-400" />
+                      <span className="text-xs text-gray-500">Auto-guardado</span>
+                    </>
+                  )}
+                </div>
+                {lastSavedAt && saveStatus !== 'saving' && (
+                  <span className="text-[10px] text-gray-400">
+                    {lastSavedAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </div>
+              {hasUnsavedChanges && saveStatus === 'idle' && (
+                <button
+                  onClick={saveDraftToLocalStorage}
+                  className="mt-1 w-full text-[10px] text-amber-600 hover:text-amber-700 underline"
+                >
+                  Guardar ahora (Alt+S)
+                </button>
+              )}
+            </div>
 
             {/* Indicador de tipo de consulta */}
             {!cargandoTipo && tipoConsulta && (
@@ -509,31 +804,182 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
               {steps.map((step, index) => {
                 const Icon = step.icon;
                 const isActive = activeStep === step.id;
-                const isCompleted = index < steps.findIndex(s => s.id === activeStep);
-                
+                const currentIndex = steps.findIndex(s => s.id === activeStep);
+                const isCompleted = index < currentIndex;
+                const isPending = index > currentIndex;
+
                 return (
                   <button
                     key={step.id}
                     onClick={() => setActiveStep(step.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-colors ${
-                      isActive 
-                        ? 'bg-blue-50 text-blue-700 font-medium border-l-4 border-blue-600' 
-                        : 'text-gray-600 hover:bg-gray-50'
+                    className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all duration-200 ${
+                      isActive
+                        ? 'bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-700 font-medium border-l-4 border-blue-600 shadow-sm'
+                        : isCompleted
+                          ? 'bg-green-50/50 text-green-700 hover:bg-green-50 border-l-4 border-green-400'
+                          : 'text-gray-500 hover:bg-gray-50 border-l-4 border-transparent'
                     }`}
                   >
-                    <div className={`p-1.5 rounded-md ${isActive ? 'bg-blue-100' : 'bg-gray-100'}`}>
-                      <Icon className={`h-4 w-4 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+                    {/* Indicador numérico o checkmark */}
+                    <div className={`
+                      relative flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold
+                      ${isActive
+                        ? 'bg-blue-600 text-white'
+                        : isCompleted
+                          ? 'bg-green-500 text-white'
+                          : 'bg-gray-200 text-gray-500'
+                      }
+                    `}>
+                      {isCompleted ? (
+                        <CheckCircle className="h-4 w-4" />
+                      ) : (
+                        <span>{index + 1}</span>
+                      )}
                     </div>
-                    <span>{step.label}</span>
-                    {step.id === 'motivo' && !stepsValid.motivo && (
-                        <span className="ml-auto text-red-500">*</span>
-                    )}
+
+                    {/* Icono y Label */}
+                    <div className="flex items-center gap-2 flex-1">
+                      <Icon className={`h-4 w-4 ${
+                        isActive ? 'text-blue-600' : isCompleted ? 'text-green-600' : 'text-gray-400'
+                      }`} />
+                      <span className={isCompleted ? 'line-through opacity-70' : ''}>{step.label}</span>
+                    </div>
+
+                    {/* Indicadores de estado */}
+                    <div className="flex items-center gap-1">
+                      {step.id === 'motivo' && !stepsValid.motivo && (
+                        <span className="text-red-500 text-xs font-medium">Requerido</span>
+                      )}
+                      {isActive && (
+                        <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                      )}
+                    </div>
                   </button>
                 );
               })}
             </div>
+
+            {/* Atajos de teclado */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              <details className="group">
+                <summary className="flex items-center gap-2 text-xs text-gray-500 cursor-pointer hover:text-gray-700 transition-colors">
+                  <span className="text-[10px] px-1.5 py-0.5 bg-gray-100 rounded font-mono">Alt</span>
+                  <span>Atajos de teclado</span>
+                  <ChevronDown className="h-3 w-3 ml-auto group-open:rotate-180 transition-transform" />
+                </summary>
+                <div className="mt-2 space-y-1 text-[10px] text-gray-500 pl-2">
+                  <div className="flex items-center justify-between">
+                    <span>Siguiente paso</span>
+                    <kbd className="px-1 bg-gray-100 rounded font-mono">Alt + →</kbd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Paso anterior</span>
+                    <kbd className="px-1 bg-gray-100 rounded font-mono">Alt + ←</kbd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Guardar borrador</span>
+                    <kbd className="px-1 bg-gray-100 rounded font-mono">Alt + S</kbd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Asistente IA</span>
+                    <kbd className="px-1 bg-gray-100 rounded font-mono">Alt + A</kbd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Ver historial</span>
+                    <kbd className="px-1 bg-gray-100 rounded font-mono">Alt + H</kbd>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span>Ir a paso N</span>
+                    <kbd className="px-1 bg-gray-100 rounded font-mono">Alt + 1-7</kbd>
+                  </div>
+                </div>
+              </details>
+            </div>
+
+            {/* Panel de Consulta Anterior (solo para controles) */}
+            {tipoConsulta === 'control' && consultaCompletaPrevia && (
+              <div className="mt-6 border-t pt-4">
+                <button
+                  onClick={() => setShowPreviousPanel(!showPreviousPanel)}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <History className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-medium text-amber-700">Consulta Anterior</span>
+                  </div>
+                  {showPreviousPanel ? (
+                    <ChevronUp className="h-4 w-4 text-amber-600" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-amber-600" />
+                  )}
+                </button>
+
+                {showPreviousPanel && (
+                  <div className="mt-3 p-3 bg-amber-50/50 rounded-lg border border-amber-100 text-sm space-y-3 max-h-[300px] overflow-y-auto">
+                    <div className="flex justify-between items-center border-b border-amber-200 pb-2">
+                      <span className="text-xs text-gray-500">
+                        {new Date(consultaCompletaPrevia.fechaEvolucion).toLocaleDateString('es-CO', {
+                          year: 'numeric', month: 'long', day: 'numeric'
+                        })}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100"
+                        onClick={copiarDatosConsultaPrevia}
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copiar Dx
+                      </Button>
+                    </div>
+
+                    {consultaCompletaPrevia.doctor && (
+                      <p className="text-xs text-gray-600">
+                        <span className="font-medium">Doctor:</span> {consultaCompletaPrevia.doctor.nombre}
+                      </p>
+                    )}
+
+                    {consultaCompletaPrevia.diagnosticos?.length > 0 && (
+                      <div>
+                        <p className="font-medium text-amber-800 mb-1">Diagnósticos:</p>
+                        <div className="space-y-1">
+                          {consultaCompletaPrevia.diagnosticos.map((dx, i) => (
+                            <p key={i} className="text-xs bg-white/50 p-1.5 rounded">
+                              <span className="font-mono text-amber-700">{dx.codigoCIE11}</span>
+                              {' - '}{dx.descripcionCIE11}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {consultaCompletaPrevia.evolucion?.plan && (
+                      <div>
+                        <p className="font-medium text-amber-800 mb-1">Plan Anterior:</p>
+                        <p className="text-xs bg-white/50 p-2 rounded whitespace-pre-wrap line-clamp-4">
+                          {consultaCompletaPrevia.evolucion.plan}
+                        </p>
+                      </div>
+                    )}
+
+                    {consultaCompletaPrevia.prescripciones?.length > 0 && (
+                      <div>
+                        <p className="font-medium text-amber-800 mb-1">Medicamentos:</p>
+                        <ul className="space-y-1">
+                          {consultaCompletaPrevia.prescripciones.slice(0, 5).map((med, i) => (
+                            <li key={i} className="text-xs bg-white/50 p-1.5 rounded">
+                              {med.producto?.nombre || 'Medicamento'} - {med.dosis}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-          
+
         </div>
 
         {/* 3. Main Content Area */}
@@ -623,8 +1069,9 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
 
                 {activeStep === 'diagnostico' && (
                     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                        <FormularioDiagnosticoConsulta 
+                        <FormularioDiagnosticoConsulta
                             data={consultaData.diagnostico}
+                            pacienteId={cita.pacienteId}
                             onChange={(data, isValid) => {
                                 setConsultaData(prev => ({ ...prev, diagnostico: data }));
                                 setStepsValid(prev => ({ ...prev, diagnostico: isValid }));
@@ -640,6 +1087,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                             <FormularioPrescripcionesConsulta
                                 data={consultaData.prescripciones}
                                 diagnosticoConsulta={consultaData.diagnostico}
+                                pacienteId={cita.pacienteId}
                                 onChange={(data, isValid) => {
                                     setConsultaData(prev => ({ ...prev, prescripciones: data }));
                                     setStepsValid(prev => ({ ...prev, prescripciones: isValid }));
@@ -668,6 +1116,61 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                                     setConsultaData(prev => ({ ...prev, planManejo: data }));
                                 }}
                              />
+                        </div>
+
+                        <div className="border-t pt-8">
+                             <FormularioRecomendaciones
+                                data={consultaData.recomendaciones}
+                                onChange={(data, isValid) => {
+                                    setConsultaData(prev => ({ ...prev, recomendaciones: data }));
+                                    setStepsValid(prev => ({ ...prev, recomendaciones: isValid }));
+                                }}
+                             />
+                        </div>
+
+                        {/* Opción de Hospitalización */}
+                        <div className="border-t pt-8">
+                          <Card className={`border-2 transition-all ${requiereHospitalizacion ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}>
+                            <CardContent className="p-4">
+                              <div className="flex items-start gap-4">
+                                <div className={`p-2 rounded-lg ${requiereHospitalizacion ? 'bg-orange-500' : 'bg-gray-200'}`}>
+                                  <Building2 className={`h-5 w-5 ${requiereHospitalizacion ? 'text-white' : 'text-gray-600'}`} />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3">
+                                    <Checkbox
+                                      id="hospitalizacion"
+                                      checked={requiereHospitalizacion}
+                                      onCheckedChange={setRequiereHospitalizacion}
+                                    />
+                                    <Label
+                                      htmlFor="hospitalizacion"
+                                      className="text-base font-semibold cursor-pointer"
+                                    >
+                                      Este paciente requiere hospitalización
+                                    </Label>
+                                  </div>
+                                  <p className="text-sm text-gray-600 mt-2 ml-7">
+                                    Al finalizar la consulta, se generará automáticamente una nota de ingreso
+                                    con los datos de esta atención para iniciar el proceso de hospitalización.
+                                  </p>
+                                  {requiereHospitalizacion && (
+                                    <div className="mt-3 ml-7 p-3 bg-orange-100 border border-orange-300 rounded-lg">
+                                      <p className="text-sm text-orange-800 font-medium">
+                                        Se creará una admisión hospitalaria con:
+                                      </p>
+                                      <ul className="text-sm text-orange-700 mt-1 list-disc ml-4">
+                                        <li>Diagnóstico de ingreso</li>
+                                        <li>Evolución clínica inicial (SOAP)</li>
+                                        <li>Signos vitales de ingreso</li>
+                                        <li>Órdenes médicas pendientes</li>
+                                      </ul>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
                     </div>
                 )}
@@ -734,6 +1237,14 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
           }
         }}
       />
+
+      {/* 7. Visualizador de Historial Completo */}
+      {showHistorialCompleto && cita?.pacienteId && (
+        <VisualizadorHistorialConsulta
+          pacienteId={cita.pacienteId}
+          onClose={() => setShowHistorialCompleto(false)}
+        />
+      )}
     </div>
   );
 }
