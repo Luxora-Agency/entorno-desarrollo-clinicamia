@@ -1,0 +1,124 @@
+{
+  "departamentos": [
+    {
+      "id": "05",
+      "nombre": "Antioquia",
+      "municipios": ["Medellín", "Bello", "Itagüí", "Envigado", "Rionegro", "Sabaneta", "Apartadó", "Turbo", "Caucasia", "Marinilla"]
+    },
+    {
+      "id": "08",
+      "nombre": "Atlántico",
+      "municipios": ["Barranquilla", "Soledad", "Malambo", "Sabanalarga", "Puerto Colombia", "Galapa", "Baranoa", "Palmar de Varela", "Santo Tomás", "Juan de Acosta"]
+    },
+    {
+      "id": "11",
+      "nombre": "Bogotá D.C.",
+      "municipios": ["Bogotá D.C."]
+    },
+    {
+      "id": "13",
+      "nombre": "Bolívar",
+      "municipios": ["Cartagena", "Magangué", "Turbaco", "Arjona", "El Carmen de Bolívar", "San Juan Nepomuceno", "Mompós", "Simití", "Santa Rosa del Sur", "María la Baja"]
+    },
+    {
+      "id": "15",
+      "nombre": "Boyacá",
+      "municipios": ["Tunja", "Duitama", "Sogamoso", "Chiquinquirá", "Paipa", "Villa de Leyva", "Moniquirá", "Puerto Boyacá", "Ramiriquí", "Garagoa"]
+    },
+    {
+      "id": "17",
+      "nombre": "Caldas",
+      "municipios": ["Manizales", "Villamaría", "Chinchiná", "La Dorada", "Riosucio", "Anserma", "Palestina", "Neira", "Aguadas", "Salamina"]
+    },
+    {
+      "id": "18",
+      "nombre": "Caquetá",
+      "municipios": ["Florencia", "San Vicente del Caguán", "Puerto Rico", "El Doncello", "Belén de los Andaquíes", "Cartagena del Chairá", "La Montañita", "Albania", "Curillo", "El Paujil"]
+    },
+    {
+      "id": "19",
+      "nombre": "Cauca",
+      "municipios": ["Popayán", "Santander de Quilichao", "Puerto Tejada", "Patía", "Corinto", "Miranda", "Guapi", "Piendamó", "Timbío", "Cajibío"]
+    },
+    {
+      "id": "20",
+      "nombre": "Cesar",
+      "municipios": ["Valledupar", "Aguachica", "Bosconia", "La Paz", "Agustín Codazzi", "Chimichagua", "Curumaní", "Pailitas", "San Diego", "Pelaya"]
+    },
+    {
+      "id": "23",
+      "nombre": "Córdoba",
+      "municipios": ["Montería", "Cereté", "Lorica", "Sahagún", "Montelíbano", "Tierralta", "Planeta Rica", "Ayapel", "Ciénaga de Oro", "San Pelayo"]
+    },
+    {
+      "id": "25",
+      "nombre": "Cundinamarca",
+      "municipios": ["Soacha", "Fusagasugá", "Girardot", "Zipaquirá", "Facatativá", "Chía", "Mosquera", "Madrid", "Funza", "Cajicá"]
+    },
+    {
+      "id": "27",
+      "nombre": "Chocó",
+      "municipios": ["Quibdó", "Istmina", "Condoto", "Tadó", "El Carmen de Atrato", "Acandí", "Riosucio", "Nuquí", "Bahía Solano", "Lloró"]
+    },
+    {
+      "id": "41",
+      "nombre": "Huila",
+      "municipios": ["Neiva", "Pitalito", "Garzón", "La Plata", "Campoalegre", "San Agustín", "Gigante", "Hobo", "Palermo", "Algeciras"]
+    },
+    {
+      "id": "44",
+      "nombre": "La Guajira",
+      "municipios": ["Riohacha", "Maicao", "Uribia", "Manaure", "Albania", "Villanueva", "Fonseca", "San Juan del Cesar", "Barrancas", "Dibulla"]
+    },
+    {
+      "id": "47",
+      "nombre": "Magdalena",
+      "municipios": ["Santa Marta", "Ciénaga", "Fundación", "El Banco", "Plato", "Zona Bananera", "Aracataca", "Pivijay", "Sitionuevo", "Santa Ana"]
+    },
+    {
+      "id": "50",
+      "nombre": "Meta",
+      "municipios": ["Villavicencio", "Acacías", "Granada", "San Martín", "Puerto López", "Restrepo", "Guamal", "Cumaral", "Barranca de Upía", "Puerto Gaitán"]
+    },
+    {
+      "id": "52",
+      "nombre": "Nariño",
+      "municipios": ["Pasto", "Tumaco", "Ipiales", "Túquerres", "Samaniego", "La Unión", "Sandona", "Cumbal", "Barbacoas", "Ricaurte"]
+    },
+    {
+      "id": "54",
+      "nombre": "Norte de Santander",
+      "municipios": ["Cúcuta", "Ocaña", "Villa del Rosario", "Los Patios", "Pamplona", "Tibú", "El Zulia", "Chinácota", "San Cayetano", "Villa Caro"]
+    },
+    {
+      "id": "63",
+      "nombre": "Quindío",
+      "municipios": ["Armenia", "Calarcá", "La Tebaida", "Montenegro", "Quimbaya", "Circasia", "Filandia", "Salento", "Génova", "Pijao"]
+    },
+    {
+      "id": "66",
+      "nombre": "Risaralda",
+      "municipios": ["Pereira", "Dosquebradas", "La Virginia", "Santa Rosa de Cabal", "Marsella", "Belén de Umbría", "Quinchía", "Apía", "Santuario", "Guática"]
+    },
+    {
+      "id": "68",
+      "nombre": "Santander",
+      "municipios": ["Bucaramanga", "Floridablanca", "Girón", "Piedecuesta", "Barrancabermeja", "San Gil", "Socorro", "Málaga", "Barbosa", "Vélez"]
+    },
+    {
+      "id": "70",
+      "nombre": "Sucre",
+      "municipios": ["Sincelejo", "Corozal", "San Marcos", "Sampués", "Tolú", "San Onofre", "Sincé", "Majagual", "Ovejas", "Los Palmitos"]
+    },
+    {
+      "id": "73",
+      "nombre": "Tolima",
+      "municipios": ["Ibagué", "Espinal", "Melgar", "Honda", "Líbano", "Chaparral", "Mariquita", "Purificación", "Fresno", "Cajamarca"]
+    },
+    {
+      "id": "76",
+      "nombre": "Valle del Cauca",
+      "municipios": ["Cali", "Palmira", "Buenaventura", "Tuluá", "Cartago", "Buga", "Jamundí", "Yumbo", "Candelaria", "Florida"]
+    }
+  ]
+}

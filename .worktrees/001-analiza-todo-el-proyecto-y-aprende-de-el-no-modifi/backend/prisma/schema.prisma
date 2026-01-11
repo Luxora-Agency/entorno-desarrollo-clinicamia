@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Rol {
+  SUPER_ADMIN
+  ADMIN
+  DOCTOR
+  NURSE
+  RECEPTIONIST
+  PATIENT
+  PHARMACIST
+  LAB_TECHNICIAN
+}
+
+enum Genero {
+  Masculino
+  Femenino
+  Otro
+}
+
+enum EstadoCita {
+  Programada
+  Confirmada
+  EnConsulta
+  Completada
+  Cancelada
+  NoAsistio
+}
+
+enum Estado {
+  Activo
+  Inactivo
+}
+
+model Usuario {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String          @unique @db.VarChar(255)
+  password          String          @db.VarChar(255)
+  nombre            String          @db.VarChar(255)
+  apellido          String          @db.VarChar(255)
+  rol               String          @db.VarChar(50)
+  telefono          String?         @db.VarChar(20)
+  cedula            String?         @db.VarChar(50)
+  activo            Boolean         @default(true)
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @default(now()) @map("updated_at")
+  
+  // Relaciones
+  doctor            Doctor?
+  citasComoDoctor   Cita[]          @relation("CitasDoctor")
+  departamentosResponsable Departamento[] @relation("DepartamentoResponsable")
+
+  @@map("usuarios")
+}
+
+model Paciente {
+  id                             String    @id @default(uuid())
+  
+  // Datos Personales
+  nombre                         String
+  apellido                       String
+  tipoDocumento                  String?   @map("tipo_documento")
+  cedula                         String    @unique
+  fechaNacimiento                DateTime? @map("fecha_nacimiento") @db.Date
+  genero                         String?
+  
+  // Ubicación y Residencia
+  paisNacimiento                 String?   @map("pais_nacimiento")
+  departamento                   String?
+  municipio                      String?
+  barrio                         String?
+  direccion                      String?
+  
+  // Contacto
+  telefono                       String?
+  email                          String?
+  
+  // Contactos de Emergencia (JSON array)
+  contactosEmergencia            Json?     @map("contactos_emergencia")
+  
+  // Aseguramiento en Salud
+  eps                            String?
+  regimen                        String?
+  tipoAfiliacion                 String?   @map("tipo_afiliacion")
+  nivelSisben                    String?   @map("nivel_sisben")
+  numeroAutorizacion             String?   @map("numero_autorizacion")
+  fechaAfiliacion                DateTime? @map("fecha_afiliacion") @db.Date
+  
+  // Información Médica
+  tipoSangre                     String?   @map("tipo_sangre")
+  peso                           Float?
+  altura                         Float?
+  alergias                       String?
+  enfermedadesCronicas           String?   @map("enfermedades_cronicas")
+  medicamentosActuales           String?   @map("medicamentos_actuales")
+  antecedentesQuirurgicos        String?   @map("antecedentes_quirurgicos")
+  
+  // Mantener compatibilidad (deprecado)
+  contactoEmergenciaNombre       String?   @map("contacto_emergencia_nombre")
+  contactoEmergenciaTelefono     String?   @map("contacto_emergencia_telefono")
+  
+  // Estado
+  estado                         String    @default("Activo")
+  ultimaConsulta                 DateTime? @map("ultima_consulta") @db.Date
+  activo                         Boolean   @default(true)
+  createdAt                      DateTime  @default(now()) @map("created_at")
+  updatedAt                      DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  citas                          Cita[]
+
+  @@map("pacientes")
+}
+
+model Cita {
+  id              String       @id @default(uuid())
+  pacienteId      String       @map("paciente_id")
+  doctorId        String       @map("doctor_id") @db.Uuid
+  especialidadId  String?      @map("especialidad_id") @db.Uuid
+  fecha           DateTime     @db.Date
+  hora            DateTime     @db.Time
+  motivo          String
+  estado          EstadoCita   @default(Programada)
+  notas           String?
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+  
+  // Relaciones
+  paciente        Paciente     @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  doctor          Usuario      @relation("CitasDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  especialidad    Especialidad? @relation(fields: [especialidadId], references: [id])
+
+  @@map("citas")
+}
+
+model Departamento {
+  id                  String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombre              String          @unique @db.VarChar(255)
+  descripcion         String?
+  responsableId       String?         @map("responsable_id") @db.Uuid
+  estado              String          @default("Activo") @db.VarChar(20)
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @default(now()) @map("updated_at")
+  
+  // Relaciones
+  responsable         Usuario?        @relation("DepartamentoResponsable", fields: [responsableId], references: [id])
+  especialidades      Especialidad[]
+
+  @@map("departamentos")
+}
+
+model Especialidad {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titulo                String        @db.VarChar(255)
+  codigo                String?       @db.VarChar(50)
+  departamentoId        String        @map("departamento_id") @db.Uuid
+  costoCOP              Decimal       @map("costo_cop") @db.Decimal(10, 2)
+  duracionMinutos       Int           @map("duracion_minutos")
+  duracionExternaMin    Int?          @map("duracion_externa_min")
+  duracionInternaMin    Int?          @map("duracion_interna_min")
+  descripcion           String?
+  estado                String        @default("Activo") @db.VarChar(20)
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @default(now()) @map("updated_at")
+  
+  // Relaciones
+  departamento          Departamento  @relation(fields: [departamentoId], references: [id], onDelete: Cascade)
+  doctores              DoctorEspecialidad[]
+  citas                 Cita[]
+
+  @@map("especialidades")
+}
+model Doctor {
+  id                 String   @id @default(uuid()) @db.Uuid
+  usuarioId          String   @unique @map("usuario_id") @db.Uuid
+  licenciaMedica     String   @map("licencia_medica")
+  universidad        String?
+  aniosExperiencia   Int?     @map("anios_experiencia")
+  biografia          String?  @db.Text
+  horarios           Json?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  usuario            Usuario  @relation(fields: [usuarioId], references: [id])
+  especialidades     DoctorEspecialidad[]
+
+  @@map("doctores")
+}
+
+model DoctorEspecialidad {
+  id              String   @id @default(uuid()) @db.Uuid
+  doctorId        String   @map("doctor_id") @db.Uuid
+  especialidadId  String   @map("especialidad_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  doctor          Doctor       @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  especialidad    Especialidad @relation(fields: [especialidadId], references: [id])
+
+  @@unique([doctorId, especialidadId])
+  @@map("doctores_especialidades")
+}
+
+model CategoriaExamen {
+  id              String              @id @default(uuid()) @db.Uuid
+  nombre          String              @db.VarChar(255)
+  descripcion     String              @db.Text
+  colorHex        String              @map("color_hex") @db.VarChar(7)
+  estado          String              @default("Activo") @db.VarChar(50)
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  examenes        ExamenProcedimiento[]
+
+  @@map("categorias_examenes")
+}
+
+model ExamenProcedimiento {
+  id                  String            @id @default(uuid()) @db.Uuid
+  tipo                String            @db.VarChar(50) // 'Examen' o 'Procedimiento'
+  nombre              String            @db.VarChar(255)
+  descripcion         String?           @db.Text
+  categoriaId         String?           @map("categoria_id") @db.Uuid
+  duracionMinutos     Int               @map("duracion_minutos")
+  costoBase           Decimal           @map("costo_base") @db.Decimal(10, 2)
+  preparacionEspecial String?           @map("preparacion_especial") @db.Text
+  requiereAyuno       Boolean           @default(false) @map("requiere_ayuno")
+  estado              String            @default("Activo") @db.VarChar(50)
+  createdAt           DateTime          @default(now()) @map("created_at")
+  updatedAt           DateTime          @updatedAt @map("updated_at")
+
+  categoria           CategoriaExamen?  @relation(fields: [categoriaId], references: [id], onDelete: SetNull)
+
+  @@map("examenes_procedimientos")
+}
+
+// Modelos de Farmacia
+model CategoriaProducto {
+  id          String     @id @default(uuid())
+  nombre      String
+  descripcion String?
+  color       String?
+  activo      Boolean    @default(true)
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  productos   Producto[]
+
+  @@map("categorias_productos")
+}
+
+model EtiquetaProducto {
+  id          String     @id @default(uuid())
+  nombre      String
+  color       String?
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  
+  productos   ProductoEtiqueta[]
+
+  @@map("etiquetas_productos")
+}
+
+model Producto {
+  id                          String    @id @default(uuid())
+  
+  // Información Básica
+  nombre                      String
+  categoriaId                 String    @map("categoria_id")
+  sku                         String    @unique
+  laboratorio                 String?
+  descripcion                 String?
+  
+  // Información Farmacológica
+  principioActivo             String?   @map("principio_activo")
+  concentracion               String?
+  viaAdministracion           String?   @map("via_administracion")
+  presentacion                String?
+  registroSanitario           String?   @map("registro_sanitario")
+  temperaturaAlmacenamiento   String?   @map("temperatura_almacenamiento")
+  requiereReceta              Boolean   @default(false) @map("requiere_receta")
+  
+  // Inventario
+  cantidadTotal               Int       @map("cantidad_total")
+  cantidadConsumida           Int       @default(0) @map("cantidad_consumida")
+  cantidadMinAlerta           Int       @map("cantidad_min_alerta")
+  lote                        String?
+  fechaVencimiento            DateTime? @map("fecha_vencimiento")
+  
+  // Precios
+  precioVenta                 Float     @map("precio_venta")
+  precioCompra                Float?    @map("precio_compra")
+  
+  // Estado e Imagen
+  activo                      Boolean   @default(true)
+  imagenUrl                   String?   @map("imagen_url")
+  
+  createdAt                   DateTime  @default(now()) @map("created_at")
+  updatedAt                   DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  categoria                   CategoriaProducto @relation(fields: [categoriaId], references: [id])
+  etiquetas                   ProductoEtiqueta[]
+
+  @@map("productos")
+}
+
+model ProductoEtiqueta {
+  id          String            @id @default(uuid())
+  productoId  String            @map("producto_id")
+  etiquetaId  String            @map("etiqueta_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  
+  producto    Producto          @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  etiqueta    EtiquetaProducto  @relation(fields: [etiquetaId], references: [id], onDelete: Cascade)
+
+  @@unique([productoId, etiquetaId])
+  @@map("productos_etiquetas")
+}

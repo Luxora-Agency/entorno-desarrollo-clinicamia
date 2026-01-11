@@ -1,0 +1,8 @@
+[] Seleccionar departamento -> especialidad -> doctores
+[] Seleccionar las fechas disponibles del doctor
+[] 3er paso es pagar
+[] Enviar confirmacion al doctor y al paciente de que la cita se aparto.
+[] Flujo de autenticacion
+[] Citas medicas que ha programado
+[] Flujo de subscripcion
+[] Ecommerce de farmacia

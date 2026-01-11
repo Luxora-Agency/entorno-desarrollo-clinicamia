@@ -1,0 +1,852 @@
+// Appointment Form - Multistep Styles
+
+// Variables (using existing color system)
+$error-color: #dc3545;
+$success-color: #28a745;
+
+// Container
+.appointment-form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 5;
+}
+
+// Step Indicator
+.step-indicator {
+  margin-bottom: 40px;
+
+  .steps-list {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    position: relative;
+
+    @media (max-width: 767px) {
+      flex-direction: column;
+      gap: 20px;
+    }
+  }
+
+  .step-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+
+    @media (max-width: 767px) {
+      flex-direction: row;
+      width: 100%;
+      align-items: center;
+      justify-content: flex-start;
+    }
+  }
+
+  .step-button,
+  .step-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.3s ease;
+
+    @media (max-width: 767px) {
+      flex-direction: row;
+      text-align: left;
+      gap: 12px;
+    }
+  }
+
+  .step-button {
+    &:hover .step-number {
+      transform: scale(1.1);
+    }
+
+    &:focus {
+      outline: 2px solid $accent;
+      outline-offset: 4px;
+      border-radius: 8px;
+    }
+  }
+
+  .step-content {
+    cursor: default;
+  }
+
+  .step-number {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+    border: 2px solid $border;
+    background: $white;
+    color: $secondary;
+
+    @media (max-width: 767px) {
+      margin-bottom: 0;
+      width: 40px;
+      height: 40px;
+      font-size: 16px;
+    }
+  }
+
+  .step-label {
+    font-size: 14px;
+    color: $secondary;
+    font-weight: 500;
+
+    @media (max-width: 767px) {
+      font-size: 13px;
+    }
+  }
+
+  // Step states
+  .step-item.completed {
+    .step-number {
+      background: $accent;
+      border-color: $accent;
+      color: $white;
+    }
+
+    .step-label {
+      color: $accent;
+    }
+  }
+
+  .step-item.active {
+    .step-number {
+      background: $primary;
+      border-color: $primary;
+      color: $white;
+      animation: pulse 2s infinite;
+    }
+
+    .step-label {
+      color: $primary;
+      font-weight: 600;
+    }
+  }
+
+  .step-item.pending {
+    .step-number {
+      background: $gray;
+      border-color: $border;
+      color: $secondary;
+    }
+  }
+
+  // Connector line
+  .step-connector {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    width: 100%;
+    height: 2px;
+    background: $border;
+    z-index: -1;
+
+    @media (max-width: 767px) {
+      display: none;
+    }
+  }
+
+  .step-item.completed .step-connector {
+    background: $accent;
+  }
+
+  .progress-bar-sr-only {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba($primary, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba($primary, 0);
+  }
+}
+
+// Form Fields - Error States
+.cs_form_field.error,
+.cs_timepicker.error {
+  border-color: $error-color !important;
+  background-color: rgba($error-color, 0.05);
+
+  &:focus {
+    border-color: $error-color !important;
+    box-shadow: 0 0 0 3px rgba($error-color, 0.1);
+  }
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: $error-color;
+  font-size: 13px;
+  margin-top: 8px;
+  font-weight: 500;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+  }
+}
+
+.required {
+  color: $error-color;
+  margin-left: 3px;
+}
+
+// Step Navigation
+.step-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+
+  @media (max-width: 575px) {
+    flex-direction: column-reverse;
+
+    .cs_btn {
+      width: 100%;
+    }
+
+    .cs_text_btn {
+      justify-content: center;
+      width: 100%;
+    }
+  }
+
+  // Back button specific styling
+  .cs_text_btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: $accent;
+    font-weight: 500;
+    font-size: 15px;
+    padding: 10px 20px;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    background: transparent;
+    border: 1px solid transparent;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s ease;
+    }
+
+    &:hover {
+      color: $primary;
+      background: rgba($accent, 0.05);
+      border-color: rgba($accent, 0.2);
+
+      svg {
+        transform: translateX(-4px);
+      }
+    }
+
+    &:focus {
+      outline: 2px solid $accent;
+      outline-offset: 2px;
+    }
+
+    // Override the default underline behavior for back buttons in forms
+    &::before {
+      display: none;
+    }
+  }
+}
+
+// Department Cards
+.department-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 16px;
+
+  @media (max-width: 575px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+.department-card-wrap {
+  position: relative;
+
+  .cs_radio_input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+
+    &:checked + .department-card-label {
+      background: rgba($accent, 0.1);
+      border-color: $accent;
+      box-shadow: 0 4px 12px rgba($accent, 0.2);
+      transform: translateY(-2px);
+
+      .department-icon {
+        transform: scale(1.1);
+      }
+    }
+
+    &:focus + .department-card-label {
+      outline: 2px solid $accent;
+      outline-offset: 2px;
+    }
+  }
+
+  .department-card-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 12px;
+    border: 2px solid $border;
+    border-radius: 12px;
+    background: $white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 120px;
+
+    &:hover {
+      border-color: $accent;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba($accent, 0.1);
+    }
+
+    @media (max-width: 575px) {
+      padding: 16px 8px;
+      min-height: 100px;
+    }
+  }
+
+  .department-icon {
+    font-size: 40px;
+    margin-bottom: 8px;
+    transition: transform 0.3s ease;
+
+    @media (max-width: 575px) {
+      font-size: 32px;
+    }
+  }
+
+  .department-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: $primary;
+    text-align: center;
+
+    @media (max-width: 575px) {
+      font-size: 13px;
+    }
+  }
+}
+
+// Doctor Cards
+.doctor-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.doctor-card-wrap {
+  position: relative;
+
+  .cs_radio_input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+
+    &:checked + .doctor-card-label {
+      background: rgba($accent, 0.05);
+      border-color: $accent;
+      box-shadow: 0 2px 8px rgba($accent, 0.15);
+    }
+
+    &:focus + .doctor-card-label {
+      outline: 2px solid $accent;
+      outline-offset: 2px;
+    }
+  }
+
+  .doctor-card-label {
+    display: block;
+    padding: 16px;
+    border: 2px solid $border;
+    border-radius: 8px;
+    background: $white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      border-color: $accent;
+      box-shadow: 0 2px 8px rgba($accent, 0.1);
+    }
+  }
+
+  .doctor-info {
+    .doctor-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: $primary;
+      margin-bottom: 8px;
+    }
+
+    .doctor-rating {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 14px;
+      color: $secondary;
+      margin-bottom: 6px;
+
+      .star-icon {
+        color: #ffa500;
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    .doctor-availability {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      color: $secondary;
+
+      svg {
+        width: 14px;
+        height: 14px;
+        color: $accent;
+      }
+    }
+  }
+}
+
+// Loading States
+.select-skeleton {
+  .skeleton-input {
+    width: 100%;
+    height: 52px;
+    background: linear-gradient(
+      90deg,
+      $gray 25%,
+      lighten($gray, 3%) 50%,
+      $gray 75%
+    );
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 30px;
+  }
+
+  .loading-text {
+    display: block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: $secondary;
+    font-style: italic;
+  }
+}
+
+.select-disabled {
+  .select-placeholder {
+    width: 100%;
+    padding: 26px 30px;
+    border: 1px solid $border;
+    border-radius: 30px;
+    background: $gray;
+    color: $secondary;
+    font-size: 16px;
+    font-style: italic;
+
+    @media (max-width: 1700px) {
+      padding: 18px 25px;
+      font-size: 15px;
+    }
+  }
+}
+
+@keyframes loading {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+// Time Slots
+.time-slots-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.time-period {
+  .period-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    color: $primary;
+    margin-bottom: 12px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      color: $accent;
+    }
+  }
+
+  .time-slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 10px;
+
+    @media (max-width: 575px) {
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+  }
+
+  .time-slot {
+    padding: 12px 16px;
+    border: 2px solid $border;
+    border-radius: 8px;
+    background: $white;
+    font-size: 14px;
+    font-weight: 500;
+    color: $primary;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    &:hover:not(.disabled) {
+      border-color: $accent;
+      background: rgba($accent, 0.05);
+      transform: translateY(-2px);
+    }
+
+    &:focus {
+      outline: 2px solid $accent;
+      outline-offset: 2px;
+    }
+
+    &.selected {
+      background: $accent;
+      border-color: $accent;
+      color: $white;
+      font-weight: 600;
+
+      .check-icon {
+        width: 16px;
+        height: 16px;
+      }
+    }
+
+    &.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      background: $gray;
+      color: $secondary;
+      text-decoration: line-through;
+    }
+
+    @media (max-width: 575px) {
+      padding: 10px 8px;
+      font-size: 13px;
+    }
+  }
+}
+
+// Appointment Summary Box
+.appointment-summary-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: rgba($accent, 0.05);
+  border: 2px solid rgba($accent, 0.3);
+  border-radius: 12px;
+  margin-top: 20px;
+
+  .summary-icon {
+    width: 48px;
+    height: 48px;
+    color: $accent;
+    flex-shrink: 0;
+  }
+
+  .summary-content {
+    flex: 1;
+
+    .summary-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: $primary;
+      margin-bottom: 4px;
+    }
+
+    .summary-text {
+      font-size: 15px;
+      color: $secondary;
+      text-transform: capitalize;
+      margin: 0;
+    }
+  }
+}
+
+// Confirmation Summary
+.confirmation-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 30px;
+
+  .summary-section {
+    border: 2px solid $border;
+    border-radius: 12px;
+    overflow: hidden;
+    background: $white;
+
+    .summary-section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      background: $gray;
+      border-bottom: 1px solid $border;
+
+      .section-icon {
+        width: 24px;
+        height: 24px;
+        color: $accent;
+        flex-shrink: 0;
+      }
+
+      .section-title {
+        flex: 1;
+        font-size: 16px;
+        font-weight: 600;
+        color: $primary;
+        margin: 0;
+      }
+
+      .edit-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        background: none;
+        border: 1px solid $accent;
+        border-radius: 20px;
+        color: $accent;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: $accent;
+          color: $white;
+        }
+
+        &:focus {
+          outline: 2px solid $accent;
+          outline-offset: 2px;
+        }
+
+        svg {
+          width: 14px;
+          height: 14px;
+        }
+      }
+    }
+
+    .summary-section-content {
+      padding: 20px;
+
+      p {
+        margin: 0 0 10px 0;
+        font-size: 15px;
+        color: $secondary;
+        line-height: 1.6;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        strong {
+          color: $primary;
+          font-weight: 600;
+          margin-right: 8px;
+        }
+      }
+    }
+  }
+}
+
+// Payment Methods
+.payment-methods {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+
+  @media (max-width: 575px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.payment-method-wrap {
+  position: relative;
+
+  .cs_radio_input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+
+    &:checked + .payment-method-label {
+      background: rgba($accent, 0.1);
+      border-color: $accent;
+      color: $accent;
+
+      .payment-icon {
+        color: $accent;
+      }
+    }
+
+    &:focus + .payment-method-label {
+      outline: 2px solid $accent;
+      outline-offset: 2px;
+    }
+  }
+
+  .payment-method-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border: 2px solid $border;
+    border-radius: 8px;
+    background: $white;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 14px;
+    font-weight: 500;
+    color: $primary;
+
+    &:hover {
+      border-color: $accent;
+      box-shadow: 0 2px 8px rgba($accent, 0.1);
+    }
+
+    .payment-icon {
+      width: 24px;
+      height: 24px;
+      color: $secondary;
+      flex-shrink: 0;
+      transition: color 0.3s ease;
+    }
+  }
+}
+
+// Terms and Conditions
+.terms-checkboxes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+
+  .checkbox-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cs_checkbox {
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: $accent;
+  }
+
+  .checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: $secondary;
+    cursor: pointer;
+    user-select: none;
+
+    a {
+      color: $accent;
+      text-decoration: underline;
+      font-weight: 500;
+
+      &:hover {
+        color: darken($accent, 10%);
+      }
+    }
+
+    .required {
+      color: $error-color;
+    }
+  }
+}
+
+// Step Content
+.step-content {
+  .step-header {
+    margin-bottom: 20px;
+
+    h3 {
+      font-size: 28px;
+      font-weight: 700;
+      margin-bottom: 8px;
+
+      @media (max-width: 767px) {
+        font-size: 24px;
+      }
+    }
+
+    p {
+      font-size: 15px;
+      margin: 0;
+    }
+  }
+}

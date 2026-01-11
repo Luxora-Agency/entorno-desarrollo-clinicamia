@@ -1,0 +1,138 @@
+"use client"
+import React, { useState } from 'react';
+import Spacing from '../../Spacing';
+import TeamStyle2 from '../../Team/TeamStyle2';
+import { $api } from '@/utils/openapi-client';
+import { Icon } from '@iconify/react';
+
+export default function TeamSectionStyle2() {
+  const [view, setView] = useState('grid');
+  const [specialtiesID, setSpecialtiesID] = useState();
+
+  const { data, isLoading: loadingSpecialties } = $api.useQuery("get", "/specialties/public");
+  const { data: doctorData, isLoading: loadingDoctors } = $api.useQuery("get", "/doctors/public", {
+    params: {
+      query: {
+        specialtyId: specialtiesID,
+        limit: 100
+      }
+    }
+  });
+
+  const specialties = data?.data || [];
+  const doctors = doctorData?.data || [];
+
+  const handleFilter = (specialtyId) => {
+    if (!specialtyId) {
+      setSpecialtiesID(undefined);
+      return;
+    }
+    setSpecialtiesID(specialtyId);
+  };
+
+  // Construir URL completa de la foto
+  const getPhotoUrl = (foto) => {
+    if (!foto) return null;
+    if (foto.startsWith('http')) return foto;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    return `${apiUrl}${foto}`;
+  };
+
+  // Mapear doctores al formato esperado por TeamStyle2
+  const mappedDoctors = doctors.map(doctor => ({
+    id: doctor.id,
+    slug: doctor.id, // Usamos ID como slug para la URL
+    name: doctor.nombreCompleto,
+    designation: doctor.especialidades?.[0] || 'Médico Especialista',
+    biography: doctor.biografia || `${doctor.aniosExperiencia || 0} años de experiencia`,
+    avatar: getPhotoUrl(doctor.foto),
+    specialties: doctor.especialidades?.map(name => ({ name })) || [],
+    social: [
+      { icon: 'fa6-brands:linkedin-in', href: '#' },
+    ],
+  }));
+
+  return (
+    <div className="container">
+      <div className="cs_doctors_heading">
+        <div className="cs_isotop_filter cs_style1">
+          <p className="mb-0">Filtrar por</p>
+          <ul className="cs_mp0">
+            <li className={!specialtiesID ? 'active' : ''}>
+              <span onClick={() => handleFilter()}>Todos</span>
+            </li>
+            {specialties?.map(item => (
+              <li key={item.id} className={specialtiesID === item.id ? 'active' : ''}>
+                <span onClick={() => handleFilter(item.id)}>{item.titulo}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="cs_view_box">
+          <span>Mostrando {mappedDoctors.length} médicos</span>
+          <div className="cs_view_box_in">
+            <button
+              type="button"
+              className={`cs_grid_view ${view === 'grid' ? 'active' : ''}`}
+              onClick={() => setView('grid')}
+            >
+              <svg
+                width={25}
+                height={25}
+                viewBox="0 0 25 25"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M0 11.8571H11.8571V0H0V11.8571ZM1.5625 1.5625H10.2948V10.2948H1.5625V1.5625ZM13.1429 0V11.8571H25V0H13.1429ZM23.4375 10.2948H14.7052V1.5625H23.4375V10.2948ZM0 25H11.8571V13.1429H0V25ZM1.5625 14.7052H10.2948V23.4375H1.5625V14.7052ZM13.1429 25H25V13.1429H13.1429V25ZM14.7052 14.7052H23.4375V23.4375H14.7052V14.7052Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={`cs_list_view ${view === 'list' ? 'active' : ''}`}
+              onClick={() => setView('list')}
+            >
+              <svg
+                width={25}
+                height={25}
+                viewBox="0 0 25 25"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M0 11.8571H12.2396V0H0V11.8571ZM1.6129 1.5625H10.6267V10.2946H1.6129V1.5625ZM0 25H12.2396V13.1429H0V25ZM1.6129 14.7052H10.6267V23.4375H1.6129V14.7052ZM25 0.85022V2.41272H14.3731V0.85022H25ZM14.3731 9.44458H25V11.0071H14.3731V9.44458ZM14.3731 5.1475H25V6.71H14.3731V5.1475ZM14.3731 13.9929H25V15.5554H14.3731V13.9929ZM14.3731 22.5873H25V24.1498H14.3731V22.5873ZM14.3731 18.2902H25V19.8527H14.3731V18.2902Z"
+                  fill="currentColor"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <Spacing md="65" />
+
+      {/* Estado de carga */}
+      {(loadingSpecialties || loadingDoctors) ? (
+        <div className="text-center py-5">
+          <Icon icon="svg-spinners:ring-resize" style={{ fontSize: '48px', color: '#53B896' }} />
+          <p className="mt-3 text-muted">Cargando médicos...</p>
+        </div>
+      ) : (
+        <div className={`cs_team_grid cs_${view}_view_wrap`}>
+          {mappedDoctors.length > 0 ? (
+            mappedDoctors.map((item, index) => (
+              <TeamStyle2 {...item} key={item.id || index} />
+            ))
+          ) : (
+            <div className="text-center py-5 w-100">
+              <Icon icon="mdi:doctor" style={{ fontSize: '64px', color: '#ccc' }} />
+              <p className="mt-3 text-muted">No se encontraron médicos</p>
+            </div>
+          )}
+        </div>
+      )}
+      <Spacing md="90" />
+    </div>
+  );
+}

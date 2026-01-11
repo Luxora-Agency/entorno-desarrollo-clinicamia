@@ -1,0 +1,27 @@
+[
+  {
+    "id": "contributivo",
+    "nombre": "Contributivo",
+    "requiereSisben": false
+  },
+  {
+    "id": "subsidiado",
+    "nombre": "Subsidiado",
+    "requiereSisben": true
+  },
+  {
+    "id": "especial",
+    "nombre": "Especial",
+    "requiereSisben": false
+  },
+  {
+    "id": "excepcion",
+    "nombre": "Excepción",
+    "requiereSisben": false
+  },
+  {
+    "id": "no_afiliado",
+    "nombre": "No Afiliado",
+    "requiereSisben": false
+  }
+]

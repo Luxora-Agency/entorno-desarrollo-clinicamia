@@ -109,6 +109,3 @@ backend/public/temp/
 # Firebase
 firebase-debug.log
 .firebase/
-.worktrees/
-Front_Usuario_ClinicaMia/
-.trae/
