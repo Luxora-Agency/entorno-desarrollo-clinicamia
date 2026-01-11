@@ -1,0 +1,10 @@
+[Email] RESEND_API_KEY no configurada. Emails deshabilitados.
+[CorrectorOrtografia] Servicio habilitado con OpenAI
+[CRON] ========================================
+[CRON] Cron job de alertas de documentos legales inicializado
+[CRON] Horario: Diariamente a las 8:00 AM (America/Bogota)
+[CRON] Estado: HABILITADO
+[CRON] ========================================
+✓ Cron jobs inicializados
+🚀 Servidor Hono.js con Prisma iniciado en 0.0.0.0:4000
+[CRON] Job de limpieza de reservas iniciado (cada minuto)

@@ -1,0 +1,13 @@
+
+> prohelth-next@0.1.0 dev
+> next dev -p 3001
+
+  ▲ Next.js 14.2.33
+  - Local:        http://localhost:3001
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1160ms
+ ○ Compiling / ...
+ ✓ Compiled / in 839ms (1572 modules)
+ HEAD / 200 in 1017ms
