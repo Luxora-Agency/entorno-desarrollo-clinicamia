@@ -160,12 +160,13 @@ payments.post('/webhook', async c => {
     // Process webhook (validates signature internally)
     const result = await epaycoService.processWebhook(webhookData);
 
-    // Complete payment if approved
-    if (result.status === 'approved') {
-      await epaycoService.completePayment(result.citaId, result);
-      console.log('Payment completed for cita:', result.citaId);
+    // Complete payment - handles approved, rejected, and failed statuses
+    // Also sends email notifications based on status
+    if (result.status === 'approved' || result.status === 'rejected' || result.status === 'failed') {
+      const paymentResult = await epaycoService.completePayment(result.citaId, result);
+      console.log('Payment processed for cita:', result.citaId, '- Status:', result.status, '- Success:', paymentResult.success);
     } else {
-      console.log('Payment not approved:', result.status, 'for cita:', result.citaId);
+      console.log('Payment status pending for cita:', result.citaId, '- Status:', result.status);
     }
 
     // Always respond 200 to acknowledge receipt
@@ -191,9 +192,10 @@ payments.get('/webhook', async c => {
     // Process webhook
     const result = await epaycoService.processWebhook(webhookData);
 
-    // Complete payment if approved
-    if (result.status === 'approved') {
-      await epaycoService.completePayment(result.citaId, result);
+    // Complete payment - handles approved, rejected, and failed statuses
+    if (result.status === 'approved' || result.status === 'rejected' || result.status === 'failed') {
+      const paymentResult = await epaycoService.completePayment(result.citaId, result);
+      console.log('Payment processed (GET) for cita:', result.citaId, '- Status:', result.status, '- Success:', paymentResult.success);
     }
 
     return c.json({ status: 'ok', received: true });

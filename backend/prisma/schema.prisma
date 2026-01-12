@@ -1618,6 +1618,29 @@ model TicketSoporte {
   @@map("tickets_soporte")
 }
 
+// Documentos legales para pacientes (términos y condiciones, política de privacidad)
+model DocumentoLegalPaciente {
+  id          String   @id @default(uuid())
+  tipo        TipoDocumentoLegal @unique
+  titulo      String
+  contenido   String   @db.Text
+  version     String   @default("1.0")
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by")
+  updatedBy   String?  @map("updated_by")
+
+  @@map("documentos_legales_paciente")
+}
+
+enum TipoDocumentoLegal {
+  TERMINOS_CONDICIONES
+  POLITICA_PRIVACIDAD
+  CONSENTIMIENTO_INFORMADO
+  AUTORIZACION_DATOS
+}
+
 enum Rol {
   SUPER_ADMIN
   ADMIN

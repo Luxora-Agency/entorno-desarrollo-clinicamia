@@ -11,6 +11,7 @@ const { validate } = require('../middleware/validate');
 const { success, error } = require('../utils/response');
 const { createPublicAppointmentSchema } = require('../validators/publicAppointment.schema');
 const disponibilidadService = require('../services/disponibilidad.service');
+const emailService = require('../services/email.service');
 
 const publicRoutes = new Hono();
 
@@ -284,6 +285,25 @@ publicRoutes.post('/appointments', validate(createPublicAppointmentSchema), asyn
         paciente: true,
       },
     });
+
+    // 6. Send pending payment email notification
+    if (paciente.email) {
+      try {
+        const paymentUrl = `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/appointments/payment?citaId=${cita.id}`;
+        await emailService.sendAppointmentPendingPayment({
+          to: paciente.email,
+          paciente,
+          cita,
+          doctor: cita.doctor,
+          especialidad,
+          paymentUrl,
+        });
+        console.log('[Public] Email de pago pendiente enviado a:', paciente.email);
+      } catch (emailError) {
+        console.error('[Public] Error enviando email de pago pendiente:', emailError.message);
+        // Don't fail the request if email fails
+      }
+    }
 
     return c.json(
       success({

@@ -11,6 +11,7 @@ const prisma = require('../db/prisma');
 const { ValidationError, AppError } = require('../utils/errors');
 const crypto = require('crypto');
 const epaycoConfig = require('../config/epayco');
+const emailService = require('./email.service');
 
 class EpaycoService {
   constructor() {
@@ -396,15 +397,38 @@ class EpaycoService {
    * @param {Object} webhookResult - Result from processWebhook
    */
   async completePayment(citaId, webhookResult) {
-    const { status, refPayco, transactionId, amount } = webhookResult;
+    const { status, refPayco, transactionId, amount, responseReason } = webhookResult;
 
     if (status !== 'approved') {
-      // For rejected/failed, update cita status
+      // For rejected/failed, update cita status and send email
       if (status === 'rejected' || status === 'failed') {
-        await prisma.cita.update({
+        const cita = await prisma.cita.update({
           where: { id: citaId },
           data: { estado: 'Cancelada' },
+          include: {
+            paciente: true,
+            doctor: true,
+            especialidad: true,
+          },
         });
+
+        // Send payment failed email
+        if (cita.paciente?.email) {
+          try {
+            await emailService.sendAppointmentPaymentFailed({
+              to: cita.paciente.email,
+              paciente: cita.paciente,
+              cita,
+              doctor: cita.doctor,
+              especialidad: cita.especialidad,
+              errorMessage: responseReason || 'Transacción rechazada',
+              retryUrl: `${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/appointments`,
+            });
+            console.log('[ePayco] Email de pago fallido enviado a:', cita.paciente.email);
+          } catch (emailError) {
+            console.error('[ePayco] Error enviando email de pago fallido:', emailError.message);
+          }
+        }
       }
       return { success: false, status };
     }
@@ -415,7 +439,11 @@ class EpaycoService {
       const cita = await tx.cita.update({
         where: { id: citaId },
         data: { estado: 'Programada' },
-        include: { paciente: true, especialidad: true },
+        include: {
+          paciente: true,
+          doctor: true,
+          especialidad: true,
+        },
       });
 
       // 2. Generate unique invoice number (F-YYYY-00001)
@@ -468,6 +496,23 @@ class EpaycoService {
 
       return { cita, factura };
     });
+
+    // Send confirmation email (outside transaction)
+    if (result.cita.paciente?.email) {
+      try {
+        await emailService.sendAppointmentConfirmation({
+          to: result.cita.paciente.email,
+          paciente: result.cita.paciente,
+          cita: result.cita,
+          doctor: result.cita.doctor,
+          especialidad: result.cita.especialidad,
+          factura: result.factura,
+        });
+        console.log('[ePayco] Email de confirmación enviado a:', result.cita.paciente.email);
+      } catch (emailError) {
+        console.error('[ePayco] Error enviando email de confirmación:', emailError.message);
+      }
+    }
 
     return { success: true, status: 'approved', ...result };
   }

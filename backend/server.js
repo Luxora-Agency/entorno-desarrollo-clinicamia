@@ -118,6 +118,8 @@ const alertasNotificaciones = require('./routes/alertas-notificaciones');
 // Rutas públicas y pagos (ePayco)
 const publicRoutes = require('./routes/public');
 const payments = require('./routes/payments');
+// Documentos legales para pacientes (términos, privacidad)
+const documentosLegales = require('./routes/documentos-legales');
 // API v1 para frontend usuario (Front_Usuario_ClinicaMia)
 const apiV1 = require('./routes/api-v1');
 // Sistema de Reservas Temporales de Horarios
@@ -245,6 +247,7 @@ app.get('/health', async (c) => {
 // Rutas públicas (sin autenticación)
 app.route('/public', publicRoutes);
 app.route('/payments', payments);
+app.route('/documentos-legales', documentosLegales);
 
 // API v1 para frontend usuario (Front_Usuario_ClinicaMia)
 // Estas rutas siguen el esquema OpenAPI esperado por el frontend
