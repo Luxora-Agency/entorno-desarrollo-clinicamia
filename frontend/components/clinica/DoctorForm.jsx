@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, User, Briefcase, Calendar as CalendarIcon, X, Clock, Mail, Phone, GraduationCap, Award, FileText, Camera, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, User, Briefcase, Calendar as CalendarIcon, X, Clock, Mail, Phone, GraduationCap, Award, FileText, Camera, Trash2, Lock, Eye, EyeOff } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import DoctorScheduleManager from './DoctorScheduleManager';
 
@@ -25,6 +25,8 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
   const [selectedDates, setSelectedDates] = useState({});
   const [fotoPreview, setFotoPreview] = useState(null);
   const [fotoBase64, setFotoBase64] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [password, setPassword] = useState('');
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -203,6 +205,11 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
         especialidades_ids: selectedEspecialidades,
         horarios: selectedDates,
       };
+
+      // Incluir contraseña si es nuevo doctor
+      if (!editingDoctor && password) {
+        payload.password = password;
+      }
 
       // Incluir foto si se subió una nueva
       if (fotoBase64) {
@@ -579,6 +586,41 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
                         />
                       </div>
                     </div>
+
+                    {/* Contraseña - Solo al crear */}
+                    {!editingDoctor && (
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                          <Lock className="w-5 h-5 text-emerald-600" />
+                          Contraseña de Acceso
+                        </h3>
+                        <div className="space-y-2">
+                          <Label htmlFor="password" className="text-sm font-semibold text-gray-700">
+                            Contraseña *
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              id="password"
+                              type={showPassword ? 'text' : 'password'}
+                              value={password}
+                              onChange={(e) => setPassword(e.target.value)}
+                              className="h-11 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg pr-10"
+                              placeholder="Mínimo 6 caracteres"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                            >
+                              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            Esta contraseña permitirá al doctor acceder al panel médico. Si se deja vacío, se usará la cédula como contraseña temporal.
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Teléfono */}
                     <div>

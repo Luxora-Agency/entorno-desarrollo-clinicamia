@@ -163,6 +163,55 @@ app.get('/', requirePermission('users.view'), async (c) => {
 
 /**
  * @swagger
+ * /usuarios/no-pacientes:
+ *   get:
+ *     summary: Listar usuarios que no son pacientes
+ *     description: Obtiene la lista de todos los usuarios del sistema excluyendo pacientes (para selectores de responsables)
+ *     tags: [Usuarios]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de usuarios obtenida exitosamente
+ */
+app.get('/no-pacientes', async (c) => {
+  try {
+    const usuarios = await prisma.usuario.findMany({
+      where: {
+        rol: { not: 'PACIENTE' },
+        activo: true
+      },
+      select: {
+        id: true,
+        email: true,
+        nombre: true,
+        apellido: true,
+        rol: true,
+      },
+      orderBy: [
+        { nombre: 'asc' },
+        { apellido: 'asc' }
+      ]
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        usuarios
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener usuarios no-pacientes:', error);
+    return c.json({
+      success: false,
+      message: 'Error al obtener usuarios',
+      data: { usuarios: [] }
+    }, 500);
+  }
+});
+
+/**
+ * @swagger
  * /usuarios:
  *   post:
  *     summary: Crear nuevo usuario

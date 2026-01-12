@@ -21,7 +21,8 @@ class DoctorService {
       foto,
       especialidades_ids,
       horarios,
-      activo
+      activo,
+      password: customPassword // Contraseña personalizada (opcional)
     } = data;
 
     // Verificar si el email o cédula ya existen
@@ -50,7 +51,9 @@ class DoctorService {
       // Uso de transacción para asegurar consistencia
       const result = await prisma.$transaction(async (tx) => {
         // 1. Crear usuario con rol DOCTOR
-        const password = await bcrypt.hash(cedula, 10); // Password temporal = cédula
+        // Si se proporciona contraseña personalizada, usarla; sino, usar la cédula como temporal
+        const passwordToHash = customPassword && customPassword.length >= 6 ? customPassword : cedula;
+        const password = await bcrypt.hash(passwordToHash, 10);
 
         const usuario = await tx.usuario.create({
           data: {
