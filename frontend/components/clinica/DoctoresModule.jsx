@@ -163,8 +163,21 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
                       <TableRow key={doctor.id}>
                         <TableCell className="font-medium text-xs sm:text-sm">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center">
-                              <UserCog className="w-5 h-5 text-teal-600" />
+                            <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center overflow-hidden">
+                              {doctor.foto ? (
+                                <img
+                                  src={doctor.foto.startsWith('http') ? doctor.foto : `${process.env.NEXT_PUBLIC_API_URL}${doctor.foto}`}
+                                  alt={`Dr. ${doctor.nombre}`}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                    e.target.nextSibling.style.display = 'flex';
+                                  }}
+                                />
+                              ) : null}
+                              <div className={`w-full h-full flex items-center justify-center ${doctor.foto ? 'hidden' : ''}`}>
+                                <UserCog className="w-5 h-5 text-teal-600" />
+                              </div>
                             </div>
                             <div>
                               <div className="font-semibold">Dr. {doctor.nombre} {doctor.apellido}</div>

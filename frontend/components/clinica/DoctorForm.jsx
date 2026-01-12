@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,7 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
   const [fotoBase64, setFotoBase64] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
+  const fotoInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -103,6 +104,7 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
 
   const handleFotoChange = (e) => {
     const file = e.target.files?.[0];
+    console.log('[DEBUG Foto] Archivo seleccionado:', file?.name, file?.type, file?.size);
     if (!file) return;
 
     // Validar tipo de archivo
@@ -129,8 +131,12 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
     // Crear preview y convertir a base64
     const reader = new FileReader();
     reader.onloadend = () => {
+      console.log('[DEBUG Foto] Base64 generado, longitud:', reader.result?.length);
       setFotoPreview(reader.result);
       setFotoBase64(reader.result);
+    };
+    reader.onerror = () => {
+      console.error('[DEBUG Foto] Error al leer archivo:', reader.error);
     };
     reader.readAsDataURL(file);
   };
@@ -199,7 +205,13 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
+
+      console.log('[DEBUG Submit] Estado antes de enviar:', {
+        fotoBase64Length: fotoBase64?.length || 0,
+        fotoPreview: fotoPreview ? 'set' : 'null',
+        editingDoctor: editingDoctor ? 'yes' : 'no'
+      });
+
       const payload = {
         ...formData,
         especialidades_ids: selectedEspecialidades,
@@ -396,7 +408,7 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
                           </Label>
                           <div className="flex flex-col gap-2">
                             <input
-                              id="foto"
+                              ref={fotoInputRef}
                               type="file"
                               accept="image/jpeg,image/png,image/webp,image/gif"
                               onChange={handleFotoChange}
@@ -405,7 +417,7 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
                             <Button
                               type="button"
                               variant="outline"
-                              onClick={() => document.getElementById('foto').click()}
+                              onClick={() => fotoInputRef.current?.click()}
                               className="w-fit border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50"
                             >
                               <Camera className="w-4 h-4 mr-2" />
