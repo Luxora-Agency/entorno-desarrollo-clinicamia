@@ -46,24 +46,33 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
   // Obtener resumen de próximos 3 días de horarios
   const getResumenHorarios = (horarios) => {
     if (!horarios || Object.keys(horarios).length === 0) return 'Sin horarios';
-    
+
     const diasSemana = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     const hoy = new Date();
     const proximos3Dias = [];
-    
+
     for (let i = 0; i < 3; i++) {
       const fecha = new Date(hoy);
       fecha.setDate(hoy.getDate() + i);
       const fechaStr = fecha.toISOString().split('T')[0];
-      
+      const diaSemana = fecha.getDay().toString(); // "0" para Domingo, "1" para Lunes, etc.
+
+      // Buscar primero por fecha específica, luego por día de semana
+      let horariosDelDia = null;
       if (horarios[fechaStr] && Array.isArray(horarios[fechaStr]) && horarios[fechaStr].length > 0) {
-        const horariosDelDia = horarios[fechaStr];
+        horariosDelDia = horarios[fechaStr];
+      } else if (horarios[diaSemana] && Array.isArray(horarios[diaSemana]) && horarios[diaSemana].length > 0) {
+        horariosDelDia = horarios[diaSemana];
+      }
+
+      if (horariosDelDia) {
         const diaNombre = diasSemana[fecha.getDay()].substring(0, 3);
-        const horarioTexto = horariosDelDia.map(h => `${h.inicio}-${h.fin}`).join(', ');
-        proximos3Dias.push(`${diaNombre}: ${horarioTexto}`);
+        const horarioTexto = horariosDelDia.slice(0, 2).map(h => `${h.inicio}-${h.fin}`).join(', ');
+        const extra = horariosDelDia.length > 2 ? ` (+${horariosDelDia.length - 2})` : '';
+        proximos3Dias.push(`${diaNombre}: ${horarioTexto}${extra}`);
       }
     }
-    
+
     return proximos3Dias.length > 0 ? proximos3Dias.join(' | ') : 'Sin horarios próximos';
   };
 

@@ -264,15 +264,20 @@ class DoctorService {
       foto,
       especialidades_ids,
       horarios,
-      activo
+      activo,
+      password: newPassword // Nueva contraseña (opcional)
     } = data;
 
     try {
       // Procesar nueva foto si se proporciona
       let fotoUrl = undefined; // undefined significa no actualizar
+      console.log('[DEBUG Doctor] foto recibida:', foto ? `${foto.substring(0, 50)}... (${foto.length} chars)` : 'NULL');
+
       if (foto && foto.startsWith('data:')) {
         // Nueva foto en base64 - guardarla
+        console.log('[DEBUG Doctor] Guardando foto base64...');
         fotoUrl = await saveBase64Image(foto, 'doctors');
+        console.log('[DEBUG Doctor] Foto guardada en:', fotoUrl);
         // Eliminar foto anterior si existe
         if (doctorExiste.foto) {
           await deleteFile(doctorExiste.foto);
@@ -290,16 +295,24 @@ class DoctorService {
 
       await prisma.$transaction(async (tx) => {
         // 1. Actualizar usuario
+        const usuarioUpdateData = {
+          nombre,
+          apellido,
+          cedula,
+          email,
+          telefono,
+          activo,
+        };
+
+        // Actualizar contraseña si se proporciona
+        if (newPassword && newPassword.length >= 6) {
+          usuarioUpdateData.password = await bcrypt.hash(newPassword, 10);
+          console.log('[DEBUG Doctor] Contraseña actualizada');
+        }
+
         await tx.usuario.update({
           where: { id: doctorExiste.usuarioId },
-          data: {
-            nombre,
-            apellido,
-            cedula,
-            email,
-            telefono,
-            activo,
-          }
+          data: usuarioUpdateData
         });
 
         // 2. Actualizar doctor
