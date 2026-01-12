@@ -9,7 +9,8 @@ const Step2MedicalSelection = ({
   watch,
   setValue,
   onNext,
-  onBack
+  onBack,
+  initialDepartmentId
 }) => {
   const selectedDepartmentId = watch('departamento')
   const selectedSpecialtyId = watch('especialidad')
@@ -56,6 +57,18 @@ const Step2MedicalSelection = ({
   const amount =
     specialties.find((specialty) => specialty.id === selectedSpecialtyId)
       ?.consultationCost ?? null
+
+  // Pre-select department from URL parameter
+  useEffect(() => {
+    if (initialDepartmentId && departments.length > 0 && !selectedDepartmentId) {
+      // Check if the department exists in the list
+      const departmentExists = departments.find(d => d.id === initialDepartmentId)
+      if (departmentExists) {
+        setValue('departamento', initialDepartmentId)
+        setValue('departamentoNombre', departmentExists.nombre)
+      }
+    }
+  }, [initialDepartmentId, departments, selectedDepartmentId, setValue])
 
   // Save department name when selection changes
   useEffect(() => {

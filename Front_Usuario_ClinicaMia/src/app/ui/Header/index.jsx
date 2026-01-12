@@ -76,7 +76,7 @@ export default function Header({ logoSrc, variant }) {
                       </DropDown>
                     </li>
                     <li>
-                      <Link href="/pricing-plan">Mia Pass</Link>
+                      <a href="https://www.miapass.co" target="_blank" rel="noopener noreferrer">Mia Pass</a>
                     </li>
                   </ul>
                   <span

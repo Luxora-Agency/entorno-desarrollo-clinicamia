@@ -137,7 +137,7 @@ export default function DepartmentCarousel({ data }) {
       <Slider {...settings} className="cs_dept_carousel">
         {data.map((item, index) => (
           <div key={item.id || index} className="cs_dept_slide">
-            <Link href={`/departments/${item.id}`} className="cs_dept_card">
+            <Link href={`/appointments?departmentId=${item.id}`} className="cs_dept_card">
               <div
                 className="cs_dept_card_bg"
                 style={{ background: cardGradients[index % cardGradients.length] }}
@@ -158,8 +158,8 @@ export default function DepartmentCarousel({ data }) {
                   </p>
                 )}
                 <span className="cs_dept_link">
-                  Ver más
-                  <Icon icon="fa6-solid:arrow-right" className="cs_dept_link_icon" />
+                  Agendar Cita
+                  <Icon icon="fa6-solid:calendar-plus" className="cs_dept_link_icon" />
                 </span>
               </div>
               <div className="cs_dept_card_decoration">

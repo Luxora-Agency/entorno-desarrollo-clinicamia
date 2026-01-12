@@ -1,6 +1,7 @@
 'use client'
 import React, { useState, useEffect } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
+import { useSearchParams } from 'next/navigation'
 import StepIndicator from './components/StepIndicator'
 import Step1PersonalInfo from './components/Step1PersonalInfo'
 import Step2MedicalSelection from './components/Step2MedicalSelection'
@@ -104,6 +105,10 @@ const useAppointment = () => {
 export default function AppointmentForm() {
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 4
+
+  // Get URL search params for pre-selecting department
+  const searchParams = useSearchParams()
+  const urlDepartmentId = searchParams.get('departmentId')
 
   // Auth context for pre-filling user data
   const { user, isAuthenticated, authFetch } = useAuth()
@@ -425,6 +430,7 @@ export default function AppointmentForm() {
             setValue={setValue}
             onNext={handleNext}
             onBack={handleBack}
+            initialDepartmentId={urlDepartmentId}
           />
         )}
 

@@ -266,7 +266,40 @@ Backend has 84+ route/service pairs:
 - **MiaPass**: mia-pass, formulario-mia-pass (subscription/loyalty program)
 - **E-commerce**: ordenes-tienda (shop orders), payments (ePayco integration)
 - **Reports**: reportes, dashboard
+- **Siigo/Accounting**: siigo (config), compras (proveedores, ordenes-compra), contabilidad (asientos, centros-costo), bancos (cuentas, conciliacion, tributario), activos-fijos (depreciacion, mantenimientos), dashboard-financiero (KPIs)
 - **Other**: publicaciones (blog/posts), tickets (support), catalogos (CUPS/CIE-11), mcp (Model Context Protocol server for AI agents), ai-assistant
+
+## Siigo Integration (Facturación Electrónica DIAN)
+
+Integración con Siigo Nube para contabilidad y facturación electrónica colombiana.
+
+**Servicios Siigo** (`/backend/services/siigo/`):
+- `siigo.service.js` - SDK initialization, authentication
+- `invoice.siigo.service.js` - Electronic invoicing DIAN (CUFE)
+- `creditNote.siigo.service.js` - Electronic credit notes
+- `customer.siigo.service.js` - Patient/client sync
+- `product.siigo.service.js` - Pharmacy product sync
+- `journal.siigo.service.js` - Accounting entries
+- `tax.siigo.service.js` - Colombian withholdings (UVT 2026: $52,263)
+
+**Routes:**
+- `/siigo` - Configuration and credentials
+- `/compras` - Suppliers, purchase orders
+- `/contabilidad` - Accounting entries, chart of accounts
+- `/bancos` - Bank accounts, reconciliation, tax
+- `/activos-fijos` - Medical equipment, depreciation
+- `/dashboard-financiero` - Executive KPIs
+
+**Cron Jobs** (`/backend/cron/`):
+- `depreciacion.js` - Monthly depreciation (day 1, 2:00 AM)
+- `siigoSync.js` - Siigo sync with retries, DIAN verification
+
+**Environment Variables:**
+```
+SIIGO_USERNAME=email@empresa.com
+SIIGO_ACCESS_KEY=tu_access_key
+SIIGO_ENVIRONMENT=sandbox  # or production
+```
 
 ## Ports
 
