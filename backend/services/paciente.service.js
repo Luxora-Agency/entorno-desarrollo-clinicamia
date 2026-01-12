@@ -3,6 +3,7 @@
  */
 const prisma = require('../db/prisma');
 const { ValidationError, NotFoundError } = require('../utils/errors');
+const { saveBase64Image, deleteFile } = require('../utils/upload');
 
 // Siigo integration for customer synchronization
 let customerSiigoService = null;
@@ -326,7 +327,21 @@ class PacienteService {
       return null;
     }
 
-    return paciente;
+    // Extraer contacto de emergencia del JSON si existe
+    const contactoEmergencia = paciente.contactosEmergencia?.[0] || {};
+
+    // Agregar aliases para compatibilidad con frontend
+    return {
+      ...paciente,
+      documento: paciente.cedula,  // Alias para frontend
+      tipo_documento: paciente.tipoDocumento,
+      fecha_nacimiento: paciente.fechaNacimiento,
+      ciudad: paciente.municipio,
+      foto_url: paciente.fotoUrl,  // Alias para frontend
+      tipo_afiliacion: paciente.tipoAfiliacion,  // Alias para frontend
+      contacto_emergencia_nombre: contactoEmergencia.nombre || '',
+      contacto_emergencia_telefono: contactoEmergencia.telefono || '',
+    };
   }
 
   /**
@@ -356,6 +371,27 @@ class PacienteService {
       }
     }
 
+    // Procesar imagen si viene en base64
+    let fotoUrl = undefined;  // undefined para no incluir en update si no hay imagen
+    const imageData = data.foto_url || data.fotoUrl;
+    if (imageData) {
+      if (imageData.startsWith('data:image')) {
+        // Es una imagen base64, procesarla
+        try {
+          fotoUrl = await saveBase64Image(imageData, 'pacientes');
+          console.log('[Paciente] Imagen guardada:', fotoUrl);
+        } catch (imgError) {
+          console.warn('[Paciente] Error guardando imagen:', imgError.message);
+          // No guardar nada si falla el procesamiento
+          fotoUrl = undefined;
+        }
+      } else if (imageData.startsWith('/uploads/') || imageData.startsWith('http')) {
+        // Ya es una URL válida, mantenerla
+        fotoUrl = imageData;
+      }
+      // Si no es base64 ni URL válida, ignorar (fotoUrl queda undefined)
+    }
+
     // Mapear campos del frontend a campos del modelo
     const updateData = {
       tipoDocumento: data.tipo_documento || data.tipoDocumento,
@@ -368,6 +404,7 @@ class PacienteService {
       departamento: data.departamento,
       eps: data.eps,
       tipoAfiliacion: data.tipo_afiliacion,
+      fotoUrl: fotoUrl,  // Campo de imagen procesado (undefined si no hay)
       contactosEmergencia: data.contacto_emergencia_nombre ? [{
         nombre: data.contacto_emergencia_nombre,
         telefono: data.contacto_emergencia_telefono,
@@ -414,6 +451,37 @@ class PacienteService {
       }
     }
 
+    // Procesar imagen si viene en base64
+    const imageData = data.foto_url || data.fotoUrl;
+    let fotoUrl = undefined;
+    if (imageData !== undefined) {
+      if (imageData && imageData.startsWith('data:image')) {
+        // Es una imagen base64, procesarla
+        try {
+          // Si hay imagen anterior, intentar eliminarla
+          if (paciente.fotoUrl) {
+            await deleteFile(paciente.fotoUrl);
+          }
+          fotoUrl = await saveBase64Image(imageData, 'pacientes');
+          console.log('[Paciente] Imagen actualizada:', fotoUrl);
+        } catch (imgError) {
+          console.warn('[Paciente] Error guardando imagen:', imgError.message);
+          // No actualizar si falla
+          fotoUrl = undefined;
+        }
+      } else if (imageData && (imageData.startsWith('/uploads/') || imageData.startsWith('http'))) {
+        // Ya es una URL válida, mantenerla
+        fotoUrl = imageData;
+      } else if (imageData === '' || imageData === null) {
+        // Se quiere eliminar la imagen
+        if (paciente.fotoUrl) {
+          await deleteFile(paciente.fotoUrl);
+        }
+        fotoUrl = null;
+      }
+      // Si no es base64 ni URL válida ni eliminación, ignorar (fotoUrl queda undefined)
+    }
+
     // Mapear campos del frontend a campos del modelo
     const updateData = {};
 
@@ -429,6 +497,7 @@ class PacienteService {
     if (data.departamento !== undefined) updateData.departamento = data.departamento;
     if (data.eps !== undefined) updateData.eps = data.eps;
     if (data.tipo_afiliacion !== undefined) updateData.tipoAfiliacion = data.tipo_afiliacion;
+    if (fotoUrl !== undefined) updateData.fotoUrl = fotoUrl;
 
     if (data.contacto_emergencia_nombre || data.contacto_emergencia_telefono) {
       updateData.contactosEmergencia = [{

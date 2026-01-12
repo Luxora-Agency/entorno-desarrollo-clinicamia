@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@iconify/react'
 import Section from '@/app/ui/Section'
@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext'
 export default function CompletarPerfilPage() {
   const router = useRouter()
   const { user, isAuthenticated, loading: authLoading, authFetch } = useAuth()
+  const fileInputRef = useRef(null)
 
   const [formData, setFormData] = useState({
     tipo_documento: 'CC',
@@ -23,7 +24,9 @@ export default function CompletarPerfilPage() {
     tipo_afiliacion: '',
     contacto_emergencia_nombre: '',
     contacto_emergencia_telefono: '',
+    foto_url: '',
   })
+  const [imagePreview, setImagePreview] = useState(null)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [apiError, setApiError] = useState('')
@@ -42,6 +45,40 @@ export default function CompletarPerfilPage() {
       setErrors((prev) => ({ ...prev, [name]: '' }))
     }
     if (apiError) setApiError('')
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validar tipo
+    if (!file.type.startsWith('image/')) {
+      setApiError('Por favor seleccione un archivo de imagen válido')
+      return
+    }
+
+    // Validar tamaño (5MB máximo)
+    if (file.size > 5 * 1024 * 1024) {
+      setApiError('La imagen no debe superar los 5MB')
+      return
+    }
+
+    // Convertir a base64
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target.result
+      setImagePreview(base64)
+      setFormData((prev) => ({ ...prev, foto_url: base64 }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setImagePreview(null)
+    setFormData((prev) => ({ ...prev, foto_url: '' }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const validateStep1 = () => {
@@ -178,6 +215,41 @@ export default function CompletarPerfilPage() {
             {/* Step 1: Personal Data */}
             {step === 1 && (
               <div className="form_step">
+                {/* Profile Image Upload */}
+                <div className="profile_image_upload">
+                  <div className="image_preview_container">
+                    {imagePreview ? (
+                      <div className="image_preview">
+                        <img src={imagePreview} alt="Vista previa" />
+                        <button
+                          type="button"
+                          className="remove_image_btn"
+                          onClick={handleRemoveImage}
+                          title="Eliminar imagen"
+                        >
+                          <Icon icon="fa6-solid:xmark" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        className="image_placeholder"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        <Icon icon="fa6-solid:user" />
+                        <span>Agregar foto</span>
+                      </div>
+                    )}
+                  </div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={handleImageChange}
+                    style={{ display: 'none' }}
+                  />
+                  <p className="image_hint">Opcional - JPG, PNG o WebP (máx. 5MB)</p>
+                </div>
+
                 <div className="form_row">
                   <div className="form_group form_group_small">
                     <label htmlFor="tipo_documento">Tipo Doc.</label>

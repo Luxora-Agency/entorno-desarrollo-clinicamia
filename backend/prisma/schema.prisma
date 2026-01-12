@@ -244,6 +244,7 @@ model Paciente {
   enfermedadesCronicas         String?                     @map("enfermedades_cronicas")
   medicamentosActuales         String?                     @map("medicamentos_actuales")
   antecedentesQuirurgicos      String?                     @map("antecedentes_quirurgicos")
+  fotoUrl                      String?                     @map("foto_url") @db.VarChar(500)
   estado                       String                      @default("Activo")
   ultimaConsulta               DateTime?                   @map("ultima_consulta") @db.Date
   activo                       Boolean                     @default(true)

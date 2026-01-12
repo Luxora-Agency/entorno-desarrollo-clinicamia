@@ -1,12 +1,15 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { useAuth } from '@/contexts/AuthContext'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+
 export default function EditarPerfilPage() {
   const { user, authFetch } = useAuth()
+  const fileInputRef = useRef(null)
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -23,7 +26,9 @@ export default function EditarPerfilPage() {
     tipo_afiliacion: '',
     contacto_emergencia_nombre: '',
     contacto_emergencia_telefono: '',
+    foto_url: '',
   })
+  const [imagePreview, setImagePreview] = useState(null)
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
   const [loadingData, setLoadingData] = useState(true)
@@ -53,7 +58,16 @@ export default function EditarPerfilPage() {
               tipo_afiliacion: patient.tipo_afiliacion || '',
               contacto_emergencia_nombre: patient.contacto_emergencia_nombre || '',
               contacto_emergencia_telefono: patient.contacto_emergencia_telefono || '',
+              foto_url: patient.foto_url || '',
             })
+            // Set image preview if exists
+            if (patient.foto_url) {
+              // Build full URL if it's a relative path
+              const imgUrl = patient.foto_url.startsWith('http')
+                ? patient.foto_url
+                : `${API_URL}${patient.foto_url}`
+              setImagePreview(imgUrl)
+            }
           }
         }
       } catch (error) {
@@ -74,6 +88,40 @@ export default function EditarPerfilPage() {
     }
     if (apiError) setApiError('')
     if (successMessage) setSuccessMessage('')
+  }
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validar tipo
+    if (!file.type.startsWith('image/')) {
+      setApiError('Por favor seleccione un archivo de imagen válido')
+      return
+    }
+
+    // Validar tamaño (5MB máximo)
+    if (file.size > 5 * 1024 * 1024) {
+      setApiError('La imagen no debe superar los 5MB')
+      return
+    }
+
+    // Convertir a base64
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target.result
+      setImagePreview(base64)
+      setFormData((prev) => ({ ...prev, foto_url: base64 }))
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleRemoveImage = () => {
+    setImagePreview(null)
+    setFormData((prev) => ({ ...prev, foto_url: '' }))
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const validate = () => {
@@ -160,8 +208,62 @@ export default function EditarPerfilPage() {
                 )}
 
                 <form className="profile_edit_form" onSubmit={handleSubmit}>
+                  {/* Profile Image Section */}
                   <div className="form_section">
-                    <h3 className="form_section_title">Datos Personales</h3>
+                    <h3 className="form_section_title">
+                      <Icon icon="fa6-solid:camera" />
+                      Foto de Perfil
+                    </h3>
+                    <div className="profile_image_upload profile_image_inline">
+                      <div className="image_preview_container">
+                        {imagePreview ? (
+                          <div className="image_preview">
+                            <img src={imagePreview} alt="Foto de perfil" />
+                            <button
+                              type="button"
+                              className="remove_image_btn"
+                              onClick={handleRemoveImage}
+                              title="Eliminar imagen"
+                            >
+                              <Icon icon="fa6-solid:xmark" />
+                            </button>
+                          </div>
+                        ) : (
+                          <div
+                            className="image_placeholder"
+                            onClick={() => fileInputRef.current?.click()}
+                          >
+                            <Icon icon="fa6-solid:user" />
+                            <span>Agregar foto</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="image_upload_info">
+                        <button
+                          type="button"
+                          className="btn_upload_image"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <Icon icon="fa6-solid:upload" />
+                          {imagePreview ? 'Cambiar foto' : 'Subir foto'}
+                        </button>
+                        <p className="image_hint">Opcional - JPG, PNG o WebP (máx. 5MB)</p>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handleImageChange}
+                        style={{ display: 'none' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form_section">
+                    <h3 className="form_section_title">
+                      <Icon icon="fa6-solid:user" />
+                      Datos Personales
+                    </h3>
 
                     <div className="form_row">
                       <div className="form_group">
@@ -264,7 +366,10 @@ export default function EditarPerfilPage() {
                   </div>
 
                   <div className="form_section">
-                    <h3 className="form_section_title">Ubicación</h3>
+                    <h3 className="form_section_title">
+                      <Icon icon="fa6-solid:location-dot" />
+                      Ubicación
+                    </h3>
 
                     <div className="form_group">
                       <label htmlFor="direccion">Dirección</label>
@@ -312,7 +417,10 @@ export default function EditarPerfilPage() {
                   </div>
 
                   <div className="form_section">
-                    <h3 className="form_section_title">Información de Salud</h3>
+                    <h3 className="form_section_title">
+                      <Icon icon="fa6-solid:heart-pulse" />
+                      Información de Salud
+                    </h3>
 
                     <div className="form_row">
                       <div className="form_group">
@@ -355,7 +463,10 @@ export default function EditarPerfilPage() {
                   </div>
 
                   <div className="form_section">
-                    <h3 className="form_section_title">Contacto de Emergencia</h3>
+                    <h3 className="form_section_title">
+                      <Icon icon="fa6-solid:phone" />
+                      Contacto de Emergencia
+                    </h3>
 
                     <div className="form_row">
                       <div className="form_group">
@@ -382,19 +493,20 @@ export default function EditarPerfilPage() {
                     </div>
                   </div>
 
-                  <div className="form_actions">
-                    <Link href="/perfil" className="auth_secondary_btn">
-                      Cancelar
+                  <div className="form_actions_container">
+                    <Link href="/perfil" className="btn_cancel">
+                      <Icon icon="fa6-solid:arrow-left" />
+                      Volver al Perfil
                     </Link>
-                    <button type="submit" className="auth_submit_btn" disabled={loading}>
+                    <button type="submit" className="btn_save" disabled={loading}>
                       {loading ? (
                         <>
-                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                          Guardando...
+                          <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                          Guardando cambios...
                         </>
                       ) : (
                         <>
-                          <Icon icon="fa6-solid:floppy-disk" />
+                          <Icon icon="fa6-solid:check" />
                           Guardar Cambios
                         </>
                       )}
