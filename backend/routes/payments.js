@@ -121,6 +121,7 @@ payments.post('/sessions', validate(createPaymentSessionSchema), async c => {
     return c.json(
       success({
         sessionId: session.sessionId,
+        token: session.token,
         publicKey: session.publicKey,
         amount: parseFloat(cita.costo),
         currency: 'COP',
@@ -203,6 +204,91 @@ payments.get('/webhook', async c => {
     console.error('Webhook processing error (GET):', err);
     return c.json({ status: 'error', message: err.message });
   }
+});
+
+/**
+ * GET /payments/result
+ * Payment result redirect endpoint
+ *
+ * ePayco redirects here after payment, then we redirect to the patient's local frontend.
+ * This is necessary because ePayco requires valid HTTPS URLs, but the patient frontend
+ * runs on localhost during development.
+ *
+ * Uses JavaScript redirect instead of HTTP 302 to bypass ngrok blocking localhost redirects.
+ *
+ * Query params from ePayco:
+ * - ref_payco: ePayco reference
+ * - citaId: appointment ID (from our extra1)
+ */
+payments.get('/result', async c => {
+  const query = c.req.query();
+
+  // Redirect to local frontend with all query params
+  const frontendUrl = epaycoConfig.urls.frontendUrl || 'http://localhost:3000';
+  const queryString = new URLSearchParams(query).toString();
+  const redirectUrl = `${frontendUrl}/cita/resultado?${queryString}`;
+
+  console.log('[ePayco] Redirecting payment result to:', redirectUrl);
+
+  // Use HTML page with JavaScript redirect to bypass ngrok blocking localhost redirects
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Procesando pago...</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    h2 { margin-bottom: 0.5rem; }
+    p { opacity: 0.9; }
+    a { color: white; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner"></div>
+    <h2>Procesando resultado del pago</h2>
+    <p>Serás redirigido automáticamente...</p>
+    <p style="margin-top: 2rem; font-size: 0.9rem;">
+      Si no eres redirigido, <a href="${redirectUrl}">haz clic aquí</a>
+    </p>
+  </div>
+  <script>
+    // Redirect after a brief delay to show the loading state
+    setTimeout(function() {
+      window.location.href = "${redirectUrl}";
+    }, 500);
+  </script>
+</body>
+</html>
+  `;
+
+  return c.html(html);
 });
 
 /**

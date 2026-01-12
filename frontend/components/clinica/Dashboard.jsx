@@ -62,6 +62,7 @@ import ActivosFijosModule from './contabilidad/ActivosFijosModule';
 import BancosModule from './contabilidad/BancosModule';
 import ComprasModule from './compras/ComprasModule';
 import SiigoConfigModule from './admin/SiigoConfigModule';
+import SolicitudesHCModule from './admin/SolicitudesHCModule';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
@@ -252,6 +253,9 @@ export default function Dashboard({ user, onLogout }) {
       // Configuración Siigo
       case 'siigo-config':
         return <SiigoConfigModule user={user} />;
+      // Solicitudes de Historia Clínica
+      case 'solicitudes-hc':
+        return <SolicitudesHCModule user={user} />;
       // Publicaciones
       case 'publicaciones':
       case 'categorias-publicaciones':

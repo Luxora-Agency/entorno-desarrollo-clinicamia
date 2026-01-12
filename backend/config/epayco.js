@@ -27,19 +27,25 @@ const epaycoConfig = {
   },
 
   // URLs de respuesta
+  // Response URL uses backend redirect endpoint (for ngrok/dev) or frontend directly (production)
   get responseUrl() {
+    // In development with ngrok, use backend redirect endpoint
+    if (this.urls.backendUrl && !this.urls.backendUrl.includes('localhost')) {
+      return `${this.urls.backendUrl}/payments/result`;
+    }
+    // In production or without ngrok, use frontend directly
     return `${this.urls.frontendUrl}/cita/resultado`;
   },
   get confirmationUrl() {
-    return `${this.urls.backendUrl}/api/v1/payments/webhooks/epayco`;
+    return `${this.urls.backendUrl}/payments/webhook`;
   },
 
   // Checkout configuration
   checkout: {
     version: '2',
     currency: 'COP',
-    country: 'CO',
-    lang: 'es',
+    country: 'co',  // lowercase as per ePayco docs
+    lang: 'ES',     // uppercase as per ePayco docs
   },
 
   // Validate required configuration

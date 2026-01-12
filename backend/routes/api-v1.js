@@ -332,6 +332,8 @@ apiV1.get('/doctors/public/:id', async c => {
  *
  * Query params:
  * - fecha: Date in YYYY-MM-DD format (required)
+ *
+ * The :id can be either Doctor.id or Usuario.id (for compatibility with citas)
  */
 apiV1.get('/doctors/:id/availability', async c => {
   try {
@@ -342,17 +344,25 @@ apiV1.get('/doctors/:id/availability', async c => {
       return c.json(error('El parámetro fecha es requerido'), 400);
     }
 
-    // Get doctor's usuario ID
-    const doctor = await prisma.doctor.findUnique({
+    // Try to find doctor by Doctor.id first, then by Usuario.id
+    let doctor = await prisma.doctor.findUnique({
       where: { id: doctorId },
       select: { usuarioId: true },
     });
+
+    // If not found by Doctor.id, try finding by Usuario.id
+    if (!doctor) {
+      doctor = await prisma.doctor.findFirst({
+        where: { usuarioId: doctorId },
+        select: { usuarioId: true },
+      });
+    }
 
     if (!doctor) {
       return c.json(error('Doctor no encontrado'), 404);
     }
 
-    // Get availability using existing service
+    // Get availability using existing service (always uses Usuario.id)
     const availability = await disponibilidadService.getDisponibilidad(doctor.usuarioId, fecha);
 
     return c.json(success(availability));

@@ -212,13 +212,33 @@ export default function HistoriaMedicaPage() {
 
                         <div className="solicitud_actions">
                           {solicitud.estado === 'Lista' && (
-                            <button
-                              className="btn_download"
-                              onClick={() => handleDownload(solicitud.id)}
-                            >
-                              <Icon icon="fa6-solid:download" />
-                              Descargar
-                            </button>
+                            <>
+                              {solicitud.archivoUrl ? (
+                                <a
+                                  href={solicitud.archivoUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="btn_download"
+                                >
+                                  <Icon icon="fa6-solid:download" />
+                                  Descargar
+                                </a>
+                              ) : (
+                                <button
+                                  className="btn_download"
+                                  onClick={() => handleDownload(solicitud.id)}
+                                >
+                                  <Icon icon="fa6-solid:download" />
+                                  Descargar
+                                </button>
+                              )}
+                            </>
+                          )}
+                          {solicitud.notas && (
+                            <p className="solicitud_notas">
+                              <Icon icon="fa6-solid:note-sticky" />
+                              {solicitud.notas}
+                            </p>
                           )}
                         </div>
                       </div>

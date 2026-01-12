@@ -876,6 +876,484 @@ Agenda una nueva cita: ${retryUrl || process.env.NEXT_PUBLIC_BASE_URL + '/appoin
       text
     });
   }
+
+  /**
+   * Enviar email de confirmación de solicitud de historia clínica
+   */
+  async sendMedicalRecordRequestConfirmation({ to, paciente, solicitud }) {
+    console.log('[Email] Enviando confirmación de solicitud HC a:', to);
+
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de solicitud HC no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const tipoLabel = solicitud.tipo === 'completa' ? 'Completa' : 'Parcial';
+
+    const text = `
+Hola ${paciente.nombre},
+
+Tu solicitud de Historia Clínica ${tipoLabel} ha sido recibida exitosamente.
+
+Detalles de la solicitud:
+- Tipo: Historia Clínica ${tipoLabel}
+${solicitud.periodo ? `- Período: ${solicitud.periodo}` : ''}
+${solicitud.motivo ? `- Motivo: ${solicitud.motivo}` : ''}
+- Fecha de solicitud: ${new Date().toLocaleDateString('es-CO')}
+
+Tiempo de procesamiento: 3 a 5 días hábiles
+
+Te notificaremos por correo electrónico cuando tu historia clínica esté lista para descargar.
+
+Atentamente,
+Clínica Mía
+    `;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #144F79 0%, #1a6091 100%); padding: 30px; text-align: center;">
+      <div style="font-size: 48px; margin-bottom: 10px;">📋</div>
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
+        Solicitud Recibida
+      </h1>
+      <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 14px;">
+        Historia Clínica ${tipoLabel}
+      </p>
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 30px;">
+      <p style="color: #333; font-size: 16px; margin-bottom: 20px;">
+        Hola <strong>${paciente.nombre}</strong>,
+      </p>
+
+      <p style="color: #555; font-size: 15px; line-height: 1.6;">
+        Hemos recibido tu solicitud de copia de historia clínica. Nuestro equipo la procesará en los próximos días.
+      </p>
+
+      <!-- Request Details -->
+      <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; margin: 25px 0; border-left: 4px solid #144F79;">
+        <h3 style="color: #144F79; margin: 0 0 15px; font-size: 16px;">
+          📄 Detalles de la Solicitud
+        </h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #666; font-size: 14px;">Tipo:</td>
+            <td style="padding: 8px 0; color: #333; font-size: 14px; font-weight: 600;">Historia Clínica ${tipoLabel}</td>
+          </tr>
+          ${solicitud.periodo ? `
+          <tr>
+            <td style="padding: 8px 0; color: #666; font-size: 14px;">Período:</td>
+            <td style="padding: 8px 0; color: #333; font-size: 14px;">${solicitud.periodo}</td>
+          </tr>
+          ` : ''}
+          ${solicitud.motivo ? `
+          <tr>
+            <td style="padding: 8px 0; color: #666; font-size: 14px;">Motivo:</td>
+            <td style="padding: 8px 0; color: #333; font-size: 14px;">${solicitud.motivo}</td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td style="padding: 8px 0; color: #666; font-size: 14px;">Fecha de solicitud:</td>
+            <td style="padding: 8px 0; color: #333; font-size: 14px;">${new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</td>
+          </tr>
+        </table>
+      </div>
+
+      <!-- Processing Time -->
+      <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0;">
+        <p style="color: #92400e; margin: 0; font-size: 14px;">
+          <strong>⏱️ Tiempo de procesamiento:</strong> 3 a 5 días hábiles
+        </p>
+      </div>
+
+      <p style="color: #555; font-size: 15px; line-height: 1.6;">
+        Te enviaremos un correo electrónico cuando tu historia clínica esté lista para descargar desde tu perfil.
+      </p>
+
+      <!-- CTA Button -->
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/perfil/historia-medica"
+           style="display: inline-block; background-color: #144F79; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+          Ver Mis Solicitudes
+        </a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f8fafc; padding: 25px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #666; font-size: 14px; margin: 0 0 10px;">
+        <strong>Clínica Mía</strong>
+      </p>
+      <p style="color: #888; font-size: 12px; margin: 0;">
+        Cra. 5 #28-85, Ibagué, Tolima<br>
+        Tel: 324 333 8555 | info@clinicamiacolombia.com
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    return this.send({
+      to,
+      subject: `📋 Solicitud de Historia Clínica Recibida - Clínica Mía`,
+      html,
+      text
+    });
+  }
+
+  /**
+   * Enviar email cuando la historia clínica está lista
+   */
+  async sendMedicalRecordReady({ to, paciente, solicitud }) {
+    console.log('[Email] Enviando notificación HC lista a:', to);
+
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de HC lista no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const tipoLabel = solicitud.tipo === 'COMPLETA' ? 'Completa' : 'Parcial';
+
+    const text = `
+Hola ${paciente.nombre},
+
+Tu Historia Clínica ${tipoLabel} está lista para descargar.
+
+Puedes acceder a ella desde tu perfil en la sección "Historia Médica".
+
+${solicitud.archivoUrl ? `También puedes descargarla directamente desde: ${solicitud.archivoUrl}` : ''}
+
+Atentamente,
+Clínica Mía
+    `;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Arial, sans-serif; background-color: #f5f5f5;">
+  <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+    <!-- Header -->
+    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 30px; text-align: center;">
+      <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">
+        ✅ Historia Clínica Lista
+      </h1>
+    </div>
+
+    <!-- Content -->
+    <div style="padding: 30px;">
+      <p style="color: #333; font-size: 16px; line-height: 1.6;">
+        Hola <strong>${paciente.nombre}</strong>,
+      </p>
+
+      <p style="color: #555; font-size: 15px; line-height: 1.6;">
+        Nos complace informarte que tu <strong>Historia Clínica ${tipoLabel}</strong> ha sido procesada y está lista para descargar.
+      </p>
+
+      <!-- Success Box -->
+      <div style="background-color: #d1fae5; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+        <p style="color: #065f46; margin: 0; font-size: 18px; font-weight: 600;">
+          🎉 Tu documento está listo
+        </p>
+      </div>
+
+      <!-- CTA Button -->
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001'}/perfil/historia-medica"
+           style="display: inline-block; background-color: #10b981; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+          Descargar Historia Clínica
+        </a>
+      </div>
+
+      ${solicitud.archivoUrl ? `
+      <p style="color: #555; font-size: 14px; line-height: 1.6; text-align: center;">
+        O accede directamente: <a href="${solicitud.archivoUrl}" style="color: #10b981;">Descargar archivo</a>
+      </p>
+      ` : ''}
+
+      <p style="color: #888; font-size: 13px; line-height: 1.6; margin-top: 30px;">
+        Si tienes alguna pregunta sobre tu historia clínica, no dudes en contactarnos.
+      </p>
+    </div>
+
+    <!-- Footer -->
+    <div style="background-color: #f8fafc; padding: 25px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #666; font-size: 14px; margin: 0 0 10px;">
+        <strong>Clínica Mía</strong>
+      </p>
+      <p style="color: #888; font-size: 12px; margin: 0;">
+        Cra. 5 #28-85, Ibagué, Tolima<br>
+        Tel: 324 333 8555 | info@clinicamiacolombia.com
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+    `;
+
+    return this.send({
+      to,
+      subject: `✅ Tu Historia Clínica está Lista - Clínica Mía`,
+      html,
+      text
+    });
+  }
+
+  /**
+   * Envía email de recordatorio de cita
+   * @param {Object} params - Parámetros del recordatorio
+   * @param {string} params.to - Email del paciente
+   * @param {Object} params.paciente - Datos del paciente
+   * @param {Object} params.cita - Datos de la cita
+   * @param {Object} params.doctor - Datos del doctor
+   * @param {Object} params.especialidad - Datos de la especialidad
+   * @param {string} params.tipoRecordatorio - '7dias', '4dias', '3horas'
+   */
+  async sendAppointmentReminder({ to, paciente, cita, doctor, especialidad, tipoRecordatorio }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Recordatorio no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombrePaciente = `${paciente.nombre} ${paciente.apellido || ''}`.trim();
+    const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por confirmar';
+    const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+
+    // Formatear fecha
+    const fechaCita = new Date(cita.fecha);
+    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Formatear hora
+    let horaFormateada = 'Por confirmar';
+    if (cita.hora) {
+      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
+      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Configurar mensaje según tipo de recordatorio
+    let headerColor, headerIcon, headerTitle, headerSubtitle, urgencyMessage;
+
+    switch (tipoRecordatorio) {
+      case '7dias':
+        headerColor = '#144F79';
+        headerIcon = '📅';
+        headerTitle = 'Recordatorio de Cita';
+        headerSubtitle = 'Tu cita es en 7 días';
+        urgencyMessage = 'Tienes una semana para prepararte para tu cita médica.';
+        break;
+      case '4dias':
+        headerColor = '#f59e0b';
+        headerIcon = '⏰';
+        headerTitle = 'Tu Cita se Acerca';
+        headerSubtitle = 'Faltan 4 días para tu cita';
+        urgencyMessage = 'Recuerda preparar tus documentos y llegar con tiempo.';
+        break;
+      case '3horas':
+        headerColor = '#10b981';
+        headerIcon = '🔔';
+        headerTitle = '¡Tu Cita es Hoy!';
+        headerSubtitle = 'Faltan 3 horas para tu cita';
+        urgencyMessage = '¡Te esperamos! Recuerda llevar tu documento de identidad.';
+        break;
+      default:
+        headerColor = '#144F79';
+        headerIcon = '📅';
+        headerTitle = 'Recordatorio de Cita';
+        headerSubtitle = 'Tienes una cita programada';
+        urgencyMessage = '';
+    }
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${headerTitle}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header -->
+    <tr>
+      <td style="background: linear-gradient(135deg, ${headerColor} 0%, ${headerColor}dd 100%); padding: 35px 20px; text-align: center;">
+        <div style="font-size: 50px; margin-bottom: 15px;">${headerIcon}</div>
+        <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">${headerTitle}</h1>
+        <p style="color: rgba(255,255,255,0.95); margin: 12px 0 0; font-size: 16px; font-weight: 500;">${headerSubtitle}</p>
+      </td>
+    </tr>
+
+    <!-- Logo -->
+    <tr>
+      <td style="padding: 25px; text-align: center; border-bottom: 1px solid #e5e5e5;">
+        <h2 style="color: #144F79; margin: 0; font-size: 28px; font-weight: 700;">Clínica Mía</h2>
+        <p style="color: #53B896; margin: 5px 0 0; font-size: 13px;">Tu Aliado en Salud y Bienestar</p>
+      </td>
+    </tr>
+
+    <!-- Saludo -->
+    <tr>
+      <td style="padding: 30px 25px 15px;">
+        <p style="color: #333; font-size: 17px; margin: 0;">
+          Hola <strong>${nombrePaciente}</strong>,
+        </p>
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 15px 0 0;">
+          ${urgencyMessage}
+        </p>
+      </td>
+    </tr>
+
+    <!-- Detalles de la cita -->
+    <tr>
+      <td style="padding: 15px 25px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0;">
+          <tr>
+            <td style="padding: 25px;">
+              <h3 style="color: #144F79; margin: 0 0 20px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">
+                📋 Detalles de tu Cita
+              </h3>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px; display: block;">📅 FECHA</span>
+                    <span style="color: #1f2937; font-size: 17px; font-weight: 600;">${fechaFormateada}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px; display: block;">🕐 HORA</span>
+                    <span style="color: #1f2937; font-size: 17px; font-weight: 600;">${horaFormateada}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px; display: block;">👨‍⚕️ MÉDICO</span>
+                    <span style="color: #1f2937; font-size: 17px; font-weight: 600;">${nombreDoctor}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 0;">
+                    <span style="color: #6b7280; font-size: 13px; display: block;">🏥 ESPECIALIDAD</span>
+                    <span style="color: #1f2937; font-size: 17px; font-weight: 600;">${especialidad?.titulo || 'Consulta General'}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Recordatorios importantes -->
+    <tr>
+      <td style="padding: 15px 25px;">
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 18px; border-radius: 8px;">
+          <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: 600;">📋 No olvides:</p>
+          <ul style="color: #78350f; font-size: 14px; margin: 12px 0 0; padding-left: 20px; line-height: 1.8;">
+            <li>Llegar <strong>15 minutos antes</strong> de tu cita</li>
+            <li>Traer tu <strong>documento de identidad</strong></li>
+            <li>Si tienes <strong>exámenes previos</strong>, tráelos contigo</li>
+            ${tipoRecordatorio === '7dias' || tipoRecordatorio === '4dias' ? '<li>Si necesitas <strong>cancelar o reprogramar</strong>, hazlo con anticipación</li>' : ''}
+          </ul>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Ubicación -->
+    <tr>
+      <td style="padding: 15px 25px;">
+        <div style="background-color: #eff6ff; border-radius: 12px; padding: 18px;">
+          <p style="color: #1e40af; font-size: 14px; margin: 0; font-weight: 600;">📍 Ubicación</p>
+          <p style="color: #1e3a8a; font-size: 15px; margin: 10px 0 0; font-weight: 500;">Cra. 5 #28-85, Ibagué, Tolima</p>
+          <p style="color: #1e3a8a; font-size: 14px; margin: 8px 0 0;">📞 324 333 8555</p>
+        </div>
+      </td>
+    </tr>
+
+    <!-- CTA -->
+    <tr>
+      <td style="padding: 25px; text-align: center;">
+        <a href="${frontendUrl}/perfil/citas" style="display: inline-block; background: linear-gradient(135deg, #144F79 0%, #1a6a9e 100%); color: #ffffff; padding: 14px 35px; text-decoration: none; border-radius: 10px; font-weight: 600; font-size: 15px;">
+          Ver Mis Citas
+        </a>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #f8f9fa; padding: 25px; text-align: center; border-top: 1px solid #e5e5e5;">
+        <p style="color: #666; font-size: 13px; margin: 0 0 10px;">
+          ¿Necesitas ayuda? Contáctanos
+        </p>
+        <p style="color: #144F79; font-size: 14px; margin: 0;">
+          📧 info@clinicamiacolombia.com | 📞 324 333 8555
+        </p>
+        <p style="color: #999; font-size: 11px; margin: 15px 0 0;">
+          © ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.<br>
+          <span style="color: #bbb;">Este es un mensaje automático, por favor no responda a este correo.</span>
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+${headerTitle} - ${headerSubtitle}
+
+Hola ${nombrePaciente},
+
+${urgencyMessage}
+
+📅 Fecha: ${fechaFormateada}
+🕐 Hora: ${horaFormateada}
+👨‍⚕️ Médico: ${nombreDoctor}
+🏥 Especialidad: ${especialidad?.titulo || 'Consulta General'}
+
+Recordatorios:
+- Llega 15 minutos antes de tu cita
+- Trae tu documento de identidad
+- Si tienes exámenes previos, tráelos contigo
+
+📍 Cra. 5 #28-85, Ibagué, Tolima
+📞 324 333 8555
+
+Ver tus citas: ${frontendUrl}/perfil/citas
+
+© ${new Date().getFullYear()} Clínica Mía
+    `;
+
+    const subjectMap = {
+      '7dias': `📅 Recordatorio: Tu cita es en 7 días - ${fechaFormateada}`,
+      '4dias': `⏰ ¡Faltan 4 días! Tu cita del ${fechaFormateada}`,
+      '3horas': `🔔 ¡Tu cita es HOY a las ${horaFormateada}! - Clínica Mía`
+    };
+
+    return this.send({
+      to,
+      subject: subjectMap[tipoRecordatorio] || `Recordatorio de Cita - Clínica Mía`,
+      html,
+      text
+    });
+  }
 }
 
 // Singleton

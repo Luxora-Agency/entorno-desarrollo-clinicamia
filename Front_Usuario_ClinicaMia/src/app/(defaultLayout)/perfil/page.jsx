@@ -38,34 +38,44 @@ export default function PerfilPage() {
             // Calculate stats
             if (citasData.data && citasData.data.length > 0) {
               const proximaCita = citasData.data[0]
-              const fechaProxima = new Date(proximaCita.fecha)
-              const hoy = new Date()
-              const diasParaProxima = Math.ceil((fechaProxima - hoy) / (1000 * 60 * 60 * 24))
+              // Parse date without timezone issues
+              const fechaStr = proximaCita.fecha?.split('T')[0]
+              if (fechaStr) {
+                const [year, month, day] = fechaStr.split('-').map(Number)
+                const fechaProxima = new Date(year, month - 1, day)
+                const hoy = new Date()
+                hoy.setHours(0, 0, 0, 0) // Normalize to midnight
+                const diasParaProxima = Math.ceil((fechaProxima - hoy) / (1000 * 60 * 60 * 24))
 
-              setStats(prev => ({
-                ...prev,
-                proximaCita: diasParaProxima,
-              }))
+                setStats(prev => ({
+                  ...prev,
+                  proximaCita: diasParaProxima,
+                }))
+              }
             }
           }
         }
 
-        // Fetch appointment history for stats
-        const historialRes = await authFetch('/pacientes/historial-citas?limit=1')
-        if (historialRes.ok) {
-          const historialData = await historialRes.json()
-          if (historialData.success && historialData.pagination) {
+        // Fetch completed appointments for stats (citas realizadas)
+        const completadasRes = await authFetch('/pacientes/mis-citas?estado=Completada&limit=1')
+        if (completadasRes.ok) {
+          const completadasData = await completadasRes.json()
+          if (completadasData.success && completadasData.pagination) {
             setStats(prev => ({
               ...prev,
-              totalCitas: historialData.pagination.total || 0,
+              totalCitas: completadasData.pagination.total || 0,
             }))
 
-            // Calculate days since last visit
-            if (historialData.data && historialData.data.length > 0) {
-              const ultimaVisita = historialData.data[0]
-              if (ultimaVisita.estado === 'Completada') {
-                const fechaUltima = new Date(ultimaVisita.fecha)
+            // Calculate days since last completed visit
+            if (completadasData.data && completadasData.data.length > 0) {
+              const ultimaVisita = completadasData.data[0]
+              // Parse date without timezone issues
+              const fechaStr = ultimaVisita.fecha?.split('T')[0]
+              if (fechaStr) {
+                const [year, month, day] = fechaStr.split('-').map(Number)
+                const fechaUltima = new Date(year, month - 1, day)
                 const hoy = new Date()
+                hoy.setHours(0, 0, 0, 0) // Normalize to midnight
                 const diasDesdeUltima = Math.floor((hoy - fechaUltima) / (1000 * 60 * 60 * 24))
                 setStats(prev => ({
                   ...prev,
@@ -87,6 +97,24 @@ export default function PerfilPage() {
 
   // Check if profile is incomplete
   const isProfileIncomplete = !patientProfile || !patientProfile.documento || !patientProfile.telefono
+
+  // Helper to parse date without timezone issues
+  const parseFecha = (fechaStr) => {
+    if (!fechaStr) return null
+    const dateOnly = fechaStr.split('T')[0]
+    const [year, month, day] = dateOnly.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
+  // Helper to format time from time string or datetime
+  const formatHora = (horaStr) => {
+    if (!horaStr) return ''
+    if (horaStr.includes('T')) {
+      const timePart = horaStr.split('T')[1]
+      return timePart.substring(0, 5)
+    }
+    return horaStr.substring(0, 5)
+  }
 
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -141,11 +169,22 @@ export default function PerfilPage() {
           </p>
         </div>
         {!isProfileIncomplete && (
-          <div className="profile_completion">
+          <div className={`profile_completion ${getProfileCompletion() === 100 ? 'complete' : ''}`}>
             <div className="completion_ring" style={{ '--completion': `${getProfileCompletion()}%` }}>
-              <span>{getProfileCompletion()}%</span>
+              {getProfileCompletion() === 100 ? (
+                <Icon icon="fa6-solid:circle-check" className="completion_check" />
+              ) : (
+                <span>{getProfileCompletion()}%</span>
+              )}
             </div>
-            <span className="completion_label">Perfil completo</span>
+            <div className="completion_text">
+              <span className="completion_label">
+                {getProfileCompletion() === 100 ? 'Perfil Completo' : 'Completado'}
+              </span>
+              {getProfileCompletion() < 100 && (
+                <span className="completion_percent">{getProfileCompletion()}%</span>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -154,21 +193,27 @@ export default function PerfilPage() {
       <div className="profile_stats">
         <div className="stat_card">
           <div className="stat_icon">
-            <Icon icon="fa6-solid:calendar-check" />
+            <Icon icon="fa6-solid:clipboard-list" />
           </div>
           <div className="stat_content">
             <span className="stat_value">{stats.totalCitas}</span>
-            <span className="stat_label">Citas totales</span>
+            <span className="stat_label">Citas realizadas</span>
           </div>
         </div>
 
         <div className="stat_card">
           <div className="stat_icon">
-            <Icon icon="fa6-solid:clock" />
+            <Icon icon="fa6-solid:clock-rotate-left" />
           </div>
           <div className="stat_content">
             <span className="stat_value">
-              {stats.diasUltimaVisita !== null ? `${stats.diasUltimaVisita} días` : '-'}
+              {stats.diasUltimaVisita !== null
+                ? stats.diasUltimaVisita === 0
+                  ? 'Hoy'
+                  : stats.diasUltimaVisita === 1
+                    ? 'Ayer'
+                    : `${stats.diasUltimaVisita}d`
+                : 'Sin visitas'}
             </span>
             <span className="stat_label">Última visita</span>
           </div>
@@ -176,15 +221,15 @@ export default function PerfilPage() {
 
         <div className="stat_card highlight">
           <div className="stat_icon">
-            <Icon icon="fa6-solid:calendar-day" />
+            <Icon icon="fa6-solid:bell" />
           </div>
           <div className="stat_content">
             <span className="stat_value">
               {stats.proximaCita !== null ? (
                 stats.proximaCita === 0 ? 'Hoy' :
                 stats.proximaCita === 1 ? 'Mañana' :
-                `${stats.proximaCita} días`
-              ) : '-'}
+                `En ${stats.proximaCita}d`
+              ) : 'Sin citas'}
             </span>
             <span className="stat_label">Próxima cita</span>
           </div>
@@ -205,6 +250,14 @@ export default function PerfilPage() {
           <Link href="/perfil/citas" className="quick_action_card">
             <Icon icon="fa6-solid:calendar-check" />
             <span>Ver Mis Citas</span>
+          </Link>
+          <Link href="/perfil/examenes" className="quick_action_card">
+            <Icon icon="fa6-solid:flask-vial" />
+            <span>Exámenes y Procedimientos</span>
+          </Link>
+          <Link href="/perfil/mia-pass" className="quick_action_card highlight">
+            <Icon icon="fa6-solid:id-card" />
+            <span>MiaPass</span>
           </Link>
           <Link href="/perfil/historia-medica" className="quick_action_card">
             <Icon icon="fa6-solid:file-medical" />
@@ -235,10 +288,10 @@ export default function PerfilPage() {
               <div key={cita.id} className="appointment_card">
                 <div className="appointment_date">
                   <span className="appointment_day">
-                    {new Date(cita.fecha).getDate()}
+                    {parseFecha(cita.fecha)?.getDate()}
                   </span>
                   <span className="appointment_month">
-                    {new Date(cita.fecha).toLocaleDateString('es-CO', { month: 'short' })}
+                    {parseFecha(cita.fecha)?.toLocaleDateString('es-CO', { month: 'short' })}
                   </span>
                 </div>
                 <div className="appointment_info">
@@ -247,11 +300,11 @@ export default function PerfilPage() {
                   </h3>
                   <p className="appointment_doctor">
                     <Icon icon="fa6-solid:user-doctor" />
-                    Dr. {cita.doctor?.usuario?.nombre} {cita.doctor?.usuario?.apellido}
+                    {cita.doctor?.nombreCompleto || `Dr. ${cita.doctor?.nombre || ''} ${cita.doctor?.apellido || ''}`}
                   </p>
                   <p className="appointment_time">
                     <Icon icon="fa6-solid:clock" />
-                    {cita.hora?.substring(0, 5)}
+                    {formatHora(cita.hora)}
                   </p>
                 </div>
                 <div className="appointment_actions">

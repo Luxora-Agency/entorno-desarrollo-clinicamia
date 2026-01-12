@@ -1778,6 +1778,24 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       <span>Configuración Siigo</span>
                     </button>
                   )}
+
+                  {/* Solicitudes Historia Clínica - Admin/Superadmin */}
+                  {(userRole === 'superadmin' || userRole === 'admin') && (
+                    <button
+                      onClick={() => {
+                        setActiveModule('solicitudes-hc');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        activeModule === 'solicitudes-hc'
+                          ? 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-md'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <FolderOpen className="w-4 h-4" />
+                      <span>Solicitudes HC</span>
+                    </button>
+                  )}
                 </div>
               )}
 

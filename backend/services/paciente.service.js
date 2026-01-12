@@ -517,41 +517,103 @@ class PacienteService {
 
   /**
    * Obtener solicitudes de historia clínica del paciente
-   * Nota: Por ahora devuelve un array vacío - implementar tabla de solicitudes si se requiere
    */
   async getSolicitudesHCE(email) {
-    // TODO: Implementar cuando exista la tabla de solicitudes de HCE
-    return [];
+    const paciente = await prisma.paciente.findFirst({
+      where: { email, activo: true },
+      select: { id: true },
+    });
+
+    if (!paciente) {
+      return [];
+    }
+
+    const solicitudes = await prisma.solicitudHistoriaClinica.findMany({
+      where: { pacienteId: paciente.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    // Map enum values to frontend-friendly format
+    return solicitudes.map(s => ({
+      id: s.id,
+      tipo: s.tipo === 'COMPLETA' ? 'completa' : 'parcial',
+      periodo: s.periodo,
+      motivo: s.motivo,
+      estado: this.mapEstadoSolicitud(s.estado),
+      notas: s.notas,
+      archivoUrl: s.archivoUrl,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+    }));
+  }
+
+  /**
+   * Mapear estado de solicitud a formato frontend
+   */
+  mapEstadoSolicitud(estado) {
+    const map = {
+      'PENDIENTE': 'Pendiente',
+      'EN_PROCESO': 'EnProceso',
+      'LISTA': 'Lista',
+      'ENTREGADA': 'Entregada',
+      'RECHAZADA': 'Rechazada',
+    };
+    return map[estado] || estado;
   }
 
   /**
    * Solicitar copia de historia clínica
-   * Nota: Por ahora solo registra la solicitud en log - implementar notificación si se requiere
    */
   async solicitarHistoriaMedica(email, data) {
     const paciente = await prisma.paciente.findFirst({
-      where: { email },
+      where: { email, activo: true },
     });
 
     if (!paciente) {
       throw new NotFoundError('Paciente no encontrado');
     }
 
-    // TODO: Crear tabla de solicitudes y guardar
-    // Por ahora, simular la creación
-    const solicitud = {
-      id: `sol-${Date.now()}`,
-      pacienteId: paciente.id,
+    // Map tipo to enum value
+    const tipoEnum = data.tipo === 'completa' ? 'COMPLETA' : 'PARCIAL';
+
+    const solicitud = await prisma.solicitudHistoriaClinica.create({
+      data: {
+        pacienteId: paciente.id,
+        tipo: tipoEnum,
+        periodo: data.periodo || null,
+        motivo: data.motivo || null,
+        estado: 'PENDIENTE',
+      },
+    });
+
+    console.log('[Paciente] Solicitud HC creada:', solicitud.id, 'para paciente:', paciente.email);
+
+    // Send confirmation email
+    try {
+      const emailService = require('./email.service');
+      console.log('[Paciente] Email service enabled:', emailService.isEnabled());
+
+      const emailResult = await emailService.sendMedicalRecordRequestConfirmation({
+        to: email,
+        paciente,
+        solicitud: {
+          ...solicitud,
+          tipo: data.tipo,
+        },
+      });
+      console.log('[Paciente] Resultado email:', emailResult);
+    } catch (emailError) {
+      console.error('[Paciente] Error enviando email de confirmación de solicitud:', emailError.message);
+    }
+
+    return {
+      id: solicitud.id,
       tipo: data.tipo,
-      periodo: data.periodo,
-      motivo: data.motivo,
+      periodo: solicitud.periodo,
+      motivo: solicitud.motivo,
       estado: 'Pendiente',
-      createdAt: new Date(),
+      createdAt: solicitud.createdAt,
     };
-
-    console.log('Solicitud de historia médica:', solicitud);
-
-    return solicitud;
   }
 
   /**

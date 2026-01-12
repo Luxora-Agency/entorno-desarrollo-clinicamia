@@ -20,6 +20,11 @@ export default function MisCitasPage() {
   const [availableSlots, setAvailableSlots] = useState([])
   const [actionLoading, setActionLoading] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
+  // Estado para cambiar de doctor
+  const [wantToChangeDoctor, setWantToChangeDoctor] = useState(false)
+  const [availableDoctors, setAvailableDoctors] = useState([])
+  const [selectedNewDoctor, setSelectedNewDoctor] = useState(null)
+  const [loadingDoctors, setLoadingDoctors] = useState(false)
 
   useEffect(() => {
     fetchCitas()
@@ -44,6 +49,7 @@ export default function MisCitasPage() {
 
   const fetchAvailableSlots = async (doctorId, fecha) => {
     try {
+      setAvailableSlots([])
       // Use public API for doctor availability
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/doctors/${doctorId}/availability?fecha=${fecha}`)
       if (response.ok) {
@@ -62,6 +68,24 @@ export default function MisCitasPage() {
     }
   }
 
+  const fetchDoctorsBySpecialty = async (especialidadId) => {
+    if (!especialidadId) return
+    setLoadingDoctors(true)
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/doctors/public?specialtyId=${especialidadId}`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data) {
+          setAvailableDoctors(data.data)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error)
+    } finally {
+      setLoadingDoctors(false)
+    }
+  }
+
   const handleCancelClick = (cita) => {
     setSelectedCita(cita)
     setCancelReason('')
@@ -73,7 +97,14 @@ export default function MisCitasPage() {
     setNewDate('')
     setNewTime('')
     setAvailableSlots([])
+    setWantToChangeDoctor(false)
+    setSelectedNewDoctor(null)
+    setAvailableDoctors([])
     setShowRescheduleModal(true)
+    // Cargar doctores disponibles para la especialidad
+    if (cita.especialidad?.id) {
+      fetchDoctorsBySpecialty(cita.especialidad.id)
+    }
   }
 
   const handleDateChange = async (e) => {
@@ -81,12 +112,41 @@ export default function MisCitasPage() {
     setNewDate(fecha)
     setNewTime('')
     if (selectedCita && fecha) {
-      // Get doctor ID from the cita
-      const doctorId = selectedCita.doctor?.id || selectedCita.doctorId
+      // Use the new doctor if selected, otherwise use original doctor
+      const doctorId = (wantToChangeDoctor && selectedNewDoctor)
+        ? selectedNewDoctor.usuarioId || selectedNewDoctor.id
+        : selectedCita.doctor?.id || selectedCita.doctorId
       if (doctorId) {
         await fetchAvailableSlots(doctorId, fecha)
       }
     }
+  }
+
+  const handleDoctorChange = async (doctorId) => {
+    const doctor = availableDoctors.find(d => d.id === doctorId || d.usuarioId === doctorId)
+    setSelectedNewDoctor(doctor)
+    setNewTime('')
+    setAvailableSlots([])
+    // Si ya hay una fecha seleccionada, cargar la disponibilidad del nuevo doctor
+    if (newDate && doctor) {
+      await fetchAvailableSlots(doctor.usuarioId || doctor.id, newDate)
+    }
+  }
+
+  const handleWantToChangeDoctorToggle = (checked) => {
+    setWantToChangeDoctor(checked)
+    if (!checked) {
+      setSelectedNewDoctor(null)
+      // Recargar disponibilidad del doctor original si hay fecha
+      if (newDate && selectedCita) {
+        const doctorId = selectedCita.doctor?.id || selectedCita.doctorId
+        if (doctorId) {
+          fetchAvailableSlots(doctorId, newDate)
+        }
+      }
+    }
+    setNewTime('')
+    setAvailableSlots([])
   }
 
   const handleCancelCita = async () => {
@@ -118,11 +178,24 @@ export default function MisCitasPage() {
   const handleRescheduleCita = async () => {
     if (!selectedCita || !newDate || !newTime) return
 
+    // Si quiere cambiar de doctor pero no ha seleccionado uno
+    if (wantToChangeDoctor && !selectedNewDoctor) {
+      setMessage({ type: 'error', text: 'Por favor seleccione un doctor' })
+      return
+    }
+
     setActionLoading(true)
     try {
+      const body = { fecha: newDate, hora: newTime }
+
+      // Si cambió de doctor, enviar el nuevo doctorId
+      if (wantToChangeDoctor && selectedNewDoctor) {
+        body.doctorId = selectedNewDoctor.usuarioId || selectedNewDoctor.id
+      }
+
       const response = await authFetch(`/pacientes/citas/${selectedCita.id}/reprogramar`, {
         method: 'POST',
-        body: JSON.stringify({ fecha: newDate, hora: newTime }),
+        body: JSON.stringify(body),
       })
 
       const data = await response.json()
@@ -131,7 +204,10 @@ export default function MisCitasPage() {
         throw new Error(data.message || 'Error al reprogramar la cita')
       }
 
-      setMessage({ type: 'success', text: 'Cita reprogramada correctamente' })
+      const successMessage = wantToChangeDoctor && selectedNewDoctor
+        ? 'Cita reprogramada y doctor cambiado correctamente'
+        : 'Cita reprogramada correctamente'
+      setMessage({ type: 'success', text: successMessage })
       setShowRescheduleModal(false)
       fetchCitas()
     } catch (error) {
@@ -173,6 +249,27 @@ export default function MisCitasPage() {
       default:
         return estado
     }
+  }
+
+  // Helper to parse date without timezone issues
+  const parseFecha = (fechaStr) => {
+    if (!fechaStr) return null
+    // If it's an ISO string, extract just the date part
+    const dateOnly = fechaStr.split('T')[0]
+    const [year, month, day] = dateOnly.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
+  // Helper to format time from time string or datetime
+  const formatHora = (horaStr) => {
+    if (!horaStr) return ''
+    // If it's a full datetime, extract time part
+    if (horaStr.includes('T')) {
+      const timePart = horaStr.split('T')[1]
+      return timePart.substring(0, 5)
+    }
+    // If it's already just time
+    return horaStr.substring(0, 5)
   }
 
   // Get minimum date for rescheduling (tomorrow)
@@ -251,13 +348,13 @@ export default function MisCitasPage() {
               <div key={cita.id} className="cita_card">
                 <div className="cita_date_block">
                   <span className="cita_day">
-                    {new Date(cita.fecha).getDate()}
+                    {parseFecha(cita.fecha)?.getDate()}
                   </span>
                   <span className="cita_month">
-                    {new Date(cita.fecha).toLocaleDateString('es-CO', { month: 'short' })}
+                    {parseFecha(cita.fecha)?.toLocaleDateString('es-CO', { month: 'short' })}
                   </span>
                   <span className="cita_year">
-                    {new Date(cita.fecha).getFullYear()}
+                    {parseFecha(cita.fecha)?.getFullYear()}
                   </span>
                 </div>
 
@@ -273,13 +370,13 @@ export default function MisCitasPage() {
 
                   <p className="cita_doctor">
                     <Icon icon="fa6-solid:user-doctor" />
-                    Dr. {cita.doctor?.usuario?.nombre} {cita.doctor?.usuario?.apellido}
+                    {cita.doctor?.nombreCompleto || `Dr. ${cita.doctor?.nombre || ''} ${cita.doctor?.apellido || ''}`}
                   </p>
 
                   <div className="cita_meta">
                     <span>
                       <Icon icon="fa6-solid:clock" />
-                      {cita.hora?.substring(0, 5)}
+                      {formatHora(cita.hora)}
                     </span>
                     {cita.costo && (
                       <span>
@@ -317,7 +414,7 @@ export default function MisCitasPage() {
 
                 {cita.estado === 'PendientePago' && (
                   <div className="cita_actions">
-                    <Link href={`/cita/pagar/${cita.id}`} className="cita_action_btn pay">
+                    <Link href={`/appointments/payment?citaId=${cita.id}`} className="cita_action_btn pay">
                       <Icon icon="fa6-solid:credit-card" />
                       Pagar
                     </Link>
@@ -355,9 +452,9 @@ export default function MisCitasPage() {
 
               <div className="modal_cita_info">
                 <p><strong>Especialidad:</strong> {selectedCita?.especialidad?.nombre}</p>
-                <p><strong>Doctor:</strong> Dr. {selectedCita?.doctor?.usuario?.nombre} {selectedCita?.doctor?.usuario?.apellido}</p>
-                <p><strong>Fecha:</strong> {selectedCita && new Date(selectedCita.fecha).toLocaleDateString('es-CO')}</p>
-                <p><strong>Hora:</strong> {selectedCita?.hora?.substring(0, 5)}</p>
+                <p><strong>Doctor:</strong> {selectedCita?.doctor?.nombreCompleto || `Dr. ${selectedCita?.doctor?.nombre || ''} ${selectedCita?.doctor?.apellido || ''}`}</p>
+                <p><strong>Fecha:</strong> {selectedCita && parseFecha(selectedCita.fecha)?.toLocaleDateString('es-CO')}</p>
+                <p><strong>Hora:</strong> {formatHora(selectedCita?.hora)}</p>
               </div>
 
               <div className="form_group">
@@ -386,7 +483,7 @@ export default function MisCitasPage() {
       {/* Reschedule Modal */}
       {showRescheduleModal && (
         <div className="modal_overlay" onClick={() => setShowRescheduleModal(false)}>
-          <div className="modal_content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal_content modal_content_large" onClick={(e) => e.stopPropagation()}>
             <div className="modal_header">
               <h2>Reprogramar Cita</h2>
               <button className="modal_close" onClick={() => setShowRescheduleModal(false)}>
@@ -396,9 +493,49 @@ export default function MisCitasPage() {
             <div className="modal_body">
               <div className="modal_cita_info">
                 <p><strong>Especialidad:</strong> {selectedCita?.especialidad?.nombre}</p>
-                <p><strong>Doctor:</strong> Dr. {selectedCita?.doctor?.usuario?.nombre} {selectedCita?.doctor?.usuario?.apellido}</p>
-                <p><strong>Fecha actual:</strong> {selectedCita && new Date(selectedCita.fecha).toLocaleDateString('es-CO')} - {selectedCita?.hora?.substring(0, 5)}</p>
+                <p><strong>Doctor actual:</strong> {selectedCita?.doctor?.nombreCompleto || `Dr. ${selectedCita?.doctor?.nombre || ''} ${selectedCita?.doctor?.apellido || ''}`}</p>
+                <p><strong>Fecha actual:</strong> {selectedCita && parseFecha(selectedCita.fecha)?.toLocaleDateString('es-CO')} - {formatHora(selectedCita?.hora)}</p>
               </div>
+
+              {/* Opción para cambiar de doctor */}
+              {availableDoctors.length > 1 && (
+                <div className="form_group">
+                  <label className="checkbox_label">
+                    <input
+                      type="checkbox"
+                      checked={wantToChangeDoctor}
+                      onChange={(e) => handleWantToChangeDoctorToggle(e.target.checked)}
+                    />
+                    <span>Deseo cambiar de doctor</span>
+                  </label>
+                </div>
+              )}
+
+              {/* Selector de doctor */}
+              {wantToChangeDoctor && availableDoctors.length > 0 && (
+                <div className="form_group">
+                  <label htmlFor="newDoctor">Seleccione nuevo doctor</label>
+                  {loadingDoctors ? (
+                    <p>Cargando doctores...</p>
+                  ) : (
+                    <select
+                      id="newDoctor"
+                      value={selectedNewDoctor?.id || ''}
+                      onChange={(e) => handleDoctorChange(e.target.value)}
+                      className="form_select"
+                    >
+                      <option value="">-- Seleccione un doctor --</option>
+                      {availableDoctors
+                        .filter(d => (d.usuarioId || d.id) !== (selectedCita?.doctor?.id || selectedCita?.doctorId))
+                        .map((doctor) => (
+                          <option key={doctor.id} value={doctor.id}>
+                            {doctor.nombreCompleto || `Dr. ${doctor.nombre} ${doctor.apellido}`}
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
+              )}
 
               <div className="form_group">
                 <label htmlFor="newDate">Nueva Fecha</label>
@@ -434,7 +571,7 @@ export default function MisCitasPage() {
               {newDate && availableSlots.length === 0 && (
                 <p className="no_slots_message">
                   <Icon icon="fa6-solid:circle-info" />
-                  No hay horarios disponibles para esta fecha
+                  No hay horarios disponibles para esta fecha{wantToChangeDoctor && selectedNewDoctor ? ' con el doctor seleccionado' : ''}
                 </p>
               )}
             </div>
@@ -445,7 +582,7 @@ export default function MisCitasPage() {
               <button
                 className="btn_primary"
                 onClick={handleRescheduleCita}
-                disabled={actionLoading || !newDate || !newTime}
+                disabled={actionLoading || !newDate || !newTime || (wantToChangeDoctor && !selectedNewDoctor)}
               >
                 {actionLoading ? 'Reprogramando...' : 'Confirmar Nueva Fecha'}
               </button>

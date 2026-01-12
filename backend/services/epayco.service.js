@@ -201,34 +201,43 @@ class EpaycoService {
     const confirmationUrl = baseConfirmationUrl;
 
     const sessionData = {
+      // Required fields
       checkout_version: epaycoConfig.checkout.version,
-      name: `Cita Médica - ${cita.especialidad?.titulo || 'Consulta'}`,
-      description: `Cita para ${nombreCompleto}`,
+      name: `Clínica Mía - Cita Médica`,
       currency: epaycoConfig.checkout.currency,
-      amount: parseFloat(cita.costo).toString(),
-      country: epaycoConfig.checkout.country,
+      amount: parseFloat(cita.costo),
+
+      // Optional fields
+      description: `Cita ${cita.especialidad?.titulo || 'Consulta'} - ${nombreCompleto}`,
       lang: epaycoConfig.checkout.lang,
-      external: 'false',
+      country: epaycoConfig.checkout.country,
 
-      // URLs for response and confirmation (must be valid public URLs)
+      // URLs for response and confirmation
       response: responseUrl,
-      urlconfirmation: confirmationUrl,
-
-      // Customer billing info (all required by ePayco)
-      name_billing: nombreCompleto,
-      email_billing: email,
-      mobilephone_billing: telefono,
-      type_doc_billing: tipoDoc,
-      number_doc_billing: paciente.cedula || '1234567890',
-
-      // Custom data for tracking (extra1-extra11 available)
-      extra1: cita.id, // citaId
-      extra2: paciente.id, // pacienteId
-      extra3: 'appointment', // entityType
+      confirmation: confirmationUrl,
 
       // Test mode
-      test: epaycoConfig.testMode ? 'true' : 'false',
+      test: epaycoConfig.testMode,
+
+      // Billing info (optional - to prefill forms)
+      billing: {
+        email: email,
+        name: nombreCompleto,
+        typeDoc: tipoDoc,
+        numberDoc: paciente.cedula || '1234567890',
+        callingCode: '+57',
+        mobilePhone: telefono,
+      },
+
+      // Extra fields for tracking
+      extras: {
+        extra1: cita.id,
+        extra2: paciente.id,
+        extra3: 'appointment',
+      },
     };
+
+    console.log('[ePayco] Session data being sent:', JSON.stringify(sessionData, null, 2));
 
     try {
       const response = await fetch(epaycoConfig.endpoints.session, {
@@ -247,6 +256,8 @@ class EpaycoService {
       }
 
       const result = await response.json();
+
+      console.log('[ePayco] Session response:', JSON.stringify(result, null, 2));
 
       if (!result.success || !result.data?.sessionId) {
         console.error('[ePayco] Session creation failed.');
@@ -268,9 +279,15 @@ class EpaycoService {
         throw new AppError(`ePayco error: ${errorMsg}`, 500);
       }
 
-      // Store session for tracking
-      await prisma.paymentSession.create({
-        data: {
+      // Store session for tracking (use upsert to handle existing sessions)
+      await prisma.paymentSession.upsert({
+        where: { citaId: cita.id },
+        update: {
+          sessionId: result.data.sessionId,
+          amount: cita.costo,
+          status: 'pending',
+        },
+        create: {
           citaId: cita.id,
           sessionId: result.data.sessionId,
           amount: cita.costo,
@@ -281,6 +298,7 @@ class EpaycoService {
 
       return {
         sessionId: result.data.sessionId,
+        token: result.data.token,
         publicKey: epaycoConfig.publicKey,
       };
     } catch (error) {
@@ -334,6 +352,7 @@ class EpaycoService {
       x_ref_payco,
       x_transaction_id,
       x_response,
+      x_cod_response, // Código numérico de respuesta
       x_response_reason_text,
       x_amount,
       x_currency_code,
@@ -356,16 +375,20 @@ class EpaycoService {
       throw new ValidationError('Payment session not found');
     }
 
-    // Map ePayco response to status
-    // x_response: 1=Aceptada, 2=Rechazada, 3=Pendiente, 4=Fallida
+    // Map ePayco response code to status
+    // x_cod_response: 1=Aceptada, 2=Rechazada, 3=Pendiente, 4=Fallida
     const statusMap = {
-      1: 'approved',
-      2: 'rejected',
-      3: 'pending',
-      4: 'failed',
+      '1': 'approved',
+      '2': 'rejected',
+      '3': 'pending',
+      '4': 'failed',
     };
 
-    const status = statusMap[x_response] || 'unknown';
+    // Use x_cod_response (numeric code) for status mapping
+    const responseCode = String(x_cod_response || x_response);
+    const status = statusMap[responseCode] || 'unknown';
+
+    console.log('[ePayco] Webhook processing - responseCode:', responseCode, 'status:', status);
 
     // Update payment session
     await prisma.paymentSession.update({
@@ -373,7 +396,7 @@ class EpaycoService {
       data: {
         epaycoRef: x_ref_payco,
         epaycoTxId: x_transaction_id,
-        responseCode: String(x_response),
+        responseCode,
         responseMessage: x_response_reason_text,
         status,
       },

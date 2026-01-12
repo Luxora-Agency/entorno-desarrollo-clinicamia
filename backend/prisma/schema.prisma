@@ -324,7 +324,43 @@ model Paciente {
   // MiaPass
   suscripcionesMiaPass MiaPassSuscripcion[]
 
+  // Solicitudes de Historia Clínica
+  solicitudesHistoriaClinica SolicitudHistoriaClinica[]
+
   @@map("pacientes")
+}
+
+// Solicitudes de Historia Clínica
+model SolicitudHistoriaClinica {
+  id          String                       @id @default(uuid())
+  pacienteId  String                       @map("paciente_id")
+  tipo        TipoSolicitudHC              @default(COMPLETA)
+  periodo     String?
+  motivo      String?
+  estado      EstadoSolicitudHC            @default(PENDIENTE)
+  notas       String?                      @db.Text
+  archivoUrl  String?                      @map("archivo_url")
+  procesadoPor String?                     @map("procesado_por")
+  fechaProcesado DateTime?                 @map("fecha_procesado")
+  createdAt   DateTime                     @default(now()) @map("created_at")
+  updatedAt   DateTime                     @updatedAt @map("updated_at")
+
+  paciente    Paciente                     @relation(fields: [pacienteId], references: [id])
+
+  @@map("solicitudes_historia_clinica")
+}
+
+enum TipoSolicitudHC {
+  COMPLETA
+  PARCIAL
+}
+
+enum EstadoSolicitudHC {
+  PENDIENTE
+  EN_PROCESO
+  LISTA
+  ENTREGADA
+  RECHAZADA
 }
 
 model Cita {
@@ -348,6 +384,10 @@ model Cita {
   origenPaciente        String?              @map("origen_paciente") @db.VarChar(50) // 'consulta_prioritaria', 'urgencia', 'remitido', 'control', 'espontaneo'
   institucionRemite     String?              @map("institucion_remite") @db.VarChar(255) // Si es remitido, de dónde viene
   estadoPago            String?              @map("estado_pago") @db.VarChar(50) // 'pagada', 'pendiente', 'exenta', 'cortesia'
+  // Campos para tracking de recordatorios enviados
+  recordatorio7Dias     Boolean              @default(false) @map("recordatorio_7_dias")
+  recordatorio4Dias     Boolean              @default(false) @map("recordatorio_4_dias")
+  recordatorio3Horas    Boolean              @default(false) @map("recordatorio_3_horas")
   createdAt             DateTime             @default(now()) @map("created_at")
   updatedAt             DateTime             @updatedAt @map("updated_at")
   atencionesUrgencias   AtencionUrgencia[]

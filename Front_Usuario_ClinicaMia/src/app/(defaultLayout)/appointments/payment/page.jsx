@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import Script from 'next/script'
 import { Icon } from '@iconify/react'
 import Section from '@/app/ui/Section'
 
@@ -18,6 +17,70 @@ export default function PaymentPage() {
   const [error, setError] = useState(null)
   const [processingPayment, setProcessingPayment] = useState(false)
   const [ePaycoLoaded, setEPaycoLoaded] = useState(false)
+  const [scriptError, setScriptError] = useState(null)
+
+  // Load ePayco script manually for better reliability
+  useEffect(() => {
+    // Check if script already loaded
+    if (window.ePayco) {
+      console.log('ePayco already loaded')
+      setEPaycoLoaded(true)
+      return
+    }
+
+    // Check if script tag already exists
+    const existingScript = document.querySelector('script[src*="checkout.epayco.co"]')
+    if (existingScript) {
+      console.log('ePayco script tag exists, waiting for load...')
+      // Wait for it to load
+      const checkInterval = setInterval(() => {
+        if (window.ePayco) {
+          console.log('ePayco now available')
+          setEPaycoLoaded(true)
+          clearInterval(checkInterval)
+        }
+      }, 100)
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        clearInterval(checkInterval)
+        if (!window.ePayco) {
+          setScriptError('Tiempo de espera agotado cargando el sistema de pagos')
+        }
+      }, 10000)
+      return
+    }
+
+    // Create and load script - using classic checkout instead of v2
+    const script = document.createElement('script')
+    script.src = 'https://checkout.epayco.co/checkout.js'
+    script.async = true
+
+    script.onload = () => {
+      console.log('ePayco script loaded via DOM')
+      if (window.ePayco) {
+        console.log('ePayco object available:', window.ePayco)
+        setEPaycoLoaded(true)
+      } else {
+        // Sometimes ePayco takes a moment to initialize
+        setTimeout(() => {
+          if (window.ePayco) {
+            setEPaycoLoaded(true)
+          } else {
+            setScriptError('El sistema de pagos no se inicializó correctamente')
+          }
+        }, 500)
+      }
+    }
+
+    script.onerror = () => {
+      console.error('Error loading ePayco script')
+      setScriptError('Error al cargar el sistema de pagos. Intente recargar la página.')
+    }
+
+    document.head.appendChild(script)
+    console.log('ePayco script tag added to head')
+  }, [])
 
   // Fetch appointment details
   useEffect(() => {
@@ -57,63 +120,89 @@ export default function PaymentPage() {
     fetchCita()
   }, [citaId])
 
-  // Create payment session and open ePayco
+  // Open ePayco classic checkout
   const handlePayment = async () => {
     if (!ePaycoLoaded) {
       alert('El sistema de pagos aún está cargando. Por favor espere un momento.')
       return
     }
 
+    if (!cita) {
+      alert('No se encontró información de la cita')
+      return
+    }
+
     setProcessingPayment(true)
 
     try {
-      // Create payment session
-      const response = await fetch(`${API_URL}/payments/sessions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ cita_id: citaId }),
-      })
-
-      const data = await response.json()
-
-      if (!data.success || !data.data?.sessionId) {
-        throw new Error(data.message || 'No se pudo crear la sesión de pago')
-      }
-
-      // Open ePayco checkout
+      // Use ePayco classic checkout - sends data directly
       if (typeof window !== 'undefined' && window.ePayco) {
-        const checkout = window.ePayco.checkout.configure({
-          sessionId: data.data.sessionId,
-          type: 'onepage',
+        const handler = window.ePayco.checkout.configure({
+          key: 'f7610e29510d298bd65de8e9537bfaa6', // Public key
           test: true, // Set to false in production
         })
 
-        checkout.open()
+        // Use ngrok URL for redirect (ePayco won't redirect to localhost)
+        const backendUrl = API_URL.includes('localhost')
+          ? 'https://unevinced-harley-priorly.ngrok-free.dev'
+          : API_URL
 
-        checkout.onClosed((event) => {
-          console.log('Checkout cerrado:', event)
-          // Redirect to result page after checkout closes
-          router.push(`/cita/resultado?citaId=${citaId}`)
-        })
+        const data = {
+          // Required
+          name: `Cita Médica - ${cita.especialidad}`,
+          description: `Cita para ${cita.paciente}`,
+          invoice: citaId.substring(0, 20), // Max 20 chars
+          currency: 'cop',
+          amount: String(cita.costo),
+          tax_base: '0',
+          tax: '0',
+          country: 'co',
+          lang: 'es',
 
-        checkout.onErrors((errors) => {
-          console.error('Error en el pago:', errors)
+          // Redirect URLs - use ngrok backend that will redirect to local frontend
+          external: 'true', // Open in same window for proper redirect
+          response: `${backendUrl}/payments/result?citaId=${citaId}`,
+          confirmation: `${backendUrl}/payments/webhook`,
+
+          // Customer info
+          name_billing: cita.paciente,
+          email_billing: cita.pacienteEmail,
+
+          // Extra data for tracking
+          extra1: citaId,
+          extra2: 'appointment',
+          extra3: cita.especialidad,
+        }
+
+        console.log('Opening ePayco classic checkout with data:', data)
+        handler.open(data)
+
+        // Reset state after delay
+        setTimeout(() => {
           setProcessingPayment(false)
-        })
+        }, 2000)
       }
     } catch (err) {
-      console.error('Error creating payment session:', err)
-      alert(err.message || 'Error al procesar el pago. Por favor intente nuevamente.')
+      console.error('Error opening checkout:', err)
+      alert('Error al abrir el checkout de pago')
       setProcessingPayment(false)
     }
+  }
+
+  // Parse date without timezone issues
+  const parseFecha = (fechaStr) => {
+    if (!fechaStr) return null
+    // Extract just the date part (YYYY-MM-DD) to avoid timezone shifts
+    const dateOnly = fechaStr.split('T')[0]
+    const [year, month, day] = dateOnly.split('-').map(Number)
+    return new Date(year, month - 1, day)
   }
 
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return ''
-    const date = new Date(dateString)
+    const date = parseFecha(dateString)
+    if (!date) return ''
     return date.toLocaleDateString('es-CO', {
       weekday: 'long',
       year: 'numeric',
@@ -122,11 +211,21 @@ export default function PaymentPage() {
     })
   }
 
-  // Format time
+  // Format time from time string or datetime
   const formatTime = (timeValue) => {
     if (!timeValue) return ''
-    const date = new Date(timeValue)
-    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+    // If it's a datetime string like "1970-01-01T14:30:00.000Z", extract the time part
+    if (typeof timeValue === 'string' && timeValue.includes('T')) {
+      const timePart = timeValue.split('T')[1]
+      if (timePart) {
+        return timePart.substring(0, 5) // Returns "14:30"
+      }
+    }
+    // If it's just a time string like "14:30:00"
+    if (typeof timeValue === 'string') {
+      return timeValue.substring(0, 5)
+    }
+    return ''
   }
 
   return (
@@ -291,6 +390,40 @@ export default function PaymentPage() {
                       )}
                     </button>
 
+                    {/* Script error message */}
+                    {scriptError && (
+                      <div style={{
+                        backgroundColor: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginTop: '15px',
+                        textAlign: 'center',
+                        color: '#dc2626'
+                      }}>
+                        <Icon icon="fa6-solid:triangle-exclamation" className="me-2" />
+                        {scriptError}
+                      </div>
+                    )}
+
+                    {/* Loading script indicator */}
+                    {!ePaycoLoaded && !scriptError && (
+                      <div style={{
+                        backgroundColor: '#f0f9ff',
+                        border: '1px solid #bae6fd',
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginTop: '15px',
+                        textAlign: 'center',
+                        color: '#0369a1'
+                      }}>
+                        <div className="spinner-border spinner-border-sm me-2" role="status">
+                          <span className="visually-hidden">Cargando...</span>
+                        </div>
+                        Cargando sistema de pagos...
+                      </div>
+                    )}
+
                     {/* Security note */}
                     <p style={{ textAlign: 'center', color: '#6b7280', fontSize: '13px', marginTop: '15px' }}>
                       <Icon icon="fa6-solid:lock" className="me-1" />
@@ -304,17 +437,7 @@ export default function PaymentPage() {
         </div>
       </Section>
 
-      {/* ePayco Script */}
-      <Script
-        src="https://checkout.epayco.co/checkout-v2.js"
-        onLoad={() => {
-          console.log('ePayco checkout script loaded')
-          setEPaycoLoaded(true)
-        }}
-        onError={() => {
-          console.error('Error loading ePayco script')
-        }}
-      />
+      {/* ePayco script is loaded via useEffect for better reliability */}
     </>
   )
 }

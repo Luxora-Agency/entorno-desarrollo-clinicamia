@@ -591,21 +591,32 @@ class CitaService {
     const skip = (parseInt(page) - 1) * parseInt(limit);
     const now = new Date();
 
+    // Build where clause - if estado is provided, use it; otherwise use upcoming filter
     const where = {
       pacienteId: paciente.id,
-      ...(estado && { estado }),
-      ...(upcoming && {
-        fecha: { gte: now },
-        estado: { notIn: ['Cancelada', 'NoAsistio', 'Completada'] }
-      }),
     };
+
+    // Determinar si ordenar ascendente (citas futuras) o descendente (citas pasadas)
+    let sortAsc = upcoming;
+
+    if (estado) {
+      // Si se especifica un estado, usarlo directamente
+      where.estado = estado;
+      // Citas programadas y pendientes de pago: orden ascendente (próximas primero)
+      // Citas completadas, canceladas, no asistió: orden descendente (más recientes primero)
+      sortAsc = ['Programada', 'PendientePago', 'PorAgendar'].includes(estado);
+    } else if (upcoming) {
+      // Si no hay estado específico y upcoming=true, excluir estados finalizados
+      where.fecha = { gte: now };
+      where.estado = { notIn: ['Cancelada', 'NoAsistio', 'Completada'] };
+    }
 
     const [citas, total] = await Promise.all([
       prisma.cita.findMany({
         where,
         skip,
         take: parseInt(limit),
-        orderBy: [{ fecha: upcoming ? 'asc' : 'desc' }, { hora: 'asc' }],
+        orderBy: [{ fecha: sortAsc ? 'asc' : 'desc' }, { hora: sortAsc ? 'asc' : 'desc' }],
         include: {
           doctor: { select: { id: true, nombre: true, apellido: true } },
           especialidad: { select: { id: true, titulo: true, costoCOP: true, duracionMinutos: true } },
@@ -775,8 +786,13 @@ class CitaService {
 
   /**
    * Reprogramar una cita del paciente (verificando propiedad)
+   * @param {string} citaId - ID de la cita
+   * @param {string} email - Email del paciente
+   * @param {string} nuevaFecha - Nueva fecha en formato YYYY-MM-DD
+   * @param {string} nuevaHora - Nueva hora en formato HH:MM
+   * @param {string} nuevoDoctorId - ID del nuevo doctor (opcional, puede ser Doctor.id o Usuario.id)
    */
-  async reprogramarByPaciente(citaId, email, nuevaFecha, nuevaHora) {
+  async reprogramarByPaciente(citaId, email, nuevaFecha, nuevaHora, nuevoDoctorId = null) {
     // Obtener paciente
     const paciente = await prisma.paciente.findFirst({
       where: { email, activo: true },
@@ -790,7 +806,10 @@ class CitaService {
     // Verificar que la cita pertenece al paciente
     const cita = await prisma.cita.findFirst({
       where: { id: citaId, pacienteId: paciente.id },
-      include: { doctor: true }
+      include: {
+        doctor: true,
+        especialidad: { select: { id: true } }
+      }
     });
 
     if (!cita) {
@@ -802,10 +821,52 @@ class CitaService {
       throw new ValidationError('No se puede reprogramar esta cita');
     }
 
+    // Determinar el doctor a usar (nuevo o existente)
+    let doctorIdToUse = cita.doctorId;
+
+    if (nuevoDoctorId) {
+      // Verificar que el nuevo doctor existe y tiene la misma especialidad
+      // Primero intentar buscar por Doctor.id
+      let doctorRecord = await prisma.doctor.findUnique({
+        where: { id: nuevoDoctorId },
+        include: {
+          usuario: { select: { id: true, activo: true } },
+          especialidades: { select: { especialidadId: true } }
+        }
+      });
+
+      // Si no se encuentra por Doctor.id, buscar por Usuario.id
+      if (!doctorRecord) {
+        doctorRecord = await prisma.doctor.findFirst({
+          where: { usuarioId: nuevoDoctorId },
+          include: {
+            usuario: { select: { id: true, activo: true } },
+            especialidades: { select: { especialidadId: true } }
+          }
+        });
+      }
+
+      if (!doctorRecord || !doctorRecord.usuario?.activo) {
+        throw new ValidationError('El doctor seleccionado no está disponible');
+      }
+
+      // Verificar que el doctor tenga la especialidad de la cita
+      if (cita.especialidadId) {
+        const tieneEspecialidad = doctorRecord.especialidades.some(
+          e => e.especialidadId === cita.especialidadId
+        );
+        if (!tieneEspecialidad) {
+          throw new ValidationError('El doctor seleccionado no atiende esta especialidad');
+        }
+      }
+
+      doctorIdToUse = doctorRecord.usuario.id; // Siempre usar Usuario.id para citas
+    }
+
     // Verificar disponibilidad del doctor en la nueva fecha/hora
-    if (cita.doctorId && nuevaFecha && nuevaHora) {
+    if (doctorIdToUse && nuevaFecha && nuevaHora) {
       const disponible = await this.checkAvailability(
-        cita.doctorId,
+        doctorIdToUse,
         nuevaFecha,
         nuevaHora,
         cita.duracionMinutos || 30,
@@ -818,14 +879,23 @@ class CitaService {
     }
 
     // Actualizar la cita
+    const updateData = {
+      fecha: parseSimpleDate(nuevaFecha),
+      hora: nuevaHora ? new Date(`1970-01-01T${nuevaHora}Z`) : cita.hora,
+      estado: 'Programada',
+    };
+
+    // Si cambió el doctor, actualizar
+    if (nuevoDoctorId && doctorIdToUse !== cita.doctorId) {
+      updateData.doctorId = doctorIdToUse;
+      updateData.notas = `${cita.notas || ''}\n[Reprogramada y cambiada a otro doctor por paciente]`.trim();
+    } else {
+      updateData.notas = `${cita.notas || ''}\n[Reprogramada por paciente]`.trim();
+    }
+
     const citaActualizada = await prisma.cita.update({
       where: { id: citaId },
-      data: {
-        fecha: parseSimpleDate(nuevaFecha),
-        hora: nuevaHora ? new Date(`1970-01-01T${nuevaHora}Z`) : cita.hora,
-        estado: 'Programada',
-        notas: `${cita.notas || ''}\n[Reprogramada por paciente]`.trim()
-      },
+      data: updateData,
       include: {
         doctor: { select: { id: true, nombre: true, apellido: true } },
         especialidad: { select: { id: true, titulo: true } },

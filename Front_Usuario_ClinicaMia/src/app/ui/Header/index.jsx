@@ -117,6 +117,14 @@ export default function Header({ logoSrc, variant }) {
                                 <Icon icon="fa6-solid:calendar-check" />
                                 Mis Citas
                               </Link>
+                              <Link href="/perfil/examenes" onClick={() => setUserMenuOpen(false)}>
+                                <Icon icon="fa6-solid:flask-vial" />
+                                Exámenes y Procedimientos
+                              </Link>
+                              <Link href="/perfil/mia-pass" onClick={() => setUserMenuOpen(false)}>
+                                <Icon icon="fa6-solid:id-card" />
+                                MiaPass
+                              </Link>
                               <Link href="/perfil/historial" onClick={() => setUserMenuOpen(false)}>
                                 <Icon icon="fa6-solid:clock-rotate-left" />
                                 Historial

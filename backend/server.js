@@ -120,6 +120,8 @@ const publicRoutes = require('./routes/public');
 const payments = require('./routes/payments');
 // Documentos legales para pacientes (términos, privacidad)
 const documentosLegales = require('./routes/documentos-legales');
+// Solicitudes de Historia Clínica (admin)
+const solicitudesHC = require('./routes/solicitudes-hc');
 // API v1 para frontend usuario (Front_Usuario_ClinicaMia)
 const apiV1 = require('./routes/api-v1');
 // Sistema de Reservas Temporales de Horarios
@@ -138,6 +140,8 @@ const limpiarReservasJob = require('./cron/limpiarReservas');
 const depreciacionJob = require('./cron/depreciacion');
 const siigoSyncJob = require('./cron/siigoSync');
 const { initMiaPassExpirationCron } = require('./cron/miaPassExpiration');
+const verificarPagosJob = require('./cron/verificarPagos');
+const { initRecordatoriosCitasCron } = require('./cron/recordatoriosCitas');
 
 const app = new Hono();
 
@@ -373,6 +377,8 @@ app.route('/bancos', bancos);
 app.route('/activos-fijos', activosFijos);
 // Dashboard Financiero - KPIs, Tendencias, Reportes
 app.route('/dashboard-financiero', dashboardFinanciero);
+// Solicitudes de Historia Clínica (gestión admin)
+app.route('/solicitudes-hc', solicitudesHC);
 
 app.notFound((c) => {
   console.log(`[404] Not Found: ${c.req.method} ${c.req.url}`);
@@ -399,6 +405,8 @@ limpiarReservasJob.iniciar();
 depreciacionJob.iniciar();
 siigoSyncJob.start();
 initMiaPassExpirationCron();
+verificarPagosJob.iniciar();
+initRecordatoriosCitasCron();
 
 // Auto-inicializar conexión Siigo
 const siigoService = require('./services/siigo/siigo.service');

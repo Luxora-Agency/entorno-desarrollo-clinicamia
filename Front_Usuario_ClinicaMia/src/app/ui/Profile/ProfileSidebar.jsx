@@ -12,7 +12,8 @@ const navItems = [
   { href: '/perfil', icon: 'fa6-solid:house', label: 'Inicio' },
   { href: '/perfil/editar', icon: 'fa6-solid:user-pen', label: 'Editar Perfil' },
   { href: '/perfil/citas', icon: 'fa6-solid:calendar-check', label: 'Mis Citas' },
-  { href: '/perfil/historial', icon: 'fa6-solid:clock-rotate-left', label: 'Historial' },
+  { href: '/perfil/examenes', icon: 'fa6-solid:flask-vial', label: 'Exámenes y Procedimientos' },
+  { href: '/perfil/mia-pass', icon: 'fa6-solid:id-card', label: 'MiaPass' },
   { href: '/perfil/historia-medica', icon: 'fa6-solid:file-medical', label: 'Historia Médica' },
 ]
 
