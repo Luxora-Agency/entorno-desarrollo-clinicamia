@@ -194,6 +194,164 @@ Este es un mensaje automático del sistema de alertas de Clinica Mia.
       }
     });
   }
+
+  /**
+   * Envía email de bienvenida cuando un paciente crea su cuenta
+   */
+  async sendWelcomeEmail({ to, nombre, apellido }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de bienvenida no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombreCompleto = `${nombre} ${apellido}`.trim();
+    const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bienvenido a Clínica Mía</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header with Logo -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #144F79 0%, #53B896 100%); padding: 40px 20px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700;">Clínica Mía</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 14px;">Tu Aliado en Salud y Bienestar</p>
+      </td>
+    </tr>
+
+    <!-- Welcome Message -->
+    <tr>
+      <td style="padding: 40px 30px;">
+        <h2 style="color: #144F79; margin: 0 0 20px; font-size: 24px;">¡Bienvenido/a, ${nombreCompleto}!</h2>
+
+        <p style="color: #555; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+          Gracias por crear tu cuenta en <strong>Clínica Mía</strong>. Estamos muy contentos de tenerte como parte de nuestra familia de pacientes.
+        </p>
+
+        <p style="color: #555; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+          Ahora puedes disfrutar de los siguientes beneficios:
+        </p>
+
+        <!-- Benefits List -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin: 20px 0;">
+          <tr>
+            <td style="padding: 12px 0; border-bottom: 1px solid #eee;">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width: 40px; vertical-align: top;">
+                    <div style="width: 30px; height: 30px; background-color: #53B896; border-radius: 50%; text-align: center; line-height: 30px; color: white; font-size: 14px;">✓</div>
+                  </td>
+                  <td style="color: #333; font-size: 15px;">Agendar citas médicas en línea las 24 horas</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; border-bottom: 1px solid #eee;">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width: 40px; vertical-align: top;">
+                    <div style="width: 30px; height: 30px; background-color: #53B896; border-radius: 50%; text-align: center; line-height: 30px; color: white; font-size: 14px;">✓</div>
+                  </td>
+                  <td style="color: #333; font-size: 15px;">Acceder a tu historial médico digital</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0; border-bottom: 1px solid #eee;">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width: 40px; vertical-align: top;">
+                    <div style="width: 30px; height: 30px; background-color: #53B896; border-radius: 50%; text-align: center; line-height: 30px; color: white; font-size: 14px;">✓</div>
+                  </td>
+                  <td style="color: #333; font-size: 15px;">Recibir recordatorios de tus citas</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 12px 0;">
+              <table cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width: 40px; vertical-align: top;">
+                    <div style="width: 30px; height: 30px; background-color: #53B896; border-radius: 50%; text-align: center; line-height: 30px; color: white; font-size: 14px;">✓</div>
+                  </td>
+                  <td style="color: #333; font-size: 15px;">Acceso exclusivo a promociones y servicios de MiaPass</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- CTA Button -->
+        <div style="text-align: center; margin: 35px 0;">
+          <a href="${frontendUrl}/appointments" style="background: linear-gradient(135deg, #144F79 0%, #1a6a9e 100%); color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; display: inline-block;">
+            Agendar mi primera cita
+          </a>
+        </div>
+
+        <p style="color: #555; font-size: 16px; line-height: 1.6; margin: 0 0 10px;">
+          Si tienes alguna pregunta, no dudes en contactarnos:
+        </p>
+
+        <p style="color: #144F79; font-size: 15px; margin: 0;">
+          📞 <strong>324 333 8555</strong><br>
+          📧 <strong>info@clinicamiacolombia.com</strong><br>
+          📍 <strong>Cra. 5 #28-85, Ibagué, Tolima</strong>
+        </p>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #f8f9fa; padding: 25px; text-align: center; border-top: 1px solid #e5e5e5;">
+        <p style="color: #666; font-size: 13px; margin: 0 0 10px;">
+          Síguenos en redes sociales para más información de salud
+        </p>
+        <p style="color: #999; font-size: 12px; margin: 0;">
+          © ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.<br>
+          Ibagué, Tolima - Colombia
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+¡Bienvenido/a a Clínica Mía, ${nombreCompleto}!
+
+Gracias por crear tu cuenta. Ahora puedes:
+- Agendar citas médicas en línea las 24 horas
+- Acceder a tu historial médico digital
+- Recibir recordatorios de tus citas
+- Acceso exclusivo a promociones MiaPass
+
+Agenda tu primera cita: ${frontendUrl}/appointments
+
+Contáctanos:
+📞 324 333 8555
+📧 info@clinicamiacolombia.com
+📍 Cra. 5 #28-85, Ibagué, Tolima
+
+© ${new Date().getFullYear()} Clínica Mía
+    `;
+
+    return this.send({
+      to,
+      subject: '¡Bienvenido/a a Clínica Mía! Tu cuenta ha sido creada',
+      html,
+      text
+    });
+  }
 }
 
 // Singleton

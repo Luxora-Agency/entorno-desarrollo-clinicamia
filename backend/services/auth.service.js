@@ -2,16 +2,17 @@
  * Service de autenticación
  */
 const prisma = require('../db/prisma');
-const { 
-  hashPassword, 
-  comparePassword, 
-  generateAccessToken, 
+const {
+  hashPassword,
+  comparePassword,
+  generateAccessToken,
   generateRefreshToken,
   REFRESH_TOKEN_EXPIRES_DAYS
 } = require('../utils/auth');
 const { validateRequired, isValidEmail, isValidPassword } = require('../utils/validators');
 const { ValidationError, UnauthorizedError, NotFoundError } = require('../utils/errors');
 const { addDays } = require('date-fns');
+const emailService = require('./email.service');
 
 class AuthService {
   /**
@@ -104,6 +105,21 @@ class AuthService {
 
     // Generar tokens
     const tokens = await this._generateTokens(user);
+
+    // Enviar email de bienvenida (async, no bloqueante)
+    emailService.sendWelcomeEmail({
+      to: user.email,
+      nombre: user.nombre,
+      apellido: user.apellido
+    }).then(result => {
+      if (result.success) {
+        console.log('[Auth] Email de bienvenida enviado a:', user.email);
+      } else {
+        console.warn('[Auth] No se pudo enviar email de bienvenida:', result.error);
+      }
+    }).catch(err => {
+      console.error('[Auth] Error enviando email de bienvenida:', err.message);
+    });
 
     // Remover password del usuario antes de devolver
     const { password: _, ...userWithoutPassword } = user;
