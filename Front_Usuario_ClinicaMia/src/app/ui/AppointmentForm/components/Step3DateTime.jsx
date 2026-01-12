@@ -64,11 +64,39 @@ const Step3DateTime = ({
   const loadingTimeSlots = query.isLoading
   const rawSlots = query.data?.data?.slots_disponibles || []
 
+  // Filter out past slots if selected date is today
+  const filteredSlots = useMemo(() => {
+    if (!selectedDate || !rawSlots.length) return rawSlots
+
+    const today = new Date()
+    const todayStr = today.toISOString().split('T')[0]
+    const selectedDateStr = selectedDate.toISOString().split('T')[0]
+
+    // Only filter if it's today
+    if (selectedDateStr !== todayStr) return rawSlots
+
+    const currentHour = today.getHours()
+    const currentMinute = today.getMinutes()
+    const currentTimeInMinutes = currentHour * 60 + currentMinute
+
+    // Filter slots that haven't passed yet
+    return rawSlots.map(slot => {
+      const [slotHour, slotMinute] = (slot.hora_inicio || '00:00').split(':').map(Number)
+      const slotTimeInMinutes = slotHour * 60 + slotMinute
+
+      // If slot is in the past, mark as unavailable
+      if (slotTimeInMinutes <= currentTimeInMinutes) {
+        return { ...slot, disponible: false, motivo: 'Horario pasado' }
+      }
+      return slot
+    })
+  }, [rawSlots, selectedDate])
+
   // Group slots by period (morning, afternoon, evening)
-  const groupedSlots = useMemo(() => groupSlotsByPeriod(rawSlots), [rawSlots])
+  const groupedSlots = useMemo(() => groupSlotsByPeriod(filteredSlots), [filteredSlots])
 
   // Count available slots
-  const availableCount = rawSlots.filter(s => s.disponible).length
+  const availableCount = filteredSlots.filter(s => s.disponible).length
 
   const handleDateChange = (date) => {
     setSelectedDate(date)
@@ -129,21 +157,21 @@ const Step3DateTime = ({
               validate: {
                 notPast: (value) => {
                   if (!value) return true
-                  const selectedDate = new Date(value)
+                  // Comparar strings de fecha para evitar problemas de zona horaria
                   const today = new Date()
-                  today.setHours(0, 0, 0, 0)
+                  const todayStr = today.toISOString().split('T')[0]
                   return (
-                    selectedDate >= today ||
+                    value >= todayStr ||
                     'No puede seleccionar fechas pasadas'
                   )
                 },
                 notTooFar: (value) => {
                   if (!value) return true
-                  const selectedDate = new Date(value)
                   const maxDate = new Date()
                   maxDate.setMonth(maxDate.getMonth() + 3)
+                  const maxDateStr = maxDate.toISOString().split('T')[0]
                   return (
-                    selectedDate <= maxDate ||
+                    value <= maxDateStr ||
                     'Solo puede agendar hasta 3 meses adelante'
                   )
                 }

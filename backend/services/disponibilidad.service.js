@@ -37,7 +37,7 @@ class DisponibilidadService {
       },
     });
 
-    if (!usuario || usuario.rol !== 'Doctor') {
+    if (!usuario || usuario.rol !== 'DOCTOR') {
       throw new NotFoundError('Doctor no encontrado');
     }
 
