@@ -128,9 +128,25 @@ export default function CitasModule() {
     setShowModal(true);
   };
 
-  const handleFormSuccess = () => {
+  const handleFormSuccess = (citaData) => {
     setShowModal(false);
     setEditingCita(null);
+
+    // Si la cita creada/editada es para una fecha diferente, actualizar el filtro
+    if (citaData?.cita?.fecha) {
+      const fechaCita = new Date(citaData.cita.fecha).toISOString().split('T')[0];
+      if (fechaCita !== filtros.fecha) {
+        // Cambiar filtro a la fecha de la cita creada (esto dispara cargarCitas automáticamente)
+        setFiltros(prev => ({ ...prev, fecha: fechaCita }));
+        toast({
+          title: 'Cita guardada',
+          description: `La tabla se actualizó a la fecha ${fechaCita}`,
+        });
+        return;
+      }
+    }
+
+    // Si es la misma fecha, solo recargar
     cargarCitas();
   };
 

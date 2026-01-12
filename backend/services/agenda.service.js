@@ -104,7 +104,20 @@ async function generarBloques(doctorId, fecha) {
 
   console.log(`[DEBUG] Citas existentes: ${citasExistentes.length}`);
 
-  // 5. Generar bloques
+  // 5. Obtener hora actual para filtrar bloques pasados (si la fecha es hoy) - usando hora de Colombia
+  const { todayString, nowColombia } = require('../utils/date');
+  const hoyStr = todayString();
+  const esHoy = fecha === hoyStr;
+
+  let minutosActualesDelDia = 0;
+  if (esHoy) {
+    const ahoraColombia = nowColombia();
+    minutosActualesDelDia = ahoraColombia.getUTCHours() * 60 + ahoraColombia.getUTCMinutes();
+  }
+
+  console.log(`[DEBUG] Es hoy: ${esHoy}, Minutos actuales del día: ${minutosActualesDelDia}`);
+
+  // 6. Generar bloques
   const bloques = [];
 
   horariosFecha.forEach(rango => {
@@ -129,13 +142,25 @@ async function generarBloques(doctorId, fecha) {
       const horaInicio = `${String(horas).padStart(2, '0')}:${String(minutos).padStart(2, '0')}`;
 
       // Buscar si hay una cita en este bloque
+      // IMPORTANTE: Usar getUTCHours/Minutes porque las horas se almacenan en UTC
       const citaEnBloque = citasExistentes.find(cita => {
         const horaCita = new Date(cita.hora);
-        const horaCitaStr = `${String(horaCita.getHours()).padStart(2, '0')}:${String(horaCita.getMinutes()).padStart(2, '0')}`;
+        const horaCitaStr = `${String(horaCita.getUTCHours()).padStart(2, '0')}:${String(horaCita.getUTCMinutes()).padStart(2, '0')}`;
         return horaCitaStr === horaInicio;
       });
 
-      if (citaEnBloque) {
+      // Verificar si el bloque ya pasó (solo aplica si es hoy)
+      const bloquePasado = esHoy && minutosActuales < minutosActualesDelDia;
+
+      if (bloquePasado) {
+        // Bloque pasado - no disponible
+        bloques.push({
+          hora: horaInicio,
+          duracion: duracionBloque,
+          estado: 'pasado'
+        });
+        minutosActuales += duracionBloque;
+      } else if (citaEnBloque) {
         // Bloque ocupado
         bloques.push({
           hora: horaInicio,

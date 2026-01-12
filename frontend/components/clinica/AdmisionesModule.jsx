@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
+import {
   Search, User, Calendar, Clock, Phone, Mail, AlertCircle,
   UserCheck, XCircle, CheckCircle, Stethoscope, UserPlus,
-  FileText, Plus, Eye, ArrowRight, DollarSign
+  FileText, Plus, Eye, ArrowRight, DollarSign, History, Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,11 +32,18 @@ export default function AdmisionesModule({ user }) {
   const [showEditarPago, setShowEditarPago] = useState(false);
   const [pagoEditando, setPagoEditando] = useState(null);
   const [initialDataCita, setInitialDataCita] = useState({});
+  const [incluirCanceladas, setIncluirCanceladas] = useState(false);
+  const [citasCanceladas, setCitasCanceladas] = useState([]);
+  const [haBuscado, setHaBuscado] = useState(false);
+  const [showConfirmNoAsistio, setShowConfirmNoAsistio] = useState(false);
+  const [citaNoAsistio, setCitaNoAsistio] = useState(null);
+  const [procesandoNoAsistio, setProcesandoNoAsistio] = useState(false);
 
   const buscarPaciente = async () => {
     if (!searchTerm.trim()) return;
-    
+
     setBuscando(true);
+    setHaBuscado(true);
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -51,38 +58,51 @@ export default function AdmisionesModule({ user }) {
       if (data.data && data.data.length > 0) {
         const paciente = data.data[0];
         setPacienteEncontrado(paciente);
-        
-        // Cargar citas del paciente (hoy y futuras) con información de facturación
+
+        // Cargar citas, facturas y canceladas EN PARALELO (optimización de rendimiento)
         const hoy = new Date().toISOString().split('T')[0];
-        const citasResponse = await fetch(`${apiUrl}/citas?pacienteId=${paciente.id}&fechaDesde=${hoy}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        
-        const citasData = await citasResponse.json();
-        // Soportar ambas estructuras: { data: [...] } o { citas: [...] }
+
+        const [citasResponse, facturasResponse, canceladasResponse] = await Promise.all([
+          // Citas de hoy y futuras
+          fetch(`${apiUrl}/citas?pacienteId=${paciente.id}&fechaDesde=${hoy}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          // Facturas del paciente (UNA sola llamada)
+          fetch(`${apiUrl}/facturas?pacienteId=${paciente.id}&limit=100`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          // Todas las citas para filtrar canceladas
+          fetch(`${apiUrl}/citas?pacienteId=${paciente.id}&limit=50`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+        ]);
+
+        const [citasData, facturasData, canceladasData] = await Promise.all([
+          citasResponse.json(),
+          facturasResponse.json(),
+          canceladasResponse.json(),
+        ]);
+
+        // Procesar citas
         const citas = citasData.data || citasData.citas || [];
-        
-        // Cargar información de facturación para cada cita
-        const citasConFactura = await Promise.all(citas.map(async (cita) => {
-          try {
-            const facturaResponse = await fetch(`${apiUrl}/facturas?pacienteId=${paciente.id}&limit=100`, {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            const facturaData = await facturaResponse.json();
-            
-            // Buscar factura relacionada con esta cita
-            const factura = facturaData.data?.find(f => 
-              f.items?.some(item => item.citaId === cita.id)
-            );
-            
-            return { ...cita, factura };
-          } catch (error) {
-            console.error('Error cargando factura:', error);
-            return cita;
-          }
-        }));
-        
+        const facturas = facturasData.data || [];
+
+        // Mapear facturas a citas (en memoria, sin llamadas adicionales)
+        const citasConFactura = citas.map(cita => {
+          const factura = facturas.find(f =>
+            f.items?.some(item => item.citaId === cita.id)
+          );
+          return { ...cita, factura };
+        });
+
         setCitasPaciente(citasConFactura);
+
+        // Filtrar citas canceladas/perdidas
+        const todasCitas = canceladasData.data || canceladasData.citas || [];
+        const canceladas = todasCitas.filter(c =>
+          c.estado === 'NoAsistio' || c.estado === 'Cancelada'
+        );
+        setCitasCanceladas(canceladas);
       } else {
         setPacienteEncontrado(null);
         setCitasPaciente([]);
@@ -152,23 +172,33 @@ export default function AdmisionesModule({ user }) {
     }
   };
 
-  const marcarNoAsistio = async (citaId) => {
-    if (!confirm('¿Está seguro de marcar esta cita como No Asistió?')) return;
-    
+  // Abrir modal de confirmación para No Asistió
+  const abrirConfirmNoAsistio = (cita) => {
+    setCitaNoAsistio(cita);
+    setShowConfirmNoAsistio(true);
+  };
+
+  // Confirmar y ejecutar No Asistió
+  const confirmarNoAsistio = async () => {
+    if (!citaNoAsistio) return;
+
+    setProcesandoNoAsistio(true);
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
-      const response = await fetch(`${apiUrl}/citas/estado/${citaId}`, {
+
+      const response = await fetch(`${apiUrl}/citas/estado/${citaNoAsistio.id}`, {
         method: 'POST',
-        headers: { 
+        headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ estado: 'NoAsistio' }),
       });
-      
+
       if (response.ok) {
+        setShowConfirmNoAsistio(false);
+        setCitaNoAsistio(null);
         buscarPaciente();
         toast({
           title: "Cita actualizada",
@@ -182,7 +212,14 @@ export default function AdmisionesModule({ user }) {
         description: "Error al actualizar estado",
         variant: "destructive",
       });
+    } finally {
+      setProcesandoNoAsistio(false);
     }
+  };
+
+  const cancelarNoAsistio = () => {
+    setShowConfirmNoAsistio(false);
+    setCitaNoAsistio(null);
   };
 
   const actualizarFactura = async (facturaId, nuevoEstado, nuevoMetodo) => {
@@ -286,6 +323,8 @@ export default function AdmisionesModule({ user }) {
     setSearchTerm('');
     setPacienteEncontrado(null);
     setCitasPaciente([]);
+    setCitasCanceladas([]);
+    setHaBuscado(false);
   };
 
   const abrirFormularioNuevaCita = () => {
@@ -436,13 +475,17 @@ export default function AdmisionesModule({ user }) {
                   className="text-lg"
                 />
               </div>
-              <Button 
+              <Button
                 onClick={buscarPaciente}
                 disabled={!searchTerm || buscando}
                 size="lg"
                 className="gap-2 px-8"
               >
-                <Search className="h-5 w-5" />
+                {buscando ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Search className="h-5 w-5" />
+                )}
                 {buscando ? 'Buscando...' : 'Buscar'}
               </Button>
               {pacienteEncontrado && (
@@ -456,8 +499,17 @@ export default function AdmisionesModule({ user }) {
               )}
             </div>
 
+            {/* Preloader mientras busca */}
+            {buscando && (
+              <div className="flex flex-col items-center justify-center py-12 bg-slate-50 rounded-xl border border-slate-200">
+                <Loader2 className="h-12 w-12 animate-spin text-emerald-600 mb-4" />
+                <p className="text-lg font-medium text-slate-700">Buscando paciente...</p>
+                <p className="text-sm text-slate-500 mt-1">Por favor espere mientras consultamos la información</p>
+              </div>
+            )}
+
             {/* Mensaje si no hay resultado y se buscó */}
-            {!buscando && searchTerm && !pacienteEncontrado && (
+            {!buscando && haBuscado && !pacienteEncontrado && (
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
                 <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1">
@@ -580,7 +632,7 @@ export default function AdmisionesModule({ user }) {
                 </div>
               ) : (
                 <Tabs defaultValue="hoy" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-3">
                     <TabsTrigger value="hoy" className="gap-2">
                       <Clock className="h-4 w-4" />
                       Para Hoy ({citasHoy.length})
@@ -588,6 +640,10 @@ export default function AdmisionesModule({ user }) {
                     <TabsTrigger value="futuras" className="gap-2">
                       <Calendar className="h-4 w-4" />
                       Futuras ({citasFuturas.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="canceladas" className="gap-2">
+                      <History className="h-4 w-4" />
+                      Canceladas/Perdidas ({citasCanceladas.length})
                     </TabsTrigger>
                   </TabsList>
 
@@ -732,7 +788,7 @@ export default function AdmisionesModule({ user }) {
                               {/* Marcar No Asistió */}
                               {(cita.estado === 'Programada' || cita.estado === 'EnEspera') && (
                                 <Button
-                                  onClick={() => marcarNoAsistio(cita.id)}
+                                  onClick={() => abrirConfirmNoAsistio(cita)}
                                   variant="outline"
                                   className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 w-full"
                                 >
@@ -807,6 +863,90 @@ export default function AdmisionesModule({ user }) {
                                   Asignar Doctor
                                 </Button>
                               )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </TabsContent>
+
+                  {/* Citas Canceladas/Perdidas */}
+                  <TabsContent value="canceladas" className="space-y-4 mt-4">
+                    {citasCanceladas.length === 0 ? (
+                      <div className="text-center py-8 text-gray-500">
+                        <History className="h-12 w-12 text-gray-300 mx-auto mb-2" />
+                        <p>No tiene citas canceladas o perdidas</p>
+                      </div>
+                    ) : (
+                      citasCanceladas.map((cita) => (
+                        <div
+                          key={cita.id}
+                          className={`border rounded-lg p-4 ${
+                            cita.estado === 'NoAsistio' ? 'border-red-200 bg-red-50/50' :
+                            'border-orange-200 bg-orange-50/50'
+                          }`}
+                        >
+                          <div className="flex flex-col md:flex-row justify-between gap-4">
+                            <div className="flex-1 space-y-2">
+                              <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-4 w-4 text-gray-500" />
+                                  <span className="font-semibold">{formatDate(cita.fecha)}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <Clock className="h-4 w-4 text-gray-500" />
+                                  <span className="font-semibold">{formatTime(cita.hora)}</span>
+                                </div>
+                                {getEstadoBadge(cita.estado)}
+                              </div>
+
+                              <div className="flex items-center gap-2 text-sm">
+                                <Stethoscope className="h-4 w-4 text-gray-500" />
+                                <span>
+                                  {cita.doctor && cita.doctor.usuario ?
+                                    `Dr. ${cita.doctor.usuario.nombre} ${cita.doctor.usuario.apellido}` :
+                                    cita.doctor ?
+                                    `Dr. ${cita.doctor.nombre || ''} ${cita.doctor.apellido || ''}` :
+                                    <span className="text-gray-400">Sin doctor asignado</span>
+                                  }
+                                </span>
+                                {cita.especialidad && (
+                                  <>
+                                    <span className="text-gray-400">·</span>
+                                    <span className="text-gray-600">{cita.especialidad.nombre || cita.especialidad.titulo}</span>
+                                  </>
+                                )}
+                              </div>
+
+                              <div className="text-sm text-gray-600">
+                                <span className="font-medium">Motivo:</span> {cita.motivo || 'No especificado'}
+                              </div>
+
+                              {cita.notas && (
+                                <div className="text-sm text-gray-500">
+                                  <span className="font-medium">Notas:</span> {cita.notas}
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="flex items-center">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setInitialDataCita({
+                                    pacienteId: pacienteEncontrado?.id || '',
+                                    pacienteNombre: pacienteEncontrado ? `${pacienteEncontrado.nombre} ${pacienteEncontrado.apellido}` : '',
+                                    especialidadId: cita.especialidadId,
+                                    motivo: cita.motivo,
+                                  });
+                                  setShowNuevaCita(true);
+                                }}
+                                className="gap-2"
+                              >
+                                <Plus className="h-4 w-4" />
+                                Reagendar
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -966,6 +1106,65 @@ export default function AdmisionesModule({ user }) {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Confirmación No Asistió */}
+      <Dialog open={showConfirmNoAsistio} onOpenChange={setShowConfirmNoAsistio}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="h-6 w-6" />
+              Confirmar Acción
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <p className="text-red-900 font-medium mb-2">
+                ¿Está seguro de marcar esta cita como "No Asistió"?
+              </p>
+              {citaNoAsistio && (
+                <div className="text-sm text-red-800 space-y-1">
+                  <p><strong>Fecha:</strong> {formatDate(citaNoAsistio.fecha)}</p>
+                  <p><strong>Hora:</strong> {formatTime(citaNoAsistio.hora)}</p>
+                  {citaNoAsistio.doctor && (
+                    <p><strong>Doctor:</strong> Dr. {citaNoAsistio.doctor.nombre} {citaNoAsistio.doctor.apellido}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+              <p className="text-sm text-amber-900">
+                <strong>⚠️ Advertencia:</strong> Esta acción no se puede deshacer.
+                La cita quedará registrada como inasistencia del paciente.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={cancelarNoAsistio}
+                disabled={procesandoNoAsistio}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 gap-2"
+                onClick={confirmarNoAsistio}
+                disabled={procesandoNoAsistio}
+              >
+                {procesandoNoAsistio ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <XCircle className="h-4 w-4" />
+                )}
+                {procesandoNoAsistio ? 'Procesando...' : 'Confirmar No Asistió'}
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

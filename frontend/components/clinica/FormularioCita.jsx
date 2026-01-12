@@ -94,37 +94,52 @@ const TipoCitaCard = ({ tipo, selected, onClick, icon: Icon, count, disabled }) 
 );
 
 // Componente de bloque de horario
-const HorarioBloque = ({ bloque, selected, onClick, showDoctor }) => (
-  <button
-    type="button"
-    onClick={onClick}
-    className={`
-      relative flex items-center justify-between p-3 rounded-lg border-2 transition-all w-full
-      ${selected
-        ? 'border-emerald-500 bg-emerald-50 shadow-sm'
-        : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}
-    `}
-  >
-    <div className="flex items-center gap-3">
-      <div className={`p-2 rounded-lg ${selected ? 'bg-emerald-100' : 'bg-gray-100'}`}>
-        <Clock className={`w-4 h-4 ${selected ? 'text-emerald-600' : 'text-gray-500'}`} />
-      </div>
-      <div className="text-left">
-        <div className={`font-semibold ${selected ? 'text-emerald-700' : 'text-gray-900'}`}>
-          {bloque.hora}
+const HorarioBloque = ({ bloque, selected, onClick, showDoctor, disabled }) => {
+  const isOcupado = disabled || bloque.estado === 'ocupado';
+  const isPasado = bloque.estado === 'pasado';
+  const isNoDisponible = isOcupado || isPasado;
+
+  return (
+    <button
+      type="button"
+      onClick={isNoDisponible ? undefined : onClick}
+      disabled={isNoDisponible}
+      className={`
+        relative flex items-center justify-between p-3 rounded-lg border-2 transition-all w-full
+        ${isNoDisponible
+          ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
+          : selected
+            ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+            : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}
+      `}
+    >
+      <div className="flex items-center gap-3">
+        <div className={`p-2 rounded-lg ${isNoDisponible ? 'bg-gray-200' : selected ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+          <Clock className={`w-4 h-4 ${isNoDisponible ? 'text-gray-400' : selected ? 'text-emerald-600' : 'text-gray-500'}`} />
         </div>
-        {showDoctor && (
-          <div className="text-xs text-gray-500">Dr. {bloque.doctorNombre}</div>
-        )}
+        <div className="text-left">
+          <div className={`font-semibold ${isNoDisponible ? 'text-gray-400 line-through' : selected ? 'text-emerald-700' : 'text-gray-900'}`}>
+            {bloque.hora}
+          </div>
+          {showDoctor && (
+            <div className="text-xs text-gray-500">Dr. {bloque.doctorNombre}</div>
+          )}
+          {isOcupado && !isPasado && (
+            <div className="text-xs text-red-500 font-medium">Ocupado</div>
+          )}
+          {isPasado && (
+            <div className="text-xs text-gray-400 font-medium">Hora pasada</div>
+          )}
+        </div>
       </div>
-    </div>
-    {selected && (
-      <Badge className="bg-emerald-100 text-emerald-700 border-0">
-        <CheckCircle className="w-3 h-3 mr-1" /> Seleccionado
-      </Badge>
-    )}
-  </button>
-);
+      {selected && !isNoDisponible && (
+        <Badge className="bg-emerald-100 text-emerald-700 border-0">
+          <CheckCircle className="w-3 h-3 mr-1" /> Seleccionado
+        </Badge>
+      )}
+    </button>
+  );
+};
 
 export default function FormularioCita({
   editingCita = null,
@@ -325,14 +340,16 @@ export default function FormularioCita({
             }
           }
 
-          const disponibles = bloquesArray.filter(b => b.estado === 'disponible').map(b => ({
+          // Incluir TODOS los bloques con su estado para mostrar ocupados como deshabilitados
+          const todosLosBloques = bloquesArray.map(b => ({
             hora: b.hora,
             doctorId: doctorId,
             doctorNombre: doctorSeleccionado.nombre || 'Doctor',
-            duracion: b.duracion
+            duracion: b.duracion,
+            estado: b.estado // disponible, ocupado, pasado, etc.
           }));
 
-          setBloquesDisponibles(disponibles);
+          setBloquesDisponibles(todosLosBloques);
         }
       } else {
         const doctoresFiltrados = getDoctoresFiltrados();
@@ -357,12 +374,11 @@ export default function FormularioCita({
               }
             }
 
-            const bloquesFiltrados = bloquesArray.filter(b => b.estado === 'disponible');
-
+            // Incluir TODOS los bloques con su estado
             return {
               doctorId: doc.usuarioId,
               doctorNombre: doc.nombre,
-              bloques: bloquesFiltrados
+              bloques: bloquesArray
             };
           }).catch(() => {
             return { doctorId: doc.usuarioId, doctorNombre: doc.nombre, bloques: [] };
@@ -378,7 +394,8 @@ export default function FormularioCita({
               hora: bloque.hora,
               doctorId: resultado.doctorId,
               doctorNombre: resultado.doctorNombre,
-              duracion: bloque.duracion
+              duracion: bloque.duracion,
+              estado: bloque.estado // disponible, ocupado, pasado, etc.
             });
           });
         });

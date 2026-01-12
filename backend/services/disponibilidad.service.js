@@ -108,11 +108,12 @@ class DisponibilidadService {
     }
 
     // Obtener citas ya agendadas para ese doctor en esa fecha
+    // Excluir Cancelada y NoAsistio - esos horarios quedan disponibles
     const whereCitas = {
       doctorId,
       fecha: fechaObj,
       estado: {
-        not: 'Cancelada',
+        notIn: ['Cancelada', 'NoAsistio'],
       },
     };
 
@@ -176,6 +177,17 @@ class DisponibilidadService {
   generarSlotsDisponibles(bloques, citasOcupadas, fecha, duracionSlot = 30, reservasActivas = [], bloqueoParcial = null) {
     const slots = [];
 
+    // Detectar si la fecha es hoy para filtrar horas pasadas (usando hora de Colombia)
+    const { todayString, nowColombia } = require('../utils/date');
+    const hoyStr = todayString();
+    const esHoy = fecha === hoyStr;
+
+    let minutosActualesDelDia = 0;
+    if (esHoy) {
+      const ahoraColombia = nowColombia();
+      minutosActualesDelDia = ahoraColombia.getUTCHours() * 60 + ahoraColombia.getUTCMinutes();
+    }
+
     // Convertir bloqueo parcial a minutos si existe
     let bloqueoInicioMinutos = null;
     let bloqueoFinMinutos = null;
@@ -221,11 +233,17 @@ class DisponibilidadService {
         const ocupadoPorBloqueo = bloqueoInicioMinutos !== null &&
           minutos < bloqueoFinMinutos && slotFinMinutos > bloqueoInicioMinutos;
 
+        // Verificar si el slot ya pasó (solo aplica si es hoy)
+        const slotYaPaso = esHoy && minutos <= minutosActualesDelDia;
+
         // Determinar estado del slot
         let estado = 'disponible';
         let motivo = null;
 
-        if (ocupadoPorCita) {
+        if (slotYaPaso) {
+          estado = 'pasado';
+          motivo = 'Hora ya pasada';
+        } else if (ocupadoPorCita) {
           estado = 'ocupado';
           motivo = 'Cita programada';
         } else if (ocupadoPorReserva) {
@@ -254,8 +272,8 @@ class DisponibilidadService {
    */
   timeToMinutes(time) {
     if (time instanceof Date) {
-      // If it's a Date object, extract hours and minutes
-      return time.getHours() * 60 + time.getMinutes();
+      // If it's a Date object, extract hours and minutes in UTC (horas se almacenan en UTC)
+      return time.getUTCHours() * 60 + time.getUTCMinutes();
     }
     // If it's a string in "HH:MM" format
     const [hours, minutes] = time.split(':').map(Number);

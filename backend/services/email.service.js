@@ -1354,6 +1354,240 @@ Ver tus citas: ${frontendUrl}/perfil/citas
       text
     });
   }
+
+  /**
+   * Envía email de confirmación de cita reprogramada
+   * @param {Object} params - Parámetros del correo
+   * @param {string} params.to - Email del paciente
+   * @param {Object} params.paciente - Datos del paciente
+   * @param {Object} params.cita - Datos de la cita nueva
+   * @param {Object} params.doctor - Datos del doctor
+   * @param {Object} params.especialidad - Datos de la especialidad
+   * @param {Object} params.citaAnterior - Datos de la cita anterior (opcional)
+   */
+  async sendAppointmentRescheduled({ to, paciente, cita, doctor, especialidad, citaAnterior }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de reprogramación no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombrePaciente = `${paciente.nombre} ${paciente.apellido || ''}`.trim();
+    const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por confirmar';
+    const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+
+    // Formatear fecha nueva
+    const fechaCita = new Date(cita.fecha);
+    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Formatear hora nueva
+    let horaFormateada = 'Por confirmar';
+    if (cita.hora) {
+      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
+      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // Formatear fecha y hora anterior si existen
+    let fechaAnteriorFormateada = '';
+    let horaAnteriorFormateada = '';
+    if (citaAnterior) {
+      const fechaAnt = new Date(citaAnterior.fecha);
+      fechaAnteriorFormateada = fechaAnt.toLocaleDateString('es-CO', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      if (citaAnterior.hora) {
+        const horaAnt = citaAnterior.hora instanceof Date ? citaAnterior.hora : new Date(`1970-01-01T${citaAnterior.hora}`);
+        horaAnteriorFormateada = horaAnt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      }
+    }
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cita Reprogramada</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); padding: 35px 20px; text-align: center;">
+        <div style="font-size: 50px; margin-bottom: 15px;">🔄</div>
+        <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">Cita Reprogramada</h1>
+        <p style="color: rgba(255,255,255,0.95); margin: 12px 0 0; font-size: 16px; font-weight: 500;">Tu cita ha sido actualizada exitosamente</p>
+      </td>
+    </tr>
+
+    <!-- Logo -->
+    <tr>
+      <td style="padding: 25px; text-align: center; border-bottom: 1px solid #e5e5e5;">
+        <h2 style="color: #144F79; margin: 0; font-size: 28px; font-weight: 700;">Clínica Mía</h2>
+        <p style="color: #53B896; margin: 5px 0 0; font-size: 13px;">Tu Aliado en Salud y Bienestar</p>
+      </td>
+    </tr>
+
+    <!-- Saludo -->
+    <tr>
+      <td style="padding: 30px 25px 15px;">
+        <p style="color: #333; font-size: 17px; margin: 0;">
+          Hola <strong>${nombrePaciente}</strong>,
+        </p>
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 15px 0 0;">
+          Tu cita médica ha sido reprogramada exitosamente. A continuación encontrarás los nuevos detalles:
+        </p>
+      </td>
+    </tr>
+
+    <!-- Nueva fecha/hora -->
+    <tr>
+      <td style="padding: 15px 25px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 16px; overflow: hidden; border: 2px solid #10b981;">
+          <tr>
+            <td style="padding: 25px;">
+              <h3 style="color: #059669; margin: 0 0 20px; font-size: 16px; text-transform: uppercase; letter-spacing: 1px;">
+                ✅ Nueva Cita Programada
+              </h3>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #a7f3d0;">
+                    <span style="color: #047857; font-size: 13px; display: block;">📅 NUEVA FECHA</span>
+                    <span style="color: #065f46; font-size: 18px; font-weight: 700;">${fechaFormateada}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #a7f3d0;">
+                    <span style="color: #047857; font-size: 13px; display: block;">🕐 NUEVA HORA</span>
+                    <span style="color: #065f46; font-size: 18px; font-weight: 700;">${horaFormateada}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 0; border-bottom: 1px solid #a7f3d0;">
+                    <span style="color: #047857; font-size: 13px; display: block;">👨‍⚕️ MÉDICO</span>
+                    <span style="color: #065f46; font-size: 17px; font-weight: 600;">${nombreDoctor}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 12px 0;">
+                    <span style="color: #047857; font-size: 13px; display: block;">🏥 ESPECIALIDAD</span>
+                    <span style="color: #065f46; font-size: 17px; font-weight: 600;">${especialidad?.titulo || 'Consulta General'}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    ${citaAnterior ? `
+    <!-- Cita anterior (tachada) -->
+    <tr>
+      <td style="padding: 10px 25px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef2f2; border-radius: 12px; overflow: hidden; border: 1px solid #fecaca;">
+          <tr>
+            <td style="padding: 20px;">
+              <h3 style="color: #991b1b; margin: 0 0 15px; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">
+                ❌ Cita Anterior (Cancelada)
+              </h3>
+              <p style="color: #7f1d1d; font-size: 15px; text-decoration: line-through; margin: 0;">
+                ${fechaAnteriorFormateada} a las ${horaAnteriorFormateada}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+    ` : ''}
+
+    <!-- Recordatorios importantes -->
+    <tr>
+      <td style="padding: 20px 25px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #fef3c7; border-radius: 12px; border: 1px solid #fcd34d;">
+          <tr>
+            <td style="padding: 20px;">
+              <h4 style="color: #92400e; margin: 0 0 12px; font-size: 15px;">⚠️ Recordatorios Importantes</h4>
+              <ul style="margin: 0; padding-left: 20px; color: #78350f; font-size: 14px; line-height: 1.8;">
+                <li>Llega 15 minutos antes de tu cita</li>
+                <li>Trae tu documento de identidad</li>
+                <li>Si tienes exámenes previos, tráelos contigo</li>
+              </ul>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Botón Ver Citas -->
+    <tr>
+      <td style="padding: 20px 25px; text-align: center;">
+        <a href="${frontendUrl}/perfil/citas" style="display: inline-block; background: linear-gradient(135deg, #144F79 0%, #1a5a8a 100%); color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 30px; font-weight: 600; font-size: 15px;">
+          Ver Mis Citas
+        </a>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #f8fafc; padding: 25px; text-align: center; border-top: 1px solid #e5e5e5;">
+        <p style="color: #64748b; font-size: 13px; margin: 0;">
+          📍 Cra. 5 #28-85, Ibagué, Tolima<br>
+          📞 324 333 8555 | 📧 info@clinicamiacolombia.com
+        </p>
+        <p style="color: #94a3b8; font-size: 12px; margin: 15px 0 0;">
+          © ${new Date().getFullYear()} Clínica Mía - Tu Aliado en Salud y Bienestar
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+CITA REPROGRAMADA - Clínica Mía
+
+Hola ${nombrePaciente},
+
+Tu cita médica ha sido reprogramada exitosamente.
+
+NUEVA CITA:
+- Fecha: ${fechaFormateada}
+- Hora: ${horaFormateada}
+- Médico: ${nombreDoctor}
+- Especialidad: ${especialidad?.titulo || 'Consulta General'}
+${citaAnterior ? `
+CITA ANTERIOR (Cancelada):
+- ${fechaAnteriorFormateada} a las ${horaAnteriorFormateada}
+` : ''}
+Recordatorios:
+- Llega 15 minutos antes de tu cita
+- Trae tu documento de identidad
+- Si tienes exámenes previos, tráelos contigo
+
+📍 Cra. 5 #28-85, Ibagué, Tolima
+📞 324 333 8555
+
+Ver tus citas: ${frontendUrl}/perfil/citas
+
+© ${new Date().getFullYear()} Clínica Mía
+    `;
+
+    return this.send({
+      to,
+      subject: `🔄 Cita Reprogramada - ${fechaFormateada} a las ${horaFormateada}`,
+      html,
+      text
+    });
+  }
 }
 
 // Singleton

@@ -15,6 +15,7 @@ const { createCitaSchema, updateCitaSchema } = require('../validators/cita.schem
 const { addMinutes, isBefore, isAfter, isEqual } = require('date-fns');
 const disponibilidadService = require('./disponibilidad.service');
 const { parseSimpleDate, duracionValida } = require('../utils/date');
+const emailService = require('./email.service');
 
 // Código de error de Prisma para violación de constraint único
 const PRISMA_UNIQUE_CONSTRAINT_ERROR = 'P2002';
@@ -261,8 +262,37 @@ class CitaService {
       );
     }
 
-    // Las citas de emergencia no requieren validación de disponibilidad
+    // Las citas de emergencia no requieren validación de disponibilidad ni fecha/hora pasada
     const esEmergencia = validatedData.es_emergencia || false;
+
+    // Validar que la fecha/hora no sea en el pasado (excepto emergencias)
+    if (!esEmergencia && validatedData.fecha && validatedData.hora) {
+      // Usar la fecha de la cita como string YYYY-MM-DD
+      const fechaCitaStr = validatedData.fecha;
+
+      // Obtener fecha de hoy en Colombia (string YYYY-MM-DD)
+      const { todayString, nowColombia } = require('../utils/date');
+      const hoyStr = todayString();
+
+      // Comparar strings de fecha directamente (formato YYYY-MM-DD es ordenable)
+      if (fechaCitaStr < hoyStr) {
+        throw new ValidationError('No se puede crear una cita en una fecha pasada.');
+      }
+
+      // Si la fecha es hoy, verificar que la hora no haya pasado
+      if (fechaCitaStr === hoyStr) {
+        const [horaStr, minStr] = validatedData.hora.split(':').map(Number);
+        const minutosHoraCita = horaStr * 60 + minStr;
+
+        // Usar hora actual de Colombia
+        const ahoraColombia = nowColombia();
+        const minutosAhora = ahoraColombia.getUTCHours() * 60 + ahoraColombia.getUTCMinutes();
+
+        if (minutosHoraCita <= minutosAhora) {
+          throw new ValidationError('No se puede crear una cita en una hora que ya pasó.');
+        }
+      }
+    }
 
     try {
       // Crear cita y factura en una transacción con validación de disponibilidad
@@ -280,6 +310,7 @@ class CitaService {
               id: true,
               hora: true,
               duracionMinutos: true,
+              estado: true,
             }
           });
 
@@ -295,8 +326,10 @@ class CitaService {
 
             // Superposición: (StartA < EndB) and (EndA > StartB)
             if (isBefore(horaInicio, citaFin) && isAfter(horaFin, citaInicio)) {
+              const horaExistente = citaExistente.hora.toISOString().split('T')[1].substring(0, 5);
+              console.log(`[Conflicto] Cita existente ID: ${citaExistente.id}, Hora: ${horaExistente}, Estado: ${citaExistente.estado || 'N/A'}`);
               throw new ValidationError(
-                `El horario ${validatedData.hora} no está disponible. Ya existe una cita programada en ese horario.`
+                `El horario ${validatedData.hora} no está disponible. Ya existe una cita a las ${horaExistente} (ID: ${citaExistente.id.substring(0, 8)}...).`
               );
             }
           }
@@ -793,10 +826,10 @@ class CitaService {
    * @param {string} nuevoDoctorId - ID del nuevo doctor (opcional, puede ser Doctor.id o Usuario.id)
    */
   async reprogramarByPaciente(citaId, email, nuevaFecha, nuevaHora, nuevoDoctorId = null) {
-    // Obtener paciente
+    // Obtener paciente con datos para el correo
     const paciente = await prisma.paciente.findFirst({
       where: { email, activo: true },
-      select: { id: true }
+      select: { id: true, nombre: true, apellido: true, email: true }
     });
 
     if (!paciente) {
@@ -808,9 +841,15 @@ class CitaService {
       where: { id: citaId, pacienteId: paciente.id },
       include: {
         doctor: true,
-        especialidad: { select: { id: true } }
+        especialidad: { select: { id: true, titulo: true } }
       }
     });
+
+    // Guardar datos de la cita anterior para el correo
+    const citaAnterior = cita ? {
+      fecha: cita.fecha,
+      hora: cita.hora
+    } : null;
 
     if (!cita) {
       throw new NotFoundError('Cita no encontrada');
@@ -901,6 +940,28 @@ class CitaService {
         especialidad: { select: { id: true, titulo: true } },
       }
     });
+
+    // Enviar correo de confirmación de reprogramación
+    try {
+      await emailService.sendAppointmentRescheduled({
+        to: paciente.email || email,
+        paciente: {
+          nombre: paciente.nombre,
+          apellido: paciente.apellido
+        },
+        cita: {
+          fecha: citaActualizada.fecha,
+          hora: nuevaHora
+        },
+        doctor: citaActualizada.doctor,
+        especialidad: citaActualizada.especialidad,
+        citaAnterior: citaAnterior
+      });
+      console.log(`[Email] Correo de reprogramación enviado a ${paciente.email || email}`);
+    } catch (emailError) {
+      console.error('[Email] Error enviando correo de reprogramación:', emailError);
+      // No lanzamos error para no afectar la reprogramación exitosa
+    }
 
     return citaActualizada;
   }

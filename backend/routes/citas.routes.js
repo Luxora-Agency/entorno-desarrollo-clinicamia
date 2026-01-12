@@ -74,7 +74,14 @@ router.post('/', authMiddleware, async (c) => {
     return c.json({ status: 'success', data: cita }, 201);
   } catch (error) {
     console.error('Error al crear cita:', error);
-    if (error.name === 'ZodError' || error.message.includes('solapa')) {
+    // Errores de validación: ZodError, conflictos de horario, etc.
+    if (error.name === 'ZodError' ||
+        error.name === 'ValidationError' ||
+        error.statusCode === 400 ||
+        error.message.includes('solapa') ||
+        error.message.includes('no está disponible') ||
+        error.message.includes('ya existe') ||
+        error.message.includes('pasada')) {
         return c.json({ status: 'error', message: error.message, errors: error.errors }, 400);
     }
     return c.json({ status: 'error', message: error.message }, 500);
@@ -96,11 +103,18 @@ router.put('/:id', authMiddleware, async (c) => {
     return c.json({ status: 'success', data: cita });
   } catch (error) {
     console.error('Error al actualizar cita:', error);
-    if (error.name === 'ZodError' || error.message.includes('solapa')) {
-        return c.json({ status: 'error', message: error.message, errors: error.errors }, 400);
-    }
     if (error.message === 'Cita no encontrada') {
         return c.json({ status: 'error', message: error.message }, 404);
+    }
+    // Errores de validación: ZodError, conflictos de horario, etc.
+    if (error.name === 'ZodError' ||
+        error.name === 'ValidationError' ||
+        error.statusCode === 400 ||
+        error.message.includes('solapa') ||
+        error.message.includes('no está disponible') ||
+        error.message.includes('ya existe') ||
+        error.message.includes('pasada')) {
+        return c.json({ status: 'error', message: error.message, errors: error.errors }, 400);
     }
     return c.json({ status: 'error', message: error.message }, 500);
   }
