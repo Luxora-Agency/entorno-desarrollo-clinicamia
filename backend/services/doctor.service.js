@@ -1,6 +1,7 @@
 const prisma = require('../db/prisma');
 const bcrypt = require('bcryptjs');
 const { ValidationError, NotFoundError, AppError } = require('../utils/errors');
+const { uploadImage, deleteImage, getPublicIdFromUrl, isConfigured: isCloudinaryConfigured } = require('../utils/cloudinary');
 const { saveBase64Image, deleteFile } = require('../utils/upload');
 
 class DoctorService {
@@ -42,10 +43,24 @@ class DoctorService {
     try {
       // Procesar foto si se proporciona como base64
       let fotoUrl = null;
+      console.log('[Doctor.crear] foto recibida:', foto ? `${String(foto).substring(0, 50)}... (${String(foto).length} chars)` : 'NULL');
+
       if (foto && foto.startsWith('data:')) {
-        fotoUrl = await saveBase64Image(foto, 'doctors');
+        // Intentar subir a Cloudinary primero, fallback a almacenamiento local
+        if (isCloudinaryConfigured()) {
+          console.log('[Doctor] Subiendo foto a Cloudinary...');
+          const result = await uploadImage(foto, 'doctors');
+          fotoUrl = result.url;
+          console.log('[Doctor] Foto subida a Cloudinary:', fotoUrl);
+        } else {
+          console.log('[Doctor] Cloudinary no configurado, usando almacenamiento local...');
+          fotoUrl = await saveBase64Image(foto, 'doctors');
+        }
       } else if (foto) {
         fotoUrl = foto; // Ya es una URL
+        console.log('[Doctor] Usando URL existente:', fotoUrl);
+      } else {
+        console.log('[Doctor] No se proporcionó foto');
       }
 
       // Uso de transacción para asegurar consistencia
@@ -113,19 +128,28 @@ class DoctorService {
     }
   }
 
-  async listar({ search = '', limit = 50, page = 1, usuarioId = '' }) {
+  async listar({ search = '', limit = 50, page = 1, usuarioId = '', activo = undefined }) {
     const skip = (page - 1) * limit;
-    
+
     const where = {};
-    
+
     // Filtro por usuarioId
     if (usuarioId) {
       where.usuarioId = usuarioId;
     }
-    
+
+    // Filtro por estado activo
+    if (activo !== undefined) {
+      where.usuario = {
+        ...where.usuario,
+        activo: activo
+      };
+    }
+
     // Filtro por búsqueda
     if (search) {
       where.usuario = {
+        ...where.usuario,
         OR: [
           { nombre: { contains: search, mode: 'insensitive' } },
           { apellido: { contains: search, mode: 'insensitive' } },
@@ -271,21 +295,44 @@ class DoctorService {
     try {
       // Procesar nueva foto si se proporciona
       let fotoUrl = undefined; // undefined significa no actualizar
-      console.log('[DEBUG Doctor] foto recibida:', foto ? `${foto.substring(0, 50)}... (${foto.length} chars)` : 'NULL');
+      console.log('[Doctor] foto recibida:', foto ? `${foto.substring(0, 50)}... (${foto.length} chars)` : 'NULL');
 
       if (foto && foto.startsWith('data:')) {
-        // Nueva foto en base64 - guardarla
-        console.log('[DEBUG Doctor] Guardando foto base64...');
-        fotoUrl = await saveBase64Image(foto, 'doctors');
-        console.log('[DEBUG Doctor] Foto guardada en:', fotoUrl);
-        // Eliminar foto anterior si existe
-        if (doctorExiste.foto) {
-          await deleteFile(doctorExiste.foto);
+        // Nueva foto en base64 - subirla
+        if (isCloudinaryConfigured()) {
+          console.log('[Doctor] Subiendo nueva foto a Cloudinary...');
+          const result = await uploadImage(foto, 'doctors');
+          fotoUrl = result.url;
+          console.log('[Doctor] Foto subida a Cloudinary:', fotoUrl);
+
+          // Eliminar foto anterior de Cloudinary si existe
+          if (doctorExiste.foto && doctorExiste.foto.includes('cloudinary.com')) {
+            const oldPublicId = getPublicIdFromUrl(doctorExiste.foto);
+            if (oldPublicId) {
+              await deleteImage(oldPublicId);
+            }
+          } else if (doctorExiste.foto) {
+            // Eliminar foto local si existe
+            await deleteFile(doctorExiste.foto);
+          }
+        } else {
+          console.log('[Doctor] Cloudinary no configurado, usando almacenamiento local...');
+          fotoUrl = await saveBase64Image(foto, 'doctors');
+          if (doctorExiste.foto) {
+            await deleteFile(doctorExiste.foto);
+          }
         }
       } else if (foto === null) {
         // Se quiere eliminar la foto
         if (doctorExiste.foto) {
-          await deleteFile(doctorExiste.foto);
+          if (doctorExiste.foto.includes('cloudinary.com')) {
+            const publicId = getPublicIdFromUrl(doctorExiste.foto);
+            if (publicId) {
+              await deleteImage(publicId);
+            }
+          } else {
+            await deleteFile(doctorExiste.foto);
+          }
         }
         fotoUrl = null;
       } else if (foto) {
@@ -381,10 +428,10 @@ class DoctorService {
       await prisma.$transaction(async (tx) => {
         // Eliminar doctor (las especialidades se eliminan en cascada por la definición del modelo)
         // Pero es buena práctica ser explícito o confiar en el onDelete: Cascade del schema
-        
+
         // Primero eliminamos el doctor
         await tx.doctor.delete({ where: { id } });
-        
+
         // Luego eliminamos el usuario asociado
         await tx.usuario.delete({ where: { id: doctor.usuarioId } });
       });
@@ -392,6 +439,55 @@ class DoctorService {
       return { message: 'Doctor eliminado exitosamente' };
     } catch (error) {
       throw new AppError('Error al eliminar doctor: ' + error.message);
+    }
+  }
+
+  async toggleActivo(id) {
+    const doctor = await prisma.doctor.findUnique({
+      where: { id },
+      include: { usuario: true }
+    });
+
+    if (!doctor) {
+      throw new NotFoundError('Doctor no encontrado');
+    }
+
+    const nuevoEstado = !doctor.usuario.activo;
+
+    try {
+      await prisma.usuario.update({
+        where: { id: doctor.usuarioId },
+        data: { activo: nuevoEstado }
+      });
+
+      return {
+        id: doctor.id,
+        activo: nuevoEstado,
+        message: nuevoEstado
+          ? 'Doctor activado exitosamente'
+          : 'Doctor desactivado exitosamente'
+      };
+    } catch (error) {
+      throw new AppError('Error al cambiar estado del doctor: ' + error.message);
+    }
+  }
+
+  async actualizarHorarios(id, horarios) {
+    const doctor = await prisma.doctor.findUnique({ where: { id } });
+
+    if (!doctor) {
+      throw new NotFoundError('Doctor no encontrado');
+    }
+
+    try {
+      await prisma.doctor.update({
+        where: { id },
+        data: { horarios: horarios || {} }
+      });
+
+      return this.obtenerPorId(id);
+    } catch (error) {
+      throw new AppError('Error al actualizar horarios: ' + error.message);
     }
   }
 }

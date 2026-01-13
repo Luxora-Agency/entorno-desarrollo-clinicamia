@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Search, Edit, Trash2, Info, Building2, Users, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Info, Building2, Users, CheckCircle2, XCircle, X } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDateLong } from '@/lib/dateUtils';
 
@@ -20,6 +20,8 @@ export default function DepartamentosModule({ user }) {
   const [search, setSearch] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingDepartamento, setEditingDepartamento] = useState(null);
+  const [searchResponsable, setSearchResponsable] = useState('');
+  const [showResponsableDropdown, setShowResponsableDropdown] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
     descripcion: '',
@@ -138,7 +140,19 @@ export default function DepartamentosModule({ user }) {
       estado: 'Activo',
     });
     setEditingDepartamento(null);
+    setSearchResponsable('');
+    setShowResponsableDropdown(false);
   };
+
+  // Obtener el usuario seleccionado actualmente
+  const selectedResponsable = usuarios.find(u => u.id === formData.responsable_id);
+
+  // Filtrar usuarios por búsqueda
+  const filteredUsuarios = usuarios.filter(u =>
+    `${u.nombre} ${u.apellido} ${u.email} ${u.rol}`
+      .toLowerCase()
+      .includes(searchResponsable.toLowerCase())
+  );
 
   return (
     <div className="p-6 lg:p-8 bg-white min-h-screen">
@@ -195,22 +209,102 @@ export default function DepartamentosModule({ user }) {
               </div>
               <div>
                 <Label htmlFor="responsable_id" className="text-sm font-semibold text-gray-700 mb-2 block">Usuario Responsable (Opcional)</Label>
-                <Select 
-                  value={formData.responsable_id || "none"} 
-                  onValueChange={(value) => setFormData({ ...formData, responsable_id: value === "none" ? "" : value })}
-                >
-                  <SelectTrigger className="h-11 border-gray-300">
-                    <SelectValue placeholder="Seleccionar responsable (opcional)" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin responsable</SelectItem>
-                    {usuarios.map((usuario) => (
-                      <SelectItem key={usuario.id} value={usuario.id}>
-                        {usuario.nombre} {usuario.apellido} - {usuario.rol}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+                {/* Mostrar usuario seleccionado */}
+                {selectedResponsable && (
+                  <div className="mb-2 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-emerald-600" />
+                      <span className="font-medium text-emerald-800">
+                        {selectedResponsable.nombre} {selectedResponsable.apellido}
+                      </span>
+                      <Badge variant="outline" className="text-xs bg-white">
+                        {selectedResponsable.rol}
+                      </Badge>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setFormData({ ...formData, responsable_id: '' });
+                        setSearchResponsable('');
+                      }}
+                      className="text-emerald-600 hover:text-emerald-800 p-1 hover:bg-emerald-100 rounded"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Buscador de usuarios */}
+                <div className="relative">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      placeholder="Buscar usuario por nombre, email o rol..."
+                      value={searchResponsable}
+                      onChange={(e) => setSearchResponsable(e.target.value)}
+                      onFocus={() => setShowResponsableDropdown(true)}
+                      className="h-11 pl-10 border-gray-300 focus:border-emerald-500 focus:ring-emerald-500"
+                    />
+                  </div>
+
+                  {showResponsableDropdown && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-10"
+                        onClick={() => setShowResponsableDropdown(false)}
+                      />
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-xl z-20 max-h-64 overflow-y-auto">
+                        {/* Opción sin responsable */}
+                        <div
+                          onClick={() => {
+                            setFormData({ ...formData, responsable_id: '' });
+                            setSearchResponsable('');
+                            setShowResponsableDropdown(false);
+                          }}
+                          className="p-3 hover:bg-gray-100 cursor-pointer border-b border-gray-100 flex items-center gap-2 text-gray-500"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          <span>Sin responsable</span>
+                        </div>
+
+                        {filteredUsuarios.length === 0 ? (
+                          <div className="p-4 text-center text-gray-500">
+                            No se encontraron usuarios
+                          </div>
+                        ) : (
+                          filteredUsuarios.map((usuario) => (
+                            <div
+                              key={usuario.id}
+                              onClick={() => {
+                                setFormData({ ...formData, responsable_id: usuario.id });
+                                setSearchResponsable('');
+                                setShowResponsableDropdown(false);
+                              }}
+                              className={`p-3 cursor-pointer transition-all hover:bg-gray-50 ${
+                                formData.responsable_id === usuario.id
+                                  ? 'bg-emerald-50 border-l-4 border-emerald-500'
+                                  : ''
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-gray-900">
+                                    {usuario.nombre} {usuario.apellido}
+                                  </div>
+                                  <div className="text-xs text-gray-500">{usuario.email}</div>
+                                </div>
+                                <Badge variant="outline" className="text-xs">
+                                  {usuario.rol}
+                                </Badge>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
               <div>
                 <Label htmlFor="estado" className="text-sm font-semibold text-gray-700 mb-2 block">Estado *</Label>

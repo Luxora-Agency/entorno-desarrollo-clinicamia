@@ -9,17 +9,19 @@ const doctorSchema = z.object({
   genero: z.string().optional(),
   fecha_nacimiento: z.string().optional(),
   direccion: z.string().optional(),
-  
+
   // Doctor specific fields
   licencia_medica: z.string().optional(),
   universidad: z.string().optional(),
   anios_experiencia: z.union([z.string(), z.number()]).optional(),
   biografia: z.string().optional(),
-  
+  foto: z.string().optional(), // Base64 image or URL
+  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').optional(),
+
   // Arrays/Objects
   especialidades_ids: z.array(z.string().uuid('ID de especialidad inválido')).optional(),
   horarios: z.any().optional(), // Using z.any() for compatibility
-  
+
   activo: z.boolean().optional(),
 });
 
@@ -33,15 +35,17 @@ const updateDoctorSchema = z.object({
   genero: z.string().optional(),
   fecha_nacimiento: z.string().optional(),
   direccion: z.string().optional(),
-  
+
   licencia_medica: z.string().optional(),
   universidad: z.string().optional(),
   anios_experiencia: z.union([z.string(), z.number()]).optional(),
   biografia: z.string().optional(),
-  
+  foto: z.string().nullable().optional(), // Base64 image, URL, or null to remove
+  password: z.string().min(6).optional(),
+
   especialidades_ids: z.array(z.string().uuid()).optional(),
   horarios: z.any().optional(),
-  
+
   activo: z.boolean().optional(),
 });
 

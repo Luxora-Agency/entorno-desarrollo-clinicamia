@@ -19,7 +19,6 @@ class CatalogoService {
           { codigo: { contains: searchTerm, mode: 'insensitive' } },
           { descripcion: { contains: searchTerm, mode: 'insensitive' } },
         ],
-        estado: 'Activo',
       },
       take: parseInt(limit),
       orderBy: { codigo: 'asc' },

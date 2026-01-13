@@ -137,11 +137,12 @@ doctores.use('/*', authMiddleware);
  */
 doctores.get('/', async (c) => {
   try {
-    const { search = '', limit = '50', page = '1' } = c.req.query();
+    const { search = '', limit = '50', page = '1', activo } = c.req.query();
     const result = await doctorService.listar({
       search,
       limit: parseInt(limit),
       page: parseInt(page),
+      activo: activo !== undefined ? activo === 'true' : undefined,
     });
     return c.json({ success: true, data: result.doctores, pagination: result.pagination });
   } catch (err) {
@@ -255,6 +256,83 @@ doctores.put('/:id', validate(updateDoctorSchema), async (c) => {
     const body = c.req.validData;
     const doctor = await doctorService.actualizar(id, body);
     return c.json(success({ doctor }, 'Doctor actualizado exitosamente'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * @swagger
+ * /doctores/{id}/toggle-activo:
+ *   patch:
+ *     summary: Activar o desactivar un doctor
+ *     tags: [Doctores]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Estado del doctor actualizado
+ *       404:
+ *         description: Doctor no encontrado
+ *       500:
+ *         description: Error del servidor
+ */
+doctores.patch('/:id/toggle-activo', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const result = await doctorService.toggleActivo(id);
+    return c.json(success(result, result.message));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * @swagger
+ * /doctores/{id}/horarios:
+ *   patch:
+ *     summary: Actualizar horarios de un doctor
+ *     tags: [Doctores]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               horarios:
+ *                 type: object
+ *                 description: Objeto con horarios por día de semana (0-6)
+ *     responses:
+ *       200:
+ *         description: Horarios actualizados exitosamente
+ *       404:
+ *         description: Doctor no encontrado
+ *       500:
+ *         description: Error del servidor
+ */
+doctores.patch('/:id/horarios', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const { horarios } = await c.req.json();
+    const result = await doctorService.actualizarHorarios(id, horarios);
+    return c.json(success(result, 'Horarios actualizados exitosamente'));
   } catch (err) {
     return c.json(error(err.message), err.statusCode || 500);
   }

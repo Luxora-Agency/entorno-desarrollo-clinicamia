@@ -7,9 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Search, Edit, Trash2, UserCog, Phone, Mail, Clock, Eye, GraduationCap, Award, Calendar, MapPin } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, UserCog, Phone, Mail, Clock, Eye, GraduationCap, Award, Calendar, MapPin, Power, CalendarClock } from 'lucide-react';
+import DoctorScheduleManager from './DoctorScheduleManager';
+import { useToast } from '@/hooks/use-toast';
 
 export default function DoctoresModule({ user, onEdit, onAdd }) {
+  const { toast } = useToast();
   const [doctores, setDoctores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -89,6 +92,97 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
       loadDoctores();
     } catch (error) {
       console.error('Error deleting doctor:', error);
+    }
+  };
+
+  const handleToggleActivo = async (doctor) => {
+    const nuevoEstado = !doctor.activo;
+    const mensaje = nuevoEstado
+      ? '¿Desea activar este doctor? Podrá agendar citas y aparecer en el sistema.'
+      : '¿Desea desactivar este doctor? No podrá agendar nuevas citas ni aparecer en selectores.';
+
+    if (!confirm(mensaje)) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/doctores/${doctor.id}/toggle-activo`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        toast({
+          title: data.data?.activo ? 'Doctor activado' : 'Doctor desactivado',
+          description: data.message || 'Estado actualizado correctamente'
+        });
+        loadDoctores();
+      } else {
+        const data = await response.json();
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: data.message || 'Error al cambiar estado del doctor'
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling doctor status:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Error al cambiar estado del doctor'
+      });
+    }
+  };
+
+  const handleOpenHorarios = (doctor) => {
+    setHorarios(doctor.horarios || {});
+    setEditingHorarios(doctor);
+  };
+
+  const handleScheduleChange = (newHorarios) => {
+    setHorarios(newHorarios);
+  };
+
+  const handleSaveHorarios = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/doctores/${editingHorarios.id}/horarios`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ horarios })
+      });
+
+      if (response.ok) {
+        toast({
+          title: 'Horarios actualizados',
+          description: 'Los horarios del doctor se han guardado correctamente.'
+        });
+        setEditingHorarios(null);
+        loadDoctores();
+      } else {
+        const data = await response.json();
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: data.message || 'Error al actualizar horarios'
+        });
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Error al actualizar horarios'
+      });
     }
   };
 
@@ -247,6 +341,28 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
                             <Button
                               size="sm"
                               variant="outline"
+                              onClick={() => handleOpenHorarios(doctor)}
+                              className="h-8 w-8 p-0 sm:h-9 sm:w-9 hover:bg-purple-50 hover:text-purple-600 hover:border-purple-300"
+                              title="Gestionar horarios"
+                            >
+                              <CalendarClock className="w-3 h-3 sm:w-4 sm:h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleToggleActivo(doctor)}
+                              className={`h-8 w-8 p-0 sm:h-9 sm:w-9 ${
+                                doctor.activo
+                                  ? 'hover:bg-orange-50 hover:text-orange-600 hover:border-orange-300'
+                                  : 'hover:bg-green-50 hover:text-green-600 hover:border-green-300'
+                              }`}
+                              title={doctor.activo ? 'Desactivar doctor' : 'Activar doctor'}
+                            >
+                              <Power className={`w-3 h-3 sm:w-4 sm:h-4 ${doctor.activo ? '' : 'text-gray-400'}`} />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
                               onClick={() => onEdit(doctor)}
                               className="h-8 w-8 p-0 sm:h-9 sm:w-9 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-300"
                               title="Editar"
@@ -276,65 +392,24 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
 
       {/* Modal Editar Horarios */}
       <Dialog open={!!editingHorarios} onOpenChange={() => setEditingHorarios(null)}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
+          <DialogHeader className="p-6 pb-0">
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <CalendarClock className="w-5 h-5 text-emerald-600" />
               Horarios de Atención - Dr. {editingHorarios?.nombre} {editingHorarios?.apellido}
             </DialogTitle>
           </DialogHeader>
-          
-          <div className="space-y-4">
-            {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(dia => (
-              <div key={dia} className="p-4 border rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <label className="font-medium text-gray-900">{dia}</label>
-                  <input
-                    type="checkbox"
-                    checked={!!horarios[dia]}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setHorarios({...horarios, [dia]: {inicio: '08:00', fin: '17:00'}});
-                      } else {
-                        const newHorarios = {...horarios};
-                        delete newHorarios[dia];
-                        setHorarios(newHorarios);
-                      }
-                    }}
-                    className="w-4 h-4"
-                  />
-                </div>
-                {horarios[dia] && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-sm text-gray-600">Hora Inicio</label>
-                      <input
-                        type="time"
-                        value={horarios[dia]?.inicio || '08:00'}
-                        onChange={(e) => setHorarios({
-                          ...horarios,
-                          [dia]: {...horarios[dia], inicio: e.target.value}
-                        })}
-                        className="w-full mt-1 px-3 py-2 border rounded-md"
-                      />
-                    </div>
-                    <div>
-                      <label className="text-sm text-gray-600">Hora Fin</label>
-                      <input
-                        type="time"
-                        value={horarios[dia]?.fin || '17:00'}
-                        onChange={(e) => setHorarios({
-                          ...horarios,
-                          [dia]: {...horarios[dia], fin: e.target.value}
-                        })}
-                        className="w-full mt-1 px-3 py-2 border rounded-md"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            
-            <div className="flex gap-3 pt-4 border-t">
+
+          <div className="p-6 pt-4">
+            <div className="h-[600px]">
+              <DoctorScheduleManager
+                doctorId={editingHorarios?.id}
+                initialHorarios={horarios}
+                onChange={handleScheduleChange}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-4 mt-4 border-t">
               <Button
                 onClick={() => setEditingHorarios(null)}
                 variant="outline"
@@ -343,29 +418,7 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
                 Cancelar
               </Button>
               <Button
-                onClick={async () => {
-                  try {
-                    const token = localStorage.getItem('token');
-                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-                    const response = await fetch(`${apiUrl}/doctores/${editingHorarios.id}`, {
-                      method: 'PUT',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                      },
-                      body: JSON.stringify({ horarios })
-                    });
-                    
-                    if (response.ok) {
-                      alert('Horarios actualizados correctamente');
-                      setEditingHorarios(null);
-                      loadDoctores();
-                    }
-                  } catch (error) {
-                    console.error('Error:', error);
-                    alert('Error al actualizar horarios');
-                  }
-                }}
+                onClick={handleSaveHorarios}
                 className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600"
               >
                 Guardar Horarios

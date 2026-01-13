@@ -41,6 +41,11 @@ class DisponibilidadService {
       throw new NotFoundError('Doctor no encontrado');
     }
 
+    // Verificar que el doctor esté activo
+    if (!usuario.activo) {
+      throw new ValidationError('El doctor no está activo');
+    }
+
     const horarios = usuario.doctor?.horarios;
     const especialidades = usuario.doctor?.especialidades || [];
     
