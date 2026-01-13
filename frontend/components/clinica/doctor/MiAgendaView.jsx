@@ -22,8 +22,31 @@ export default function MiAgendaView({ user }) {
   const [horarios, setHorarios] = useState({});
   const [horariosModificados, setHorariosModificados] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
+  const [bloqueos, setBloqueos] = useState([]);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+  // Cargar bloqueos activos del doctor
+  const cargarBloqueos = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      // Usar el endpoint correcto: /bloqueos/doctor/:doctorId
+      const response = await fetch(`${apiUrl}/bloqueos/doctor/${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const data = await response.json();
+      if (data.success) {
+        // Filtrar solo bloqueos activos
+        const bloqueosActivos = (data.data || []).filter(b => b.activo);
+        setBloqueos(bloqueosActivos);
+      }
+    } catch (error) {
+      console.error('Error loading bloqueos:', error);
+    }
+  }, [user?.id, apiUrl]);
 
   // Cargar perfil del doctor y horarios
   const cargarDatosDoctor = useCallback(async () => {
@@ -69,7 +92,8 @@ export default function MiAgendaView({ user }) {
 
   useEffect(() => {
     cargarDatosDoctor();
-  }, [cargarDatosDoctor]);
+    cargarBloqueos();
+  }, [cargarDatosDoctor, cargarBloqueos]);
 
   // Manejar cambios en el schedule manager
   const handleHorariosChange = useCallback((nuevosHorarios) => {
@@ -261,6 +285,7 @@ export default function MiAgendaView({ user }) {
             doctorId={doctorProfile.id}
             initialHorarios={horarios}
             onChange={handleHorariosChange}
+            bloqueos={bloqueos}
           />
 
           {/* Resumen de Horarios */}
@@ -324,6 +349,7 @@ export default function MiAgendaView({ user }) {
             doctorId={user?.id}
             doctorNombre={`${user?.nombre} ${user?.apellido}`}
             selfManaged={true}
+            onBloqueosChange={cargarBloqueos}
           />
         </TabsContent>
       </Tabs>

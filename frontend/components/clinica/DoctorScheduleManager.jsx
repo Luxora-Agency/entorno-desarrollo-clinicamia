@@ -34,30 +34,32 @@ const localizer = dateFnsLocalizer({
 
 const DnDCalendar = withDragAndDrop(Calendar);
 
-export default function DoctorScheduleManager({ doctorId, initialHorarios, onChange }) {
+export default function DoctorScheduleManager({ doctorId, initialHorarios, onChange, bloqueos = [] }) {
   const { toast } = useToast();
   const [view, setView] = useState(Views.WEEK);
   // Usamos una fecha fija para la "semana tipo" para evitar problemas de navegación
   // Pero permitimos navegar para ver cómo queda
   const [date, setDate] = useState(new Date());
   const [events, setEvents] = useState([]);
+  const [blockEvents, setBlockEvents] = useState([]); // Eventos de bloqueo
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [isEventModalOpen, setIsEventModalOpen] = useState(false);
 
-  // Inicializar eventos desde initialHorarios
-  useEffect(() => {
-    if (!initialHorarios || Object.keys(initialHorarios).length === 0) return;
+  // Convertir horarios guardados a eventos del calendario para la semana visible
+  // Esta función recalcula las posiciones cada vez que cambia la semana visible
+  const convertHorariosToEvents = useCallback((horariosData, weekStart) => {
+    if (!horariosData || Object.keys(horariosData).length === 0) return [];
 
     const loadedEvents = [];
-    const currentStartOfWeek = startOfWeek(date, { weekStartsOn: 0 }); // Domingo
 
-    // initialHorarios formato: { "1": [{inicio: "08:00", fin: "12:00"}], ... } donde clave es día (0=Dom, 1=Lun...)
-    Object.entries(initialHorarios).forEach(([dayIndex, blocks]) => {
+    // initialHorarios formato: { "0": [{inicio: "08:00", fin: "12:00"}], "1": [...], ... }
+    // donde clave es día de la semana (0=Dom, 1=Lun, ..., 6=Sáb)
+    Object.entries(horariosData).forEach(([dayIndex, blocks]) => {
       const day = parseInt(dayIndex);
-      
-      // Calcular la fecha para este día de la semana actual
-      const eventDate = new Date(currentStartOfWeek);
-      eventDate.setDate(currentStartOfWeek.getDate() + day);
+
+      // Calcular la fecha para este día de la semana actual visible
+      const eventDate = new Date(weekStart);
+      eventDate.setDate(weekStart.getDate() + day);
 
       if (Array.isArray(blocks)) {
         blocks.forEach((block, idx) => {
@@ -76,19 +78,119 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
           const endDate = new Date(eventDate);
           endDate.setHours(endH, endM, 0);
 
+          // ID único basado en día y bloque (no en timestamp para mantener consistencia)
           loadedEvents.push({
-            id: `${day}-${idx}-${Date.now()}`, // ID temporal único
+            id: `horario-${day}-${idx}`,
             title: 'Disponible',
             start: startDate,
             end: endDate,
             resourceId: doctorId,
+            dayOfWeek: day, // Guardar el día de la semana para referencia
           });
         });
       }
     });
 
-    setEvents(loadedEvents);
-  }, [initialHorarios]); // Solo cargar al inicio o si cambia externamente drásticamente
+    return loadedEvents;
+  }, [doctorId]);
+
+  // Inicializar eventos desde initialHorarios cuando cambia la semana visible
+  useEffect(() => {
+    const currentStartOfWeek = startOfWeek(date, { weekStartsOn: 0 }); // Domingo
+    const newEvents = convertHorariosToEvents(initialHorarios, currentStartOfWeek);
+    setEvents(newEvents);
+  }, [initialHorarios, date, convertHorariosToEvents]);
+
+  // Procesar bloqueos para mostrarlos en el calendario
+  useEffect(() => {
+    if (!bloqueos || bloqueos.length === 0) {
+      setBlockEvents([]);
+      return;
+    }
+
+    // Helper para parsear fecha sin problemas de timezone
+    // Convierte "2026-01-15T00:00:00.000Z" o "2026-01-15" a fecha local
+    const parseDateLocal = (dateString) => {
+      if (!dateString) return null;
+      // Extraer solo la parte YYYY-MM-DD
+      const dateOnly = dateString.split('T')[0];
+      const [year, month, day] = dateOnly.split('-').map(Number);
+      return new Date(year, month - 1, day); // month is 0-indexed
+    };
+
+    const currentWeekStart = startOfWeek(date, { weekStartsOn: 0 });
+    const currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
+
+    const bloqueosEvents = [];
+
+    bloqueos.forEach((bloqueo, index) => {
+      if (!bloqueo.activo) return;
+
+      // Parsear fechas sin conversión de timezone
+      const fechaInicio = parseDateLocal(bloqueo.fechaInicio);
+      const fechaFin = parseDateLocal(bloqueo.fechaFin);
+
+      if (!fechaInicio || !fechaFin) return;
+
+      // Verificar si el bloqueo afecta la semana actual visible
+      if (fechaFin < currentWeekStart || fechaInicio > currentWeekEnd) return;
+
+      // Iterar por cada día del bloqueo dentro de la semana visible
+      for (let d = new Date(currentWeekStart); d < currentWeekEnd; d.setDate(d.getDate() + 1)) {
+        const currentDay = new Date(d);
+        currentDay.setHours(0, 0, 0, 0); // Normalizar a medianoche
+
+        // Verificar si este día está dentro del rango del bloqueo
+        const fechaInicioNorm = new Date(fechaInicio);
+        fechaInicioNorm.setHours(0, 0, 0, 0);
+        const fechaFinNorm = new Date(fechaFin);
+        fechaFinNorm.setHours(23, 59, 59, 999);
+
+        if (currentDay < fechaInicioNorm || currentDay > fechaFinNorm) continue;
+
+        // Bloqueo de día completo
+        if (!bloqueo.horaInicio || !bloqueo.horaFin) {
+          const startOfDay = new Date(currentDay);
+          startOfDay.setHours(6, 0, 0); // Desde las 6 AM
+          const endOfDay = new Date(currentDay);
+          endOfDay.setHours(22, 0, 0); // Hasta las 10 PM
+
+          bloqueosEvents.push({
+            id: `bloqueo-${bloqueo.id}-${currentDay.getTime()}`,
+            title: `🚫 ${bloqueo.motivo || bloqueo.tipo || 'Bloqueado'}`,
+            start: startOfDay,
+            end: endOfDay,
+            isBloqueo: true,
+            bloqueoTipo: bloqueo.tipo,
+            bloqueoMotivo: bloqueo.motivo,
+          });
+        } else {
+          // Bloqueo de franja horaria
+          const [startH, startM] = bloqueo.horaInicio.split(':').map(Number);
+          const [endH, endM] = bloqueo.horaFin.split(':').map(Number);
+
+          const startDate = new Date(currentDay);
+          startDate.setHours(startH, startM, 0);
+
+          const endDate = new Date(currentDay);
+          endDate.setHours(endH, endM, 0);
+
+          bloqueosEvents.push({
+            id: `bloqueo-${bloqueo.id}-${currentDay.getTime()}`,
+            title: `🚫 ${bloqueo.motivo || bloqueo.tipo || 'Bloqueado'}`,
+            start: startDate,
+            end: endDate,
+            isBloqueo: true,
+            bloqueoTipo: bloqueo.tipo,
+            bloqueoMotivo: bloqueo.motivo,
+          });
+        }
+      }
+    });
+
+    setBlockEvents(bloqueosEvents);
+  }, [bloqueos, date]);
 
   // Función para verificar si dos eventos se superponen
   const hasOverlap = useCallback((event1, event2) => {
@@ -113,6 +215,16 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
     }
     return false;
   }, [hasOverlap]);
+
+  // Verificar si un evento se superpone con algún bloqueo
+  const checkForBlockOverlaps = useCallback((newEvent) => {
+    for (const bloqueo of blockEvents) {
+      if (hasOverlap(newEvent, bloqueo)) {
+        return bloqueo; // Retorna el bloqueo que causa el conflicto
+      }
+    }
+    return null;
+  }, [blockEvents, hasOverlap]);
 
   // Función para notificar cambios al padre (DoctorForm)
   const notifyChange = useCallback((currentEvents) => {
@@ -152,7 +264,18 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
         end,
       };
 
-      // Verificar superposición con bloques existentes
+      // Verificar superposición con bloqueos de agenda
+      const bloqueoConflicto = checkForBlockOverlaps(newEvent);
+      if (bloqueoConflicto) {
+        toast({
+          title: 'Horario Bloqueado',
+          description: `No se puede crear disponibilidad: ${bloqueoConflicto.bloqueoMotivo || bloqueoConflicto.bloqueoTipo || 'Horario bloqueado'}`,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Verificar superposición con bloques de disponibilidad existentes
       if (checkForOverlaps(newEvent, events)) {
         toast({
           title: 'Conflicto de horarios',
@@ -171,12 +294,32 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
           description: `Horario disponible agregado para ${format(start, 'EEEE', { locale: esES })}.`
       });
     },
-    [events, notifyChange, toast, checkForOverlaps]
+    [events, notifyChange, toast, checkForOverlaps, checkForBlockOverlaps]
   );
 
   const handleEventDrop = useCallback(
     ({ event, start, end }) => {
+      // No permitir mover bloqueos
+      if (event.isBloqueo) {
+        toast({
+          title: 'No permitido',
+          description: 'Los bloqueos no se pueden mover desde aquí. Ve a la pestaña "Bloqueos".',
+        });
+        return;
+      }
+
       const movedEvent = { ...event, start, end };
+
+      // Verificar superposición con bloqueos de agenda
+      const bloqueoConflicto = checkForBlockOverlaps(movedEvent);
+      if (bloqueoConflicto) {
+        toast({
+          title: 'Horario Bloqueado',
+          description: `No se puede mover aquí: ${bloqueoConflicto.bloqueoMotivo || 'Horario bloqueado'}`,
+          variant: 'destructive'
+        });
+        return;
+      }
 
       // Verificar superposición con otros bloques (excluyendo el evento que se mueve)
       if (checkForOverlaps(movedEvent, events, event.id)) {
@@ -197,12 +340,32 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
       setEvents(updatedEvents);
       notifyChange(updatedEvents);
     },
-    [events, notifyChange, toast, checkForOverlaps]
+    [events, notifyChange, toast, checkForOverlaps, checkForBlockOverlaps]
   );
 
   const handleEventResize = useCallback(
     ({ event, start, end }) => {
+      // No permitir redimensionar bloqueos
+      if (event.isBloqueo) {
+        toast({
+          title: 'No permitido',
+          description: 'Los bloqueos no se pueden modificar desde aquí. Ve a la pestaña "Bloqueos".',
+        });
+        return;
+      }
+
       const resizedEvent = { ...event, start, end };
+
+      // Verificar superposición con bloqueos de agenda
+      const bloqueoConflicto = checkForBlockOverlaps(resizedEvent);
+      if (bloqueoConflicto) {
+        toast({
+          title: 'Horario Bloqueado',
+          description: `No se puede extender hasta aquí: ${bloqueoConflicto.bloqueoMotivo || 'Horario bloqueado'}`,
+          variant: 'destructive'
+        });
+        return;
+      }
 
       // Verificar superposición con otros bloques
       if (checkForOverlaps(resizedEvent, events, event.id)) {
@@ -223,10 +386,18 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
       setEvents(updatedEvents);
       notifyChange(updatedEvents);
     },
-    [events, notifyChange, toast, checkForOverlaps]
+    [events, notifyChange, toast, checkForOverlaps, checkForBlockOverlaps]
   );
 
   const handleSelectEvent = (event) => {
+    // No permitir editar bloqueos desde aquí
+    if (event.isBloqueo) {
+      toast({
+        title: 'Bloqueo de Agenda',
+        description: `${event.bloqueoMotivo || event.bloqueoTipo || 'Horario bloqueado'}. Para modificar, ve a la pestaña "Bloqueos".`,
+      });
+      return;
+    }
     setSelectedEvent(event);
     setIsEventModalOpen(true);
   };
@@ -240,16 +411,38 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
     toast({ title: 'Bloque Eliminado', description: 'El horario ha sido removido.' });
   };
 
+  // Combinar eventos de disponibilidad + bloqueos para mostrar
+  const allEvents = useMemo(() => {
+    return [...events, ...blockEvents];
+  }, [events, blockEvents]);
+
   const eventStyleGetter = (event, start, end, isSelected) => {
-    const style = {
-      backgroundColor: isSelected ? '#15803d' : '#22c55e', // Green
-      borderRadius: '4px',
-      opacity: 0.8,
-      color: 'white',
-      border: '0px',
-      display: 'block'
+    // Estilo para bloqueos (naranja/rojo)
+    if (event.isBloqueo) {
+      return {
+        style: {
+          backgroundColor: isSelected ? '#c2410c' : '#f97316', // Orange
+          borderRadius: '4px',
+          opacity: 0.9,
+          color: 'white',
+          border: '2px solid #ea580c',
+          display: 'block',
+          cursor: 'not-allowed',
+        }
+      };
+    }
+
+    // Estilo para disponibilidad (verde)
+    return {
+      style: {
+        backgroundColor: isSelected ? '#15803d' : '#22c55e', // Green
+        borderRadius: '4px',
+        opacity: 0.8,
+        color: 'white',
+        border: '0px',
+        display: 'block'
+      }
     };
-    return { style };
   };
 
   return (
@@ -275,7 +468,7 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
       <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden h-[600px]">
         <DnDCalendar
           localizer={localizer}
-          events={events}
+          events={allEvents}
           startAccessor="start"
           endAccessor="end"
           defaultView={Views.WEEK}
