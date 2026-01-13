@@ -143,9 +143,11 @@ consultasRouter.post('/finalizar', async (c) => {
       planManejo, // Nuevo: para kits de medicamentos
     } = body;
 
-    // Validar que venga el SOAP (obligatorio)
-    if (!soap || !soap.subjetivo || !soap.objetivo || !soap.analisis || !soap.plan) {
-      return c.json({ message: 'Los datos SOAP son obligatorios' }, 400);
+    // Validar que venga el SOAP (obligatorio) - verificar que sean strings no vacíos
+    const isValidSoapField = (field) => typeof field === 'string' && field.trim().length > 0;
+    if (!soap || !isValidSoapField(soap.subjetivo) || !isValidSoapField(soap.objetivo) ||
+        !isValidSoapField(soap.analisis) || !isValidSoapField(soap.plan)) {
+      return c.json({ message: 'Los datos SOAP son obligatorios y deben contener texto válido' }, 400);
     }
 
     // Validar diagnósticos especiales (cáncer y enfermedades huérfanas)

@@ -343,6 +343,43 @@ class AuthService {
 
     return user;
   }
+
+  /**
+   * Cambiar contraseña del usuario
+   */
+  async changePassword(userId, currentPassword, newPassword) {
+    // Validar nueva contraseña
+    if (!newPassword || newPassword.length < 6) {
+      throw new ValidationError('La nueva contraseña debe tener al menos 6 caracteres');
+    }
+
+    // Obtener usuario con contraseña actual
+    const user = await prisma.usuario.findUnique({
+      where: { id: userId },
+      select: { id: true, password: true }
+    });
+
+    if (!user) {
+      throw new NotFoundError('Usuario no encontrado');
+    }
+
+    // Verificar contraseña actual
+    const isValidPassword = await comparePassword(currentPassword, user.password);
+    if (!isValidPassword) {
+      throw new UnauthorizedError('La contraseña actual es incorrecta');
+    }
+
+    // Hashear nueva contraseña
+    const hashedPassword = await hashPassword(newPassword);
+
+    // Actualizar contraseña
+    await prisma.usuario.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+
+    return { message: 'Contraseña actualizada exitosamente' };
+  }
 }
 
 module.exports = new AuthService();

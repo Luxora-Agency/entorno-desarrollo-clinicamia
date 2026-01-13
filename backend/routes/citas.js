@@ -19,6 +19,47 @@ const handleError = (c, err) => {
   return c.json(error(err.message), err.statusCode || 500);
 };
 
+/**
+ * Middleware para validar propiedad de cita
+ * Los doctores solo pueden modificar sus propias citas
+ * Los roles administrativos pueden modificar cualquier cita
+ */
+const validateCitaOwnership = async (c, next) => {
+  const user = c.get('user');
+  const { id } = c.req.param();
+
+  if (!user || !id) {
+    await next();
+    return;
+  }
+
+  // Roles que pueden modificar cualquier cita
+  const adminRoles = ['SUPERADMIN', 'SUPER_ADMIN', 'ADMIN', 'RECEPCIONISTA', 'ADMINISTRATIVO'];
+  const userRole = (user.rol || '').toUpperCase();
+
+  if (adminRoles.includes(userRole)) {
+    await next();
+    return;
+  }
+
+  // Para doctores, verificar que la cita les pertenece
+  if (userRole === 'DOCTOR' || userRole === 'MEDICO') {
+    try {
+      const cita = await citaService.getById(id);
+      // doctorId en citas apunta a Usuario.id
+      if (cita.doctorId !== user.id) {
+        return c.json(error('No tiene permisos para modificar esta cita'), 403);
+      }
+    } catch (err) {
+      // Si la cita no existe, dejar que el handler normal lo maneje
+      await next();
+      return;
+    }
+  }
+
+  await next();
+};
+
 // Todas las rutas requieren autenticación
 citas.use('*', authMiddleware);
 
@@ -263,7 +304,7 @@ citas.post('/', async (c) => {
  *       500:
  *         description: Error del servidor
  */
-citas.put('/:id', async (c) => {
+citas.put('/:id', validateCitaOwnership, async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -308,7 +349,7 @@ citas.put('/:id', async (c) => {
  *       500:
  *         description: Error del servidor
  */
-citas.post('/estado/:id', async (c) => {
+citas.post('/estado/:id', validateCitaOwnership, async (c) => {
   try {
     const { id } = c.req.param();
     const data = await c.req.json();
@@ -343,7 +384,7 @@ citas.post('/estado/:id', async (c) => {
  *       500:
  *         description: Error del servidor
  */
-citas.delete('/:id', async (c) => {
+citas.delete('/:id', validateCitaOwnership, async (c) => {
   try {
     const { id } = c.req.param();
     await citaService.cancel(id);

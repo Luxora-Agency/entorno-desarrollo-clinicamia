@@ -202,8 +202,8 @@ export default function ProximasCitasWidget({
     return (
       <Card className={className}>
         <CardContent className="py-6 text-center">
-          <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">{error}</p>
+          <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
+          <p className="text-sm text-gray-600 font-medium">{error}</p>
           <Button variant="ghost" size="sm" onClick={handleRefresh} className="mt-2">
             <RefreshCw className="h-4 w-4 mr-1" />
             Reintentar
@@ -240,9 +240,9 @@ export default function ProximasCitasWidget({
       <CardContent className="pt-0">
         {citas.length === 0 ? (
           <div className="py-6 text-center">
-            <Calendar className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-500">No hay citas pendientes</p>
-            <p className="text-xs text-gray-400 mt-1">Las próximas citas aparecerán aquí</p>
+            <Calendar className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+            <p className="text-sm text-gray-600 font-medium">No hay citas pendientes</p>
+            <p className="text-xs text-gray-500 mt-1">Las próximas citas aparecerán aquí</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -292,12 +292,12 @@ export default function ProximasCitasWidget({
                               </Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
+                          <div className="flex items-center gap-2 text-xs text-gray-600 mt-0.5">
                             <Clock className="h-3 w-3" />
                             <span>{formatHora(cita.hora)}</span>
                             {cita.motivo && (
                               <>
-                                <span className="text-gray-300">|</span>
+                                <span className="text-gray-400">|</span>
                                 <span className="truncate max-w-[120px]">{cita.motivo}</span>
                               </>
                             )}
@@ -322,7 +322,7 @@ export default function ProximasCitasWidget({
 
                         {/* Arrow */}
                         {onSelectCita && (
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                          <ChevronRight className="h-4 w-4 text-gray-500" />
                         )}
                       </div>
                     </TooltipTrigger>

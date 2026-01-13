@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -35,7 +35,6 @@ import AnalizadorHCE from './doctor/AnalizadorHCE';
 import DashboardDoctorQuirofano from './doctor/quirofano/DashboardDoctorQuirofano';
 import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
 import ProximasCitasWidget from './doctor/ProximasCitasWidget';
-import DoctorQuickActions from './doctor/DoctorQuickActions';
 import DoctorNotifications from './doctor/DoctorNotifications';
 import DoctorCommandPalette, { useDoctorCommandPalette } from './doctor/DoctorCommandPalette';
 import HospitalizedPatientsWidget from './doctor/HospitalizedPatientsWidget';
@@ -46,6 +45,7 @@ import ClinicalAlertsWidget from './doctor/ClinicalAlertsWidget';
 import FloatingActionButton from './doctor/FloatingActionButton';
 import KeyboardShortcutsHelp, { useKeyboardShortcutsHelp } from './doctor/KeyboardShortcutsHelp';
 import useDisponibilidadRealtime from '@/hooks/useDisponibilidadRealtime';
+import DraggableWidgetsContainer, { useWidgetLayout, WidgetLayoutControls } from './doctor/DraggableWidgetsContainer';
 
 // Intervalo de auto-refresh para la cola de pacientes (30 segundos)
 const QUEUE_REFRESH_INTERVAL = 30000;
@@ -113,6 +113,8 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
 
   // Perfil del doctor (contiene el ID real del doctor)
   const [doctorProfile, setDoctorProfile] = useState(null);
+  const [doctorProfileError, setDoctorProfileError] = useState(null);
+  const [doctorProfileLoading, setDoctorProfileLoading] = useState(true);
 
   // Modos de Vista
   const [viewMode, setViewMode] = useState(initialMode);
@@ -125,6 +127,17 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
 
   // Keyboard Shortcuts Help (?)
   const { isOpen: shortcutsHelpOpen, setIsOpen: setShortcutsHelpOpen } = useKeyboardShortcutsHelp();
+
+  // Widget Layout personalizable (drag & drop)
+  const {
+    widgets: widgetLayout,
+    isEditMode: widgetEditMode,
+    setIsEditMode: setWidgetEditMode,
+    reorderWidgets,
+    toggleVisibility: toggleWidgetVisibility,
+    toggleLock: toggleWidgetLock,
+    resetLayout: resetWidgetLayout,
+  } = useWidgetLayout(user?.id);
 
   // Refs para el polling
   const refreshIntervalRef = useRef(null);
@@ -155,34 +168,43 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
   const GreetingIcon = greeting.icon;
 
   // Cargar perfil del doctor para obtener el doctorId real
-  useEffect(() => {
-    const loadDoctorProfile = async () => {
-      if (!user?.id) return;
-      try {
-        const token = localStorage.getItem('token');
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-        const response = await fetch(`${apiUrl}/doctores?usuarioId=${user.id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        const data = await response.json();
-        if (data.success && data.data?.length > 0) {
-          setDoctorProfile(data.data[0]);
-        }
-      } catch (error) {
-        console.error('Error loading doctor profile:', error);
+  const loadDoctorProfile = useCallback(async () => {
+    if (!user?.id) return;
+    setDoctorProfileLoading(true);
+    setDoctorProfileError(null);
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/doctores?usuarioId=${user.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (data.success && data.data?.length > 0) {
+        setDoctorProfile(data.data[0]);
+        setDoctorProfileError(null);
+      } else {
+        setDoctorProfileError('No se encontró el perfil del doctor. Contacte al administrador.');
       }
-    };
-    loadDoctorProfile();
+    } catch (error) {
+      console.error('Error loading doctor profile:', error);
+      setDoctorProfileError('Error al cargar el perfil del doctor. Intente nuevamente.');
+    } finally {
+      setDoctorProfileLoading(false);
+    }
   }, [user?.id]);
+
+  useEffect(() => {
+    loadDoctorProfile();
+  }, [loadDoctorProfile]);
 
   const loadCitasHoy = useCallback(async (silent = false) => {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-      // Usar el doctorId real del perfil del doctor
-      const doctorId = doctorProfile?.id;
-      if (!doctorId) {
+      // IMPORTANTE: Usar user.id (Usuario.id) porque Cita.doctorId apunta a Usuario.id, NO a Doctor.id
+      const doctorUsuarioId = user?.id;
+      if (!doctorUsuarioId) {
         setLoading(false);
         return;
       }
@@ -191,7 +213,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
         setIsRefreshing(true);
       }
 
-      const url = `${apiUrl}/citas?fecha=${fechaSeleccionada}&doctorId=${doctorId}&limit=100`;
+      const url = `${apiUrl}/citas?fecha=${fechaSeleccionada}&doctorId=${doctorUsuarioId}&limit=100`;
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
@@ -228,18 +250,18 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [fechaSeleccionada, doctorProfile?.id]);
+  }, [fechaSeleccionada, user?.id]);
 
   useEffect(() => {
-    if (doctorProfile?.id) {
+    if (user?.id) {
       loadCitasHoy();
     }
-  }, [fechaSeleccionada, doctorProfile?.id, loadCitasHoy]);
+  }, [fechaSeleccionada, user?.id, loadCitasHoy]);
 
   // Cargar estadísticas de ayer para comparación
   useEffect(() => {
     const loadYesterdayStats = async () => {
-      if (!doctorProfile?.id) return;
+      if (!user?.id) return;
       try {
         const token = localStorage.getItem('token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
@@ -247,8 +269,9 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = yesterday.toISOString().split('T')[0];
 
+        // Usar user.id (Usuario.id) para consultar citas
         const response = await fetch(
-          `${apiUrl}/citas?doctorId=${doctorProfile.id}&fecha=${yesterdayStr}&limit=100`,
+          `${apiUrl}/citas?doctorId=${user.id}&fecha=${yesterdayStr}&limit=100`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const data = await response.json();
@@ -264,12 +287,12 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
     };
 
     loadYesterdayStats();
-  }, [doctorProfile?.id]);
+  }, [user?.id]);
 
   const { hasChanges: agendaHasChanges, acknowledgeChanges } = useDisponibilidadRealtime({
-    doctorId: doctorProfile?.id,
+    doctorId: user?.id, // Usar Usuario.id porque Cita.doctorId apunta a Usuario.id
     fecha: fechaSeleccionada,
-    enabled: viewMode === 'dashboard' && !!doctorProfile?.id,
+    enabled: viewMode === 'dashboard' && !!user?.id,
     onUpdate: () => {
       toast({
         title: 'Agenda actualizada',
@@ -361,8 +384,8 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
 
         if (response.ok) {
             // Agregar paciente a recientes
-            if (activeCita?.paciente && doctorProfile?.id) {
-              addRecentPatient(doctorProfile.id, activeCita.paciente, 'consulta');
+            if (activeCita?.paciente && user?.id) {
+              addRecentPatient(user.id, activeCita.paciente, 'consulta');
             }
             toast({ title: 'Éxito', description: 'Consulta finalizada y firmada digitalmente.' });
             setViewMode('dashboard');
@@ -490,7 +513,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                     </div>
                     <div className="lg:col-span-1">
                         <BloqueoAgendaManager
-                            doctorId={doctorProfile?.id}
+                            doctorId={user?.id}
                             doctorNombre={`Dr. ${user?.nombre || ''} ${user?.apellido || ''}`}
                         />
                     </div>
@@ -538,6 +561,43 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
       );
   }
 
+  // Mostrar error si el perfil del doctor no se pudo cargar
+  if (doctorProfileError && !doctorProfileLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+        <Card className="max-w-md mx-4">
+          <CardHeader className="text-center">
+            <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <AlertCircle className="h-8 w-8 text-red-600" />
+            </div>
+            <CardTitle className="text-red-700">Error al cargar perfil</CardTitle>
+            <CardDescription className="text-gray-700 mt-2">
+              {doctorProfileError}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <Button onClick={loadDoctorProfile} className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Reintentar
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Mostrar loading mientras se carga el perfil del doctor
+  if (doctorProfileLoading && !doctorProfile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-700 font-medium">Cargando panel del doctor...</p>
+        </div>
+      </div>
+    );
+  }
+
   // VISTA DASHBOARD (DEFAULT) - REDISEÑADO
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
@@ -549,7 +609,14 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
             <div className="flex items-center gap-4">
               <div className="relative">
                 <Avatar className="h-14 w-14 bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-white shadow-lg">
-                  <AvatarFallback className="text-white font-bold text-lg">
+                  {doctorProfile?.foto ? (
+                    <AvatarImage
+                      src={doctorProfile.foto}
+                      alt={`Dr. ${user?.nombre}`}
+                      className="object-cover"
+                    />
+                  ) : null}
+                  <AvatarFallback className="text-white font-bold text-lg bg-gradient-to-br from-blue-500 to-indigo-600">
                     {user?.nombre?.[0]}{user?.apellido?.[0]}
                   </AvatarFallback>
                 </Avatar>
@@ -558,14 +625,21 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               <div>
                 <div className="flex items-center gap-2">
                   <GreetingIcon className={`h-5 w-5 ${greeting.color}`} />
-                  <span className="text-gray-500 text-sm">{greeting.text}</span>
+                  <span className="text-gray-600 text-sm font-medium">{greeting.text}</span>
                 </div>
                 <h1 className="text-xl font-bold text-gray-900">
                   Dr(a). {user?.nombre} {user?.apellido}
                 </h1>
-                <p className="text-sm text-gray-500">
-                  {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-gray-600">
+                    {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                  </p>
+                  {doctorProfile?.especialidades && doctorProfile.especialidades.length > 0 && (
+                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
+                      {doctorProfile.especialidades[0]?.nombre || 'Especialista'}
+                    </Badge>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -574,17 +648,17 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               <div className="hidden md:flex items-center gap-6 px-6 py-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
-                  <p className="text-xs text-gray-500">Citas hoy</p>
+                  <p className="text-xs font-medium text-gray-600">Citas hoy</p>
                 </div>
                 <div className="h-8 w-px bg-blue-200"></div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-amber-600">{stats.enEspera}</p>
-                  <p className="text-xs text-gray-500">En espera</p>
+                  <p className="text-xs font-medium text-gray-600">En espera</p>
                 </div>
                 <div className="h-8 w-px bg-blue-200"></div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-600">{stats.completadas}</p>
-                  <p className="text-xs text-gray-500">Completadas</p>
+                  <p className="text-xs font-medium text-gray-600">Completadas</p>
                 </div>
               </div>
 
@@ -602,18 +676,18 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               {/* Búsqueda rápida (Ctrl+K) */}
               <button
                 onClick={() => setCommandPaletteOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border shadow-sm hover:bg-gray-50 transition-colors text-sm text-gray-500"
+                className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border shadow-sm hover:bg-gray-50 transition-colors text-sm text-gray-600"
               >
                 <Search className="h-4 w-4" />
                 <span className="hidden sm:inline">Buscar...</span>
-                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono text-gray-500">
+                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono text-gray-600">
                   <span className="text-xs">⌘</span>K
                 </kbd>
               </button>
 
               {/* Notificaciones */}
               <DoctorNotifications
-                doctorId={doctorProfile?.id}
+                doctorId={user?.id}
                 className="bg-white rounded-xl border shadow-sm hover:bg-gray-50"
                 onNotificationClick={(notification) => {
                   toast({
@@ -657,7 +731,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p className="font-medium">Pacientes esperando atención</p>
-                <p className="text-xs text-gray-400">Click para filtrar por este estado</p>
+                <p className="text-xs text-gray-300">Click para filtrar por este estado</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -689,7 +763,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p className="font-medium">Consultas activas</p>
-                <p className="text-xs text-gray-400">Pacientes siendo atendidos ahora</p>
+                <p className="text-xs text-gray-300">Pacientes siendo atendidos ahora</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -735,9 +809,9 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p className="font-medium">Consultas finalizadas</p>
-                <p className="text-xs text-gray-400">{stats.completadas} de {stats.total} citas completadas</p>
+                <p className="text-xs text-gray-300">{stats.completadas} de {stats.total} citas completadas</p>
                 {yesterdayStats.completadas > 0 && (
-                  <p className="text-xs text-gray-400">Ayer: {yesterdayStats.completadas} completadas</p>
+                  <p className="text-xs text-gray-300">Ayer: {yesterdayStats.completadas} completadas</p>
                 )}
               </TooltipContent>
             </Tooltip>
@@ -781,9 +855,9 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               </TooltipTrigger>
               <TooltipContent side="bottom">
                 <p className="font-medium">Resumen del día</p>
-                <p className="text-xs text-gray-400">Total: {stats.total} citas • Canceladas: {stats.canceladas}</p>
+                <p className="text-xs text-gray-300">Total: {stats.total} citas • Canceladas: {stats.canceladas}</p>
                 {yesterdayStats.total > 0 && (
-                  <p className="text-xs text-gray-400">Ayer: {yesterdayStats.total} citas</p>
+                  <p className="text-xs text-gray-300">Ayer: {yesterdayStats.total} citas</p>
                 )}
               </TooltipContent>
             </Tooltip>
@@ -791,8 +865,25 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Cola de Pacientes Mejorada */}
-          <div className="lg:col-span-2">
+          {/* Panel Izquierdo: Alertas + Cola */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Alertas Clínicas - Arriba de la Cola */}
+            <ClinicalAlertsWidget
+              doctorId={user?.id}
+              citasEnEspera={citasHoy.filter(c => c.estado === 'EnEspera')}
+              onAlertClick={(alert) => {
+                if (alert.data?.id && alert.type === 'long_wait') {
+                  iniciarConsulta(alert.data);
+                } else {
+                  toast({
+                    title: alert.title,
+                    description: alert.message,
+                  });
+                }
+              }}
+            />
+
+            {/* Cola de Pacientes Mejorada */}
             <Card className="shadow-sm border-0 overflow-hidden">
               <CardHeader className="bg-white border-b border-gray-100 pb-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -859,7 +950,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                         <TooltipContent>
                           <p>Actualizar lista</p>
                           {lastRefresh && (
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-gray-300">
                               Última: {lastRefresh.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
                             </p>
                           )}
@@ -872,14 +963,14 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
               <CardContent className="p-0">
                 {loading ? (
                   <div className="p-12 text-center">
-                    <RefreshCw className="h-8 w-8 mx-auto text-gray-300 animate-spin" />
-                    <p className="text-gray-500 mt-3">Cargando pacientes...</p>
+                    <RefreshCw className="h-8 w-8 mx-auto text-gray-400 animate-spin" />
+                    <p className="text-gray-600 mt-3">Cargando pacientes...</p>
                   </div>
                 ) : filteredCitas.length === 0 ? (
                   <div className="p-12 text-center">
                     <Calendar className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                    <p className="text-gray-500 font-medium">No hay citas</p>
-                    <p className="text-gray-400 text-sm mt-1">
+                    <p className="text-gray-600 font-medium">No hay citas</p>
+                    <p className="text-gray-500 text-sm mt-1">
                       {filterStatus !== 'all' ? 'No hay citas con este filtro' : 'No hay citas programadas para esta fecha'}
                     </p>
                   </div>
@@ -954,8 +1045,8 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                                   </Badge>
                                 )}
                               </div>
-                              <p className="text-sm text-gray-500 truncate">{cita.motivo || 'Consulta general'}</p>
-                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-400">
+                              <p className="text-sm text-gray-600 truncate">{cita.motivo || 'Consulta general'}</p>
+                              <div className="flex items-center gap-3 mt-1 text-xs text-gray-500">
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
                                   {formatHora(cita.hora)}
@@ -964,7 +1055,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                                   <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded ${
                                     waitTime > 45 ? 'bg-red-100 text-red-700' :
                                     waitTime > 30 ? 'bg-amber-100 text-amber-700' :
-                                    'text-gray-500'
+                                    'bg-gray-100 text-gray-600'
                                   }`}>
                                     <Timer className="h-3 w-3" />
                                     {waitTime} min
@@ -1006,7 +1097,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                                 </Button>
                               )}
                               {cita.estado === 'Completada' && (
-                                <Button variant="ghost" size="sm" className="text-gray-400" disabled>
+                                <Button variant="ghost" size="sm" className="text-green-600" disabled>
                                   <CheckCheck className="h-4 w-4" />
                                 </Button>
                               )}
@@ -1044,204 +1135,173 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
             </Card>
           </div>
 
-          {/* Panel Lateral de Accesos Rápidos */}
-          <div className="space-y-6">
-            {/* Próxima Cita Destacada */}
-            {extraStats.proximaCita && (
-              <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-0 shadow-lg">
-                <CardContent className="p-5">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="h-4 w-4" />
-                    <p className="text-sm font-medium text-blue-100">Próximo Paciente</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12 bg-white/20 border-2 border-white/30">
-                      <AvatarFallback className="text-white font-bold">
-                        {extraStats.proximaCita.paciente?.nombre?.[0]}{extraStats.proximaCita.paciente?.apellido?.[0]}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1">
-                      <p className="font-semibold">
-                        {extraStats.proximaCita.paciente?.nombre} {extraStats.proximaCita.paciente?.apellido}
-                      </p>
-                      <p className="text-sm text-blue-200 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatHora(extraStats.proximaCita.hora)}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    className="w-full mt-4 bg-white text-blue-600 hover:bg-blue-50"
-                    onClick={() => iniciarConsulta(extraStats.proximaCita)}
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    Iniciar Consulta
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+          {/* Panel Lateral de Widgets Personalizables */}
+          <div className="space-y-4">
+            {/* Controles de personalización */}
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-medium text-gray-600">Mis Widgets</h3>
+              <WidgetLayoutControls
+                widgets={widgetLayout}
+                isEditMode={widgetEditMode}
+                onToggleEditMode={() => setWidgetEditMode(!widgetEditMode)}
+                onToggleVisibility={toggleWidgetVisibility}
+                onToggleLock={toggleWidgetLock}
+                onReset={resetWidgetLayout}
+              />
+            </div>
 
-            {/* Widget de Próximas Citas */}
-            <ProximasCitasWidget
-              doctorId={doctorProfile?.id}
-              maxCitas={4}
-              onSelectCita={(cita) => iniciarConsulta(cita)}
-              className="border-0 shadow-sm"
-            />
+            {/* Contenedor de widgets arrastrables */}
+            <DraggableWidgetsContainer
+              doctorId={user?.id}
+              widgets={widgetLayout}
+              isEditMode={widgetEditMode}
+              onReorder={reorderWidgets}
+              renderWidget={(widgetId) => {
+                switch (widgetId) {
+                  case 'proxima-cita':
+                    return extraStats.proximaCita ? (
+                      <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-0 shadow-lg">
+                        <CardContent className="p-5">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Sparkles className="h-4 w-4 text-white" />
+                            <p className="text-sm font-semibold text-white/90">Próximo Paciente</p>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-12 w-12 bg-white/20 border-2 border-white/40">
+                              <AvatarFallback className="text-white font-bold">
+                                {extraStats.proximaCita.paciente?.nombre?.[0]}{extraStats.proximaCita.paciente?.apellido?.[0]}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1">
+                              <p className="font-semibold text-white">
+                                {extraStats.proximaCita.paciente?.nombre} {extraStats.proximaCita.paciente?.apellido}
+                              </p>
+                              <p className="text-sm text-white/80 flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {formatHora(extraStats.proximaCita.hora)}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            className="w-full mt-4 bg-white text-blue-700 hover:bg-blue-50 font-semibold"
+                            onClick={() => iniciarConsulta(extraStats.proximaCita)}
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            Iniciar Consulta
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    ) : null;
 
-            {/* Widget de Pacientes Hospitalizados */}
-            <HospitalizedPatientsWidget
-              doctorId={doctorProfile?.id}
-              maxItems={3}
-              onViewAll={() => setViewMode('hospitalizacion')}
-              onSelectPatient={(admision) => {
-                // Guardar la admisión y ofrecer opciones
-                setActiveAdmision(admision);
-                setViewMode('epicrisis');
-              }}
-            />
+                  case 'proximas-citas':
+                    return (
+                      <ProximasCitasWidget
+                        doctorId={user?.id}
+                        maxCitas={4}
+                        onSelectCita={(cita) => iniciarConsulta(cita)}
+                        className="border-0 shadow-sm"
+                      />
+                    );
 
-            {/* Widget de Cirugías del Día */}
-            <QuirofanoWidget
-              doctorId={doctorProfile?.id}
-              maxItems={3}
-              onViewAll={() => setViewMode('quirofano')}
-              onSelectProcedure={(proc) => {
-                toast({
-                  title: 'Cirugía seleccionada',
-                  description: `${proc.paciente?.nombre} ${proc.paciente?.apellido} - ${proc.tipoProcedimiento || 'Procedimiento'}`,
-                });
-                setViewMode('quirofano');
-              }}
-            />
+                  case 'hospitalizados':
+                    return (
+                      <HospitalizedPatientsWidget
+                        doctorId={user?.id}
+                        maxItems={3}
+                        onViewAll={() => setViewMode('hospitalizacion')}
+                        onSelectPatient={(admision) => {
+                          setActiveAdmision(admision);
+                          setViewMode('epicrisis');
+                        }}
+                      />
+                    );
 
-            {/* Acciones Rápidas */}
-            <DoctorQuickActions
-              className="border-0 shadow-sm"
-              onAction={(action) => {
-                switch (action.action) {
-                  case 'view-schedule':
-                    setViewMode('agenda');
-                    break;
-                  case 'new-prescription':
-                  case 'lab-order':
-                  case 'imaging-order':
-                  case 'certificate':
-                    toast({
-                      title: action.label,
-                      description: 'Seleccione un paciente primero para esta acción.',
-                    });
-                    break;
+                  case 'quirofano':
+                    return (
+                      <QuirofanoWidget
+                        doctorId={user?.id}
+                        maxItems={3}
+                        onViewAll={() => setViewMode('quirofano')}
+                        onSelectProcedure={(proc) => {
+                          toast({
+                            title: 'Cirugía seleccionada',
+                            description: `${proc.paciente?.nombre} ${proc.paciente?.apellido} - ${proc.tipoProcedimiento || 'Procedimiento'}`,
+                          });
+                          setViewMode('quirofano');
+                        }}
+                      />
+                    );
+
+                  case 'pacientes-recientes':
+                    return (
+                      <RecentPatientsWidget
+                        doctorId={user?.id}
+                        maxItems={5}
+                        onSelectPatient={(patient) => {
+                          toast({
+                            title: 'Paciente seleccionado',
+                            description: `${patient.nombre} ${patient.apellido}`,
+                          });
+                        }}
+                        onViewHCE={(patient) => {
+                          toast({
+                            title: 'Ver Historia Clínica',
+                            description: `Abriendo HCE de ${patient.nombre} ${patient.apellido}`,
+                          });
+                          setShowHCEAnalyzer(true);
+                        }}
+                      />
+                    );
+
+                  case 'rendimiento':
+                    return (
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+                        <CardContent className="p-5">
+                          <p className="text-sm text-slate-300 mb-3 font-medium">Rendimiento de Hoy</p>
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-slate-200">Citas completadas hoy</span>
+                              <span className="font-semibold text-white">{stats.completadas} de {stats.total}</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-slate-200">Progreso del día</span>
+                              <div className="flex items-center gap-2">
+                                <Progress value={progressPercent} className="w-20 h-2 bg-slate-700" />
+                                <span className="font-semibold text-white">{progressPercent}%</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-slate-200">Citas ayer</span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-semibold text-white">{yesterdayStats.completadas}</span>
+                                {completadasTrend.direction !== 'neutral' && (
+                                  <span className={`text-xs ${completadasTrend.direction === 'up' ? 'text-green-400' : 'text-amber-400'}`}>
+                                    {completadasTrend.direction === 'up' ? '↑' : '↓'} {completadasTrend.percent}%
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-slate-200">Pendientes</span>
+                              <div className="flex items-center gap-1">
+                                <span className="font-semibold text-white">{stats.enEspera + stats.atendiendo}</span>
+                                {stats.enEspera > 0 && (
+                                  <Badge className="bg-amber-500/20 text-amber-300 text-xs border-0">
+                                    {stats.enEspera} en espera
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+
                   default:
-                    break;
-                }
-              }}
-              onOpenAIAssistant={() => setShowHCEAnalyzer(true)}
-              onViewSchedule={() => setViewMode('agenda')}
-              onSearchPatient={(patient) => {
-                toast({
-                  title: 'Paciente seleccionado',
-                  description: `${patient.nombre} ${patient.apellido}`,
-                });
-              }}
-            />
-
-            {/* Pacientes Recientes */}
-            <RecentPatientsWidget
-              doctorId={doctorProfile?.id}
-              maxItems={5}
-              onSelectPatient={(patient) => {
-                toast({
-                  title: 'Paciente seleccionado',
-                  description: `${patient.nombre} ${patient.apellido}`,
-                });
-              }}
-              onViewHCE={(patient) => {
-                toast({
-                  title: 'Ver Historia Clínica',
-                  description: `Abriendo HCE de ${patient.nombre} ${patient.apellido}`,
-                });
-                setShowHCEAnalyzer(true);
-              }}
-            />
-
-            {/* Acceso Rápido adicionales */}
-            <Card className="border-0 shadow-sm">
-              <CardContent className="p-4 space-y-2">
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-10 hover:bg-purple-50 hover:text-purple-700 hover:border-purple-200"
-                  onClick={() => setViewMode('quirofano')}
-                >
-                  <Activity className="h-4 w-4" />
-                  Ver Quirófano
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full justify-start gap-3 h-10 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
-                  onClick={() => {
-                    // Verificar si hay pacientes hospitalizados para generar epicrisis
-                    toast({
-                      title: 'Generar Epicrisis',
-                      description: 'Seleccione un paciente hospitalizado desde el widget de hospitalización para generar su epicrisis.',
-                    });
-                  }}
-                >
-                  <FileText className="h-4 w-4" />
-                  Generar Epicrisis
-                </Button>
-                {onChangeAttentionType && (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start gap-3 h-10 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200"
-                    onClick={handleCambiarTipoAtencion}
-                  >
-                    <BedDouble className="h-4 w-4" />
-                    Ir a Hospitalización
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Alertas Clínicas */}
-            <ClinicalAlertsWidget
-              doctorId={doctorProfile?.id}
-              citasEnEspera={citasHoy.filter(c => c.estado === 'EnEspera')}
-              onAlertClick={(alert) => {
-                if (alert.data?.id && alert.type === 'long_wait') {
-                  iniciarConsulta(alert.data);
-                } else {
-                  toast({
-                    title: alert.title,
-                    description: alert.message,
-                  });
+                    return null;
                 }
               }}
             />
-
-            {/* Estadísticas Adicionales */}
-            <Card className="border-0 shadow-sm bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-              <CardContent className="p-5">
-                <p className="text-sm text-slate-400 mb-3">Rendimiento de Hoy</p>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Tiempo promedio por consulta</span>
-                    <span className="font-semibold">~18 min</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Consultas esta semana</span>
-                    <span className="font-semibold">{stats.completadas * 5}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">Satisfacción pacientes</span>
-                    <div className="flex items-center gap-1">
-                      <span className="font-semibold">4.8</span>
-                      <Award className="h-4 w-4 text-amber-400" />
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

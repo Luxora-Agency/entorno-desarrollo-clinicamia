@@ -134,12 +134,6 @@ const permissionMiddleware = (modulo) => {
         // Fallback a la tabla antigua si no hay permisos nuevos
         const rolNormalizado = user.rol ? user.rol.toLowerCase() : '';
 
-        // Parche temporal: Permitir acceso a quirófano para doctores
-        if (modulo === 'quirofano' && (rolNormalizado === 'doctor' || rolNormalizado === 'medico')) {
-           await next();
-           return;
-        }
-
         const permiso = await prisma.rolePermiso.findFirst({
           where: {
             rol: { equals: rolNormalizado, mode: 'insensitive' },

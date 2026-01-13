@@ -22,7 +22,7 @@ const getGreeting = () => {
   return { text: 'Buenas noches', icon: Moon, emoji: '🌙' };
 };
 
-export default function AttentionTypeSelector({ user, onSelect }) {
+export default function AttentionTypeSelector({ user, onSelect, skipSavedPreference = false }) {
   const [stats, setStats] = useState({
     consultaExterna: 0,
     hospitalizacion: 0,
@@ -90,15 +90,17 @@ export default function AttentionTypeSelector({ user, onSelect }) {
     }
   }, [user?.id]);
 
-  // Verificar si hay una preferencia guardada
+  // Verificar si hay una preferencia guardada (solo si no se salta)
   useEffect(() => {
+    if (skipSavedPreference) return; // No redirigir si se abre desde el menú
+
     const savedChoice = localStorage.getItem(ATTENTION_TYPE_KEY);
     const shouldRemember = localStorage.getItem(REMEMBER_CHOICE_KEY) === 'true';
 
     if (shouldRemember && savedChoice) {
       onSelect(savedChoice);
     }
-  }, [onSelect]);
+  }, [onSelect, skipSavedPreference]);
 
   const handleSelect = (type) => {
     if (rememberChoice) {
@@ -166,8 +168,8 @@ export default function AttentionTypeSelector({ user, onSelect }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full mb-10 relative z-10">
         {/* Consulta Externa Card */}
         <Card
-          className={`cursor-pointer transition-all duration-500 bg-gradient-to-br from-blue-600/20 to-cyan-600/10 backdrop-blur-xl border-2
-            ${hoveredCard === 'consulta' ? 'scale-105 border-blue-400 shadow-2xl shadow-blue-500/30' : 'border-white/10 hover:border-blue-400/50'}
+          className={`cursor-pointer transition-all duration-500 bg-gradient-to-br from-blue-700 to-blue-900 backdrop-blur-xl border-2
+            ${hoveredCard === 'consulta' ? 'scale-105 border-blue-300 shadow-2xl shadow-blue-500/40' : 'border-blue-500/30 hover:border-blue-400/60'}
             group relative overflow-hidden`}
           onClick={() => handleSelect('consulta')}
           onMouseEnter={() => setHoveredCard('consulta')}
@@ -189,28 +191,28 @@ export default function AttentionTypeSelector({ user, onSelect }) {
           <CardContent className="p-8 text-center relative">
             <div className="mb-6 relative">
               <div className={`w-24 h-24 mx-auto rounded-2xl flex items-center justify-center transition-all duration-500
-                ${hoveredCard === 'consulta' ? 'bg-blue-500 shadow-lg shadow-blue-500/50 rotate-3' : 'bg-blue-500/20'}`}>
-                <Stethoscope className={`h-12 w-12 transition-all duration-500 ${hoveredCard === 'consulta' ? 'text-white scale-110' : 'text-blue-400'}`} />
+                ${hoveredCard === 'consulta' ? 'bg-blue-400 shadow-lg shadow-blue-400/50 rotate-3' : 'bg-blue-600/50'}`}>
+                <Stethoscope className={`h-12 w-12 transition-all duration-500 ${hoveredCard === 'consulta' ? 'text-white scale-110' : 'text-blue-200'}`} />
               </div>
             </div>
 
             <h2 className="text-2xl font-bold text-white mb-2">
               Consulta Externa
             </h2>
-            <p className="text-blue-200 mb-6 text-base">
+            <p className="text-blue-200 mb-6 text-base font-medium">
               Atención ambulatoria programada
             </p>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2 bg-white/5 rounded-xl p-3">
-                <Users className="h-5 w-5 text-blue-300" />
+              <div className="flex items-center justify-center gap-2 bg-blue-600/40 rounded-xl p-3">
+                <Users className="h-5 w-5 text-blue-100" />
                 <span className="text-white font-semibold">
                   {stats.consultaExterna} pacientes hoy
                 </span>
               </div>
 
               {stats.proximaCita && (
-                <div className="flex items-center justify-center gap-2 text-amber-300 text-sm">
+                <div className="flex items-center justify-center gap-2 text-amber-300 text-sm font-medium">
                   <Timer className="h-4 w-4" />
                   <span>Próxima cita: {formatHora(stats.proximaCita.hora)}</span>
                 </div>
@@ -218,9 +220,9 @@ export default function AttentionTypeSelector({ user, onSelect }) {
             </div>
 
             {/* Botón de acción */}
-            <div className={`mt-6 flex items-center justify-center gap-2 text-blue-300 transition-all duration-300
+            <div className={`mt-6 flex items-center justify-center gap-2 text-blue-100 transition-all duration-300
               ${hoveredCard === 'consulta' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-              <span className="font-medium">Iniciar atención</span>
+              <span className="font-semibold">Iniciar atención</span>
               <ArrowRight className="h-4 w-4 animate-pulse" />
             </div>
           </CardContent>
@@ -228,8 +230,8 @@ export default function AttentionTypeSelector({ user, onSelect }) {
 
         {/* Hospitalización Card */}
         <Card
-          className={`cursor-pointer transition-all duration-500 bg-gradient-to-br from-emerald-600/20 to-teal-600/10 backdrop-blur-xl border-2
-            ${hoveredCard === 'hospitalizacion' ? 'scale-105 border-emerald-400 shadow-2xl shadow-emerald-500/30' : 'border-white/10 hover:border-emerald-400/50'}
+          className={`cursor-pointer transition-all duration-500 bg-gradient-to-br from-emerald-700 to-emerald-900 backdrop-blur-xl border-2
+            ${hoveredCard === 'hospitalizacion' ? 'scale-105 border-emerald-300 shadow-2xl shadow-emerald-500/40' : 'border-emerald-500/30 hover:border-emerald-400/60'}
             group relative overflow-hidden`}
           onClick={() => handleSelect('hospitalizacion')}
           onMouseEnter={() => setHoveredCard('hospitalizacion')}
@@ -251,36 +253,36 @@ export default function AttentionTypeSelector({ user, onSelect }) {
           <CardContent className="p-8 text-center relative">
             <div className="mb-6 relative">
               <div className={`w-24 h-24 mx-auto rounded-2xl flex items-center justify-center transition-all duration-500
-                ${hoveredCard === 'hospitalizacion' ? 'bg-emerald-500 shadow-lg shadow-emerald-500/50 rotate-3' : 'bg-emerald-500/20'}`}>
-                <BedDouble className={`h-12 w-12 transition-all duration-500 ${hoveredCard === 'hospitalizacion' ? 'text-white scale-110' : 'text-emerald-400'}`} />
+                ${hoveredCard === 'hospitalizacion' ? 'bg-emerald-400 shadow-lg shadow-emerald-400/50 rotate-3' : 'bg-emerald-600/50'}`}>
+                <BedDouble className={`h-12 w-12 transition-all duration-500 ${hoveredCard === 'hospitalizacion' ? 'text-white scale-110' : 'text-emerald-200'}`} />
               </div>
             </div>
 
             <h2 className="text-2xl font-bold text-white mb-2">
               Hospitalización
             </h2>
-            <p className="text-emerald-200 mb-6 text-base">
+            <p className="text-emerald-200 mb-6 text-base font-medium">
               Pacientes internados a su cargo
             </p>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2 bg-white/5 rounded-xl p-3">
-                <BedDouble className="h-5 w-5 text-emerald-300" />
+              <div className="flex items-center justify-center gap-2 bg-emerald-600/40 rounded-xl p-3">
+                <BedDouble className="h-5 w-5 text-emerald-100" />
                 <span className="text-white font-semibold">
                   {stats.hospitalizacion || 0} internados
                 </span>
               </div>
 
-              <div className="flex items-center justify-center gap-2 text-emerald-300 text-sm">
+              <div className="flex items-center justify-center gap-2 text-emerald-200 text-sm font-medium">
                 <TrendingUp className="h-4 w-4" />
                 <span>Evoluciones pendientes</span>
               </div>
             </div>
 
             {/* Botón de acción */}
-            <div className={`mt-6 flex items-center justify-center gap-2 text-emerald-300 transition-all duration-300
+            <div className={`mt-6 flex items-center justify-center gap-2 text-emerald-100 transition-all duration-300
               ${hoveredCard === 'hospitalizacion' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-              <span className="font-medium">Ver pacientes</span>
+              <span className="font-semibold">Ver pacientes</span>
               <ArrowRight className="h-4 w-4 animate-pulse" />
             </div>
           </CardContent>
@@ -288,8 +290,8 @@ export default function AttentionTypeSelector({ user, onSelect }) {
 
         {/* Quirófano Card */}
         <Card
-          className={`cursor-pointer transition-all duration-500 bg-gradient-to-br from-purple-600/20 to-pink-600/10 backdrop-blur-xl border-2
-            ${hoveredCard === 'quirofano' ? 'scale-105 border-purple-400 shadow-2xl shadow-purple-500/30' : 'border-white/10 hover:border-purple-400/50'}
+          className={`cursor-pointer transition-all duration-500 bg-gradient-to-br from-purple-700 to-purple-900 backdrop-blur-xl border-2
+            ${hoveredCard === 'quirofano' ? 'scale-105 border-purple-300 shadow-2xl shadow-purple-500/40' : 'border-purple-500/30 hover:border-purple-400/60'}
             group relative overflow-hidden`}
           onClick={() => handleSelect('quirofano')}
           onMouseEnter={() => setHoveredCard('quirofano')}
@@ -311,36 +313,36 @@ export default function AttentionTypeSelector({ user, onSelect }) {
           <CardContent className="p-8 text-center relative">
             <div className="mb-6 relative">
               <div className={`w-24 h-24 mx-auto rounded-2xl flex items-center justify-center transition-all duration-500
-                ${hoveredCard === 'quirofano' ? 'bg-purple-500 shadow-lg shadow-purple-500/50 rotate-3' : 'bg-purple-500/20'}`}>
-                <Scissors className={`h-12 w-12 transition-all duration-500 ${hoveredCard === 'quirofano' ? 'text-white scale-110' : 'text-purple-400'}`} />
+                ${hoveredCard === 'quirofano' ? 'bg-purple-400 shadow-lg shadow-purple-400/50 rotate-3' : 'bg-purple-600/50'}`}>
+                <Scissors className={`h-12 w-12 transition-all duration-500 ${hoveredCard === 'quirofano' ? 'text-white scale-110' : 'text-purple-200'}`} />
               </div>
             </div>
 
             <h2 className="text-2xl font-bold text-white mb-2">
               Quirófano
             </h2>
-            <p className="text-purple-200 mb-6 text-base">
+            <p className="text-purple-200 mb-6 text-base font-medium">
               Gestión de cirugías y protocolos
             </p>
 
             <div className="space-y-3">
-              <div className="flex items-center justify-center gap-2 bg-white/5 rounded-xl p-3">
-                <Calendar className="h-5 w-5 text-purple-300" />
+              <div className="flex items-center justify-center gap-2 bg-purple-600/40 rounded-xl p-3">
+                <Calendar className="h-5 w-5 text-purple-100" />
                 <span className="text-white font-semibold">
                   {stats.cirugias || 0} cirugías hoy
                 </span>
               </div>
 
-              <div className="flex items-center justify-center gap-2 text-purple-300 text-sm">
+              <div className="flex items-center justify-center gap-2 text-purple-200 text-sm font-medium">
                 <Clock className="h-4 w-4" />
                 <span>Ver programación</span>
               </div>
             </div>
 
             {/* Botón de acción */}
-            <div className={`mt-6 flex items-center justify-center gap-2 text-purple-300 transition-all duration-300
+            <div className={`mt-6 flex items-center justify-center gap-2 text-purple-100 transition-all duration-300
               ${hoveredCard === 'quirofano' ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'}`}>
-              <span className="font-medium">Ir a quirófano</span>
+              <span className="font-semibold">Ir a quirófano</span>
               <ArrowRight className="h-4 w-4 animate-pulse" />
             </div>
           </CardContent>

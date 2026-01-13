@@ -292,10 +292,25 @@ class AdmisionService {
       },
     });
 
+    // Contar cirugías programadas para hoy
+    const cirugias = await prisma.procedimiento.count({
+      where: {
+        medicoResponsableId: doctorId,
+        fechaProgramada: {
+          gte: today,
+          lt: tomorrow,
+        },
+        estado: {
+          in: ['Programado', 'EnCurso'],
+        },
+      },
+    });
+
     return {
       hospitalizacion: hospitalizados,
       consultaExterna: citasHoy,
       enEspera,
+      cirugias,
     };
   }
 }

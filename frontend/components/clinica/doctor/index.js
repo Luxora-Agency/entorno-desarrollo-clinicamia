@@ -3,6 +3,7 @@ export { default as ClinicalWorkspace } from './ClinicalWorkspace';
 export { default as AttentionTypeSelector, clearAttentionTypePreference } from './AttentionTypeSelector';
 export { default as PatientContextBar } from './PatientContextBar';
 export { default as DashboardDoctorHospitalizacion } from './DashboardDoctorHospitalizacion';
+export { default as DoctorSettingsModule } from './DoctorSettingsModule';
 
 // Widgets y acciones rápidas
 export { default as ProximasCitasWidget } from './ProximasCitasWidget';

@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { ValidationError, NotFoundError, AppError } = require('../utils/errors');
 const { uploadImage, deleteImage, getPublicIdFromUrl, isConfigured: isCloudinaryConfigured } = require('../utils/cloudinary');
 const { saveBase64Image, deleteFile } = require('../utils/upload');
+const emailService = require('./email.service');
 
 class DoctorService {
   async crear(data) {
@@ -63,12 +64,13 @@ class DoctorService {
         console.log('[Doctor] No se proporcionó foto');
       }
 
+      // Determinar la contraseña a usar (para guardar y para el correo)
+      const passwordOriginal = customPassword && customPassword.length >= 6 ? customPassword : cedula;
+
       // Uso de transacción para asegurar consistencia
       const result = await prisma.$transaction(async (tx) => {
         // 1. Crear usuario con rol DOCTOR
-        // Si se proporciona contraseña personalizada, usarla; sino, usar la cédula como temporal
-        const passwordToHash = customPassword && customPassword.length >= 6 ? customPassword : cedula;
-        const password = await bcrypt.hash(passwordToHash, 10);
+        const password = await bcrypt.hash(passwordOriginal, 10);
 
         const usuario = await tx.usuario.create({
           data: {
@@ -105,7 +107,7 @@ class DoctorService {
           const count = await tx.especialidad.count({
             where: { id: { in: especialidades_ids } }
           });
-          
+
           if (count !== especialidades_ids.length) {
             throw new ValidationError('Una o más especialidades no existen');
           }
@@ -120,6 +122,21 @@ class DoctorService {
 
         return doctor;
       });
+
+      // 4. Enviar correo de bienvenida (fuera de la transacción para no bloquear)
+      try {
+        await emailService.sendDoctorWelcomeEmail({
+          to: email,
+          nombre,
+          apellido,
+          email,
+          password: passwordOriginal
+        });
+        console.log(`[Doctor] Correo de bienvenida enviado a ${email}`);
+      } catch (emailError) {
+        // No fallar la creación si el correo no se envía
+        console.error('[Doctor] Error enviando correo de bienvenida:', emailError.message);
+      }
 
       return this.obtenerPorId(result.id);
     } catch (error) {
@@ -244,6 +261,11 @@ class DoctorService {
       throw new NotFoundError('Doctor no encontrado');
     }
 
+    // Validar que el usuario asociado exista
+    if (!doctor.usuario) {
+      throw new NotFoundError('El doctor tiene datos inconsistentes: usuario no encontrado');
+    }
+
     // Extraer datos del usuario para evitar sobreescribir el ID del doctor
     const { id: userId, ...usuarioData } = doctor.usuario;
 
@@ -257,8 +279,8 @@ class DoctorService {
       biografia: doctor.biografia,
       foto: doctor.foto,
       horarios: doctor.horarios,
-      especialidades: doctor.especialidades.map(de => de.especialidad.titulo),
-      especialidadesIds: doctor.especialidades.map(de => de.especialidad.id),
+      especialidades: doctor.especialidades?.map(de => de.especialidad?.titulo) || [],
+      especialidadesIds: doctor.especialidades?.map(de => de.especialidad?.id) || [],
     };
     } catch (error) {
       if (error instanceof NotFoundError) throw error;

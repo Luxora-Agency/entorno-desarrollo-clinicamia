@@ -327,4 +327,50 @@ auth.get('/me', authMiddleware, async (c) => {
   }
 });
 
+/**
+ * @swagger
+ * /auth/change-password:
+ *   post:
+ *     summary: Cambiar contraseña
+ *     description: Permite al usuario autenticado cambiar su contraseña
+ *     tags: [Autenticación]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *                 description: Contraseña actual
+ *               newPassword:
+ *                 type: string
+ *                 description: Nueva contraseña (mínimo 6 caracteres)
+ *     responses:
+ *       200:
+ *         description: Contraseña actualizada exitosamente
+ *       400:
+ *         description: Nueva contraseña inválida
+ *       401:
+ *         description: Contraseña actual incorrecta
+ *       500:
+ *         description: Error del servidor
+ */
+auth.post('/change-password', authMiddleware, async (c) => {
+  try {
+    const userId = c.get('user').id;
+    const { currentPassword, newPassword } = await c.req.json();
+    const result = await authService.changePassword(userId, currentPassword, newPassword);
+    return c.json(success(result, 'Contraseña actualizada exitosamente'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
 module.exports = auth;

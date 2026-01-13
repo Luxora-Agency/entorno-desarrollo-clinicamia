@@ -55,20 +55,23 @@ export default function HospitalizedPatientsWidget({
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
         const response = await fetch(
-          `${apiUrl}/admisiones/hospitalizados?doctorId=${doctorId}&limit=${maxItems + 1}`,
+          `${apiUrl}/admisiones/doctor/${doctorId}?estado=Activa&limit=${maxItems + 1}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            const admisiones = data.data || [];
+            // La respuesta de /admisiones/doctor/:doctorId tiene estructura { data, pagination }
+            const admisiones = Array.isArray(data.data)
+              ? data.data
+              : data.data?.data || [];
             setPatients(admisiones.slice(0, maxItems));
 
             // Calcular estadísticas
             const pendientes = admisiones.filter(necesitaRondaHoy).length;
             setStats({
-              total: data.pagination?.total || admisiones.length,
+              total: data.data?.pagination?.total || data.pagination?.total || admisiones.length,
               pendientesRonda: pendientes
             });
           }
@@ -129,10 +132,10 @@ export default function HospitalizedPatientsWidget({
         {patients.length === 0 ? (
           <div className="text-center py-6">
             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <BedDouble className="h-6 w-6 text-gray-400" />
+              <BedDouble className="h-6 w-6 text-gray-500" />
             </div>
-            <p className="text-sm text-gray-500">Sin pacientes hospitalizados</p>
-            <p className="text-xs text-gray-400 mt-1">Los pacientes aparecerán aquí</p>
+            <p className="text-sm text-gray-600 font-medium">Sin pacientes hospitalizados</p>
+            <p className="text-xs text-gray-500 mt-1">Los pacientes aparecerán aquí</p>
           </div>
         ) : (
           <>
@@ -170,7 +173,7 @@ export default function HospitalizedPatientsWidget({
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {paciente?.nombre} {paciente?.apellido}
                         </p>
-                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <div className="flex items-center gap-2 text-xs text-gray-600">
                           <span className="flex items-center gap-1">
                             <BedDouble className="h-3 w-3" />
                             {admision.cama?.codigo || 'Sin asignar'}
@@ -196,7 +199,7 @@ export default function HospitalizedPatientsWidget({
                             </Tooltip>
                           </TooltipProvider>
                         )}
-                        <ChevronRight className="h-4 w-4 text-gray-300" />
+                        <ChevronRight className="h-4 w-4 text-gray-500" />
                       </div>
                     </button>
                   );

@@ -3,7 +3,7 @@
  */
 const { Hono } = require('hono');
 const doctorService = require('../services/doctor.service');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, requirePermission } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { doctorSchema, updateDoctorSchema } = require('../validators/doctor.schema');
 const { success, error } = require('../utils/response');
@@ -137,12 +137,13 @@ doctores.use('/*', authMiddleware);
  */
 doctores.get('/', async (c) => {
   try {
-    const { search = '', limit = '50', page = '1', activo } = c.req.query();
+    const { search = '', limit = '50', page = '1', activo, usuarioId } = c.req.query();
     const result = await doctorService.listar({
       search,
       limit: parseInt(limit),
       page: parseInt(page),
       activo: activo !== undefined ? activo === 'true' : undefined,
+      usuarioId: usuarioId || '',
     });
     return c.json({ success: true, data: result.doctores, pagination: result.pagination });
   } catch (err) {
@@ -209,7 +210,7 @@ doctores.get('/:id', async (c) => {
  *       500:
  *         description: Error del servidor
  */
-doctores.post('/', validate(doctorSchema), async (c) => {
+doctores.post('/', requirePermission('doctores.create'), validate(doctorSchema), async (c) => {
   try {
     const body = c.req.validData;
     const doctor = await doctorService.crear(body);
@@ -250,7 +251,7 @@ doctores.post('/', validate(doctorSchema), async (c) => {
  *       500:
  *         description: Error del servidor
  */
-doctores.put('/:id', validate(updateDoctorSchema), async (c) => {
+doctores.put('/:id', requirePermission('doctores.update'), validate(updateDoctorSchema), async (c) => {
   try {
     const { id } = c.req.param();
     const body = c.req.validData;
@@ -284,7 +285,7 @@ doctores.put('/:id', validate(updateDoctorSchema), async (c) => {
  *       500:
  *         description: Error del servidor
  */
-doctores.patch('/:id/toggle-activo', async (c) => {
+doctores.patch('/:id/toggle-activo', requirePermission('doctores.update'), async (c) => {
   try {
     const { id } = c.req.param();
     const result = await doctorService.toggleActivo(id);
@@ -327,7 +328,7 @@ doctores.patch('/:id/toggle-activo', async (c) => {
  *       500:
  *         description: Error del servidor
  */
-doctores.patch('/:id/horarios', async (c) => {
+doctores.patch('/:id/horarios', requirePermission('doctores.update'), async (c) => {
   try {
     const { id } = c.req.param();
     const { horarios } = await c.req.json();
@@ -361,7 +362,7 @@ doctores.patch('/:id/horarios', async (c) => {
  *       500:
  *         description: Error del servidor
  */
-doctores.delete('/:id', async (c) => {
+doctores.delete('/:id', requirePermission('doctores.delete'), async (c) => {
   try {
     const { id } = c.req.param();
     const result = await doctorService.eliminar(id);

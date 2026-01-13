@@ -9,7 +9,7 @@ import {
   UserCog, Store, Calculator, Landmark, Package, ShoppingCart, Cloud,
   Heart, Clock, Siren, Bot, FolderOpen, TrendingUp, CalendarCheck
 } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -35,8 +35,13 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
     pendientesEspera: 0
   });
 
-  // Doctor profile state (para obtener el ID real del doctor)
+  // Doctor profile state (para obtener el ID real del doctor, foto y especialidad)
   const [doctorId, setDoctorId] = useState(null);
+  const [doctorProfile, setDoctorProfile] = useState({
+    foto: null,
+    especialidades: [],
+    especialidadPrincipal: null
+  });
 
   // Configuración de permisos por rol
   const userRole = (user?.rol || 'admin').toLowerCase();
@@ -92,7 +97,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
     return userPermissions.includes(module);
   };
 
-  // Cargar perfil del doctor para obtener el doctorId real
+  // Cargar perfil del doctor para obtener el doctorId real, foto y especialidades
   useEffect(() => {
     const cargarDoctorProfile = async () => {
       if (userRole !== 'doctor' || !user?.id) return;
@@ -105,7 +110,13 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
         });
         const data = await response.json();
         if (data.success && data.data?.length > 0) {
-          setDoctorId(data.data[0].id);
+          const doctor = data.data[0];
+          setDoctorId(doctor.id);
+          setDoctorProfile({
+            foto: doctor.foto || null,
+            especialidades: doctor.especialidades || [],
+            especialidadPrincipal: doctor.especialidades?.[0] || null
+          });
         }
       } catch (error) {
         console.error('Error loading doctor profile:', error);
@@ -164,6 +175,22 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
             </p>
           </div>
 
+          {/* Tipos de Atención - PRIMERO */}
+          <button
+            onClick={() => {
+              setActiveModule('tipos-atencion');
+              setIsOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeModule === 'tipos-atencion'
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-200'
+                : 'text-gray-700 hover:bg-indigo-50 hover:text-indigo-700'
+            }`}
+          >
+            <Activity className="w-5 h-5" />
+            <span>Tipos de Atención</span>
+          </button>
+
           {/* Mi Panel */}
           <button
             onClick={() => {
@@ -185,6 +212,22 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 {doctorStats.pendientesEspera}
               </Badge>
             )}
+          </button>
+
+          {/* Mi Agenda */}
+          <button
+            onClick={() => {
+              setActiveModule('mi-agenda');
+              setIsOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeModule === 'mi-agenda'
+                ? 'bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-lg shadow-cyan-200'
+                : 'text-gray-700 hover:bg-cyan-50 hover:text-cyan-700'
+            }`}
+          >
+            <Calendar className="w-5 h-5" />
+            <span>Mi Agenda</span>
           </button>
 
           {/* Mis Citas del Día */}
@@ -267,80 +310,6 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
             <span>Mis Plantillas</span>
           </button>
 
-          {/* ATENCIÓN CLÍNICA */}
-          <div className="pt-5 mt-4 border-t border-gray-100">
-            <div className="px-3 mb-3">
-              <p className="text-xs font-bold text-blue-600 uppercase tracking-wider flex items-center gap-2">
-                <Stethoscope className="w-3 h-3" />
-                Atención Clínica
-              </p>
-            </div>
-
-            {/* Consulta Externa */}
-            <button
-              onClick={() => {
-                setActiveModule('consulta-externa');
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                activeModule === 'consulta-externa'
-                  ? 'bg-blue-100 text-blue-700 font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Stethoscope className="w-4 h-4" />
-              <span>Consulta Externa</span>
-            </button>
-
-            {/* Urgencias */}
-            <button
-              onClick={() => {
-                setActiveModule('urgencias');
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                activeModule === 'urgencias'
-                  ? 'bg-red-100 text-red-700 font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Siren className="w-4 h-4" />
-              <span>Urgencias</span>
-            </button>
-
-            {/* Hospitalización */}
-            <button
-              onClick={() => {
-                setActiveModule('hospitalizacion');
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                activeModule === 'hospitalizacion'
-                  ? 'bg-purple-100 text-purple-700 font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Bed className="w-4 h-4" />
-              <span>Hospitalización</span>
-            </button>
-
-            {/* Quirófano */}
-            <button
-              onClick={() => {
-                setActiveModule('quirofano');
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                activeModule === 'quirofano'
-                  ? 'bg-rose-100 text-rose-700 font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Scissors className="w-4 h-4" />
-              <span>Quirófano</span>
-            </button>
-          </div>
-
           {/* ÓRDENES Y RESULTADOS */}
           <div className="pt-5 mt-4 border-t border-gray-100">
             <div className="px-3 mb-3">
@@ -364,54 +333,6 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
             >
               <ClipboardList className="w-4 h-4" />
               <span>Órdenes Médicas</span>
-            </button>
-
-            {/* Laboratorio */}
-            <button
-              onClick={() => {
-                setActiveModule('laboratorio');
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                activeModule === 'laboratorio'
-                  ? 'bg-purple-100 text-purple-700 font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Beaker className="w-4 h-4" />
-              <span>Laboratorio</span>
-            </button>
-
-            {/* Imagenología */}
-            <button
-              onClick={() => {
-                setActiveModule('imagenologia');
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                activeModule === 'imagenologia'
-                  ? 'bg-sky-100 text-sky-700 font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Scan className="w-4 h-4" />
-              <span>Imagenología</span>
-            </button>
-
-            {/* Farmacia */}
-            <button
-              onClick={() => {
-                setActiveModule('farmacia');
-                setIsOpen(false);
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                activeModule === 'farmacia'
-                  ? 'bg-green-100 text-green-700 font-semibold'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              <Pill className="w-4 h-4" />
-              <span>Farmacia</span>
             </button>
           </div>
 
@@ -496,6 +417,22 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
               <TrendingUp className="w-4 h-4" />
               <span>Mis Reportes</span>
             </button>
+
+            {/* Configuración */}
+            <button
+              onClick={() => {
+                setActiveModule('configuracion-doctor');
+                setIsOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                activeModule === 'configuracion-doctor'
+                  ? 'bg-gray-100 text-gray-700 font-semibold'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Settings className="w-4 h-4" />
+              <span>Configuración</span>
+            </button>
           </div>
         </div>
       </nav>
@@ -555,21 +492,26 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                 ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-100'
                 : 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100'
             }`}>
-              <Avatar className={`h-10 w-10 border-2 border-white shadow-sm ${
-                userRole === 'doctor'
+              <Avatar className={`h-12 w-12 border-2 border-white shadow-sm ${
+                userRole === 'doctor' && !doctorProfile.foto
                   ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                  : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+                  : !doctorProfile.foto ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : ''
               }`}>
+                {userRole === 'doctor' && doctorProfile.foto ? (
+                  <AvatarImage src={doctorProfile.foto} alt={`Dr. ${user.nombre}`} className="object-cover" />
+                ) : null}
                 <AvatarFallback className="text-white font-semibold text-sm">
                   {user.nombre?.[0]}{user.apellido?.[0]}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900 truncate">
-                  {userRole === 'doctor' ? `Dr. ${user.nombre} ${user.apellido}` : `${user.nombre} ${user.apellido}`}
+                  {userRole === 'doctor' ? `Dr(a). ${user.nombre} ${user.apellido}` : `${user.nombre} ${user.apellido}`}
                 </p>
                 <p className={`text-xs truncate ${userRole === 'doctor' ? 'text-blue-600 font-medium' : 'text-gray-600'}`}>
-                  {userRole === 'doctor' ? 'Médico' : user.rol}
+                  {userRole === 'doctor'
+                    ? (doctorProfile.especialidadPrincipal || 'Médico General')
+                    : user.rol}
                 </p>
               </div>
             </div>

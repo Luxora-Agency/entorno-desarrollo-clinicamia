@@ -43,6 +43,14 @@ import OrdenesMedicasModule from './OrdenesMedicasModule';
 import OrdenesTiendaModule from './OrdenesTiendaModule';
 import UsuariosRolesModule from './UsuariosRolesModule';
 import DashboardRecepcionistaNew from './DashboardRecepcionistaNew';
+import DashboardDoctor from './DashboardDoctor';
+import AttentionTypeSelector from './doctor/AttentionTypeSelector';
+import DashboardDoctorHospitalizacion from './doctor/DashboardDoctorHospitalizacion';
+import DoctorSettingsModule from './doctor/DoctorSettingsModule';
+import DoctorScheduleManager from './DoctorScheduleManager';
+import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
+import MisCitasDelDiaView from './doctor/MisCitasDelDiaView';
+import AIMedicalAssistant from './doctor/AIMedicalAssistant';
 import CalidadModule from './calidad/CalidadModule';
 import DocsInscripcionModule from './calidad2/docs-inscripcion/DocsInscripcionModule';
 import TalentoHumanoModule from './calidad2/talento-humano/TalentoHumanoModule';
@@ -127,13 +135,98 @@ export default function Dashboard({ user, onLogout }) {
       />;
     }
     
+    // Determinar si es doctor
+    const userRole = (user?.rol || '').toLowerCase();
+    const isDoctor = userRole === 'doctor' || userRole === 'medico';
+
     switch (activeModule) {
       case 'dashboard':
         // Dashboard personalizado según rol
         if (user.rol === 'Recepcionista') {
           return <DashboardRecepcionistaNew user={user} />;
         }
+        // Para doctores, mostrar directamente el panel del doctor (no el selector de atención)
+        if (isDoctor) {
+          return <DashboardDoctor user={user} />;
+        }
         return <DashboardHome user={user} />;
+
+      // Tipos de atención - muestra el selector para doctores
+      case 'tipos-atencion':
+        if (isDoctor) {
+          return (
+            <AttentionTypeSelector
+              user={user}
+              skipSavedPreference={true}
+              onSelect={(type) => {
+                if (type === 'consulta') {
+                  changeModule('mis-citas');
+                } else if (type === 'hospitalizacion') {
+                  changeModule('mis-hospitalizados');
+                } else if (type === 'quirofano') {
+                  changeModule('mis-cirugias');
+                }
+              }}
+            />
+          );
+        }
+        return <DashboardHome user={user} />;
+
+      // Mis Citas del Día - vista dedicada del doctor
+      case 'mis-citas':
+        if (isDoctor) {
+          return <MisCitasDelDiaView user={user} />;
+        }
+        return <CitasModule user={user} />;
+
+      // Mis Hospitalizados - vista de hospitalización del doctor
+      case 'mis-hospitalizados':
+        if (isDoctor) {
+          return <DashboardDoctorHospitalizacion user={user} />;
+        }
+        return <HospitalizacionModule user={user} />;
+
+      // Mis Cirugías - vista de quirófano del doctor
+      case 'mis-cirugias':
+        if (isDoctor) {
+          return <DashboardDoctor user={user} initialMode="quirofano" />;
+        }
+        return <QuirofanoModule user={user} />;
+
+      // Configuración del doctor
+      case 'configuracion-doctor':
+        if (isDoctor) {
+          return <DoctorSettingsModule user={user} />;
+        }
+        return <DashboardHome user={user} />;
+
+      // Mi Agenda - vista de agenda del doctor
+      case 'mi-agenda':
+        if (isDoctor) {
+          return (
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900">Mi Agenda</h1>
+                  <p className="text-gray-600">Gestiona tu disponibilidad y horarios de atención</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <DoctorScheduleManager user={user} />
+                <BloqueoAgendaManager user={user} />
+              </div>
+            </div>
+          );
+        }
+        return <DashboardHome user={user} />;
+
+      // Asistente IA - vista independiente para el doctor
+      case 'asistente-ia':
+        if (isDoctor) {
+          return <AIMedicalAssistant isOpen={true} onClose={() => changeModule('dashboard')} />;
+        }
+        return <DashboardHome user={user} />;
+
       case 'admisiones':
         return <AdmisionesModule user={user} />;
       case 'pacientes':

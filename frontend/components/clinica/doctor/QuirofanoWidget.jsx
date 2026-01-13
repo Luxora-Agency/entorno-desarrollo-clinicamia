@@ -154,10 +154,10 @@ export default function QuirofanoWidget({
         {procedures.length === 0 ? (
           <div className="text-center py-6">
             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <Activity className="h-6 w-6 text-gray-400" />
+              <Activity className="h-6 w-6 text-gray-500" />
             </div>
-            <p className="text-sm text-gray-500">Sin cirugías programadas</p>
-            <p className="text-xs text-gray-400 mt-1">Las cirugías aparecerán aquí</p>
+            <p className="text-sm text-gray-600 font-medium">Sin cirugías programadas</p>
+            <p className="text-xs text-gray-500 mt-1">Las cirugías aparecerán aquí</p>
           </div>
         ) : (
           <>
@@ -198,7 +198,7 @@ export default function QuirofanoWidget({
                               <p className="text-sm font-medium text-gray-900 truncate">
                                 {paciente?.nombre} {paciente?.apellido}
                               </p>
-                              <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <div className="flex items-center gap-2 text-xs text-gray-600">
                                 <span className="flex items-center gap-1 truncate max-w-[120px]">
                                   {proc.tipoProcedimiento || 'Cirugía'}
                                 </span>
@@ -229,7 +229,7 @@ export default function QuirofanoWidget({
                               {proc.estado === 'EnProceso' && StatusIcon && (
                                 <StatusIcon className="h-4 w-4 text-green-500" />
                               )}
-                              <ChevronRight className="h-4 w-4 text-gray-300" />
+                              <ChevronRight className="h-4 w-4 text-gray-500" />
                             </div>
                           </button>
                         </TooltipTrigger>

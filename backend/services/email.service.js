@@ -1588,6 +1588,228 @@ Ver tus citas: ${frontendUrl}/perfil/citas
       text
     });
   }
+  /**
+   * Envía email de bienvenida a un nuevo doctor
+   * @param {Object} params - Parámetros del correo
+   * @param {string} params.to - Email del doctor
+   * @param {string} params.nombre - Nombre del doctor
+   * @param {string} params.apellido - Apellido del doctor
+   * @param {string} params.email - Email/usuario para acceder
+   * @param {string} params.password - Contraseña temporal
+   */
+  async sendDoctorWelcomeEmail({ to, nombre, apellido, email, password }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de bienvenida doctor no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombreCompleto = `${nombre} ${apellido}`.trim();
+    const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const loginUrl = `${frontendUrl}/login`;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bienvenido al Equipo - Clínica Mía</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #144F79 0%, #1a6a9e 100%); padding: 40px 20px; text-align: center;">
+        <div style="font-size: 60px; margin-bottom: 15px;">🩺</div>
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">¡Bienvenido al Equipo!</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 12px 0 0; font-size: 16px;">Tu cuenta ha sido creada exitosamente</p>
+      </td>
+    </tr>
+
+    <!-- Logo -->
+    <tr>
+      <td style="padding: 25px; text-align: center; border-bottom: 1px solid #e5e5e5;">
+        <h2 style="color: #144F79; margin: 0; font-size: 32px; font-weight: 700;">Clínica Mía</h2>
+        <p style="color: #53B896; margin: 5px 0 0; font-size: 14px;">Sistema de Gestión Integral</p>
+      </td>
+    </tr>
+
+    <!-- Mensaje de bienvenida -->
+    <tr>
+      <td style="padding: 35px 30px 20px;">
+        <p style="color: #333; font-size: 18px; margin: 0;">
+          Dr(a). <strong>${nombreCompleto}</strong>,
+        </p>
+        <p style="color: #555; font-size: 16px; line-height: 1.7; margin: 20px 0 0;">
+          Es un placer darte la bienvenida a nuestro equipo médico. Tu cuenta de acceso al sistema ha sido creada y está lista para usar.
+        </p>
+      </td>
+    </tr>
+
+    <!-- Credenciales -->
+    <tr>
+      <td style="padding: 0 30px 25px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-radius: 16px; border: 2px solid #0ea5e9;">
+          <tr>
+            <td style="padding: 30px;">
+              <h3 style="color: #0369a1; margin: 0 0 20px; font-size: 18px; text-align: center;">
+                🔐 Tus Credenciales de Acceso
+              </h3>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 15px; background-color: #ffffff; border-radius: 10px; margin-bottom: 10px;">
+                    <span style="color: #0369a1; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; display: block;">Usuario (Email)</span>
+                    <span style="color: #1e3a8a; font-size: 18px; font-weight: 600; font-family: monospace;">${email}</span>
+                  </td>
+                </tr>
+                <tr><td style="height: 12px;"></td></tr>
+                <tr>
+                  <td style="padding: 15px; background-color: #ffffff; border-radius: 10px;">
+                    <span style="color: #0369a1; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; display: block;">Contraseña Temporal</span>
+                    <span style="color: #1e3a8a; font-size: 18px; font-weight: 600; font-family: monospace; letter-spacing: 2px;">${password}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Aviso de seguridad -->
+    <tr>
+      <td style="padding: 0 30px 25px;">
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 18px; border-radius: 8px;">
+          <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: 600;">⚠️ Importante:</p>
+          <p style="color: #78350f; font-size: 14px; margin: 10px 0 0; line-height: 1.6;">
+            Por seguridad, te recomendamos cambiar tu contraseña después del primer inicio de sesión.
+          </p>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Botón de acceso -->
+    <tr>
+      <td style="padding: 0 30px 35px; text-align: center;">
+        <a href="${loginUrl}" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 16px 45px; text-decoration: none; border-radius: 30px; font-weight: 700; font-size: 16px; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);">
+          Ingresar al Sistema
+        </a>
+        <p style="color: #6b7280; font-size: 13px; margin: 15px 0 0;">
+          O accede directamente en: <a href="${loginUrl}" style="color: #0ea5e9;">${loginUrl}</a>
+        </p>
+      </td>
+    </tr>
+
+    <!-- Funcionalidades -->
+    <tr>
+      <td style="padding: 0 30px 30px;">
+        <div style="background-color: #f8fafc; border-radius: 12px; padding: 25px;">
+          <h4 style="color: #144F79; margin: 0 0 15px; font-size: 16px;">🚀 ¿Qué puedes hacer en el sistema?</h4>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: #10b981; font-size: 16px;">✓</span>
+                <span style="color: #374151; font-size: 14px; margin-left: 10px;">Gestionar tu agenda y citas médicas</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: #10b981; font-size: 16px;">✓</span>
+                <span style="color: #374151; font-size: 14px; margin-left: 10px;">Atender pacientes con historial clínico digital</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: #10b981; font-size: 16px;">✓</span>
+                <span style="color: #374151; font-size: 14px; margin-left: 10px;">Generar fórmulas y órdenes médicas electrónicas</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: #10b981; font-size: 16px;">✓</span>
+                <span style="color: #374151; font-size: 14px; margin-left: 10px;">Acceder al asistente médico con IA</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Contacto de soporte -->
+    <tr>
+      <td style="padding: 0 30px 30px;">
+        <div style="background-color: #eff6ff; border-radius: 12px; padding: 20px; text-align: center;">
+          <p style="color: #1e40af; font-size: 14px; margin: 0; font-weight: 600;">¿Necesitas ayuda?</p>
+          <p style="color: #1e3a8a; font-size: 14px; margin: 10px 0 0;">
+            Contacta al equipo de soporte técnico<br>
+            📧 soporte@clinicamiacolombia.com | 📞 324 333 8555
+          </p>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #f8f9fa; padding: 25px; text-align: center; border-top: 1px solid #e5e5e5;">
+        <p style="color: #666; font-size: 14px; margin: 0 0 5px;">
+          <strong>Clínica Mía</strong> - Sistema de Gestión Integral
+        </p>
+        <p style="color: #888; font-size: 12px; margin: 0;">
+          Cra. 5 #28-85, Ibagué, Tolima | Tel: 324 333 8555
+        </p>
+        <p style="color: #999; font-size: 11px; margin: 15px 0 0;">
+          © ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.<br>
+          <span style="color: #bbb;">Este es un mensaje confidencial. Por favor no comparta sus credenciales.</span>
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+¡Bienvenido al Equipo de Clínica Mía!
+
+Dr(a). ${nombreCompleto},
+
+Es un placer darte la bienvenida a nuestro equipo médico. Tu cuenta de acceso al sistema ha sido creada y está lista para usar.
+
+🔐 TUS CREDENCIALES DE ACCESO
+================================
+Usuario (Email): ${email}
+Contraseña: ${password}
+================================
+
+⚠️ IMPORTANTE: Por seguridad, te recomendamos cambiar tu contraseña después del primer inicio de sesión.
+
+🔗 LINK DE ACCESO: ${loginUrl}
+
+¿Qué puedes hacer en el sistema?
+- Gestionar tu agenda y citas médicas
+- Atender pacientes con historial clínico digital
+- Generar fórmulas y órdenes médicas electrónicas
+- Acceder al asistente médico con IA
+
+¿Necesitas ayuda? Contacta al equipo de soporte:
+📧 soporte@clinicamiacolombia.com
+📞 324 333 8555
+
+---
+Clínica Mía - Sistema de Gestión Integral
+Cra. 5 #28-85, Ibagué, Tolima
+© ${new Date().getFullYear()} Todos los derechos reservados.
+
+Este es un mensaje confidencial. Por favor no comparta sus credenciales.
+    `;
+
+    return this.send({
+      to,
+      subject: `🩺 ¡Bienvenido al Equipo Médico de Clínica Mía! - Tus credenciales de acceso`,
+      html,
+      text
+    });
+  }
 }
 
 // Singleton
