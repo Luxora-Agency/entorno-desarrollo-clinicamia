@@ -109,15 +109,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   // Cargar datos al editar
   useEffect(() => {
     if (editingPaciente) {
-      console.log('Editando:', editingPaciente);
-
-      // PRIMERO: Cargar municipios si hay departamento para evitar race condition
-      if (editingPaciente.departamento) {
-        const dept = colombiaData.departamentos.find(d => d.nombre === editingPaciente.departamento);
-        if (dept) {
-          setMunicipios(dept.municipios);
-        }
-      }
+      console.log('Editando paciente:', editingPaciente);
 
       const parseArray = (data) => {
         if (!data) return [];
@@ -139,60 +131,74 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
           const parsed = typeof editingPaciente.contactosEmergencia === 'string'
             ? JSON.parse(editingPaciente.contactosEmergencia)
             : editingPaciente.contactosEmergencia;
-          contactos = parsed.length > 0 ? parsed : contactos;
+          contactos = Array.isArray(parsed) && parsed.length > 0 ? parsed : contactos;
         } catch (e) {
           console.error('Error parsing contactos', e);
         }
       }
 
-      // DESPUÉS: Resetear formulario con datos existentes (municipios ya cargados)
-      // Usamos requestAnimationFrame para asegurar que el estado de municipios se actualizó
-      requestAnimationFrame(() => {
-        form.reset({
-          nombre: editingPaciente.nombre || '',
-          apellido: editingPaciente.apellido || '',
-          tipoDocumento: editingPaciente.tipoDocumento || '',
-          cedula: editingPaciente.cedula || '',
-          fechaNacimiento: editingPaciente.fechaNacimiento ? editingPaciente.fechaNacimiento.split('T')[0] : '',
-          genero: editingPaciente.genero || '',
-          otroGenero: '', // Logic needed if stored differently
-          estadoCivil: editingPaciente.estadoCivil || '',
-          ocupacion: editingPaciente.ocupacion || '',
-          paisNacimiento: editingPaciente.paisNacimiento || 'Colombia',
-          departamento: editingPaciente.departamento || '',
-          municipio: editingPaciente.municipio || '',
-          barrio: editingPaciente.barrio || '',
-          direccion: editingPaciente.direccion || '',
-          telefono: editingPaciente.telefono || '',
-          email: editingPaciente.email || '',
-          contactosEmergencia: contactos,
-          nivelEducacion: editingPaciente.nivelEducacion || '',
-          empleadorActual: editingPaciente.empleadorActual || '',
-          eps: editingPaciente.eps || '',
-          regimen: editingPaciente.regimen || '',
-          tipoAfiliacion: editingPaciente.tipoAfiliacion || '',
-          nivelSisben: editingPaciente.nivelSisben || '',
-          numeroAutorizacion: editingPaciente.numeroAutorizacion || '',
-          fechaAfiliacion: editingPaciente.fechaAfiliacion ? editingPaciente.fechaAfiliacion.split('T')[0] : '',
-          convenio: editingPaciente.convenio || '',
-          arl: editingPaciente.arl || '',
-          carnetPoliza: editingPaciente.carnetPoliza || '',
-          tipoUsuario: editingPaciente.tipoUsuario || '',
-          referidoPor: editingPaciente.referidoPor || '',
-          nombreRefiere: editingPaciente.nombreRefiere || '',
-          tipoPaciente: editingPaciente.tipoPaciente || '',
-          categoria: editingPaciente.categoria || '',
-          tipoSangre: editingPaciente.tipoSangre || '',
-          peso: editingPaciente.peso ? String(editingPaciente.peso) : '',
-          altura: editingPaciente.altura ? String(editingPaciente.altura) : '',
-          alergias: parseArray(editingPaciente.alergias),
-          enfermedadesCronicas: parseArray(editingPaciente.enfermedadesCronicas),
-          medicamentosActuales: parseArray(editingPaciente.medicamentosActuales),
-          antecedentesQuirurgicos: parseArray(editingPaciente.antecedentesQuirurgicos),
-        });
-      });
+      // PRIMERO: Cargar municipios si hay departamento para evitar race condition
+      let municipiosParaCargar = [];
+      if (editingPaciente.departamento) {
+        const dept = colombiaData.departamentos.find(d => d.nombre === editingPaciente.departamento);
+        if (dept) {
+          municipiosParaCargar = dept.municipios;
+          setMunicipios(municipiosParaCargar);
+        }
+      }
+
+      // Preparar datos del formulario
+      const formValues = {
+        nombre: editingPaciente.nombre || '',
+        apellido: editingPaciente.apellido || '',
+        tipoDocumento: editingPaciente.tipoDocumento || '',
+        cedula: editingPaciente.cedula || '',
+        fechaNacimiento: editingPaciente.fechaNacimiento ? editingPaciente.fechaNacimiento.split('T')[0] : '',
+        genero: editingPaciente.genero || '',
+        otroGenero: '',
+        estadoCivil: editingPaciente.estadoCivil || '',
+        ocupacion: editingPaciente.ocupacion || '',
+        paisNacimiento: editingPaciente.paisNacimiento || 'Colombia',
+        departamento: editingPaciente.departamento || '',
+        municipio: editingPaciente.municipio || '',
+        barrio: editingPaciente.barrio || '',
+        direccion: editingPaciente.direccion || '',
+        telefono: editingPaciente.telefono || '',
+        email: editingPaciente.email || '',
+        contactosEmergencia: contactos,
+        nivelEducacion: editingPaciente.nivelEducacion || '',
+        empleadorActual: editingPaciente.empleadorActual || '',
+        eps: editingPaciente.eps || '',
+        regimen: editingPaciente.regimen || '',
+        tipoAfiliacion: editingPaciente.tipoAfiliacion || '',
+        nivelSisben: editingPaciente.nivelSisben || '',
+        numeroAutorizacion: editingPaciente.numeroAutorizacion || '',
+        fechaAfiliacion: editingPaciente.fechaAfiliacion ? editingPaciente.fechaAfiliacion.split('T')[0] : '',
+        convenio: editingPaciente.convenio || '',
+        arl: editingPaciente.arl || '',
+        carnetPoliza: editingPaciente.carnetPoliza || '',
+        tipoUsuario: editingPaciente.tipoUsuario || '',
+        referidoPor: editingPaciente.referidoPor || '',
+        nombreRefiere: editingPaciente.nombreRefiere || '',
+        tipoPaciente: editingPaciente.tipoPaciente || '',
+        categoria: editingPaciente.categoria || '',
+        tipoSangre: editingPaciente.tipoSangre || '',
+        peso: editingPaciente.peso != null ? String(editingPaciente.peso) : '',
+        altura: editingPaciente.altura != null ? String(editingPaciente.altura) : '',
+        alergias: parseArray(editingPaciente.alergias),
+        enfermedadesCronicas: parseArray(editingPaciente.enfermedadesCronicas),
+        medicamentosActuales: parseArray(editingPaciente.medicamentosActuales),
+        antecedentesQuirurgicos: parseArray(editingPaciente.antecedentesQuirurgicos),
+      };
+
+      console.log('Valores a cargar en formulario:', formValues);
+
+      // Usar setTimeout para asegurar que el estado de municipios se actualizó
+      setTimeout(() => {
+        form.reset(formValues);
+      }, 50);
     }
-  }, [editingPaciente, form]);
+  }, [editingPaciente]); // Removido 'form' de las dependencias para evitar re-renders infinitos
 
   const steps = [
     { number: 1, title: 'Información Básica', icon: User, fields: ['nombre', 'apellido', 'tipoDocumento', 'cedula', 'fechaNacimiento', 'departamento', 'municipio', 'barrio', 'direccion'] },
@@ -311,55 +317,58 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   const onSubmit = async (data) => {
     try {
       const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
       // Transformar datos para la API (snake_case)
       const payload = {
         nombre: data.nombre,
         apellido: data.apellido,
         tipo_documento: data.tipoDocumento,
         cedula: data.cedula,
-        fecha_nacimiento: data.fechaNacimiento,
+        fecha_nacimiento: data.fechaNacimiento || null,
         genero: data.genero === 'Otro' ? data.otroGenero : data.genero,
-        estado_civil: data.estadoCivil,
-        ocupacion: data.ocupacion,
-        pais_nacimiento: data.paisNacimiento,
-        departamento: data.departamento,
-        municipio: data.municipio,
-        barrio: data.barrio,
-        direccion: data.direccion,
-        telefono: data.telefono,
-        email: data.email,
-        contactos_emergencia: data.contactosEmergencia,
-        nivel_educacion: data.nivelEducacion,
-        empleador_actual: data.empleadorActual,
-        eps: data.eps,
-        regimen: data.regimen,
-        tipo_afiliacion: data.tipoAfiliacion,
-        nivel_sisben: data.nivelSisben,
-        numero_autorizacion: data.numeroAutorizacion,
+        estado_civil: data.estadoCivil || null,
+        ocupacion: data.ocupacion || null,
+        pais_nacimiento: data.paisNacimiento || null,
+        departamento: data.departamento || null,
+        municipio: data.municipio || null,
+        barrio: data.barrio || null,
+        direccion: data.direccion || null,
+        telefono: data.telefono || null,
+        email: data.email || null,
+        contactos_emergencia: data.contactosEmergencia?.filter(c => c.nombre && c.telefono) || null,
+        nivel_educacion: data.nivelEducacion || null,
+        empleador_actual: data.empleadorActual || null,
+        eps: data.eps || null,
+        regimen: data.regimen || null,
+        tipo_afiliacion: data.tipoAfiliacion || null,
+        nivel_sisben: data.nivelSisben || null,
+        numero_autorizacion: data.numeroAutorizacion || null,
         fecha_afiliacion: data.fechaAfiliacion || null,
-        convenio: data.convenio,
-        arl: data.arl,
-        carnet_poliza: data.carnetPoliza,
-        tipo_usuario: data.tipoUsuario,
-        referido_por: data.referidoPor,
-        nombre_refiere: data.nombreRefiere,
-        tipo_paciente: data.tipoPaciente,
-        categoria: data.categoria,
-        tipo_sangre: data.tipoSangre,
+        convenio: data.convenio || null,
+        arl: data.arl || null,
+        carnet_poliza: data.carnetPoliza || null,
+        tipo_usuario: data.tipoUsuario || null,
+        referido_por: data.referidoPor || null,
+        nombre_refiere: data.nombreRefiere || null,
+        tipo_paciente: data.tipoPaciente || null,
+        categoria: data.categoria || null,
+        tipo_sangre: data.tipoSangre || null,
         peso: data.peso ? parseFloat(data.peso) : null,
         altura: data.altura ? parseFloat(data.altura) : null,
-        alergias: data.alergias.join(', '),
-        enfermedades_cronicas: data.enfermedadesCronicas.join(', '),
-        medicamentos_actuales: data.medicamentosActuales.join(', '),
-        antecedentes_quirurgicos: data.antecedentesQuirurgicos.join(', '),
+        alergias: Array.isArray(data.alergias) && data.alergias.length > 0 ? data.alergias.join(', ') : null,
+        enfermedades_cronicas: Array.isArray(data.enfermedadesCronicas) && data.enfermedadesCronicas.length > 0 ? data.enfermedadesCronicas.join(', ') : null,
+        medicamentos_actuales: Array.isArray(data.medicamentosActuales) && data.medicamentosActuales.length > 0 ? data.medicamentosActuales.join(', ') : null,
+        antecedentes_quirurgicos: Array.isArray(data.antecedentesQuirurgicos) && data.antecedentesQuirurgicos.length > 0 ? data.antecedentesQuirurgicos.join(', ') : null,
       };
 
-      const url = editingPaciente 
+      console.log('Enviando payload:', payload);
+      console.log('URL:', editingPaciente ? `${apiUrl}/pacientes/${editingPaciente.id}` : `${apiUrl}/pacientes`);
+
+      const url = editingPaciente
         ? `${apiUrl}/pacientes/${editingPaciente.id}`
         : `${apiUrl}/pacientes`;
-      
+
       const method = editingPaciente ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -371,40 +380,42 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         body: JSON.stringify(payload),
       });
 
+      const result = await response.json();
+      console.log('Respuesta del servidor:', result);
+
       if (response.ok) {
-        const result = await response.json();
         let pacienteId = result.data?.paciente?.id || result.data?.id || result.id;
-        
+
         if (documentos.length > 0 && pacienteId) {
           setUploadingDocuments(true);
           await uploadDocuments(pacienteId, token, apiUrl);
           setUploadingDocuments(false);
         }
-        
+
         setSavedPaciente({
           id: pacienteId || (editingPaciente ? editingPaciente.id : null),
           nombre: `${data.nombre} ${data.apellido}`
         });
-        
+
         setShowSuccessModal(true);
       } else {
-        const error = await response.json();
-        const errorMessage = error.error?.details 
-          ? error.error.details.map(d => d.message).join(', ') 
-          : error.error || 'Error al guardar el paciente';
-          
-        toast({ 
+        const errorMessage = result.error?.details
+          ? result.error.details.map(d => d.message).join(', ')
+          : result.message || result.error || 'Error al guardar el paciente';
+
+        console.error('Error del servidor:', result);
+        toast({
           variant: "destructive",
           title: "Error al guardar",
-          description: errorMessage 
+          description: errorMessage
         });
       }
     } catch (error) {
-      console.error('Error:', error);
-      toast({ 
+      console.error('Error de conexión:', error);
+      toast({
         variant: "destructive",
         title: "Error de red",
-        description: "No se pudo conectar con el servidor" 
+        description: "No se pudo conectar con el servidor: " + error.message
       });
     }
   };

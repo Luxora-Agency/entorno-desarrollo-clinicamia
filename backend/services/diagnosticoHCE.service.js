@@ -93,6 +93,7 @@ class DiagnosticoHCEService {
         descripcionCIE11: data.descripcion_cie11,
         tipoDiagnostico: data.tipo_diagnostico || 'Principal',
         estadoDiagnostico: data.estado_diagnostico || 'Activo',
+        clasificacion: data.clasificacion || null, // ImpresionDiagnostica, ConfirmadoNuevo, ConfirmadoRepetido
         esDiferencial: data.es_diferencial || false,
         observaciones: data.observaciones || null,
         severidad: data.severidad || null,
@@ -127,6 +128,7 @@ class DiagnosticoHCEService {
 
     const updateData = {};
     if (data.estado_diagnostico) updateData.estadoDiagnostico = data.estado_diagnostico;
+    if (data.clasificacion !== undefined) updateData.clasificacion = data.clasificacion || null;
     if (data.observaciones !== undefined) updateData.observaciones = data.observaciones;
     if (data.severidad) updateData.severidad = data.severidad;
     if (data.fecha_resolucion) {

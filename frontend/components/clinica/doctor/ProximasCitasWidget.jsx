@@ -119,11 +119,27 @@ export default function ProximasCitasWidget({
         if (data.status === 'success' || data.success) {
           const citasData = data.citas || data.data || [];
 
-          // Filtrar solo citas pendientes/en espera y ordenar por hora
-          const citasPendientes = citasData
-            .filter(c => ['Pendiente', 'Confirmada', 'EnEspera'].includes(c.estado))
-            .sort((a, b) => formatHora(a.hora).localeCompare(formatHora(b.hora)))
+          // Filtrar citas del día y ordenar por cola de atención
+          // 1. Primero: pacientes por atender (EnEspera, Confirmada, Pendiente) ordenados por hora
+          // 2. Último: pacientes ya atendidos (Completada) van al final
+          const citasOrdenadas = citasData
+            .filter(c => ['Pendiente', 'Confirmada', 'EnEspera', 'Completada'].includes(c.estado))
+            .sort((a, b) => {
+              // Los completados van al final
+              const aCompletada = a.estado === 'Completada';
+              const bCompletada = b.estado === 'Completada';
+
+              if (aCompletada && !bCompletada) return 1;  // a va después
+              if (!aCompletada && bCompletada) return -1; // b va después
+
+              // Dentro de cada grupo, ordenar por hora de cita
+              const horaA = formatHora(a.hora);
+              const horaB = formatHora(b.hora);
+              return horaA.localeCompare(horaB);
+            })
             .slice(0, maxCitas);
+
+          const citasPendientes = citasOrdenadas;
 
           setCitas(citasPendientes);
         }
@@ -160,12 +176,22 @@ export default function ProximasCitasWidget({
 
       if (data.status === 'success' || data.success) {
         const citasData = data.citas || data.data || [];
-        const citasPendientes = citasData
-          .filter(c => ['Pendiente', 'Confirmada', 'EnEspera'].includes(c.estado))
-          .sort((a, b) => formatHora(a.hora).localeCompare(formatHora(b.hora)))
+        const citasOrdenadas = citasData
+          .filter(c => ['Pendiente', 'Confirmada', 'EnEspera', 'Completada'].includes(c.estado))
+          .sort((a, b) => {
+            // Los completados van al final
+            const aCompletada = a.estado === 'Completada';
+            const bCompletada = b.estado === 'Completada';
+
+            if (aCompletada && !bCompletada) return 1;
+            if (!aCompletada && bCompletada) return -1;
+
+            // Dentro de cada grupo, ordenar por hora
+            return formatHora(a.hora).localeCompare(formatHora(b.hora));
+          })
           .slice(0, maxCitas);
 
-        setCitas(citasPendientes);
+        setCitas(citasOrdenadas);
       }
     } catch (err) {
       console.error('Error refreshing citas:', err);

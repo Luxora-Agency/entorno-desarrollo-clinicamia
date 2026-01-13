@@ -42,6 +42,126 @@ export const PLANTILLAS_ORDENES = [
     ]
   },
 
+  // Endocrinología Pediátrica
+  {
+    id: 'endocrino-pediatrico-crecimiento',
+    nombre: 'Evaluación de Crecimiento Pediátrico',
+    categoria: 'Endocrinología',
+    color: 'purple',
+    examenes: [
+      { codigoCups: '904909', nombre: 'Hormona del Crecimiento (GH) Basal' },
+      { codigoCups: '904910', nombre: 'IGF-1 (Somatomedina C)' },
+      { codigoCups: '904911', nombre: 'IGFBP-3 (Proteína Ligadora de IGF)' },
+      { codigoCups: '903841', nombre: 'TSH' },
+      { codigoCups: '903842', nombre: 'T4 Libre' },
+      { codigoCups: '871010', nombre: 'Rx Edad Ósea (Mano y Muñeca Izquierda)' }
+    ]
+  },
+  {
+    id: 'endocrino-pediatrico-tiroides',
+    nombre: 'Perfil Tiroideo Pediátrico',
+    categoria: 'Endocrinología',
+    color: 'purple',
+    examenes: [
+      { codigoCups: '903841', nombre: 'TSH' },
+      { codigoCups: '903842', nombre: 'T4 Libre' },
+      { codigoCups: '903840', nombre: 'T3 Total' },
+      { codigoCups: '906913', nombre: 'Anticuerpos Antiperoxidasa (Anti-TPO)' },
+      { codigoCups: '906914', nombre: 'Anticuerpos Antitiroglobulina' },
+      { codigoCups: '881501', nombre: 'Ecografía de Tiroides' }
+    ]
+  },
+  {
+    id: 'endocrino-pediatrico-pubertad',
+    nombre: 'Evaluación Pubertad Precoz/Tardía',
+    categoria: 'Endocrinología',
+    color: 'purple',
+    examenes: [
+      { codigoCups: '904903', nombre: 'FSH' },
+      { codigoCups: '904904', nombre: 'LH' },
+      { codigoCups: '904916', nombre: 'Estradiol' },
+      { codigoCups: '904920', nombre: 'Testosterona Total' },
+      { codigoCups: '904919', nombre: 'DHEA-S (Sulfato de Dehidroepiandrosterona)' },
+      { codigoCups: '904912', nombre: '17-OH Progesterona' },
+      { codigoCups: '871010', nombre: 'Rx Edad Ósea' }
+    ]
+  },
+  {
+    id: 'endocrino-pediatrico-suprarrenal',
+    nombre: 'Función Suprarrenal Pediátrica',
+    categoria: 'Endocrinología',
+    color: 'purple',
+    examenes: [
+      { codigoCups: '904905', nombre: 'Cortisol AM (8:00 am)' },
+      { codigoCups: '904906', nombre: 'ACTH' },
+      { codigoCups: '904919', nombre: 'DHEA-S' },
+      { codigoCups: '904912', nombre: '17-OH Progesterona' },
+      { codigoCups: '903861', nombre: 'Sodio' },
+      { codigoCups: '903858', nombre: 'Potasio' },
+      { codigoCups: '903426', nombre: 'Glucosa en Ayunas' }
+    ]
+  },
+  {
+    id: 'endocrino-pediatrico-diabetes',
+    nombre: 'Diabetes Pediátrica - Diagnóstico',
+    categoria: 'Endocrinología',
+    color: 'purple',
+    examenes: [
+      { codigoCups: '903426', nombre: 'Glucosa en Ayunas' },
+      { codigoCups: '903427', nombre: 'Hemoglobina Glicosilada (HbA1c)' },
+      { codigoCups: '903430', nombre: 'Curva de Tolerancia a la Glucosa' },
+      { codigoCups: '904907', nombre: 'Insulina Basal' },
+      { codigoCups: '904908', nombre: 'Péptido C' },
+      { codigoCups: '906915', nombre: 'Anticuerpos Anti-GAD' },
+      { codigoCups: '906916', nombre: 'Anticuerpos Anti-Insulina (IAA)' }
+    ]
+  },
+  {
+    id: 'endocrino-pediatrico-obesidad',
+    nombre: 'Evaluación Obesidad Pediátrica',
+    categoria: 'Endocrinología',
+    color: 'purple',
+    examenes: [
+      { codigoCups: '903426', nombre: 'Glucosa en Ayunas' },
+      { codigoCups: '904907', nombre: 'Insulina Basal' },
+      { codigoCups: '903818', nombre: 'Colesterol Total' },
+      { codigoCups: '903815', nombre: 'HDL Colesterol' },
+      { codigoCups: '903816', nombre: 'LDL Colesterol' },
+      { codigoCups: '903868', nombre: 'Triglicéridos' },
+      { codigoCups: '903841', nombre: 'TSH' },
+      { codigoCups: '903835', nombre: 'TGO (AST)' },
+      { codigoCups: '903836', nombre: 'TGP (ALT)' },
+      { codigoCups: '881302', nombre: 'Ecografía Hepática' }
+    ]
+  },
+  {
+    id: 'endocrino-pediatrico-metabolismo-oseo',
+    nombre: 'Metabolismo Óseo Pediátrico',
+    categoria: 'Endocrinología',
+    color: 'purple',
+    examenes: [
+      { codigoCups: '903814', nombre: 'Calcio Sérico' },
+      { codigoCups: '903824', nombre: 'Fósforo' },
+      { codigoCups: '903823', nombre: 'Fosfatasa Alcalina' },
+      { codigoCups: '904913', nombre: 'PTH (Hormona Paratiroidea)' },
+      { codigoCups: '903874', nombre: 'Vitamina D (25-OH)' },
+      { codigoCups: '903849', nombre: 'Magnesio' }
+    ]
+  },
+  {
+    id: 'endocrino-pediatrico-tamizaje-neonatal',
+    nombre: 'Tamizaje Neonatal Ampliado',
+    categoria: 'Endocrinología',
+    color: 'purple',
+    examenes: [
+      { codigoCups: '903841', nombre: 'TSH Neonatal' },
+      { codigoCups: '904912', nombre: '17-OH Progesterona Neonatal' },
+      { codigoCups: '903426', nombre: 'Glucosa' },
+      { codigoCups: '906801', nombre: 'Galactosa (Galactosemia)' },
+      { codigoCups: '903823', nombre: 'Biotinidasa' }
+    ]
+  },
+
   // Laboratorio General
   {
     id: 'perfil-lipidico',

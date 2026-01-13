@@ -4,6 +4,8 @@ const { authMiddleware } = require('../middleware/auth');
 const firmaDigitalService = require('../services/firmaDigital.service');
 const auditoriaService = require('../services/auditoria.service');
 const consultaService = require('../services/consulta.service');
+const emailService = require('../services/email.service');
+const encuestaSatisfaccionService = require('../services/encuestaSatisfaccion.service');
 
 const consultasRouter = new Hono();
 
@@ -143,12 +145,10 @@ consultasRouter.post('/finalizar', async (c) => {
       planManejo, // Nuevo: para kits de medicamentos
     } = body;
 
-    // Validar que venga el SOAP (obligatorio) - verificar que sean strings no vacíos
+    // SOAP es opcional - si viene, validar que los campos no estén vacíos
     const isValidSoapField = (field) => typeof field === 'string' && field.trim().length > 0;
-    if (!soap || !isValidSoapField(soap.subjetivo) || !isValidSoapField(soap.objetivo) ||
-        !isValidSoapField(soap.analisis) || !isValidSoapField(soap.plan)) {
-      return c.json({ message: 'Los datos SOAP son obligatorios y deben contener texto válido' }, 400);
-    }
+    const hasSoapData = soap && (isValidSoapField(soap.subjetivo) || isValidSoapField(soap.objetivo) ||
+        isValidSoapField(soap.analisis) || isValidSoapField(soap.plan));
 
     // Validar diagnósticos especiales (cáncer y enfermedades huérfanas)
     if (diagnostico?.principal?.codigoCIE10) {
@@ -188,8 +188,14 @@ consultasRouter.post('/finalizar', async (c) => {
       const resultados = {};
       const fechaActual = new Date();
 
-      // 1. Guardar Evolución SOAP (obligatorio)
-      let planFinal = soap.plan;
+      // 1. Guardar Evolución SOAP (opcional si viene, se usan valores por defecto si no)
+      // Construir datos SOAP con valores por defecto si no vienen
+      const soapSubjetivo = hasSoapData && soap.subjetivo ? soap.subjetivo : (motivoConsulta || 'Sin registro');
+      const soapObjetivo = hasSoapData && soap.objetivo ? soap.objetivo : 'Ver signos vitales y examen físico';
+      const soapAnalisis = hasSoapData && soap.analisis ? soap.analisis : 'Consulta sin análisis SOAP detallado';
+      const soapPlan = hasSoapData && soap.plan ? soap.plan : 'Ver prescripciones y órdenes médicas';
+
+      let planFinal = soapPlan;
       // Incorporar Kits de Medicamentos al Plan (Point of Care)
       if (planManejo && planManejo.kitsAplicados && planManejo.kitsAplicados.length > 0) {
         const kitsTexto = planManejo.kitsAplicados.map(k => `${k.nombre} (${k.medicamentos.join(', ')})`).join('; ');
@@ -201,9 +207,9 @@ consultasRouter.post('/finalizar', async (c) => {
           pacienteId,
           citaId,
           doctorId,
-          subjetivo: soap.subjetivo,
-          objetivo: soap.objetivo,
-          analisis: soap.analisis,
+          subjetivo: soapSubjetivo,
+          objetivo: soapObjetivo,
+          analisis: soapAnalisis,
           plan: planFinal,
           tipoEvolucion: 'Seguimiento',
           fechaEvolucion: fechaActual,
@@ -300,9 +306,13 @@ consultasRouter.post('/finalizar', async (c) => {
             tiroglobulina: vitales.tiroglobulina ? limitarValor(vitales.tiroglobulina, 99999.99) : null,
             anticuerposAntitiroglobulina: vitales.anticuerposAntitiroglobulina ? limitarValor(vitales.anticuerposAntitiroglobulina, 99999.99) : null,
             analisisTiroideo: vitales.analisisTiroideo || null,
+            // Paraclínicos personalizados (array JSON)
+            otrosParaclinicos: vitales.otrosParaclinicos || null,
+            // Examen físico por sistemas (JSON estructurado)
+            examenFisico: vitales.examenFisico || null,
 
             // Calcular IMC si hay peso y talla
-            imc: (vitales.peso && vitales.talla) 
+            imc: (vitales.peso && vitales.talla)
               ? parseFloat((parseFloat(vitales.peso) / Math.pow(parseFloat(vitales.talla) / 100, 2)).toFixed(2))
               : null,
           },
@@ -319,6 +329,9 @@ consultasRouter.post('/finalizar', async (c) => {
 
         // Solo crear diagnóstico si hay código válido
         if (codigoDx) {
+          // Obtener clasificación del diagnóstico
+          const clasificacionDx = diagnostico.clasificacion || diagnostico.principal?.clasificacion || null;
+
           const dataDiagnostico = {
             pacienteId,
             evolucionId: evolucion.id,
@@ -327,6 +340,7 @@ consultasRouter.post('/finalizar', async (c) => {
             descripcionCIE11: descripcionDx || codigoDx, // Fallback a código si no hay descripción
             tipoDiagnostico: diagnostico.tipoDiagnostico || 'Principal',
             estadoDiagnostico: 'Activo',
+            clasificacion: clasificacionDx, // ImpresionDiagnostica, ConfirmadoNuevo, ConfirmadoRepetido
             observaciones: observacionesDx,
           };
 
@@ -529,6 +543,49 @@ consultasRouter.post('/finalizar', async (c) => {
 
       return resultados;
     });
+
+    // ==========================================
+    // ENVÍO DE ENCUESTA DE SATISFACCIÓN (async)
+    // ==========================================
+    // Ejecutamos esto fuera de la transacción para no bloquear la respuesta
+    (async () => {
+      try {
+        // Obtener datos completos para el email
+        const citaConDatos = await prisma.cita.findUnique({
+          where: { id: citaId },
+          include: {
+            paciente: true,
+            doctor: true,
+            especialidad: true
+          }
+        });
+
+        if (citaConDatos?.paciente?.email) {
+          // Crear encuesta y obtener token
+          const encuesta = await encuestaSatisfaccionService.crearEncuestaPostConsulta({
+            citaId,
+            pacienteId: citaConDatos.pacienteId,
+            doctorId: citaConDatos.doctorId,
+            especialidad: citaConDatos.especialidad?.titulo
+          });
+
+          // Enviar email de encuesta de satisfacción
+          await emailService.sendSatisfactionSurvey({
+            to: citaConDatos.paciente.email,
+            paciente: citaConDatos.paciente,
+            doctor: citaConDatos.doctor,
+            cita: citaConDatos,
+            especialidad: citaConDatos.especialidad?.titulo,
+            surveyToken: encuesta.token
+          });
+
+          console.log(`[Encuesta] Email de satisfacción enviado a ${citaConDatos.paciente.email} para cita ${citaId}`);
+        }
+      } catch (emailError) {
+        // No bloqueamos la respuesta si falla el envío del email
+        console.error('[Encuesta] Error al enviar email de satisfacción:', emailError.message);
+      }
+    })();
 
     return c.json({
       success: true,

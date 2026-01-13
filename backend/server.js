@@ -128,6 +128,8 @@ const apiV1 = require('./routes/api-v1');
 const reservas = require('./routes/reservas');
 // Sistema de Bloqueos de Agenda (vacaciones, permisos, etc.)
 const bloqueos = require('./routes/bloqueos');
+// Encuestas de Satisfacción Post-Consulta
+const encuestaSatisfaccion = require('./routes/encuestaSatisfaccion');
 // Siigo - Facturación Electrónica y Contabilidad
 const siigoRoutes = require('./routes/siigo');
 const compras = require('./routes/compras');
@@ -269,6 +271,7 @@ app.route('/citas', citas);
 app.route('/agenda', agenda);
 app.route('/reservas', reservas);
 app.route('/bloqueos', bloqueos);
+app.route('/encuestas-satisfaccion', encuestaSatisfaccion);
 app.route('/departamentos', departamentos);
 app.route('/especialidades', especialidades);
 app.route('/usuarios', usuarios);
@@ -365,6 +368,9 @@ app.route('/talento-humano', talentoHumano);
 app.route('/sst', sst);
 // Alertas y Notificaciones por Email
 app.route('/alertas-notificaciones', alertasNotificaciones);
+// Notificaciones específicas para doctores
+const notificacionesDoctor = require('./routes/notificaciones-doctor');
+app.route('/notificaciones-doctor', notificacionesDoctor);
 // Siigo - Facturación Electrónica DIAN y Contabilidad
 app.route('/siigo', siigoRoutes);
 // Compras - Proveedores, Órdenes de Compra, Cuentas por Pagar

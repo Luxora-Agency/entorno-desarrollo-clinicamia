@@ -97,7 +97,8 @@ const TipoCitaCard = ({ tipo, selected, onClick, icon: Icon, count, disabled }) 
 const HorarioBloque = ({ bloque, selected, onClick, showDoctor, disabled }) => {
   const isOcupado = disabled || bloque.estado === 'ocupado';
   const isPasado = bloque.estado === 'pasado';
-  const isNoDisponible = isOcupado || isPasado;
+  const isBloqueado = bloque.estado === 'bloqueado';
+  const isNoDisponible = isOcupado || isPasado || isBloqueado;
 
   return (
     <button
@@ -106,25 +107,32 @@ const HorarioBloque = ({ bloque, selected, onClick, showDoctor, disabled }) => {
       disabled={isNoDisponible}
       className={`
         relative flex items-center justify-between p-3 rounded-lg border-2 transition-all w-full
-        ${isNoDisponible
-          ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
-          : selected
-            ? 'border-emerald-500 bg-emerald-50 shadow-sm'
-            : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}
+        ${isBloqueado
+          ? 'border-orange-200 bg-orange-50 cursor-not-allowed opacity-70'
+          : isNoDisponible
+            ? 'border-gray-200 bg-gray-100 cursor-not-allowed opacity-60'
+            : selected
+              ? 'border-emerald-500 bg-emerald-50 shadow-sm'
+              : 'border-gray-200 hover:border-emerald-300 hover:bg-gray-50'}
       `}
     >
       <div className="flex items-center gap-3">
-        <div className={`p-2 rounded-lg ${isNoDisponible ? 'bg-gray-200' : selected ? 'bg-emerald-100' : 'bg-gray-100'}`}>
-          <Clock className={`w-4 h-4 ${isNoDisponible ? 'text-gray-400' : selected ? 'text-emerald-600' : 'text-gray-500'}`} />
+        <div className={`p-2 rounded-lg ${isBloqueado ? 'bg-orange-100' : isNoDisponible ? 'bg-gray-200' : selected ? 'bg-emerald-100' : 'bg-gray-100'}`}>
+          <Clock className={`w-4 h-4 ${isBloqueado ? 'text-orange-500' : isNoDisponible ? 'text-gray-400' : selected ? 'text-emerald-600' : 'text-gray-500'}`} />
         </div>
         <div className="text-left">
-          <div className={`font-semibold ${isNoDisponible ? 'text-gray-400 line-through' : selected ? 'text-emerald-700' : 'text-gray-900'}`}>
+          <div className={`font-semibold ${isBloqueado ? 'text-orange-600 line-through' : isNoDisponible ? 'text-gray-400 line-through' : selected ? 'text-emerald-700' : 'text-gray-900'}`}>
             {bloque.hora}
           </div>
           {showDoctor && (
             <div className="text-xs text-gray-500">Dr. {bloque.doctorNombre}</div>
           )}
-          {isOcupado && !isPasado && (
+          {isBloqueado && (
+            <div className="text-xs text-orange-600 font-medium">
+              Bloqueado{bloque.bloqueo?.motivo ? `: ${bloque.bloqueo.motivo}` : ''}
+            </div>
+          )}
+          {isOcupado && !isPasado && !isBloqueado && (
             <div className="text-xs text-red-500 font-medium">Ocupado</div>
           )}
           {isPasado && (
@@ -161,6 +169,7 @@ export default function FormularioCita({
   const [doctores, setDoctores] = useState([]);
   const [bloquesDisponibles, setBloquesDisponibles] = useState([]);
   const [loadingBloques, setLoadingBloques] = useState(false);
+  const [diaBloqueado, setDiaBloqueado] = useState(null); // Info si el día está completamente bloqueado
 
   const [searchPaciente, setSearchPaciente] = useState('');
   const [showPacientesList, setShowPacientesList] = useState(false);
@@ -313,10 +322,12 @@ export default function FormularioCita({
   const cargarBloquesDisponibles = useCallback(async () => {
     if (!fecha) {
       setBloquesDisponibles([]);
+      setDiaBloqueado(null);
       return;
     }
 
     setLoadingBloques(true);
+    setDiaBloqueado(null);
     try {
       const token = localStorage.getItem('token');
 
@@ -330,6 +341,17 @@ export default function FormularioCita({
             headers: { Authorization: `Bearer ${token}` }
           });
           const data = await res.json();
+
+          // Verificar si el día está completamente bloqueado
+          if (data.success && data.data && data.data.bloqueado) {
+            setDiaBloqueado({
+              tipo: data.data.bloqueoTipo,
+              motivo: data.data.bloqueoMotivo || data.data.mensaje
+            });
+            setBloquesDisponibles([]);
+            setLoadingBloques(false);
+            return;
+          }
 
           let bloquesArray = [];
           if (data.success && data.data) {
@@ -346,7 +368,8 @@ export default function FormularioCita({
             doctorId: doctorId,
             doctorNombre: doctorSeleccionado.nombre || 'Doctor',
             duracion: b.duracion,
-            estado: b.estado // disponible, ocupado, pasado, etc.
+            estado: b.estado, // disponible, ocupado, pasado, bloqueado
+            bloqueo: b.bloqueo // info del bloqueo si existe
           }));
 
           setBloquesDisponibles(todosLosBloques);
@@ -395,7 +418,8 @@ export default function FormularioCita({
               doctorId: resultado.doctorId,
               doctorNombre: resultado.doctorNombre,
               duracion: bloque.duracion,
-              estado: bloque.estado // disponible, ocupado, pasado, etc.
+              estado: bloque.estado, // disponible, ocupado, pasado, bloqueado
+              bloqueo: bloque.bloqueo // info del bloqueo si existe
             });
           });
         });
@@ -887,6 +911,13 @@ export default function FormularioCita({
                         showDoctor={!doctorId}
                       />
                     ))}
+                  </div>
+                ) : diaBloqueado ? (
+                  <div className="text-center py-6 text-orange-600 bg-orange-50 rounded-xl border border-orange-200">
+                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-orange-500" />
+                    <p className="font-medium">Día bloqueado</p>
+                    <p className="text-sm mt-1">{diaBloqueado.motivo || 'El doctor no tiene disponibilidad este día'}</p>
+                    <p className="text-xs mt-2 text-orange-500">Selecciona otra fecha</p>
                   </div>
                 ) : (
                   <div className="text-center py-6 text-gray-500 bg-gray-50 rounded-xl border border-gray-200">

@@ -88,6 +88,7 @@ const formatTimeAgo = (date) => {
 export default function DoctorNotifications({
   doctorId,
   onNotificationClick,
+  onViewAll,
   className = '',
   showBadge = true
 }) {
@@ -108,10 +109,9 @@ export default function DoctorNotifications({
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
-      // En un sistema real, esto cargaría notificaciones del backend
-      // Por ahora, generamos notificaciones de ejemplo basadas en datos reales
+      // Cargar notificaciones reales del doctor
       const response = await fetch(
-        `${apiUrl}/alertas-notificaciones?doctorId=${doctorId}&limit=20`,
+        `${apiUrl}/notificaciones-doctor?doctorId=${doctorId}&limit=20`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -131,59 +131,18 @@ export default function DoctorNotifications({
           setUnreadCount(formattedNotifications.filter(n => !n.read).length);
         }
       } else {
-        // Si no hay endpoint, usar notificaciones de demo
-        setNotifications(getDemoNotifications());
-        setUnreadCount(3);
+        // Si no hay endpoint o error, lista vacía
+        setNotifications([]);
+        setUnreadCount(0);
       }
     } catch (error) {
       console.error('Error loading notifications:', error);
-      // Usar notificaciones de demo en caso de error
-      setNotifications(getDemoNotifications());
-      setUnreadCount(3);
+      setNotifications([]);
+      setUnreadCount(0);
     } finally {
       setLoading(false);
     }
   }, [doctorId]);
-
-  // Notificaciones de demostración
-  const getDemoNotifications = () => [
-    {
-      id: '1',
-      type: 'LAB_RESULT',
-      title: 'Resultados de laboratorio listos',
-      message: 'Hemograma completo de María García está disponible',
-      read: false,
-      createdAt: new Date(Date.now() - 15 * 60000).toISOString(),
-      data: { pacienteId: 'demo-1', examenId: 'lab-1' }
-    },
-    {
-      id: '2',
-      type: 'LONG_WAIT',
-      title: 'Paciente en espera prolongada',
-      message: 'Juan Pérez lleva más de 45 minutos esperando',
-      read: false,
-      createdAt: new Date(Date.now() - 30 * 60000).toISOString(),
-      data: { citaId: 'cita-1' }
-    },
-    {
-      id: '3',
-      type: 'INTERCONSULTA',
-      title: 'Respuesta de interconsulta',
-      message: 'Dr. Rodríguez respondió la interconsulta de cardiología',
-      read: false,
-      createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-      data: { interconsultaId: 'ic-1' }
-    },
-    {
-      id: '4',
-      type: 'IMAGING',
-      title: 'Imágenes disponibles',
-      message: 'Radiografía de tórax de Ana López lista para revisión',
-      read: true,
-      createdAt: new Date(Date.now() - 5 * 3600000).toISOString(),
-      data: { imagenId: 'img-1' }
-    }
-  ];
 
   useEffect(() => {
     loadNotifications();
@@ -200,16 +159,16 @@ export default function DoctorNotifications({
     );
     setUnreadCount(prev => Math.max(0, prev - 1));
 
-    // En un sistema real, esto actualizaría el backend
+    // Actualizar en backend
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      await fetch(`${apiUrl}/alertas-notificaciones/${notificationId}/read`, {
+      await fetch(`${apiUrl}/notificaciones-doctor/${notificationId}/read`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` }
       });
     } catch (error) {
-      // Silently fail for demo
+      console.error('Error marking notification as read:', error);
     }
   };
 
@@ -375,6 +334,17 @@ export default function DoctorNotifications({
             variant="ghost"
             size="sm"
             className="w-full text-xs text-gray-600 hover:text-gray-900"
+            onClick={() => {
+              setOpen(false);
+              if (onViewAll) {
+                onViewAll();
+              } else {
+                toast({
+                  title: 'Centro de notificaciones',
+                  description: 'Mostrando todas las notificaciones',
+                });
+              }
+            }}
           >
             Ver todas las notificaciones
             <ChevronRight className="h-4 w-4 ml-1" />
@@ -398,7 +368,7 @@ export function NotificationsCard({ doctorId, className = '' }) {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
         const response = await fetch(
-          `${apiUrl}/alertas-notificaciones?doctorId=${doctorId}&limit=3&unreadOnly=true`,
+          `${apiUrl}/notificaciones-doctor?doctorId=${doctorId}&limit=3&unreadOnly=true`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
 
@@ -474,5 +444,191 @@ export function NotificationsCard({ doctorId, className = '' }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// Componente para mostrar todas las notificaciones en un modal
+export function NotificationsFullView({ doctorId, onNotificationClick }) {
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all'); // 'all', 'unread', tipo específico
+
+  useEffect(() => {
+    const loadAllNotifications = async () => {
+      if (!doctorId) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+        const response = await fetch(
+          `${apiUrl}/notificaciones-doctor?doctorId=${doctorId}&limit=50`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setNotifications(data.data || []);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadAllNotifications();
+  }, [doctorId]);
+
+  // Filtrar notificaciones
+  const filteredNotifications = notifications.filter(n => {
+    if (filter === 'all') return true;
+    if (filter === 'unread') return !n.leida;
+    return n.tipo === filter;
+  });
+
+  // Agrupar por fecha
+  const groupedNotifications = filteredNotifications.reduce((groups, n) => {
+    const date = new Date(n.createdAt).toLocaleDateString('es-ES', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    if (!groups[date]) groups[date] = [];
+    groups[date].push(n);
+    return groups;
+  }, {});
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  const unreadCount = notifications.filter(n => !n.leida).length;
+
+  return (
+    <div className="space-y-4">
+      {/* Filtros */}
+      <div className="flex items-center gap-2 flex-wrap pb-3 border-b">
+        <Button
+          variant={filter === 'all' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilter('all')}
+        >
+          Todas ({notifications.length})
+        </Button>
+        <Button
+          variant={filter === 'unread' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilter('unread')}
+        >
+          No leídas ({unreadCount})
+        </Button>
+        <Button
+          variant={filter === 'LAB_RESULT' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilter('LAB_RESULT')}
+        >
+          <FlaskConical className="h-3 w-3 mr-1" />
+          Laboratorio
+        </Button>
+        <Button
+          variant={filter === 'LONG_WAIT' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilter('LONG_WAIT')}
+        >
+          <Clock className="h-3 w-3 mr-1" />
+          Espera
+        </Button>
+        <Button
+          variant={filter === 'URGENT' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setFilter('URGENT')}
+        >
+          <AlertTriangle className="h-3 w-3 mr-1" />
+          Urgentes
+        </Button>
+      </div>
+
+      {/* Lista de notificaciones agrupadas */}
+      {filteredNotifications.length === 0 ? (
+        <div className="text-center py-12">
+          <Bell className="h-12 w-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500">No hay notificaciones</p>
+          <p className="text-sm text-gray-400">
+            {filter !== 'all' ? 'Prueba con otro filtro' : 'Las notificaciones aparecerán aquí'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(groupedNotifications).map(([date, dayNotifications]) => (
+            <div key={date}>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                {date}
+              </h4>
+              <div className="space-y-2">
+                {dayNotifications.map((n) => {
+                  const config = NOTIFICATION_TYPES[n.tipo] || NOTIFICATION_TYPES.GENERAL;
+                  const Icon = config.icon;
+
+                  return (
+                    <div
+                      key={n.id}
+                      onClick={() => onNotificationClick && onNotificationClick(n)}
+                      className={`
+                        p-4 rounded-lg border cursor-pointer transition-all
+                        ${!n.leida ? 'bg-blue-50/50 border-blue-200' : 'bg-white border-gray-200'}
+                        hover:shadow-md hover:scale-[1.01]
+                      `}
+                    >
+                      <div className="flex gap-3">
+                        <div className={`p-2 rounded-full ${config.bgColor} shrink-0`}>
+                          <Icon className={`h-4 w-4 ${config.color}`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className={`text-sm font-medium ${!n.leida ? 'text-gray-900' : 'text-gray-600'}`}>
+                                {n.titulo}
+                              </p>
+                              <p className="text-sm text-gray-500 mt-0.5">
+                                {n.mensaje}
+                              </p>
+                            </div>
+                            {!n.leida && (
+                              <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0 mt-2" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Badge
+                              variant="outline"
+                              className={`text-[10px] ${config.borderColor} ${config.color}`}
+                            >
+                              {config.label}
+                            </Badge>
+                            <span className="text-[10px] text-gray-400">
+                              {formatTimeAgo(n.createdAt)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

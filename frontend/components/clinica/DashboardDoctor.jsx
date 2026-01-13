@@ -8,7 +8,7 @@ import {
   RefreshCw, Sun, Moon, Sunrise, Sunset, TrendingUp, TrendingDown,
   Heart, Phone, Mail, AlertTriangle, Timer, UserCircle, ChevronRight,
   Sparkles, Award, Target, Zap, Bookmark, Plus, Search, Filter,
-  MoreVertical, MessageSquare, Printer
+  MoreVertical, MessageSquare, Printer, Bell
 } from 'lucide-react';
 import { clearAttentionTypePreference } from './doctor/AttentionTypeSelector';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -35,7 +35,7 @@ import AnalizadorHCE from './doctor/AnalizadorHCE';
 import DashboardDoctorQuirofano from './doctor/quirofano/DashboardDoctorQuirofano';
 import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
 import ProximasCitasWidget from './doctor/ProximasCitasWidget';
-import DoctorNotifications from './doctor/DoctorNotifications';
+import DoctorNotifications, { NotificationsFullView } from './doctor/DoctorNotifications';
 import DoctorCommandPalette, { useDoctorCommandPalette } from './doctor/DoctorCommandPalette';
 import HospitalizedPatientsWidget from './doctor/HospitalizedPatientsWidget';
 import QuirofanoWidget from './doctor/QuirofanoWidget';
@@ -92,7 +92,7 @@ const getPriorityConfig = (cita) => {
   return null;
 };
 
-export default function DashboardDoctor({ user, onChangeAttentionType, initialMode = 'dashboard' }) {
+export default function DashboardDoctor({ user, onChangeAttentionType, onNavigateModule, initialMode = 'dashboard' }) {
   const { toast } = useToast();
   const getFechaHoy = () => new Date().toISOString().split('T')[0];
 
@@ -121,6 +121,17 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
   const [activeCita, setActiveCita] = useState(null);
   const [activeAdmision, setActiveAdmision] = useState(null);
   const [showHCEAnalyzer, setShowHCEAnalyzer] = useState(false);
+  const [showAllNotifications, setShowAllNotifications] = useState(false);
+
+  // Sincronizar viewMode con initialMode cuando cambie (por navegación del sidebar)
+  useEffect(() => {
+    setViewMode(initialMode);
+    // Si volvemos al dashboard, limpiar también la cita activa
+    if (initialMode === 'dashboard') {
+      setActiveCita(null);
+      setActiveAdmision(null);
+    }
+  }, [initialMode]);
 
   // Command Palette (Ctrl+K)
   const { open: commandPaletteOpen, setOpen: setCommandPaletteOpen } = useDoctorCommandPalette();
@@ -163,6 +174,9 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
     total: 0,
     completadas: 0,
   });
+
+  // Paciente seleccionado para acciones rápidas
+  const [selectedPatient, setSelectedPatient] = useState(null);
 
   const greeting = getGreeting();
   const GreetingIcon = greeting.icon;
@@ -412,7 +426,30 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
 
       return matchesSearch && matchesStatus;
     })
-    .sort((a, b) => formatHora(a.hora).localeCompare(formatHora(b.hora)));
+    .sort((a, b) => {
+      // Cola de atención: pendientes primero por hora, completados al final
+      // Prioridad: EnEspera (ya llegó) > Confirmada > Pendiente > Atendiendo (en consulta) > Completada/Cancelada
+      const estadoPrioridad = {
+        EnEspera: 0,      // Pacientes que llegaron, ordenados por hora
+        Confirmada: 1,    // Confirmados pendientes
+        Pendiente: 2,     // Pendientes de confirmar
+        Atendiendo: 3,    // En consulta actualmente
+        Completada: 4,    // Ya atendidos - van al final
+        Cancelada: 5,     // Cancelados - van al final
+        NoAsistio: 5,     // No asistió - van al final
+      };
+
+      const prioridadA = estadoPrioridad[a.estado] ?? 3;
+      const prioridadB = estadoPrioridad[b.estado] ?? 3;
+
+      // Primero ordenar por prioridad de estado
+      if (prioridadA !== prioridadB) {
+        return prioridadA - prioridadB;
+      }
+
+      // Dentro del mismo estado, ordenar por hora de cita
+      return formatHora(a.hora).localeCompare(formatHora(b.hora));
+    });
 
   // Calcular progreso del día
   const progressPercent = stats.total > 0 ? Math.round(((stats.completadas + stats.canceladas) / stats.total) * 100) : 0;
@@ -433,29 +470,54 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
   // Handler para acciones del CommandPalette
   const handleCommandAction = useCallback((action) => {
     switch (action.id) {
-      case 'new-appointment':
-        toast({ title: 'Nueva cita urgente', description: 'Función disponible próximamente.' });
+      case 'search-patient':
+        setCommandPaletteOpen(true);
         break;
       case 'new-prescription':
-        toast({ title: 'Nueva fórmula', description: 'Selecciona un paciente primero.' });
+        if (selectedPatient) {
+          toast({ title: 'Nueva fórmula', description: `Creando fórmula para ${selectedPatient.nombre}` });
+        } else {
+          toast({ title: 'Nueva fórmula', description: 'Selecciona un paciente primero.' });
+        }
         break;
       case 'lab-order':
       case 'imaging-order':
-        toast({ title: action.label, description: 'Selecciona un paciente primero.' });
+        if (selectedPatient) {
+          toast({ title: action.label, description: `Creando orden para ${selectedPatient.nombre}` });
+        } else {
+          toast({ title: action.label, description: 'Selecciona un paciente primero.' });
+        }
         break;
       case 'certificate':
-        toast({ title: 'Certificado médico', description: 'Selecciona un paciente primero.' });
+        if (selectedPatient) {
+          toast({ title: 'Certificado médico', description: `Creando certificado para ${selectedPatient.nombre}` });
+        } else {
+          toast({ title: 'Certificado médico', description: 'Selecciona un paciente primero.' });
+        }
         break;
       case 'ai-assistant':
         setShowHCEAnalyzer(true);
         break;
       case 'view-schedule':
-        setViewMode('agenda');
+        // Navegar al módulo completo de Mi Agenda
+        if (onNavigateModule) {
+          onNavigateModule('mi-agenda');
+        } else {
+          setViewMode('agenda');
+        }
+        break;
+      case 'view-history':
+        if (selectedPatient) {
+          // Abrir historial clínico del paciente seleccionado
+          setShowHCEAnalyzer(true);
+        } else {
+          toast({ title: 'Historial clínico', description: 'Selecciona un paciente primero.' });
+        }
         break;
       default:
         toast({ title: action.label, description: action.description });
     }
-  }, [toast]);
+  }, [toast, selectedPatient]);
 
   // Handler para navegación desde CommandPalette
   const handleCommandNavigate = useCallback((path) => {
@@ -470,12 +532,63 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
 
   // Handler para selección de paciente desde CommandPalette
   const handleCommandPatientSelect = useCallback((patient) => {
+    setSelectedPatient(patient);
     toast({
       title: 'Paciente seleccionado',
       description: `${patient.nombre} ${patient.apellido} - ${patient.cedula}`,
     });
-    // Aquí se podría abrir el HCE del paciente o iniciar una consulta
   }, [toast]);
+
+  // Atajos de teclado globales
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Solo si no está en un input o textarea
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+      // Ctrl/Cmd + tecla
+      if (e.metaKey || e.ctrlKey) {
+        switch (e.key.toLowerCase()) {
+          case 'r': // Nueva fórmula
+            e.preventDefault();
+            handleCommandAction({ id: 'new-prescription', label: 'Nueva fórmula' });
+            break;
+          case 'l': // Orden laboratorio
+            e.preventDefault();
+            handleCommandAction({ id: 'lab-order', label: 'Orden de laboratorio' });
+            break;
+          case 'i': // Orden imágenes
+            e.preventDefault();
+            handleCommandAction({ id: 'imaging-order', label: 'Orden de imágenes' });
+            break;
+          case 'a': // Asistente IA
+            e.preventDefault();
+            handleCommandAction({ id: 'ai-assistant', label: 'Asistente IA' });
+            break;
+          case 'g': // Ver agenda
+            e.preventDefault();
+            handleCommandAction({ id: 'view-schedule', label: 'Mi agenda' });
+            break;
+          case 'p': // Buscar paciente (abre command palette)
+            e.preventDefault();
+            setCommandPaletteOpen(true);
+            break;
+          case 'c': // Certificado
+            e.preventDefault();
+            handleCommandAction({ id: 'certificate', label: 'Certificado médico' });
+            break;
+          case 'h': // Historial clínico
+            e.preventDefault();
+            handleCommandAction({ id: 'view-history', label: 'Historial clínico' });
+            break;
+          default:
+            break;
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleCommandAction]);
 
   // Renderizado condicional de vistas completas
   if (viewMode === 'consulta' && activeCita) {
@@ -673,18 +786,6 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                 />
               </div>
 
-              {/* Búsqueda rápida (Ctrl+K) */}
-              <button
-                onClick={() => setCommandPaletteOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border shadow-sm hover:bg-gray-50 transition-colors text-sm text-gray-600"
-              >
-                <Search className="h-4 w-4" />
-                <span className="hidden sm:inline">Buscar...</span>
-                <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono text-gray-600">
-                  <span className="text-xs">⌘</span>K
-                </kbd>
-              </button>
-
               {/* Notificaciones */}
               <DoctorNotifications
                 doctorId={user?.id}
@@ -695,6 +796,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                     description: notification.message,
                   });
                 }}
+                onViewAll={() => setShowAllNotifications(true)}
               />
             </div>
           </div>
@@ -1297,6 +1399,37 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
                       </Card>
                     );
 
+                  case 'analisis-ia':
+                    return (
+                      <Card className="border-0 shadow-sm bg-gradient-to-br from-purple-600 to-indigo-700 text-white hover:from-purple-500 hover:to-indigo-600 transition-all cursor-pointer"
+                            onClick={() => setShowHCEAnalyzer(true)}>
+                        <CardContent className="p-5">
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-white/20 rounded-lg">
+                              <Brain className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-white">Análisis con IA</p>
+                              <p className="text-sm text-white/80">Analiza documentos clínicos</p>
+                            </div>
+                          </div>
+                          <p className="text-sm text-white/70 mb-4">
+                            Sube historias clínicas y obtén análisis inteligente con asistencia de IA.
+                          </p>
+                          <Button
+                            className="w-full bg-white text-purple-700 hover:bg-purple-50 font-semibold"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowHCEAnalyzer(true);
+                            }}
+                          >
+                            <Brain className="h-4 w-4 mr-2" />
+                            Abrir Analizador
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+
                   default:
                     return null;
                 }
@@ -1311,6 +1444,28 @@ export default function DashboardDoctor({ user, onChangeAttentionType, initialMo
         <DialogContent className="max-w-5xl h-[85vh] p-0 overflow-hidden">
           <DialogTitle className="sr-only">Analizador de Historia Clínica con IA</DialogTitle>
           <AnalizadorHCE onClose={() => setShowHCEAnalyzer(false)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Centro de Notificaciones */}
+      <Dialog open={showAllNotifications} onOpenChange={setShowAllNotifications}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+          <DialogTitle className="flex items-center gap-2 text-lg font-semibold">
+            <Bell className="h-5 w-5 text-blue-500" />
+            Centro de Notificaciones
+          </DialogTitle>
+          <div className="flex-1 overflow-y-auto mt-4">
+            <NotificationsFullView
+              doctorId={user?.id}
+              onNotificationClick={(notification) => {
+                setShowAllNotifications(false);
+                toast({
+                  title: notification.titulo || notification.title,
+                  description: notification.mensaje || notification.message,
+                });
+              }}
+            />
+          </div>
         </DialogContent>
       </Dialog>
 

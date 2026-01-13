@@ -3,6 +3,7 @@
  */
 const { PrismaClient } = require('@prisma/client');
 const { NotFoundError, ValidationError } = require('../utils/errors');
+const { bloqueoService } = require('./bloqueo.service');
 
 const prisma = new PrismaClient();
 
@@ -104,7 +105,43 @@ async function generarBloques(doctorId, fecha) {
 
   console.log(`[DEBUG] Citas existentes: ${citasExistentes.length}`);
 
-  // 5. Obtener hora actual para filtrar bloques pasados (si la fecha es hoy) - usando hora de Colombia
+  // 5. Obtener bloqueos de agenda activos para esta fecha
+  // IMPORTANTE: BloqueoAgenda.doctorId apunta a Usuario.id, no a Doctor.id
+  const bloqueos = await prisma.bloqueoAgenda.findMany({
+    where: {
+      doctorId: doctor.usuarioId,
+      activo: true,
+      fechaInicio: { lte: new Date(fecha) },
+      fechaFin: { gte: new Date(fecha) },
+    }
+  });
+
+  console.log(`[DEBUG] Bloqueos activos para la fecha: ${bloqueos.length}`);
+
+  // Verificar si hay un bloqueo de día completo
+  const bloqueoDiaCompleto = bloqueos.find(b => !b.horaInicio || !b.horaFin);
+  if (bloqueoDiaCompleto) {
+    console.log(`[DEBUG] Día bloqueado completamente: ${bloqueoDiaCompleto.motivo}`);
+    return {
+      doctor: {
+        id: doctor.id,
+        usuarioId: doctor.usuario.id,
+        nombre: `${doctor.usuario.nombre} ${doctor.usuario.apellido}`,
+        especialidades: doctor.especialidades.map(e => e.especialidad.titulo)
+      },
+      fecha,
+      bloqueado: true,
+      bloqueoTipo: bloqueoDiaCompleto.tipo,
+      bloqueoMotivo: bloqueoDiaCompleto.motivo,
+      bloques: [],
+      mensaje: `Día bloqueado: ${bloqueoDiaCompleto.motivo}`
+    };
+  }
+
+  // Para bloqueos parciales, crear un mapa de rangos bloqueados
+  const bloqueosParciales = bloqueos.filter(b => b.horaInicio && b.horaFin);
+
+  // 6. Obtener hora actual para filtrar bloques pasados (si la fecha es hoy) - usando hora de Colombia
   const { todayString, nowColombia } = require('../utils/date');
   const hoyStr = todayString();
   const esHoy = fecha === hoyStr;
@@ -179,12 +216,34 @@ async function generarBloques(doctorId, fecha) {
         });
         minutosActuales += citaEnBloque.duracionMinutos;
       } else {
-        // Bloque disponible
-        bloques.push({
-          hora: horaInicio,
-          duracion: duracionBloque,
-          estado: 'disponible'
+        // Verificar si está bloqueado por un bloqueo parcial
+        const bloqueoParcial = bloqueosParciales.find(b => {
+          const bloqueoInicioMin = parseInt(b.horaInicio.split(':')[0]) * 60 + parseInt(b.horaInicio.split(':')[1]);
+          const bloqueoFinMin = parseInt(b.horaFin.split(':')[0]) * 60 + parseInt(b.horaFin.split(':')[1]);
+          return minutosActuales >= bloqueoInicioMin && minutosActuales < bloqueoFinMin;
         });
+
+        if (bloqueoParcial) {
+          // Bloque bloqueado por agenda
+          bloques.push({
+            hora: horaInicio,
+            duracion: duracionBloque,
+            estado: 'bloqueado',
+            bloqueo: {
+              tipo: bloqueoParcial.tipo,
+              motivo: bloqueoParcial.motivo,
+              horaInicio: bloqueoParcial.horaInicio,
+              horaFin: bloqueoParcial.horaFin
+            }
+          });
+        } else {
+          // Bloque disponible
+          bloques.push({
+            hora: horaInicio,
+            duracion: duracionBloque,
+            estado: 'disponible'
+          });
+        }
         minutosActuales += duracionBloque;
       }
     }

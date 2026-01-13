@@ -24,12 +24,13 @@ import {
 const TIPOS_GRAFICO = [
   { id: 'imc', label: 'IMC', icon: Scale, color: '#8b5cf6' },
   { id: 'presion', label: 'Presión Arterial', icon: Heart, color: '#ef4444' },
+  { id: 'frecuenciaCardiaca', label: 'Frec. Cardíaca', icon: Activity, color: '#10b981' },
+  { id: 'saturacionOxigeno', label: 'Sat. O₂', icon: Wind, color: '#06b6d4' },
+  { id: 'temperatura', label: 'Temperatura', icon: Thermometer, color: '#f97316' },
   { id: 'glucosa', label: 'Glucosa', icon: Droplet, color: '#eab308' },
   { id: 'lipidos', label: 'Perfil Lipídico', icon: TestTube, color: '#f59e0b' },
-  { id: 'tiroides', label: 'Perfil Tiroideo', icon: Sparkles, color: '#ec4899' },
   { id: 'renal', label: 'Función Renal', icon: Activity, color: '#3b82f6' },
-  { id: 'temperatura', label: 'Temperatura', icon: Thermometer, color: '#f97316' },
-  { id: 'frecuenciaCardiaca', label: 'Frec. Cardíaca', icon: Activity, color: '#10b981' },
+  { id: 'tiroides', label: 'Perfil Tiroideo', icon: Sparkles, color: '#ec4899' },
 ];
 
 // Referencias normales
@@ -86,8 +87,13 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
   const fetchHistorico = async () => {
     setLoading(true);
     try {
-      // Usar el endpoint existente de signos vitales
-      const response = await apiGet(`/signos-vitales?pacienteId=${pacienteId}&limit=50`);
+      // Calcular fecha desde según diasAtras
+      const fechaDesde = new Date();
+      fechaDesde.setDate(fechaDesde.getDate() - diasAtras);
+      const fechaDesdeISO = fechaDesde.toISOString().split('T')[0];
+
+      // Usar el endpoint existente de signos vitales con filtro de fecha
+      const response = await apiGet(`/signos-vitales?paciente_id=${pacienteId}&fecha_desde=${fechaDesdeISO}&limit=100`);
       if (response.success && response.data) {
         // Procesar datos para los gráficos
         const processed = response.data.map((item) => ({
@@ -103,7 +109,10 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
           presionSistolica: item.presionSistolica ? parseInt(item.presionSistolica) : null,
           presionDiastolica: item.presionDiastolica ? parseInt(item.presionDiastolica) : null,
           frecuenciaCardiaca: item.frecuenciaCardiaca ? parseInt(item.frecuenciaCardiaca) : null,
+          frecuenciaRespiratoria: item.frecuenciaRespiratoria ? parseInt(item.frecuenciaRespiratoria) : null,
           saturacionOxigeno: item.saturacionOxigeno ? parseInt(item.saturacionOxigeno) : null,
+          // Antropometría
+          perimetroAbdominal: item.perimetroAbdominal ? parseFloat(item.perimetroAbdominal) : null,
           // Nuevos campos
           glucosaAyunas: item.glucosaAyunas ? parseFloat(item.glucosaAyunas) : null,
           hba1c: item.hba1c ? parseFloat(item.hba1c) : null,
@@ -113,6 +122,9 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
           trigliceridos: item.trigliceridos ? parseFloat(item.trigliceridos) : null,
           creatinina: item.creatinina ? parseFloat(item.creatinina) : null,
           tfgCkdEpi: item.tfgCkdEpi ? parseFloat(item.tfgCkdEpi) : null,
+          potasio: item.potasio ? parseFloat(item.potasio) : null,
+          calcio: item.calcio ? parseFloat(item.calcio) : null,
+          pth: item.pth ? parseFloat(item.pth) : null,
           // Perfil Tiroideo
           tsh: item.tsh ? parseFloat(item.tsh) : null,
           tiroxinaLibre: item.tiroxinaLibre ? parseFloat(item.tiroxinaLibre) : null,
@@ -300,6 +312,7 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
             <Tooltip
               contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px' }}
               labelStyle={{ fontWeight: 'bold' }}
+              formatter={(value, name) => [`${value} mmHg`, name]}
             />
             <Legend />
             <ReferenceLine y={120} stroke="#ef4444" strokeDasharray="3 3" label="Sistólica máx" />
@@ -323,6 +336,112 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
               connectNulls
             />
           </LineChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    // Gráfico de Saturación de Oxígeno
+    if (activeTab === 'saturacionOxigeno') {
+      return (
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+            <defs>
+              <linearGradient id="satGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#06b6d4" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
+            <YAxis domain={[80, 100]} tick={{ fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              formatter={(value) => [`${value}%`, 'SpO₂']}
+            />
+            <ReferenceLine y={95} stroke="#22c55e" strokeDasharray="3 3" label="Mín Normal" />
+            <ReferenceLine y={90} stroke="#ef4444" strokeDasharray="3 3" label="Crítico" />
+            <Area
+              type="monotone"
+              dataKey="saturacionOxigeno"
+              stroke="#06b6d4"
+              strokeWidth={2}
+              fill="url(#satGradient)"
+              name="SpO₂"
+              dot={{ r: 4, fill: '#06b6d4' }}
+              connectNulls
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    // Gráfico de Frecuencia Cardíaca
+    if (activeTab === 'frecuenciaCardiaca') {
+      return (
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+            <defs>
+              <linearGradient id="fcGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
+            <YAxis domain={[40, 140]} tick={{ fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              formatter={(value) => [`${value} lpm`, 'FC']}
+            />
+            <ReferenceLine y={60} stroke="#22c55e" strokeDasharray="3 3" label="Mín" />
+            <ReferenceLine y={100} stroke="#22c55e" strokeDasharray="3 3" label="Máx" />
+            <Area
+              type="monotone"
+              dataKey="frecuenciaCardiaca"
+              stroke="#10b981"
+              strokeWidth={2}
+              fill="url(#fcGradient)"
+              name="Frec. Cardíaca"
+              dot={{ r: 4, fill: '#10b981' }}
+              connectNulls
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    // Gráfico de Temperatura
+    if (activeTab === 'temperatura') {
+      return (
+        <ResponsiveContainer width="100%" height={320}>
+          <AreaChart data={data} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+            <defs>
+              <linearGradient id="tempGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <XAxis dataKey="fecha" tick={{ fontSize: 12 }} />
+            <YAxis domain={[35, 41]} tick={{ fontSize: 12 }} />
+            <Tooltip
+              contentStyle={{ backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              formatter={(value) => [`${value}°C`, 'Temperatura']}
+            />
+            <ReferenceLine y={36} stroke="#3b82f6" strokeDasharray="3 3" label="Mín" />
+            <ReferenceLine y={37.5} stroke="#22c55e" strokeDasharray="3 3" label="Máx Normal" />
+            <ReferenceLine y={38} stroke="#ef4444" strokeDasharray="3 3" label="Fiebre" />
+            <Area
+              type="monotone"
+              dataKey="temperatura"
+              stroke="#f97316"
+              strokeWidth={2}
+              fill="url(#tempGradient)"
+              name="Temperatura"
+              dot={{ r: 4, fill: '#f97316' }}
+              connectNulls
+            />
+          </AreaChart>
         </ResponsiveContainer>
       );
     }
@@ -535,6 +654,140 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
               </span>
               <span className="flex items-center gap-1">
                 <span className="w-3 h-3 rounded" style={{ backgroundColor: '#06b6d4' }}></span> Anti-TG: &lt;40 UI/mL
+              </span>
+            </div>
+          )}
+
+          {/* Leyenda para Presión Arterial */}
+          {activeTab === 'presion' && (
+            <div className="flex flex-wrap gap-4 mb-4 text-xs bg-red-50 p-3 rounded-lg">
+              <span className="font-semibold text-red-700">Clasificación:</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-green-500"></span> Normal: &lt;120/80
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-yellow-500"></span> Elevada: 120-129/&lt;80
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-orange-500"></span> HTA Grado 1: 130-139/80-89
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-red-500"></span> HTA Grado 2: ≥140/90
+              </span>
+            </div>
+          )}
+
+          {/* Leyenda para Saturación de Oxígeno */}
+          {activeTab === 'saturacionOxigeno' && (
+            <div className="flex flex-wrap gap-4 mb-4 text-xs bg-cyan-50 p-3 rounded-lg">
+              <span className="font-semibold text-cyan-700">Clasificación SpO₂:</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-green-500"></span> Normal: 95-100%
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-yellow-500"></span> Hipoxemia leve: 91-94%
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-red-500"></span> Hipoxemia grave: &lt;90%
+              </span>
+            </div>
+          )}
+
+          {/* Leyenda para Frecuencia Cardíaca */}
+          {activeTab === 'frecuenciaCardiaca' && (
+            <div className="flex flex-wrap gap-4 mb-4 text-xs bg-emerald-50 p-3 rounded-lg">
+              <span className="font-semibold text-emerald-700">Clasificación FC:</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-blue-500"></span> Bradicardia: &lt;60 lpm
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-green-500"></span> Normal: 60-100 lpm
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-red-500"></span> Taquicardia: &gt;100 lpm
+              </span>
+            </div>
+          )}
+
+          {/* Leyenda para Glucosa */}
+          {activeTab === 'glucosa' && (
+            <div className="flex flex-wrap gap-4 mb-4 text-xs bg-yellow-50 p-3 rounded-lg">
+              <span className="font-semibold text-yellow-700">Valores de Referencia:</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-green-500"></span> Glucosa ayunas: 70-100 mg/dL
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-yellow-500"></span> Prediabetes: 100-125 mg/dL
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-red-500"></span> Diabetes: ≥126 mg/dL
+              </span>
+              <span className="flex items-center gap-1 ml-4">|</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-green-500"></span> HbA1c normal: &lt;5.7%
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-red-500"></span> HbA1c diabetes: ≥6.5%
+              </span>
+            </div>
+          )}
+
+          {/* Leyenda para Perfil Lipídico */}
+          {activeTab === 'lipidos' && (
+            <div className="flex flex-wrap gap-4 mb-4 text-xs bg-amber-50 p-3 rounded-lg">
+              <span className="font-semibold text-amber-700">Valores Objetivo:</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: '#f59e0b' }}></span> Col. Total: &lt;200 mg/dL
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: '#ef4444' }}></span> LDL: &lt;100 mg/dL
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: '#10b981' }}></span> HDL: &gt;40 mg/dL
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded" style={{ backgroundColor: '#8b5cf6' }}></span> Triglicéridos: &lt;150 mg/dL
+              </span>
+            </div>
+          )}
+
+          {/* Leyenda para Función Renal */}
+          {activeTab === 'renal' && (
+            <div className="flex flex-wrap gap-4 mb-4 text-xs bg-blue-50 p-3 rounded-lg">
+              <span className="font-semibold text-blue-700">Clasificación ERC (TFG ml/min):</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-green-500"></span> G1: ≥90 (Normal)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-lime-500"></span> G2: 60-89 (Leve)
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-yellow-500"></span> G3a: 45-59
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-orange-500"></span> G3b: 30-44
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-red-500"></span> G4-5: &lt;30
+              </span>
+            </div>
+          )}
+
+          {/* Leyenda para Temperatura */}
+          {activeTab === 'temperatura' && (
+            <div className="flex flex-wrap gap-4 mb-4 text-xs bg-orange-50 p-3 rounded-lg">
+              <span className="font-semibold text-orange-700">Clasificación:</span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-blue-500"></span> Hipotermia: &lt;36°C
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-green-500"></span> Normal: 36-37.5°C
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-yellow-500"></span> Febrícula: 37.5-38°C
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 rounded bg-red-500"></span> Fiebre: &gt;38°C
               </span>
             </div>
           )}

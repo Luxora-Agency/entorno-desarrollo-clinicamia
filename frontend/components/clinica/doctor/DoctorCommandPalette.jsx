@@ -16,11 +16,12 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from '@/components/ui/command';
+import { DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 
-// Acciones rápidas disponibles
+// Acciones rápidas disponibles (doctor no puede agendar citas)
 const QUICK_ACTIONS = [
   {
     id: 'search-patient',
@@ -29,14 +30,6 @@ const QUICK_ACTIONS = [
     icon: Search,
     shortcut: '⌘P',
     category: 'search'
-  },
-  {
-    id: 'new-appointment',
-    label: 'Nueva cita urgente',
-    description: 'Agendar paciente de urgencia',
-    icon: AlertCircle,
-    shortcut: '⌘U',
-    category: 'actions'
   },
   {
     id: 'new-prescription',
@@ -51,6 +44,7 @@ const QUICK_ACTIONS = [
     label: 'Orden de laboratorio',
     description: 'Solicitar exámenes',
     icon: FlaskConical,
+    shortcut: '⌘L',
     category: 'orders'
   },
   {
@@ -58,6 +52,7 @@ const QUICK_ACTIONS = [
     label: 'Orden de imágenes',
     description: 'Solicitar estudios',
     icon: Scan,
+    shortcut: '⌘I',
     category: 'orders'
   },
   {
@@ -65,6 +60,7 @@ const QUICK_ACTIONS = [
     label: 'Generar certificado',
     description: 'Certificado médico',
     icon: FileText,
+    shortcut: '⌘C',
     category: 'documents'
   },
   {
@@ -247,6 +243,7 @@ export default function DoctorCommandPalette({
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
+      <DialogTitle className="sr-only">Buscar pacientes y acciones</DialogTitle>
       <CommandInput
         placeholder="Buscar pacientes, acciones, comandos..."
         value={search}

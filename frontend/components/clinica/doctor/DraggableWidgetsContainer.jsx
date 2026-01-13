@@ -24,6 +24,7 @@ const DEFAULT_WIDGETS = [
   { id: 'quirofano', title: 'Cirugías del Día', visible: true, locked: false },
   { id: 'pacientes-recientes', title: 'Pacientes Recientes', visible: true, locked: false },
   { id: 'rendimiento', title: 'Rendimiento de Hoy', visible: true, locked: false },
+  { id: 'analisis-ia', title: 'Análisis con IA', visible: true, locked: false },
 ];
 
 // Hook para gestionar el layout de widgets

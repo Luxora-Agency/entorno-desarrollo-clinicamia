@@ -84,7 +84,7 @@ const ICONOS_TIPO = {
   EMERGENCIA_SOLO: AlertTriangle,
 };
 
-export default function BloqueoAgendaManager({ doctorId, doctorNombre = 'Doctor', selfManaged = false }) {
+export default function BloqueoAgendaManager({ doctorId, doctorNombre = 'Doctor', selfManaged = false, onBloqueosChange }) {
   // Si selfManaged, usa endpoints /mis-bloqueos (no requiere permiso 'agenda')
   const {
     bloqueos,
@@ -175,6 +175,8 @@ export default function BloqueoAgendaManager({ doctorId, doctorNombre = 'Doctor'
         format(hoy, 'yyyy-MM-dd'),
         format(enUnAnio, 'yyyy-MM-dd')
       );
+      // Notificar al componente padre que los bloqueos cambiaron
+      onBloqueosChange?.();
     } catch (err) {
       // Error ya manejado por el hook
     } finally {
@@ -196,15 +198,34 @@ export default function BloqueoAgendaManager({ doctorId, doctorNombre = 'Doctor'
       await eliminarBloqueo(bloqueoToDelete.id);
       setDeleteDialogOpen(false);
       setBloqueoToDelete(null);
+      // Notificar al componente padre que los bloqueos cambiaron
+      onBloqueosChange?.();
     } catch (err) {
       // Error ya manejado por el hook
     }
   };
 
   // Formatear rango de fechas
+  // IMPORTANTE: Las fechas vienen como UTC, hay que ajustar para mostrar correctamente
   const formatDateRange = (inicio, fin) => {
-    const fechaInicio = typeof inicio === 'string' ? parseISO(inicio) : new Date(inicio);
-    const fechaFin = typeof fin === 'string' ? parseISO(fin) : new Date(fin);
+    // Extraer solo la parte de fecha (YYYY-MM-DD) para evitar problemas de timezone
+    let fechaInicioStr = typeof inicio === 'string' ? inicio : inicio.toISOString();
+    let fechaFinStr = typeof fin === 'string' ? fin : fin.toISOString();
+
+    // Si tiene formato ISO completo, extraer solo YYYY-MM-DD
+    if (fechaInicioStr.includes('T')) {
+      fechaInicioStr = fechaInicioStr.split('T')[0];
+    }
+    if (fechaFinStr.includes('T')) {
+      fechaFinStr = fechaFinStr.split('T')[0];
+    }
+
+    // Crear fechas locales (sin conversión UTC)
+    const [yearI, monthI, dayI] = fechaInicioStr.split('-').map(Number);
+    const [yearF, monthF, dayF] = fechaFinStr.split('-').map(Number);
+    const fechaInicio = new Date(yearI, monthI - 1, dayI);
+    const fechaFin = new Date(yearF, monthF - 1, dayF);
+
     const dias = differenceInDays(fechaFin, fechaInicio) + 1;
 
     if (dias === 1) {
@@ -215,7 +236,13 @@ export default function BloqueoAgendaManager({ doctorId, doctorNombre = 'Doctor'
 
   // Agrupar bloqueos por estado (activos/pasados)
   const bloqueosFuturos = bloqueos.filter((b) => {
-    const fechaFin = typeof b.fechaFin === 'string' ? parseISO(b.fechaFin) : new Date(b.fechaFin);
+    // Extraer solo la parte de fecha para comparar correctamente
+    let fechaFinStr = typeof b.fechaFin === 'string' ? b.fechaFin : b.fechaFin.toISOString();
+    if (fechaFinStr.includes('T')) {
+      fechaFinStr = fechaFinStr.split('T')[0];
+    }
+    const [year, month, day] = fechaFinStr.split('-').map(Number);
+    const fechaFin = new Date(year, month - 1, day, 23, 59, 59); // Final del día
     return fechaFin >= new Date();
   });
 

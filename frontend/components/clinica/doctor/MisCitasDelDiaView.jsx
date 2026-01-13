@@ -261,9 +261,18 @@ export default function MisCitasDelDiaView({ user }) {
     });
   }, [citas, filtroEstado, busqueda]);
 
-  // Ordenar por hora
+  // Ordenar por cola de atención: pendientes primero por hora, completados al final
   const citasOrdenadas = useMemo(() => {
     return [...citasFiltradas].sort((a, b) => {
+      // Los completados y cancelados van al final
+      const estadosFinal = ['Completada', 'Cancelada', 'NoAsistio'];
+      const aFinal = estadosFinal.includes(a.estado);
+      const bFinal = estadosFinal.includes(b.estado);
+
+      if (aFinal && !bFinal) return 1;  // a va después
+      if (!aFinal && bFinal) return -1; // b va después
+
+      // Dentro de cada grupo, ordenar por hora de cita
       const horaA = formatHoraToMinutes(a.hora);
       const horaB = formatHoraToMinutes(b.hora);
       return horaA - horaB;

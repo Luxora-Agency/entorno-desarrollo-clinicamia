@@ -84,6 +84,19 @@ export default function TabDiagnosticos({ pacienteId }) {
     }
   };
 
+  const getClasificacionLabel = (clasificacion) => {
+    switch (clasificacion) {
+      case 'ImpresionDiagnostica':
+        return { label: 'Impresión Diagnóstica', color: 'bg-amber-100 text-amber-700 border-amber-200' };
+      case 'ConfirmadoNuevo':
+        return { label: 'Confirmado Nuevo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+      case 'ConfirmadoRepetido':
+        return { label: 'Confirmado Repetido', color: 'bg-sky-100 text-sky-700 border-sky-200' };
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -151,13 +164,18 @@ export default function TabDiagnosticos({ pacienteId }) {
                       <Clock className="w-4 h-4" />
                       {formatDate(diagnostico.createdAt)}
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Badge className={getTipoColor(diagnostico.tipoDiagnostico)}>
                         {diagnostico.tipoDiagnostico}
                       </Badge>
                       <Badge className={getEstadoColor(diagnostico.estadoDiagnostico)}>
                         {diagnostico.estadoDiagnostico}
                       </Badge>
+                      {diagnostico.clasificacion && getClasificacionLabel(diagnostico.clasificacion) && (
+                        <Badge className={getClasificacionLabel(diagnostico.clasificacion).color}>
+                          {getClasificacionLabel(diagnostico.clasificacion).label}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </div>

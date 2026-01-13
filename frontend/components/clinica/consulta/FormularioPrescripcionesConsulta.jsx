@@ -103,31 +103,54 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
     });
   };
 
+  // Búsqueda en servidor con debounce
   useEffect(() => {
-    // Filtrar productos cuando cambie la búsqueda
-    if (busquedaProducto.trim() === '') {
-      setProductosFiltrados(productos);
-    } else {
-      const busqueda = busquedaProducto.toLowerCase();
-      const filtrados = productos.filter(p => 
-        p.nombre.toLowerCase().includes(busqueda) ||
-        p.principioActivo?.toLowerCase().includes(busqueda) ||
-        p.sku?.toLowerCase().includes(busqueda)
-      );
-      setProductosFiltrados(filtrados);
-    }
-  }, [busquedaProducto, productos]);
+    const timeoutId = setTimeout(() => {
+      if (busquedaProducto.trim().length >= 2) {
+        buscarProductosEnServidor(busquedaProducto.trim());
+      } else if (busquedaProducto.trim() === '') {
+        // Si está vacío, cargar los primeros productos
+        cargarProductosIniciales();
+      }
+    }, 300); // Debounce de 300ms
 
-  const cargarProductos = async () => {
+    return () => clearTimeout(timeoutId);
+  }, [busquedaProducto]);
+
+  const buscarProductosEnServidor = async (termino) => {
     setLoadingProductos(true);
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
-      const response = await fetch(`${apiUrl}/productos?activo=true&limit=200`, {
+
+      const response = await fetch(`${apiUrl}/productos?activo=true&search=${encodeURIComponent(termino)}&limit=100`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
+
+      if (response.ok) {
+        const result = await response.json();
+        const data = result.data || [];
+        setProductos(data);
+        setProductosFiltrados(data);
+      }
+    } catch (error) {
+      console.error('Error buscando productos:', error);
+    } finally {
+      setLoadingProductos(false);
+    }
+  };
+
+  const cargarProductosIniciales = async () => {
+    setLoadingProductos(true);
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      // Cargar solo los primeros 50 productos activos ordenados por nombre
+      const response = await fetch(`${apiUrl}/productos?activo=true&limit=50`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
       if (response.ok) {
         const result = await response.json();
         setProductos(result.data || []);
@@ -140,6 +163,10 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
     } finally {
       setLoadingProductos(false);
     }
+  };
+
+  const cargarProductos = async () => {
+    await cargarProductosIniciales();
   };
 
   const handleToggle = (agregar) => {
@@ -351,17 +378,25 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
           <Label className="text-base font-semibold">Agregar Medicamento</Label>
           
           <div>
-            <Label htmlFor="busquedaMed" className="text-sm">Buscar Medicamento</Label>
+            <Label htmlFor="busquedaMed" className="text-sm">Buscar Medicamento (PBS y Catálogo)</Label>
             <Input
               id="busquedaMed"
               value={busquedaProducto}
               onChange={(e) => setBusquedaProducto(e.target.value)}
-              placeholder="Buscar por nombre, principio activo o SKU..."
+              placeholder="Escriba al menos 2 caracteres para buscar..."
               className="mt-1"
             />
-            {busquedaProducto && (
+            {loadingProductos && (
+              <p className="text-xs text-blue-500 mt-1">Buscando en el catálogo completo...</p>
+            )}
+            {!loadingProductos && busquedaProducto.length >= 2 && (
               <p className="text-xs text-gray-500 mt-1">
-                {productosFiltrados.length} producto(s) encontrado(s)
+                {productosFiltrados.length} medicamento(s) encontrado(s)
+              </p>
+            )}
+            {busquedaProducto.length === 1 && (
+              <p className="text-xs text-amber-500 mt-1">
+                Escriba al menos 2 caracteres para buscar
               </p>
             )}
           </div>

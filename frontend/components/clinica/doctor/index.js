@@ -8,7 +8,8 @@ export { default as DoctorSettingsModule } from './DoctorSettingsModule';
 // Widgets y acciones rápidas
 export { default as ProximasCitasWidget } from './ProximasCitasWidget';
 export { default as DoctorQuickActions } from './DoctorQuickActions';
-export { default as DoctorNotifications, NotificationsCard } from './DoctorNotifications';
+export { default as QuickActionsWidget } from './QuickActionsWidget';
+export { default as DoctorNotifications, NotificationsCard, NotificationsFullView } from './DoctorNotifications';
 export { default as DoctorCommandPalette, useDoctorCommandPalette } from './DoctorCommandPalette';
 export { default as HospitalizedPatientsWidget } from './HospitalizedPatientsWidget';
 export { default as QuirofanoWidget } from './QuirofanoWidget';

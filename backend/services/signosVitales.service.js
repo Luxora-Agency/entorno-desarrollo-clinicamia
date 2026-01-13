@@ -78,6 +78,7 @@ class SignosVitalesService {
         pacienteId: data.paciente_id,
         admisionId: data.admision_id || null,
         registradoPor: usuarioId,
+        // Signos vitales básicos
         temperatura: data.temperatura ? parseFloat(data.temperatura) : null,
         presionSistolica: data.presion_sistolica ? parseInt(data.presion_sistolica) : null,
         presionDiastolica: data.presion_diastolica ? parseInt(data.presion_diastolica) : null,
@@ -87,8 +88,36 @@ class SignosVitalesService {
         peso: data.peso ? parseFloat(data.peso) : null,
         talla: data.talla ? parseFloat(data.talla) : null,
         imc: imc ? parseFloat(imc.toFixed(2)) : null,
+        // Antropometría
         perimetroCefalico: data.perimetro_cefalico ? parseFloat(data.perimetro_cefalico) : null,
+        perimetroAbdominal: data.perimetro_abdominal ? parseFloat(data.perimetro_abdominal) : null,
+        perimetroBraquial: data.perimetro_braquial ? parseFloat(data.perimetro_braquial) : null,
         escalaDolor: data.escala_dolor ? parseInt(data.escala_dolor) : null,
+        // Función renal
+        creatinina: data.creatinina ? parseFloat(data.creatinina) : null,
+        tfgCkdEpi: data.tfg_ckd_epi ? parseFloat(data.tfg_ckd_epi) : null,
+        potasio: data.potasio ? parseFloat(data.potasio) : null,
+        calcio: data.calcio ? parseFloat(data.calcio) : null,
+        pth: data.pth ? parseFloat(data.pth) : null,
+        // Perfil metabólico
+        glucosaAyunas: data.glucosa_ayunas ? parseFloat(data.glucosa_ayunas) : null,
+        hba1c: data.hba1c ? parseFloat(data.hba1c) : null,
+        // Perfil lipídico
+        colesterolTotal: data.colesterol_total ? parseFloat(data.colesterol_total) : null,
+        colesterolHDL: data.colesterol_hdl ? parseFloat(data.colesterol_hdl) : null,
+        colesterolLDL: data.colesterol_ldl ? parseFloat(data.colesterol_ldl) : null,
+        trigliceridos: data.trigliceridos ? parseFloat(data.trigliceridos) : null,
+        // Perfil tiroideo
+        tsh: data.tsh ? parseFloat(data.tsh) : null,
+        tiroxinaLibre: data.tiroxina_libre ? parseFloat(data.tiroxina_libre) : null,
+        tiroglobulina: data.tiroglobulina ? parseFloat(data.tiroglobulina) : null,
+        anticuerposAntitiroglobulina: data.anticuerpos_antitiroglobulina ? parseFloat(data.anticuerpos_antitiroglobulina) : null,
+        analisisTiroideo: data.analisis_tiroideo || null,
+        // Paraclínicos personalizados (array JSON)
+        otrosParaclinicos: data.otros_paraclinicos || null,
+        // Examen físico por sistemas (JSON estructurado)
+        examenFisico: data.examen_fisico || null,
+        // Otros
         turno: data.turno || null,
         observaciones: data.observaciones || null,
         fechaRegistro: data.fecha_registro ? new Date(data.fecha_registro) : new Date(),

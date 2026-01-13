@@ -4,6 +4,19 @@ import { useState, useCallback, useRef } from 'react';
 import { apiGet, apiPost } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
 
+// Función para generar UUID compatible con todos los navegadores
+const generateUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback para navegadores sin crypto.randomUUID
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 /**
  * Hook para interactuar con el Asistente IA Médico
  */
@@ -42,7 +55,7 @@ export default function useAIAssistant() {
 
     // Generar conversationId si no existe
     if (!conversationIdRef.current) {
-      conversationIdRef.current = crypto.randomUUID();
+      conversationIdRef.current = generateUUID();
     }
 
     try {
@@ -86,7 +99,7 @@ export default function useAIAssistant() {
     setMessages(prev => [...prev, userMessage]);
 
     if (!conversationIdRef.current) {
-      conversationIdRef.current = crypto.randomUUID();
+      conversationIdRef.current = generateUUID();
     }
 
     try {

@@ -94,8 +94,16 @@ app.use('*', authMiddleware);
  */
 app.get('/', async (c) => {
   try {
-    const { activo, categoriaId, search } = c.req.query();
-    const productos = await ProductoService.getAll({ activo, categoriaId, search });
+    const { activo, categoriaId, search, limit, page, controlado, requiereReceta } = c.req.query();
+    const productos = await ProductoService.getAll({
+      activo,
+      categoriaId,
+      search,
+      limit,
+      page,
+      controlado,
+      requiereReceta
+    });
     return c.json(success(productos));
   } catch (err) {
     return c.json(error(err.message), 500);

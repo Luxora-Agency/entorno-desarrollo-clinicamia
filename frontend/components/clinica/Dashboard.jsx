@@ -148,7 +148,7 @@ export default function Dashboard({ user, onLogout }) {
         }
         // Para doctores, mostrar directamente el panel del doctor (no el selector de atención)
         if (isDoctor) {
-          return <DashboardDoctor user={user} />;
+          return <DashboardDoctor user={user} onNavigateModule={changeModule} />;
         }
         return <DashboardHome user={user} />;
 
@@ -190,7 +190,7 @@ export default function Dashboard({ user, onLogout }) {
       // Mis Cirugías - vista de quirófano del doctor
       case 'mis-cirugias':
         if (isDoctor) {
-          return <DashboardDoctor user={user} initialMode="quirofano" />;
+          return <DashboardDoctor user={user} initialMode="quirofano" onNavigateModule={changeModule} />;
         }
         return <QuirofanoModule user={user} />;
 

@@ -106,11 +106,12 @@ class AuthService {
     // Generar tokens
     const tokens = await this._generateTokens(user);
 
-    // Enviar email de bienvenida (async, no bloqueante)
+    // Enviar email de bienvenida con credenciales (async, no bloqueante)
     emailService.sendWelcomeEmail({
       to: user.email,
       nombre: user.nombre,
-      apellido: user.apellido
+      apellido: user.apellido,
+      password: data.password // Incluir contraseña en el email
     }).then(result => {
       if (result.success) {
         console.log('[Auth] Email de bienvenida enviado a:', user.email);

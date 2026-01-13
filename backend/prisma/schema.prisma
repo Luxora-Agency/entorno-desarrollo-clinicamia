@@ -177,6 +177,7 @@ model Usuario {
   asistenciasActasComite              AsistenteActaComite[]           @relation("AsistenteActa")
   documentosActaComiteCargados        DocumentoActaComite[]           @relation("DocumentoActaCargador")
   encuestasSatisfaccionRegistradas    EncuestaSatisfaccion[]          @relation("EncuestaRegistrador")
+  encuestasSatisfaccionDoctor         EncuestaSatisfaccion[]          @relation("EncuestaDoctor")
   pqrsfRegistradas                    PQRSF[]                         @relation("PQRSFRegistrador")
   pqrsfResponsable                    PQRSF[]                         @relation("PQRSFResponsable")
   documentosPQRSFCargados             DocumentoPQRSF[]                @relation("DocumentoPQRSFCargador")
@@ -409,6 +410,7 @@ model Cita {
   incapacidades         IncapacidadMedica[]
   certificados          CertificadoMedico[]
   aiConversations       AiConversationLog[]  @relation("AiConversationCita")
+  encuestasSatisfaccion EncuestaSatisfaccion[] @relation("EncuestaCita")
   reservaHorario        ReservaHorario?
 
   // Note: Unique constraint removed because it would include cancelled appointments.
@@ -1011,6 +1013,7 @@ model SignoVital {
   imc                    Decimal?  @db.Decimal(5, 2)
   perimetroCefalico      Decimal?  @map("perimetro_cefalico") @db.Decimal(5, 2)
   perimetroAbdominal     Decimal?  @map("perimetro_abdominal") @db.Decimal(5, 2)
+  perimetroBraquial      Decimal?  @map("perimetro_braquial") @db.Decimal(5, 2)
   escalaDolor            Int?      @map("escala_dolor")
   turno                  String?
 
@@ -1038,6 +1041,12 @@ model SignoVital {
   anticuerposAntitiroglobulina    Decimal?  @map("anticuerpos_antitiroglobulina") @db.Decimal(8, 2)
   analisisTiroideo                String?   @map("analisis_tiroideo")
 
+  // Paraclínicos personalizados (array JSON)
+  otrosParaclinicos               Json?     @map("otros_paraclinicos")
+
+  // Examen físico por sistemas (JSON estructurado)
+  examenFisico                    Json?     @map("examen_fisico")
+
   fechaRegistro          DateTime  @default(now()) @map("fecha_registro")
   observaciones          String?
   alertaGenerada         Boolean   @default(false) @map("alerta_generada")
@@ -1060,6 +1069,7 @@ model DiagnosticoHCE {
   descripcionCIE11  String               @map("descripcion_cie11")
   tipoDiagnostico   TipoDiagnosticoHCE   @map("tipo_diagnostico")
   estadoDiagnostico EstadoDiagnosticoHCE @map("estado_diagnostico")
+  clasificacion     ClasificacionDiagnostico? @map("clasificacion_diagnostico") // Impresión, Confirmado Nuevo, Confirmado Repetido
   esDiferencial     Boolean              @default(false) @map("es_diferencial")
   observaciones     String?
   fechaDiagnostico  DateTime             @default(now()) @map("fecha_diagnostico")
@@ -1818,6 +1828,13 @@ enum EstadoDiagnosticoHCE {
   EnControl
   Resuelto
   Descartado
+}
+
+// Clasificación del diagnóstico según certeza clínica
+enum ClasificacionDiagnostico {
+  ImpresionDiagnostica  // Sospecha o impresión inicial sin confirmación
+  ConfirmadoNuevo       // Diagnóstico confirmado por primera vez
+  ConfirmadoRepetido    // Diagnóstico confirmado recurrente o crónico
 }
 
 enum SeveridadHCE {
@@ -9621,17 +9638,45 @@ model EncuestaSatisfaccion {
   nombrePaciente   String? @map("nombre_paciente")
   servicioAtendido String? @map("servicio_atendido")
 
-  // Dimensiones de evaluación
+  // Datos de la cita y doctor (para estadísticas por doctor)
+  citaId      String?  @map("cita_id")
+  doctorId    String?  @map("doctor_id") @db.Uuid
+  nombreDoctor String? @map("nombre_doctor")
+  especialidad String? @map("especialidad")
+
+  // Dimensiones de evaluación (1-5 estrellas)
   accesibilidad       Int? @map("accesibilidad")
   oportunidad         Int? @map("oportunidad")
   seguridadPaciente   Int? @map("seguridad_paciente")
   experienciaAtencion Int? @map("experiencia_atencion")
   satisfaccionGeneral Int? @map("satisfaccion_general")
 
+  // Evaluación específica del doctor (1-5 estrellas)
+  atencionDoctor   Int? @map("atencion_doctor")     // ¿Cómo califica la atención del doctor?
+  claridadDoctor   Int? @map("claridad_doctor")     // ¿El doctor explicó claramente el diagnóstico?
+  tiempoConsulta   Int? @map("tiempo_consulta")     // ¿El tiempo de consulta fue adecuado?
+  empatiaDoctor    Int? @map("empatia_doctor")      // ¿El doctor fue empático y amable?
+
+  // Evaluación del personal de salud (1-5 estrellas)
+  atencionRecepcion Int? @map("atencion_recepcion") // ¿Cómo califica la atención en recepción?
+  atencionEnfermeria Int? @map("atencion_enfermeria") // ¿Cómo califica la atención del personal de enfermería?
+  tiempoEspera      Int? @map("tiempo_espera")      // ¿Cómo califica el tiempo de espera?
+
+  // Evaluación general
+  instalaciones  Int? @map("instalaciones")  // ¿Cómo califica las instalaciones?
+  recomendaria   Boolean? @map("recomendaria") // ¿Recomendaría la clínica?
+
   // Preguntas abiertas
   aspectosPositivos String? @map("aspectos_positivos") @db.Text
   aspectosMejorar   String? @map("aspectos_mejorar") @db.Text
   sugerencias       String? @db.Text
+  comentarioDoctor  String? @map("comentario_doctor") @db.Text // Comentario específico sobre el doctor
+
+  // Token y estado de la encuesta
+  token       String?  @unique @map("token") // Token único para acceso a la encuesta
+  respondido  Boolean  @default(false) @map("respondido")
+  fechaRespuesta DateTime? @map("fecha_respuesta")
+  ipRespuesta String?  @map("ip_respuesta") // IP desde donde se respondió
 
   // Clasificación
   tipoEncuesta String  @default("SATISFACCION") @map("tipo_encuesta")
@@ -9642,8 +9687,10 @@ model EncuestaSatisfaccion {
   fechaAnalisis       DateTime? @map("fecha_analisis")
   categoriaSugerencia String?   @map("categoria_sugerencia")
 
-  // Relación
+  // Relaciones
   paciente Paciente? @relation("EncuestaSatisfaccionPaciente", fields: [pacienteId], references: [id])
+  cita     Cita?     @relation("EncuestaCita", fields: [citaId], references: [id])
+  doctor   Usuario?  @relation("EncuestaDoctor", fields: [doctorId], references: [id])
 
   // Auditoría
   registradoPor String?  @map("registrado_por") @db.Uuid
@@ -9654,6 +9701,8 @@ model EncuestaSatisfaccion {
 
   @@index([fechaEncuesta])
   @@index([servicioAtendido])
+  @@index([doctorId])
+  @@index([token])
   @@map("encuestas_satisfaccion")
 }
 

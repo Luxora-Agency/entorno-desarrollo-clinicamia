@@ -81,6 +81,19 @@ const MemoizedPatientContextBar = memo(function MemoizedPatientContextBar({
   );
 });
 
+// Función para calcular edad desde fecha de nacimiento
+const calcularEdad = (fechaNacimiento) => {
+  if (!fechaNacimiento) return null;
+  const hoy = new Date();
+  const nacimiento = new Date(fechaNacimiento);
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const mes = hoy.getMonth() - nacimiento.getMonth();
+  if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+    edad--;
+  }
+  return edad;
+};
+
 export default function ClinicalWorkspace({
   cita,
   user,
@@ -626,14 +639,15 @@ export default function ClinicalWorkspace({
       return;
     }
 
-    // Para consultas de control, validar SOAP
+    // SOAP es opcional para todas las consultas
+    // Si es control y no tiene SOAP, mostrar advertencia pero permitir continuar
     if (tipoConsulta === 'control' && !stepsValid.soap) {
       toast({
-        variant: 'destructive',
+        variant: 'default',
         title: 'SOAP incompleto',
-        description: 'Debe completar todos los campos de la nota SOAP para consultas de control.'
+        description: 'La nota SOAP no está completa. Puede continuar sin ella si lo desea.'
       });
-      return;
+      // No retornamos, permitimos continuar
     }
 
     // Mostrar diálogo de confirmación
@@ -1200,6 +1214,8 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                         <FormularioSignosVitalesConsulta
                             data={consultaData.vitales}
                             pacienteId={cita.pacienteId}
+                            pacienteEdad={calcularEdad(cita.paciente?.fechaNacimiento)}
+                            pacienteGenero={cita.paciente?.genero}
                             onChange={handleVitalesChange}
                         />
                     </div>

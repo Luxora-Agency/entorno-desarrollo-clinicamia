@@ -7,11 +7,19 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ClipboardList, Plus, X, AlertCircle, Sparkles, Star, ChevronDown, ChevronUp, Trash2, History } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ClipboardList, Plus, X, AlertCircle, Sparkles, Star, ChevronDown, ChevronUp, Trash2, History, FileCheck, Edit3, Search } from 'lucide-react';
 import CatalogSearch from '@/components/ui/CatalogSearch';
 import ValidacionDiagnosticoEspecial from './ValidacionDiagnosticoEspecial';
 import TemplateSelector from '../templates/TemplateSelector';
 import { apiGet } from '@/services/api';
+
+// Opciones de clasificación del diagnóstico
+const CLASIFICACIONES_DIAGNOSTICO = [
+  { value: 'ImpresionDiagnostica', label: 'Impresión Diagnóstica', description: 'Sospecha o impresión inicial sin confirmación' },
+  { value: 'ConfirmadoNuevo', label: 'Confirmado Nuevo', description: 'Diagnóstico confirmado por primera vez' },
+  { value: 'ConfirmadoRepetido', label: 'Confirmado Repetido', description: 'Diagnóstico confirmado recurrente o crónico' },
+];
 
 // Diagnósticos CIE-10 más comunes en consulta general
 const DIAGNOSTICOS_COMUNES = [
@@ -39,6 +47,7 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
   const [showSecundarios, setShowSecundarios] = useState(false);
   const [showComunes, setShowComunes] = useState(true);
   const [showFrecuentes, setShowFrecuentes] = useState(true);
+  const [modoManual, setModoManual] = useState(false);
 
   // Diagnósticos frecuentes del paciente
   const [diagnosticosFrecuentes, setDiagnosticosFrecuentes] = useState([]);
@@ -48,6 +57,7 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
     principal: {
       codigoCIE10: '',
       descripcionCIE10: '',
+      clasificacion: '', // ImpresionDiagnostica, ConfirmadoNuevo, ConfirmadoRepetido
       observaciones: '',
     },
     secundarios: [
@@ -187,9 +197,11 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
       validacionEspecial
     };
 
-    // Validar: diagnóstico principal completo Y validación especial válida (si aplica)
-    const isPrincipalValid = data.principal.codigoCIE10 && data.principal.descripcionCIE10;
-    const isValid = isPrincipalValid && validacionEspecialValida;
+    // Validar: diagnóstico principal completo (solo descripción es obligatoria, código es opcional para ingreso manual)
+    // clasificación seleccionada Y validación especial válida (si aplica)
+    const isPrincipalValid = data.principal.descripcionCIE10 && data.principal.descripcionCIE10.trim() !== '';
+    const isClasificacionValid = !!data.principal.clasificacion;
+    const isValid = isPrincipalValid && isClasificacionValid && validacionEspecialValida;
 
     // Solo notificar si realmente cambió
     const notifyKey = JSON.stringify({ data: dataCompleta, isValid });
@@ -199,7 +211,7 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
     onChange(dataCompleta, isValid);
   };
 
-  const isPrincipalComplete = formData.principal.codigoCIE10 && formData.principal.descripcionCIE10;
+  const isPrincipalComplete = formData.principal.descripcionCIE10 && formData.principal.descripcionCIE10.trim() !== '';
 
   return (
     <div className="space-y-6">
@@ -223,16 +235,81 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
             </div>
           )}
 
-          {/* Buscador Oficial CIE-10 */}
-          <div className="space-y-2">
-            <Label className="text-pink-900 font-semibold">Buscar en Catálogo CIE-10</Label>
-            <CatalogSearch
-              type="CIE10"
-              placeholder="Buscar por código o descripción (ej: J06.9, Faringitis...)"
-              onSelect={seleccionarDiagnosticoPrincipal}
-              defaultValue={formData.principal.codigoCIE10}
-            />
+          {/* Toggle entre búsqueda CIE-10 y modo manual */}
+          <div className="flex items-center gap-2 mb-2">
+            <Button
+              type="button"
+              variant={!modoManual ? "default" : "outline"}
+              size="sm"
+              onClick={() => setModoManual(false)}
+              className={!modoManual ? "bg-pink-600 hover:bg-pink-700" : ""}
+            >
+              <Search className="h-4 w-4 mr-1" />
+              Buscar CIE-10
+            </Button>
+            <Button
+              type="button"
+              variant={modoManual ? "default" : "outline"}
+              size="sm"
+              onClick={() => setModoManual(true)}
+              className={modoManual ? "bg-amber-600 hover:bg-amber-700" : ""}
+            >
+              <Edit3 className="h-4 w-4 mr-1" />
+              Ingresar Manual
+            </Button>
           </div>
+
+          {/* Buscador Oficial CIE-10 */}
+          {!modoManual ? (
+            <div className="space-y-2">
+              <Label className="text-pink-900 font-semibold">Buscar en Catálogo CIE-10</Label>
+              <CatalogSearch
+                type="CIE10"
+                placeholder="Buscar por código o descripción (ej: J06.9, Faringitis...)"
+                onSelect={seleccionarDiagnosticoPrincipal}
+                defaultValue={formData.principal.codigoCIE10}
+              />
+              <p className="text-xs text-gray-500">
+                Si no encuentra el diagnóstico, use el botón "Ingresar Manual" para escribirlo.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3 bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Edit3 className="h-4 w-4 text-amber-600" />
+                <Label className="text-amber-900 font-semibold">Ingreso Manual de Diagnóstico</Label>
+              </div>
+              <p className="text-xs text-amber-700 mb-3">
+                Use esta opción solo cuando el diagnóstico no se encuentre en el catálogo CIE-10.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="md:col-span-1">
+                  <Label className="text-sm text-amber-800">Código (opcional)</Label>
+                  <Input
+                    value={formData.principal.codigoCIE10}
+                    onChange={(e) => handlePrincipalChange('codigoCIE10', e.target.value.toUpperCase())}
+                    placeholder="Ej: E00.0"
+                    className="bg-white border-amber-300 focus:border-amber-500"
+                  />
+                </div>
+                <div className="md:col-span-3">
+                  <Label className="text-sm text-amber-800">Descripción del Diagnóstico *</Label>
+                  <Input
+                    value={formData.principal.descripcionCIE10}
+                    onChange={(e) => handlePrincipalChange('descripcionCIE10', e.target.value)}
+                    placeholder="Escriba la descripción del diagnóstico"
+                    className="bg-white border-amber-300 focus:border-amber-500"
+                  />
+                </div>
+              </div>
+              {!formData.principal.descripcionCIE10 && (
+                <p className="text-xs text-red-600 flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  La descripción del diagnóstico es obligatoria
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Diagnósticos Frecuentes del Paciente */}
           {diagnosticosFrecuentes.length > 0 && (
@@ -309,7 +386,7 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
 
           {/* Código y descripción seleccionados */}
           {isPrincipalComplete && (
-            <div className="border-t pt-4 mt-4">
+            <div className="border-t pt-4 mt-4 space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-start justify-between">
                   <div>
@@ -328,6 +405,39 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
+              </div>
+
+              {/* Clasificación del Diagnóstico */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileCheck className="h-5 w-5 text-blue-600" />
+                  <Label className="text-blue-900 font-semibold">Clasificación del Diagnóstico</Label>
+                  <Badge variant="destructive" className="text-xs">Obligatorio</Badge>
+                </div>
+                <Select
+                  value={formData.principal.clasificacion}
+                  onValueChange={(value) => handlePrincipalChange('clasificacion', value)}
+                >
+                  <SelectTrigger className="w-full bg-white">
+                    <SelectValue placeholder="Seleccione la clasificación del diagnóstico..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CLASIFICACIONES_DIAGNOSTICO.map((clasif) => (
+                      <SelectItem key={clasif.value} value={clasif.value}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{clasif.label}</span>
+                          <span className="text-xs text-gray-500">{clasif.description}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!formData.principal.clasificacion && (
+                  <p className="text-xs text-amber-600 mt-2 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Debe seleccionar una clasificación para el diagnóstico
+                  </p>
+                )}
               </div>
             </div>
           )}

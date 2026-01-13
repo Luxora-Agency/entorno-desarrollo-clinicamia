@@ -197,8 +197,14 @@ Este es un mensaje automático del sistema de alertas de Clinica Mia.
 
   /**
    * Envía email de bienvenida cuando un paciente crea su cuenta
+   * @param {Object} options - Opciones del email
+   * @param {string} options.to - Email del destinatario
+   * @param {string} options.nombre - Nombre del paciente
+   * @param {string} options.apellido - Apellido del paciente
+   * @param {string} [options.password] - Contraseña (solo se incluye si se proporciona)
+   * @param {string} [options.loginUrl] - URL de login personalizada
    */
-  async sendWelcomeEmail({ to, nombre, apellido }) {
+  async sendWelcomeEmail({ to, nombre, apellido, password, loginUrl }) {
     if (!this.isEnabled()) {
       console.warn('[Email] Servicio deshabilitado. Email de bienvenida no enviado a:', to);
       return { success: false, error: 'Servicio de email no configurado' };
@@ -206,6 +212,41 @@ Este es un mensaje automático del sistema de alertas de Clinica Mia.
 
     const nombreCompleto = `${nombre} ${apellido}`.trim();
     const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+    const enlaceLogin = loginUrl || `${frontendUrl}/login`;
+
+    // Sección de credenciales (solo si se proporciona contraseña)
+    const credentialsSection = password ? `
+        <!-- Credentials Box -->
+        <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #0ea5e9; border-radius: 12px; padding: 25px; margin: 25px 0;">
+          <h3 style="color: #0369a1; margin: 0 0 15px; font-size: 18px; display: flex; align-items: center;">
+            🔐 Tus Credenciales de Acceso
+          </h3>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: #666; font-size: 14px;">Usuario (Email):</span><br>
+                <strong style="color: #0369a1; font-size: 16px;">${to}</strong>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0;">
+                <span style="color: #666; font-size: 14px;">Contraseña:</span><br>
+                <strong style="color: #0369a1; font-size: 16px; font-family: monospace; background: #fff; padding: 5px 10px; border-radius: 4px; display: inline-block;">${password}</strong>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 0 0;">
+                <a href="${enlaceLogin}" style="background: #0369a1; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 14px; display: inline-block;">
+                  Iniciar Sesión
+                </a>
+              </td>
+            </tr>
+          </table>
+          <p style="color: #64748b; font-size: 12px; margin: 15px 0 0; padding-top: 15px; border-top: 1px solid #bae6fd;">
+            ⚠️ Por seguridad, te recomendamos cambiar tu contraseña después del primer inicio de sesión.
+          </p>
+        </div>
+    ` : '';
 
     const html = `
 <!DOCTYPE html>
@@ -233,6 +274,8 @@ Este es un mensaje automático del sistema de alertas de Clinica Mia.
         <p style="color: #555; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
           Gracias por crear tu cuenta en <strong>Clínica Mía</strong>. Estamos muy contentos de tenerte como parte de nuestra familia de pacientes.
         </p>
+
+        ${credentialsSection}
 
         <p style="color: #555; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
           Ahora puedes disfrutar de los siguientes beneficios:
@@ -326,10 +369,24 @@ Este es un mensaje automático del sistema de alertas de Clinica Mia.
 </html>
     `;
 
+    // Sección de credenciales en texto plano
+    const credentialsText = password ? `
+TUS CREDENCIALES DE ACCESO:
+---------------------------
+Usuario (Email): ${to}
+Contraseña: ${password}
+
+Inicia sesión aquí: ${enlaceLogin}
+
+⚠️ Por seguridad, te recomendamos cambiar tu contraseña después del primer inicio de sesión.
+` : '';
+
     const text = `
 ¡Bienvenido/a a Clínica Mía, ${nombreCompleto}!
 
-Gracias por crear tu cuenta. Ahora puedes:
+Gracias por crear tu cuenta.
+${credentialsText}
+Ahora puedes:
 - Agendar citas médicas en línea las 24 horas
 - Acceder a tu historial médico digital
 - Recibir recordatorios de tus citas
@@ -1806,6 +1863,441 @@ Este es un mensaje confidencial. Por favor no comparta sus credenciales.
     return this.send({
       to,
       subject: `🩺 ¡Bienvenido al Equipo Médico de Clínica Mía! - Tus credenciales de acceso`,
+      html,
+      text
+    });
+  }
+
+  /**
+   * Envía email de encuesta de satisfacción después de una consulta
+   * @param {Object} options - Opciones del email
+   * @param {string} options.to - Email del paciente
+   * @param {Object} options.paciente - Datos del paciente
+   * @param {Object} options.doctor - Datos del doctor
+   * @param {Object} options.cita - Datos de la cita
+   * @param {string} options.especialidad - Especialidad de la consulta
+   * @param {string} options.surveyToken - Token único para acceder a la encuesta
+   * @param {string} options.surveyUrl - URL de la encuesta
+   */
+  async sendSatisfactionSurvey({ to, paciente, doctor, cita, especialidad, surveyToken, surveyUrl }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de encuesta de satisfacción no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
+    const nombreDoctor = doctor ? `Dr(a). ${doctor.nombre} ${doctor.apellido}`.trim() : 'el equipo médico';
+
+    // Formatear fecha de la cita
+    const fechaCita = new Date(cita.fecha);
+    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // URL de la encuesta con el token
+    const fullSurveyUrl = surveyUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/encuesta/${surveyToken}`;
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Califica tu Experiencia - Clínica Mía</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header con gradiente -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #144F79 0%, #1a6a9e 100%); padding: 30px 25px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">
+          Clínica Mía
+        </h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">
+          Tu opinión nos ayuda a mejorar
+        </p>
+      </td>
+    </tr>
+
+    <!-- Icono de encuesta -->
+    <tr>
+      <td style="padding: 30px 25px 20px; text-align: center;">
+        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: inline-block; line-height: 80px;">
+          <span style="font-size: 40px;">⭐</span>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Saludo y mensaje principal -->
+    <tr>
+      <td style="padding: 0 25px 20px; text-align: center;">
+        <h2 style="color: #1e3a5f; margin: 0 0 15px; font-size: 22px;">
+          ¡Hola ${nombrePaciente}!
+        </h2>
+        <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0;">
+          Esperamos que tu cita médica haya sido una experiencia positiva. Nos encantaría conocer tu opinión sobre la atención recibida.
+        </p>
+      </td>
+    </tr>
+
+    <!-- Detalles de la consulta -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background-color: #f8fafc; border-radius: 12px; padding: 20px; border-left: 4px solid #10b981;">
+          <p style="color: #6b7280; font-size: 12px; text-transform: uppercase; margin: 0 0 10px; letter-spacing: 0.5px;">
+            Detalles de tu consulta
+          </p>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 5px 0;">
+                <span style="color: #6b7280; font-size: 14px;">📅 Fecha:</span>
+                <span style="color: #1f2937; font-size: 14px; font-weight: 500; float: right;">${fechaFormateada}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0;">
+                <span style="color: #6b7280; font-size: 14px;">👨‍⚕️ Atendido por:</span>
+                <span style="color: #1f2937; font-size: 14px; font-weight: 500; float: right;">${nombreDoctor}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0;">
+                <span style="color: #6b7280; font-size: 14px;">🏥 Especialidad:</span>
+                <span style="color: #1f2937; font-size: 14px; font-weight: 500; float: right;">${especialidad || 'Consulta General'}</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Preguntas que evaluará -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <p style="color: #4b5563; font-size: 14px; margin: 0 0 15px; text-align: center;">
+          En la encuesta podrás calificar:
+        </p>
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="33%" style="text-align: center; padding: 10px;">
+              <div style="background-color: #eff6ff; border-radius: 8px; padding: 15px 10px;">
+                <span style="font-size: 28px;">👨‍⚕️</span>
+                <p style="color: #1e40af; font-size: 12px; margin: 8px 0 0; font-weight: 500;">Atención del Doctor</p>
+              </div>
+            </td>
+            <td width="33%" style="text-align: center; padding: 10px;">
+              <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px 10px;">
+                <span style="font-size: 28px;">👩‍⚕️</span>
+                <p style="color: #92400e; font-size: 12px; margin: 8px 0 0; font-weight: 500;">Personal de Salud</p>
+              </div>
+            </td>
+            <td width="33%" style="text-align: center; padding: 10px;">
+              <div style="background-color: #ecfdf5; border-radius: 8px; padding: 15px 10px;">
+                <span style="font-size: 28px;">🏥</span>
+                <p style="color: #065f46; font-size: 12px; margin: 8px 0 0; font-weight: 500;">Instalaciones</p>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Botón de encuesta -->
+    <tr>
+      <td style="padding: 0 25px 30px; text-align: center;">
+        <a href="${fullSurveyUrl}" style="display: inline-block; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: #ffffff; padding: 16px 45px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);">
+          Calificar mi Experiencia
+        </a>
+        <p style="color: #9ca3af; font-size: 12px; margin: 15px 0 0;">
+          Solo toma 2 minutos completar la encuesta
+        </p>
+      </td>
+    </tr>
+
+    <!-- Mensaje de agradecimiento -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background-color: #f0fdf4; border-radius: 8px; padding: 15px; text-align: center;">
+          <p style="color: #166534; font-size: 14px; margin: 0;">
+            💚 Tu retroalimentación nos ayuda a brindarte un mejor servicio
+          </p>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #f8f9fa; padding: 25px; text-align: center; border-top: 1px solid #e5e5e5;">
+        <p style="color: #666; font-size: 12px; margin: 0 0 5px;">
+          Si el botón no funciona, copia este enlace en tu navegador:
+        </p>
+        <p style="color: #144F79; font-size: 11px; margin: 0 0 15px; word-break: break-all;">
+          ${fullSurveyUrl}
+        </p>
+        <p style="color: #666; font-size: 13px; margin: 0 0 10px;">
+          ¿Necesitas ayuda? Contáctanos
+        </p>
+        <p style="color: #144F79; font-size: 14px; margin: 0;">
+          📧 info@clinicamiacolombia.com | 📞 324 333 8555
+        </p>
+        <p style="color: #999; font-size: 11px; margin: 15px 0 0;">
+          © ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.
+        </p>
+        <p style="color: #999; font-size: 10px; margin: 5px 0 0;">
+          📍 Cra. 5 #28-85, Ibagué, Tolima
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+¡Califica tu Experiencia! - Clínica Mía
+
+Hola ${nombrePaciente},
+
+Esperamos que tu cita médica haya sido una experiencia positiva. Nos encantaría conocer tu opinión sobre la atención recibida.
+
+📋 DETALLES DE TU CONSULTA
+==========================
+📅 Fecha: ${fechaFormateada}
+👨‍⚕️ Atendido por: ${nombreDoctor}
+🏥 Especialidad: ${especialidad || 'Consulta General'}
+
+En la encuesta podrás calificar:
+- 👨‍⚕️ Atención del Doctor
+- 👩‍⚕️ Personal de Salud
+- 🏥 Instalaciones y servicios
+
+🔗 CALIFICA TU EXPERIENCIA AQUÍ:
+${fullSurveyUrl}
+
+Solo toma 2 minutos completar la encuesta.
+
+💚 Tu retroalimentación nos ayuda a brindarte un mejor servicio.
+
+---
+¿Necesitas ayuda?
+📧 info@clinicamiacolombia.com
+📞 324 333 8555
+📍 Cra. 5 #28-85, Ibagué, Tolima
+
+© ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.
+    `;
+
+    return this.send({
+      to,
+      subject: `⭐ ${nombrePaciente}, ¿Cómo fue tu experiencia con ${nombreDoctor}? - Clínica Mía`,
+      html,
+      text
+    });
+  }
+
+  /**
+   * Envía email de confirmación de cita agendada
+   * @param {Object} options - Opciones del email
+   * @param {string} options.to - Email del paciente
+   * @param {Object} options.paciente - Datos del paciente
+   * @param {Object} options.doctor - Datos del doctor
+   * @param {Object} options.cita - Datos de la cita
+   * @param {string} options.especialidad - Especialidad
+   * @param {string} options.proximaCita - Información de la próxima cita programada
+   */
+  async sendAppointmentScheduled({ to, paciente, doctor, cita, especialidad, proximaCita }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de agendamiento no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
+    const nombreDoctor = doctor ? `Dr(a). ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por asignar';
+
+    // Formatear fecha y hora de la cita
+    const fechaCita = new Date(cita.fecha);
+    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    const horaFormateada = cita.hora ? new Date(`2000-01-01T${cita.hora}`).toLocaleTimeString('es-CO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }) : 'Por confirmar';
+
+    const portalUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cita Agendada - Clínica Mía</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header con gradiente -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #144F79 0%, #1a6a9e 100%); padding: 30px 25px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">
+          Clínica Mía
+        </h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 8px 0 0; font-size: 14px;">
+          Tu salud, nuestra prioridad
+        </p>
+      </td>
+    </tr>
+
+    <!-- Icono de confirmación -->
+    <tr>
+      <td style="padding: 30px 25px 20px; text-align: center;">
+        <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: inline-block; line-height: 80px;">
+          <span style="font-size: 40px;">✅</span>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Mensaje principal -->
+    <tr>
+      <td style="padding: 0 25px 20px; text-align: center;">
+        <h2 style="color: #1e3a5f; margin: 0 0 15px; font-size: 22px;">
+          ¡Cita Agendada Exitosamente!
+        </h2>
+        <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin: 0;">
+          Hola <strong>${nombrePaciente}</strong>, tu cita médica ha sido programada. Aquí están los detalles:
+        </p>
+      </td>
+    </tr>
+
+    <!-- Detalles de la cita -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background-color: #eff6ff; border-radius: 12px; padding: 25px; border: 2px solid #3b82f6;">
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #dbeafe;">
+                <span style="color: #6b7280; font-size: 14px;">📅 Fecha</span>
+                <p style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 5px 0 0;">${fechaFormateada}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #dbeafe;">
+                <span style="color: #6b7280; font-size: 14px;">🕐 Hora</span>
+                <p style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 5px 0 0;">${horaFormateada}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #dbeafe;">
+                <span style="color: #6b7280; font-size: 14px;">👨‍⚕️ Médico</span>
+                <p style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 5px 0 0;">${nombreDoctor}</p>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0;">
+                <span style="color: #6b7280; font-size: 14px;">🏥 Especialidad</span>
+                <p style="color: #1f2937; font-size: 16px; font-weight: 600; margin: 5px 0 0;">${especialidad || 'Consulta General'}</p>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Recordatorio importante -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;">
+          <p style="color: #92400e; font-size: 13px; margin: 0;">
+            ⏰ <strong>Recordatorio:</strong> Por favor llega 15 minutos antes de tu cita. Recibirás recordatorios automáticos 7 días, 4 días y 3 horas antes de tu cita.
+          </p>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Ubicación -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background-color: #f8fafc; border-radius: 8px; padding: 15px; text-align: center;">
+          <p style="color: #6b7280; font-size: 12px; text-transform: uppercase; margin: 0 0 10px; letter-spacing: 0.5px;">
+            📍 Ubicación
+          </p>
+          <p style="color: #1f2937; font-size: 14px; margin: 0;">
+            <strong>Clínica Mía</strong><br>
+            Cra. 5 #28-85, Ibagué, Tolima
+          </p>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Botón de acceso al portal -->
+    <tr>
+      <td style="padding: 0 25px 30px; text-align: center;">
+        <a href="${portalUrl}" style="display: inline-block; background: linear-gradient(135deg, #144F79 0%, #1a6a9e 100%); color: #ffffff; padding: 14px 40px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px;">
+          Ver Mis Citas
+        </a>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #f8f9fa; padding: 25px; text-align: center; border-top: 1px solid #e5e5e5;">
+        <p style="color: #666; font-size: 13px; margin: 0 0 10px;">
+          ¿Necesitas reprogramar? Contáctanos
+        </p>
+        <p style="color: #144F79; font-size: 14px; margin: 0;">
+          📧 info@clinicamiacolombia.com | 📞 324 333 8555
+        </p>
+        <p style="color: #999; font-size: 11px; margin: 15px 0 0;">
+          © ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+¡Cita Agendada Exitosamente! - Clínica Mía
+
+Hola ${nombrePaciente},
+
+Tu cita médica ha sido programada. Aquí están los detalles:
+
+📅 DETALLES DE TU CITA
+======================
+📅 Fecha: ${fechaFormateada}
+🕐 Hora: ${horaFormateada}
+👨‍⚕️ Médico: ${nombreDoctor}
+🏥 Especialidad: ${especialidad || 'Consulta General'}
+
+📍 UBICACIÓN
+============
+Clínica Mía
+Cra. 5 #28-85, Ibagué, Tolima
+
+⏰ RECORDATORIO: Por favor llega 15 minutos antes de tu cita.
+Recibirás recordatorios automáticos 7 días, 4 días y 3 horas antes de tu cita.
+
+---
+¿Necesitas reprogramar? Contáctanos:
+📧 info@clinicamiacolombia.com
+📞 324 333 8555
+
+© ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.
+    `;
+
+    return this.send({
+      to,
+      subject: `✅ Cita Confirmada: ${fechaFormateada} a las ${horaFormateada} - Clínica Mía`,
       html,
       text
     });

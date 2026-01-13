@@ -274,13 +274,41 @@ class ProductoService {
   /**
    * Importar medicamentos desde la API de Datos Abiertos Colombia (Socrata)
    * Dataset: Medicamentos incluidos en el PBS
+   * Importa todos los registros usando paginación
    */
   async importFromSocrata() {
-    const url = 'https://www.datos.gov.co/resource/jtqe-tuvf.json?$limit=5000';
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Error al conectar con la API de Datos Abiertos');
-    
-    const data = await response.json();
+    const baseUrl = 'https://www.datos.gov.co/resource/jtqe-tuvf.json';
+    const limit = 10000; // Máximo por página
+    let offset = 0;
+    let allData = [];
+    let hasMore = true;
+
+    console.log('[PBS Import] Iniciando importación de medicamentos PBS...');
+
+    // Obtener todos los registros con paginación
+    while (hasMore) {
+      const url = `${baseUrl}?$limit=${limit}&$offset=${offset}`;
+      console.log(`[PBS Import] Obteniendo registros desde offset ${offset}...`);
+
+      const response = await fetch(url);
+      if (!response.ok) throw new Error('Error al conectar con la API de Datos Abiertos');
+
+      const pageData = await response.json();
+
+      if (pageData.length === 0) {
+        hasMore = false;
+      } else {
+        allData = allData.concat(pageData);
+        offset += limit;
+        // Si recibimos menos del límite, no hay más datos
+        if (pageData.length < limit) {
+          hasMore = false;
+        }
+      }
+    }
+
+    console.log(`[PBS Import] Total de registros obtenidos: ${allData.length}`);
+    const data = allData;
     
     // 1. Obtener o crear categoría PBS
     let categoria = await prisma.categoriaProducto.findFirst({

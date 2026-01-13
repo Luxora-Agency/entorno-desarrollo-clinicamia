@@ -5,10 +5,35 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Activity, Plus, X, AlertCircle, TrendingUp, Scale, Calculator, TestTube, Sparkles } from 'lucide-react';
+import {
+  Activity, Plus, X, AlertCircle, TrendingUp, Scale, Calculator, TestTube, Sparkles,
+  User, Heart, Wind, Utensils, Droplets, Brain, Hand, Thermometer, Droplet, Eye,
+  UserCircle, Ear, Mic, Bone, Stethoscope, ChevronDown, ChevronUp
+} from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import HistoricoSignosVitalesModal from './HistoricoSignosVitalesModal';
+import CurvasCrecimientoOMS from './CurvasCrecimientoOMS';
+import IndicesNutricionales from './IndicesNutricionales';
+
+// Configuración de sistemas para examen físico
+const SISTEMAS_EXAMEN_FISICO = [
+  { id: 'general', titulo: 'Aspecto General', icono: User },
+  { id: 'cabezaCuello', titulo: 'Cabeza y Cuello', icono: UserCircle },
+  { id: 'ojos', titulo: 'Ojos', icono: Eye },
+  { id: 'oidos', titulo: 'Oídos', icono: Ear },
+  { id: 'narizGarganta', titulo: 'Nariz y Garganta', icono: Mic },
+  { id: 'cardiovascular', titulo: 'Cardiovascular', icono: Heart },
+  { id: 'respiratorio', titulo: 'Respiratorio', icono: Wind },
+  { id: 'gastrointestinal', titulo: 'Gastrointestinal', icono: Utensils },
+  { id: 'genitourinario', titulo: 'Genitourinario', icono: Droplets },
+  { id: 'musculoesqueletico', titulo: 'Musculoesquelético', icono: Bone },
+  { id: 'neurologico', titulo: 'Neurológico', icono: Brain },
+  { id: 'piel', titulo: 'Piel y Faneras', icono: Hand },
+  { id: 'psiquiatrico', titulo: 'Estado Mental', icono: Brain },
+  { id: 'endocrino', titulo: 'Endocrino', icono: Thermometer },
+  { id: 'hematologico', titulo: 'Hematológico/Linfático', icono: Droplet },
+];
 
 // Función para calcular IMC y su clasificación
 const calcularIMC = (peso, talla) => {
@@ -79,6 +104,7 @@ const calcularLDL = (colTotal, hdl, trigliceridos) => {
 export default function FormularioSignosVitalesConsulta({ onChange, data, pacienteId, pacienteEdad, pacienteGenero }) {
   const [quiereAgregar, setQuiereAgregar] = useState(data !== null && data !== undefined);
   const [showHistorico, setShowHistorico] = useState(false);
+  const [showIndicesNutricionales, setShowIndicesNutricionales] = useState(false);
   const [formData, setFormData] = useState(data || {
     temperatura: '',
     presionSistolica: '',
@@ -91,6 +117,7 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
     // Perímetros
     perimetroAbdominal: '',
     perimetroCefalico: '', // Pediátrico
+    perimetroBraquial: '', // Para índice Kanawati-McLaren
     // Paraclínicos Rápidos
     creatinina: '',
     tfg_ckdepi: '', // Calculado
@@ -109,6 +136,26 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
     tiroglobulina: '',
     anticuerposAntitiroglobulina: '',
     analisisTiroideo: '',
+    // Paraclínicos personalizados (array para múltiples)
+    otrosParaclinicos: [],
+    // Examen Físico por Sistemas
+    examenFisico: {
+      general: 'Sin alteraciones',
+      cabezaCuello: 'Sin alteraciones',
+      ojos: 'Sin alteraciones',
+      oidos: 'Sin alteraciones',
+      narizGarganta: 'Sin alteraciones',
+      cardiovascular: 'Sin alteraciones',
+      respiratorio: 'Sin alteraciones',
+      gastrointestinal: 'Sin alteraciones',
+      genitourinario: 'Sin alteraciones',
+      musculoesqueletico: 'Sin alteraciones',
+      neurologico: 'Sin alteraciones',
+      piel: 'Sin alteraciones',
+      psiquiatrico: 'Sin alteraciones',
+      endocrino: 'Sin alteraciones',
+      hematologico: 'Sin alteraciones',
+    },
   });
 
   // Calcular IMC en tiempo real
@@ -145,6 +192,34 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
     const newData = { ...formData, [field]: value };
     setFormData(newData);
     onChange(newData, isComplete(newData));
+  };
+
+  // Funciones para manejar múltiples paraclínicos personalizados
+  const agregarParaclinico = () => {
+    const nuevoParaclinico = { id: Date.now(), nombre: '', valor: '' };
+    const nuevosParaclinicos = [...(formData.otrosParaclinicos || []), nuevoParaclinico];
+    handleChange('otrosParaclinicos', nuevosParaclinicos);
+  };
+
+  const actualizarParaclinico = (id, campo, valor) => {
+    const nuevosParaclinicos = (formData.otrosParaclinicos || []).map(p =>
+      p.id === id ? { ...p, [campo]: valor } : p
+    );
+    handleChange('otrosParaclinicos', nuevosParaclinicos);
+  };
+
+  const eliminarParaclinico = (id) => {
+    const nuevosParaclinicos = (formData.otrosParaclinicos || []).filter(p => p.id !== id);
+    handleChange('otrosParaclinicos', nuevosParaclinicos);
+  };
+
+  // Función para manejar cambios en examen físico por sistemas
+  const handleExamenFisicoChange = (sistema, valor) => {
+    const nuevoExamenFisico = {
+      ...(formData.examenFisico || {}),
+      [sistema]: valor
+    };
+    handleChange('examenFisico', nuevoExamenFisico);
   };
 
   const isComplete = (data = formData) => {
@@ -188,6 +263,15 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
                 Ver Histórico
               </Button>
             )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowIndicesNutricionales(true)}
+              className="text-teal-600 hover:text-teal-700 border-teal-300"
+            >
+              <Calculator className="h-4 w-4 mr-1" />
+              Índices Nutricionales
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -272,7 +356,7 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
            <h4 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2">
              <Scale className="h-4 w-4" /> Antropometría
            </h4>
-           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
              <div>
                 <Label>Peso (kg)</Label>
                 <Input type="number" step="0.1" value={formData.peso} onChange={(e) => handleChange('peso', e.target.value)} />
@@ -285,7 +369,15 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
                 <Label>Perím. Abdominal</Label>
                 <Input type="number" value={formData.perimetroAbdominal} onChange={(e) => handleChange('perimetroAbdominal', e.target.value)} placeholder="cm" />
              </div>
-             <div className="md:col-span-2">
+             <div>
+                <Label>Perím. Cefálico</Label>
+                <Input type="number" step="0.1" value={formData.perimetroCefalico} onChange={(e) => handleChange('perimetroCefalico', e.target.value)} placeholder="cm" />
+             </div>
+             <div>
+                <Label>Perím. Braquial</Label>
+                <Input type="number" step="0.1" value={formData.perimetroBraquial} onChange={(e) => handleChange('perimetroBraquial', e.target.value)} placeholder="cm" />
+             </div>
+             <div className="md:col-span-1">
                 <Label>IMC</Label>
                 {imcData ? (
                   <div className={`mt-1 px-3 py-2 rounded border text-center ${imcData.bgColor} ${imcData.color} font-bold`}>
@@ -296,7 +388,86 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
            </div>
         </div>
 
-        {/* 3. PARACLÍNICOS RÁPIDOS (POINT OF CARE) */}
+        {/* CURVAS DE CRECIMIENTO OMS (Solo pacientes pediátricos < 19 años) */}
+        {pacienteEdad && pacienteEdad < 19 && (formData.peso || formData.talla) && (
+          <CurvasCrecimientoOMS
+            peso={formData.peso}
+            talla={formData.talla}
+            edadAnios={pacienteEdad}
+            genero={pacienteGenero}
+          />
+        )}
+
+        {/* 3. EXAMEN FÍSICO POR SISTEMAS */}
+        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+          <h4 className="text-sm font-semibold text-green-800 mb-4 flex items-center gap-2">
+            <Stethoscope className="h-4 w-4" />
+            Examen Físico por Sistemas
+            <span className="ml-auto text-xs font-normal text-green-600">
+              (Por defecto: Sin alteraciones)
+            </span>
+          </h4>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {SISTEMAS_EXAMEN_FISICO.map((sistema) => {
+              const IconoSistema = sistema.icono;
+              const valorActual = formData.examenFisico?.[sistema.id] || 'Sin alteraciones';
+              const tieneAlteracion = valorActual !== 'Sin alteraciones';
+
+              return (
+                <div
+                  key={sistema.id}
+                  className={`rounded-lg border p-3 transition-colors ${
+                    tieneAlteracion
+                      ? 'bg-amber-50 border-amber-300'
+                      : 'bg-white border-green-200'
+                  }`}
+                >
+                  <Label className="flex items-center gap-2 mb-2 text-sm font-medium">
+                    <IconoSistema className={`h-4 w-4 ${tieneAlteracion ? 'text-amber-600' : 'text-green-600'}`} />
+                    {sistema.titulo}
+                    {tieneAlteracion && (
+                      <span className="ml-auto text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">
+                        Alterado
+                      </span>
+                    )}
+                  </Label>
+                  <Textarea
+                    value={valorActual}
+                    onChange={(e) => handleExamenFisicoChange(sistema.id, e.target.value)}
+                    placeholder="Sin alteraciones"
+                    className={`text-sm resize-none ${
+                      tieneAlteracion ? 'border-amber-300 focus:border-amber-400' : ''
+                    }`}
+                    rows={2}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Botón para marcar todos sin alteraciones */}
+          <div className="mt-4 flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const resetExamen = {};
+                SISTEMAS_EXAMEN_FISICO.forEach(s => {
+                  resetExamen[s.id] = 'Sin alteraciones';
+                });
+                handleChange('examenFisico', resetExamen);
+              }}
+              className="text-green-600 border-green-300 hover:bg-green-50"
+            >
+              <X className="h-3 w-3 mr-1" />
+              Marcar todos sin alteraciones
+            </Button>
+          </div>
+        </div>
+
+        {/* 4. PARACLÍNICOS RÁPIDOS (POINT OF CARE) */}
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
             <h4 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
               <TestTube className="h-4 w-4" /> 
@@ -408,6 +579,80 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
                   rows={2}
                 />
               </div>
+
+              {/* Otros Paraclínicos Personalizados */}
+              <div className="col-span-2 md:col-span-4 border-b border-blue-200 pb-2 mb-2 mt-2 flex items-center justify-between">
+                <span className="text-xs font-bold text-blue-600 uppercase">Otros Paraclínicos</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={agregarParaclinico}
+                  className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Agregar Paraclínico
+                </Button>
+              </div>
+
+              {/* Lista de paraclínicos agregados */}
+              {(formData.otrosParaclinicos || []).length === 0 ? (
+                <div className="col-span-2 md:col-span-4 text-center py-4 text-gray-400 text-sm">
+                  <TestTube className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>No hay paraclínicos adicionales.</p>
+                  <p className="text-xs">Haga clic en "Agregar Paraclínico" para incluir exámenes adicionales.</p>
+                </div>
+              ) : (
+                (formData.otrosParaclinicos || []).map((paraclinico, index) => (
+                  <div key={paraclinico.id} className="col-span-2 md:col-span-4 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                    <div>
+                      <Label className="text-xs text-blue-700">Nombre del Examen #{index + 1}</Label>
+                      <Input
+                        type="text"
+                        value={paraclinico.nombre}
+                        onChange={(e) => actualizarParaclinico(paraclinico.id, 'nombre', e.target.value)}
+                        placeholder="Ej: Vitamina D, PTH, Cortisol..."
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-blue-700">Valor/Resultado</Label>
+                      <Input
+                        type="text"
+                        value={paraclinico.valor}
+                        onChange={(e) => actualizarParaclinico(paraclinico.id, 'valor', e.target.value)}
+                        placeholder="Resultado con unidad"
+                        className="mt-1"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => eliminarParaclinico(paraclinico.id)}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50 h-9"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))
+              )}
+
+              {/* Botón adicional para agregar más si ya hay al menos uno */}
+              {(formData.otrosParaclinicos || []).length > 0 && (
+                <div className="col-span-2 md:col-span-4 flex justify-center pt-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={agregarParaclinico}
+                    className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Agregar otro paraclínico
+                  </Button>
+                </div>
+              )}
             </div>
         </div>
 
@@ -418,6 +663,23 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
         <HistoricoSignosVitalesModal
           pacienteId={pacienteId}
           onClose={() => setShowHistorico(false)}
+        />
+      )}
+
+      {/* Modal de Índices Nutricionales */}
+      {showIndicesNutricionales && (
+        <IndicesNutricionales
+          isModal={true}
+          onClose={() => setShowIndicesNutricionales(false)}
+          pacienteData={{
+            peso: formData.peso,
+            talla: formData.talla,
+            edadAnios: pacienteEdad,
+            genero: pacienteGenero,
+            perimetroCefalico: formData.perimetroCefalico,
+            perimetroBraquial: formData.perimetroBraquial,
+            circunferenciaCintura: formData.perimetroAbdominal, // Usamos perímetro abdominal
+          }}
         />
       )}
     </Card>

@@ -521,6 +521,7 @@ class ConsultaService {
             pacienteId,
             admisionId: admision.id,
             registradoPor: doctorId,
+            // Signos vitales básicos
             temperatura: vitales.temperatura ? limitarValor(vitales.temperatura, 99.9) : null,
             presionSistolica: vitales.presionSistolica ? parseInt(vitales.presionSistolica) : null,
             presionDiastolica: vitales.presionDiastolica ? parseInt(vitales.presionDiastolica) : null,
@@ -532,6 +533,29 @@ class ConsultaService {
             imc: (vitales.peso && vitales.talla)
               ? parseFloat((parseFloat(vitales.peso) / Math.pow(parseFloat(vitales.talla) / 100, 2)).toFixed(2))
               : null,
+            // Antropometría adicional
+            perimetroAbdominal: vitales.perimetroAbdominal ? limitarValor(vitales.perimetroAbdominal, 999.99) : null,
+            perimetroCefalico: vitales.perimetroCefalico ? limitarValor(vitales.perimetroCefalico, 999.99) : null,
+            // Función renal
+            creatinina: vitales.creatinina ? limitarValor(vitales.creatinina, 99.99) : null,
+            tfgCkdEpi: vitales.tfg_ckdepi ? limitarValor(vitales.tfg_ckdepi, 999.99) : null,
+            potasio: vitales.potasio ? limitarValor(vitales.potasio, 99.99) : null,
+            calcio: vitales.calcio ? limitarValor(vitales.calcio, 99.99) : null,
+            pth: vitales.pth ? limitarValor(vitales.pth, 999.99) : null,
+            // Perfil metabólico
+            glucosaAyunas: vitales.glucosaAyunas ? limitarValor(vitales.glucosaAyunas, 999.99) : null,
+            hba1c: vitales.hba1c ? limitarValor(vitales.hba1c, 99.99) : null,
+            // Perfil lipídico
+            colesterolTotal: vitales.colesterolTotal ? limitarValor(vitales.colesterolTotal, 999.99) : null,
+            colesterolHDL: vitales.colesterolHDL ? limitarValor(vitales.colesterolHDL, 999.99) : null,
+            colesterolLDL: vitales.colesterolLDL ? limitarValor(vitales.colesterolLDL, 999.99) : null,
+            trigliceridos: vitales.trigliceridos ? limitarValor(vitales.trigliceridos, 999.99) : null,
+            // Perfil tiroideo
+            tsh: vitales.tsh ? limitarValor(vitales.tsh, 999.999) : null,
+            tiroxinaLibre: vitales.tiroxinaLibre ? limitarValor(vitales.tiroxinaLibre, 99.99) : null,
+            tiroglobulina: vitales.tiroglobulina ? limitarValor(vitales.tiroglobulina, 99999.99) : null,
+            anticuerposAntitiroglobulina: vitales.anticuerposAntitiroglobulina ? limitarValor(vitales.anticuerposAntitiroglobulina, 99999.99) : null,
+            analisisTiroideo: vitales.analisisTiroideo || null,
           }
         });
       }
