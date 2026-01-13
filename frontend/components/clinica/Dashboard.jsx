@@ -50,6 +50,7 @@ import DoctorSettingsModule from './doctor/DoctorSettingsModule';
 import DoctorScheduleManager from './DoctorScheduleManager';
 import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
 import MisCitasDelDiaView from './doctor/MisCitasDelDiaView';
+import MiAgendaView from './doctor/MiAgendaView';
 import AIMedicalAssistant from './doctor/AIMedicalAssistant';
 import CalidadModule from './calidad/CalidadModule';
 import DocsInscripcionModule from './calidad2/docs-inscripcion/DocsInscripcionModule';
@@ -203,20 +204,7 @@ export default function Dashboard({ user, onLogout }) {
       // Mi Agenda - vista de agenda del doctor
       case 'mi-agenda':
         if (isDoctor) {
-          return (
-            <div className="p-6 space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Mi Agenda</h1>
-                  <p className="text-gray-600">Gestiona tu disponibilidad y horarios de atención</p>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <DoctorScheduleManager user={user} />
-                <BloqueoAgendaManager user={user} />
-              </div>
-            </div>
-          );
+          return <MiAgendaView user={user} />;
         }
         return <DashboardHome user={user} />;
 

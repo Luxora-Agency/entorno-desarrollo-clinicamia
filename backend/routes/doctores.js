@@ -135,6 +135,79 @@ doctores.use('/*', authMiddleware);
  *       500:
  *         description: Error del servidor
  */
+/**
+ * @swagger
+ * /doctores/mi-agenda:
+ *   get:
+ *     summary: Obtener mi perfil de doctor y horarios (para doctores)
+ *     tags: [Doctores]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Perfil del doctor con horarios
+ */
+doctores.get('/mi-agenda', async (c) => {
+  try {
+    const user = c.get('user');
+    if (user.rol !== 'DOCTOR') {
+      return c.json(error('Solo doctores pueden acceder a esta ruta'), 403);
+    }
+
+    const result = await doctorService.listar({ usuarioId: user.id, limit: 1 });
+    if (!result.doctores || result.doctores.length === 0) {
+      return c.json(error('Perfil de doctor no encontrado'), 404);
+    }
+
+    return c.json(success(result.doctores[0], 'Perfil obtenido'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * @swagger
+ * /doctores/mi-agenda/horarios:
+ *   patch:
+ *     summary: Actualizar mis propios horarios (para doctores)
+ *     tags: [Doctores]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               horarios:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Horarios actualizados
+ */
+doctores.patch('/mi-agenda/horarios', async (c) => {
+  try {
+    const user = c.get('user');
+    if (user.rol !== 'DOCTOR') {
+      return c.json(error('Solo doctores pueden acceder a esta ruta'), 403);
+    }
+
+    // Obtener el doctor asociado al usuario
+    const doctorResult = await doctorService.listar({ usuarioId: user.id, limit: 1 });
+    if (!doctorResult.doctores || doctorResult.doctores.length === 0) {
+      return c.json(error('Perfil de doctor no encontrado'), 404);
+    }
+
+    const doctorId = doctorResult.doctores[0].id;
+    const { horarios } = await c.req.json();
+    const result = await doctorService.actualizarHorarios(doctorId, horarios);
+    return c.json(success(result, 'Horarios actualizados exitosamente'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
 doctores.get('/', async (c) => {
   try {
     const { search = '', limit = '50', page = '1', activo, usuarioId } = c.req.query();

@@ -84,14 +84,15 @@ const ICONOS_TIPO = {
   EMERGENCIA_SOLO: AlertTriangle,
 };
 
-export default function BloqueoAgendaManager({ doctorId, doctorNombre = 'Doctor' }) {
+export default function BloqueoAgendaManager({ doctorId, doctorNombre = 'Doctor', selfManaged = false }) {
+  // Si selfManaged, usa endpoints /mis-bloqueos (no requiere permiso 'agenda')
   const {
     bloqueos,
     loading,
     obtenerBloqueos,
     crearBloqueo,
     eliminarBloqueo,
-  } = useBloqueos();
+  } = useBloqueos({ selfManaged });
 
   // Estado del modal de crear
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

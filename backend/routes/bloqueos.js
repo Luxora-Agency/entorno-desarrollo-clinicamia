@@ -47,6 +47,81 @@ router.get('/tipos', authMiddleware, (c) => {
 });
 
 /**
+ * GET /bloqueos/mis-bloqueos
+ * Obtener mis propios bloqueos (para doctores)
+ */
+router.get('/mis-bloqueos', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (user.rol !== 'DOCTOR') {
+      return c.json(error('Solo doctores pueden acceder a esta ruta'), 403);
+    }
+
+    const fechaInicio = c.req.query('fecha_inicio');
+    const fechaFin = c.req.query('fecha_fin');
+
+    const bloqueos = await bloqueoService.obtenerBloqueos(user.id, fechaInicio, fechaFin);
+    return c.json(success(bloqueos));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * POST /bloqueos/mis-bloqueos
+ * Crear un bloqueo para mi agenda (para doctores)
+ */
+router.post('/mis-bloqueos', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (user.rol !== 'DOCTOR') {
+      return c.json(error('Solo doctores pueden acceder a esta ruta'), 403);
+    }
+
+    const body = await c.req.json();
+    // Usar el ID del usuario como doctor_id
+    const validatedData = createBloqueoSchema.parse({
+      ...body,
+      doctor_id: user.id
+    });
+
+    const bloqueo = await bloqueoService.crearBloqueo(validatedData, user.id);
+    return c.json(success(bloqueo, 'Bloqueo creado exitosamente'), 201);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      return c.json(error('Error de validación', err.errors), 400);
+    }
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * DELETE /bloqueos/mis-bloqueos/:id
+ * Eliminar un bloqueo propio (para doctores)
+ */
+router.delete('/mis-bloqueos/:id', authMiddleware, async (c) => {
+  try {
+    const user = c.get('user');
+    if (user.rol !== 'DOCTOR') {
+      return c.json(error('Solo doctores pueden acceder a esta ruta'), 403);
+    }
+
+    const bloqueoId = c.req.param('id');
+
+    // Verificar que el bloqueo pertenece al doctor
+    const bloqueo = await bloqueoService.obtenerPorId(bloqueoId);
+    if (bloqueo.doctorId !== user.id) {
+      return c.json(error('No tienes permiso para eliminar este bloqueo'), 403);
+    }
+
+    const resultado = await bloqueoService.eliminarBloqueo(bloqueoId);
+    return c.json(success(resultado, 'Bloqueo eliminado'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
  * POST /bloqueos
  * Crear un nuevo bloqueo de agenda
  */

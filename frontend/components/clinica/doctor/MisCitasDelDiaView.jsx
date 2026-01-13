@@ -65,7 +65,7 @@ const estadoConfig = {
     label: 'En Espera',
     icon: Clock3
   },
-  EnAtencion: {
+  Atendiendo: {
     color: 'bg-emerald-100 text-emerald-700 border-emerald-300',
     dotColor: 'bg-emerald-500 animate-pulse',
     label: 'En Atención',
@@ -124,26 +124,13 @@ export default function MisCitasDelDiaView({ user }) {
     return () => clearInterval(interval);
   }, []);
 
-  // Cargar perfil del doctor
+  // Usar Usuario.id directamente como doctorId
+  // NOTA: Cita.doctorId apunta a Usuario.id, NO a Doctor.id
   useEffect(() => {
-    const cargarDoctorId = async () => {
-      if (!user?.id) return;
-
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`${apiUrl}/doctores?usuarioId=${user.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await response.json();
-        if (data.success && data.data?.length > 0) {
-          setDoctorId(data.data[0].id);
-        }
-      } catch (error) {
-        console.error('Error loading doctor profile:', error);
-      }
-    };
-    cargarDoctorId();
-  }, [user?.id, apiUrl]);
+    if (user?.id) {
+      setDoctorId(user.id);
+    }
+  }, [user?.id]);
 
   // Cargar citas del día
   const cargarCitas = useCallback(async (showRefresh = false) => {
@@ -192,7 +179,7 @@ export default function MisCitasDelDiaView({ user }) {
     const total = citas.length;
     const pendientes = citas.filter(c => ['Programada', 'Confirmada'].includes(c.estado)).length;
     const enEspera = citas.filter(c => c.estado === 'EnEspera').length;
-    const enAtencion = citas.filter(c => c.estado === 'EnAtencion').length;
+    const enAtencion = citas.filter(c => c.estado === 'Atendiendo').length;
     const completadas = citas.filter(c => c.estado === 'Completada').length;
     const canceladas = citas.filter(c => ['Cancelada', 'NoAsistio'].includes(c.estado)).length;
     const progreso = total > 0 ? Math.round((completadas / total) * 100) : 0;
@@ -218,8 +205,8 @@ export default function MisCitasDelDiaView({ user }) {
   }, [citas, currentTime]);
 
   // Cita en atención actual
-  const citaEnAtencion = useMemo(() => {
-    return citas.find(c => c.estado === 'EnAtencion') || null;
+  const citaAtendiendo = useMemo(() => {
+    return citas.find(c => c.estado === 'Atendiendo') || null;
   }, [citas]);
 
   // Cambiar estado de cita
@@ -349,7 +336,7 @@ export default function MisCitasDelDiaView({ user }) {
       </div>
 
       {/* Cita en Atención Actual */}
-      {citaEnAtencion && (
+      {citaAtendiendo && (
         <Card className="border-2 border-emerald-400 bg-gradient-to-r from-emerald-50 to-teal-50 shadow-lg shadow-emerald-100">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-emerald-700 mb-3">
@@ -359,25 +346,25 @@ export default function MisCitasDelDiaView({ user }) {
             <div className="flex items-center gap-4">
               <Avatar className="h-14 w-14 border-2 border-emerald-300">
                 <AvatarFallback className="bg-emerald-100 text-emerald-700 text-lg font-bold">
-                  {citaEnAtencion.paciente?.nombre?.charAt(0)}{citaEnAtencion.paciente?.apellido?.charAt(0)}
+                  {citaAtendiendo.paciente?.nombre?.charAt(0)}{citaAtendiendo.paciente?.apellido?.charAt(0)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
                 <p className="text-lg font-bold text-gray-900">
-                  {citaEnAtencion.paciente?.nombre} {citaEnAtencion.paciente?.apellido}
+                  {citaAtendiendo.paciente?.nombre} {citaAtendiendo.paciente?.apellido}
                 </p>
                 <div className="flex items-center gap-3 text-sm text-gray-600">
-                  <span>{citaEnAtencion.paciente?.cedula}</span>
-                  {citaEnAtencion.paciente?.fechaNacimiento && (
-                    <span>{calcularEdad(citaEnAtencion.paciente.fechaNacimiento)} años</span>
+                  <span>{citaAtendiendo.paciente?.cedula}</span>
+                  {citaAtendiendo.paciente?.fechaNacimiento && (
+                    <span>{calcularEdad(citaAtendiendo.paciente.fechaNacimiento)} años</span>
                   )}
-                  <span>• {citaEnAtencion.motivo || 'Consulta general'}</span>
+                  <span>• {citaAtendiendo.motivo || 'Consulta general'}</span>
                 </div>
               </div>
               <div className="flex gap-2">
                 <Button
                   className="bg-green-600 hover:bg-green-700 shadow-lg"
-                  onClick={() => cambiarEstadoCita(citaEnAtencion.id, 'Completada')}
+                  onClick={() => cambiarEstadoCita(citaAtendiendo.id, 'Completada')}
                 >
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Finalizar Consulta
@@ -493,7 +480,7 @@ export default function MisCitasDelDiaView({ user }) {
       </Card>
 
       {/* Próxima Cita */}
-      {proximaCita && !citaEnAtencion && (
+      {proximaCita && !citaAtendiendo && (
         <Card className="border-2 border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-blue-700 mb-3">
@@ -531,7 +518,7 @@ export default function MisCitasDelDiaView({ user }) {
                   <Button
                     size="sm"
                     className="bg-emerald-600 hover:bg-emerald-700"
-                    onClick={() => cambiarEstadoCita(proximaCita.id, 'EnAtencion')}
+                    onClick={() => cambiarEstadoCita(proximaCita.id, 'Atendiendo')}
                   >
                     <PlayCircle className="h-4 w-4 mr-1" />
                     Iniciar Atención
@@ -566,7 +553,7 @@ export default function MisCitasDelDiaView({ user }) {
                 <SelectItem value="Programada">Programada</SelectItem>
                 <SelectItem value="Confirmada">Confirmada</SelectItem>
                 <SelectItem value="EnEspera">En Espera</SelectItem>
-                <SelectItem value="EnAtencion">En Atención</SelectItem>
+                <SelectItem value="Atendiendo">En Atención</SelectItem>
                 <SelectItem value="Completada">Completada</SelectItem>
                 <SelectItem value="Cancelada">Cancelada</SelectItem>
                 <SelectItem value="NoAsistio">No Asistió</SelectItem>
@@ -722,7 +709,7 @@ function CitaCard({ cita, onCambiarEstado, isExpanded, onToggleExpand, compact =
             <div className="flex items-start gap-3">
               <Avatar className="h-11 w-11 flex-shrink-0">
                 <AvatarFallback className={`font-semibold ${
-                  cita.estado === 'EnAtencion' ? 'bg-emerald-100 text-emerald-700' :
+                  cita.estado === 'Atendiendo' ? 'bg-emerald-100 text-emerald-700' :
                   cita.estado === 'EnEspera' ? 'bg-amber-100 text-amber-700' :
                   'bg-blue-100 text-blue-700'
                 }`}>
@@ -785,12 +772,12 @@ function CitaCard({ cita, onCambiarEstado, isExpanded, onToggleExpand, compact =
                   </DropdownMenuItem>
                 )}
                 {cita.estado === 'EnEspera' && (
-                  <DropdownMenuItem onClick={() => onCambiarEstado(cita.id, 'EnAtencion')}>
+                  <DropdownMenuItem onClick={() => onCambiarEstado(cita.id, 'Atendiendo')}>
                     <PlayCircle className="h-4 w-4 mr-2 text-emerald-600" />
                     Iniciar Atención
                   </DropdownMenuItem>
                 )}
-                {cita.estado === 'EnAtencion' && (
+                {cita.estado === 'Atendiendo' && (
                   <DropdownMenuItem onClick={() => onCambiarEstado(cita.id, 'Completada')}>
                     <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
                     Completar Cita

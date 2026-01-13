@@ -38,7 +38,13 @@ export const COLORES_TIPO_BLOQUEO = {
   EMERGENCIA_SOLO: '#EF4444', // red
 };
 
-export default function useBloqueos() {
+/**
+ * Hook para gestionar bloqueos de agenda
+ *
+ * @param {Object} options - Opciones del hook
+ * @param {boolean} options.selfManaged - Si true, usa endpoints /mis-bloqueos para que doctores gestionen sus propios bloqueos sin necesitar permiso 'agenda'
+ */
+export default function useBloqueos({ selfManaged = false } = {}) {
   const [bloqueos, setBloqueos] = useState([]);
   const [resumenMes, setResumenMes] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -47,17 +53,18 @@ export default function useBloqueos() {
   /**
    * Obtener bloqueos de un doctor
    *
-   * @param {string} doctorId - ID del doctor (Usuario.id)
+   * @param {string} doctorId - ID del doctor (Usuario.id) - ignorado si selfManaged=true
    * @param {string} fechaInicio - Fecha inicio (YYYY-MM-DD) opcional
    * @param {string} fechaFin - Fecha fin (YYYY-MM-DD) opcional
    */
   const obtenerBloqueos = useCallback(async (doctorId, fechaInicio = null, fechaFin = null) => {
-    if (!doctorId) return;
+    if (!selfManaged && !doctorId) return;
 
     setLoading(true);
     setError(null);
     try {
-      let url = `/bloqueos/doctor/${doctorId}`;
+      // Si selfManaged, usar endpoint /mis-bloqueos (no requiere permiso 'agenda')
+      let url = selfManaged ? '/bloqueos/mis-bloqueos' : `/bloqueos/doctor/${doctorId}`;
       const params = new URLSearchParams();
       if (fechaInicio) params.append('fecha_inicio', fechaInicio);
       if (fechaFin) params.append('fecha_fin', fechaFin);
@@ -73,7 +80,7 @@ export default function useBloqueos() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selfManaged]);
 
   /**
    * Obtener resumen mensual de días bloqueados
@@ -125,7 +132,7 @@ export default function useBloqueos() {
    * Crear un nuevo bloqueo de agenda
    *
    * @param {Object} datos - Datos del bloqueo
-   * @param {string} datos.doctor_id - ID del doctor
+   * @param {string} datos.doctor_id - ID del doctor (ignorado si selfManaged=true, se usa el usuario autenticado)
    * @param {string} datos.fecha_inicio - Fecha inicio (YYYY-MM-DD)
    * @param {string} datos.fecha_fin - Fecha fin (YYYY-MM-DD)
    * @param {string} datos.motivo - Motivo del bloqueo
@@ -137,7 +144,9 @@ export default function useBloqueos() {
     setLoading(true);
     setError(null);
     try {
-      const response = await apiPost('/bloqueos', datos);
+      // Si selfManaged, usar endpoint /mis-bloqueos (no requiere permiso 'agenda')
+      const url = selfManaged ? '/bloqueos/mis-bloqueos' : '/bloqueos';
+      const response = await apiPost(url, datos);
       toast.success('Bloqueo creado exitosamente');
 
       // Actualizar lista local
@@ -150,7 +159,7 @@ export default function useBloqueos() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selfManaged]);
 
   /**
    * Actualizar un bloqueo existente
@@ -208,7 +217,9 @@ export default function useBloqueos() {
   const eliminarBloqueo = useCallback(async (bloqueoId) => {
     setLoading(true);
     try {
-      await apiDelete(`/bloqueos/${bloqueoId}`);
+      // Si selfManaged, usar endpoint /mis-bloqueos (no requiere permiso 'agenda')
+      const url = selfManaged ? `/bloqueos/mis-bloqueos/${bloqueoId}` : `/bloqueos/${bloqueoId}`;
+      await apiDelete(url);
       toast.success('Bloqueo eliminado');
 
       // Eliminar de lista local
@@ -219,7 +230,7 @@ export default function useBloqueos() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selfManaged]);
 
   /**
    * Obtener un bloqueo por ID

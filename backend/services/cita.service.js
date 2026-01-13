@@ -123,7 +123,21 @@ class CitaService {
         take: parseInt(limit),
         orderBy: [{ fecha: 'asc' }, { hora: 'asc' }],
         include: {
-          paciente: { select: { id: true, nombre: true, apellido: true, cedula: true, telefono: true, email: true } },
+          paciente: {
+            select: {
+              id: true,
+              nombre: true,
+              apellido: true,
+              cedula: true,
+              tipoDocumento: true,
+              telefono: true,
+              email: true,
+              fechaNacimiento: true,
+              genero: true,
+              grupoSanguineo: true,
+              alergias: true,
+            }
+          },
           doctor: { select: { id: true, nombre: true, apellido: true } },
           especialidad: { select: { id: true, titulo: true, costoCOP: true, duracionMinutos: true } },
           examenProcedimiento: { select: { id: true, nombre: true, tipo: true, costoBase: true, duracionMinutos: true } },
@@ -137,10 +151,17 @@ class CitaService {
       ...cita,
       doctor: cita.doctor ? {
         id: cita.doctor.id,
+        nombre: cita.doctor.nombre,
+        apellido: cita.doctor.apellido,
         usuario: {
           nombre: cita.doctor.nombre,
           apellido: cita.doctor.apellido,
         }
+      } : null,
+      // Mapear titulo a nombre para compatibilidad con frontend
+      especialidad: cita.especialidad ? {
+        ...cita.especialidad,
+        nombre: cita.especialidad.titulo || cita.especialidad.nombre,
       } : null,
     }));
 
