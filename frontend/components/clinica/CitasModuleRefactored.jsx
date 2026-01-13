@@ -95,8 +95,15 @@ export default function CitasModuleRefactored({ user }) {
         setMensajeDisponibilidad('⚠️ No hay horarios disponibles para esta fecha');
         setHorariosDisponibles([]);
       } else {
-        setHorariosDisponibles(data.slots_disponibles);
-        setMensajeDisponibilidad(`✅ ${data.slots_disponibles.length} horarios disponibles`);
+        // Filter only available slots (exclude blocked, occupied, reserved, past)
+        const slotsDisponibles = data.slots_disponibles.filter(s => s.disponible);
+        setHorariosDisponibles(slotsDisponibles);
+
+        if (slotsDisponibles.length === 0) {
+          setMensajeDisponibilidad('⚠️ No hay horarios disponibles (todos ocupados o bloqueados)');
+        } else {
+          setMensajeDisponibilidad(`✅ ${slotsDisponibles.length} horarios disponibles`);
+        }
       }
     } else {
       setMensajeDisponibilidad('❌ Error al cargar disponibilidad');
