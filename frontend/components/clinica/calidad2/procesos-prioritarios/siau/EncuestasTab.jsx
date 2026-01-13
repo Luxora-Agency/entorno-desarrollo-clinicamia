@@ -73,12 +73,30 @@ export default function EncuestasTab() {
   };
 
   const EncuestaCard = ({ encuesta }) => {
-    const promedio =
-      (encuesta.accesibilidad +
-        encuesta.oportunidad +
-        encuesta.seguridadPaciente +
-        encuesta.experienciaAtencion +
-        encuesta.satisfaccionGeneral) / 5;
+    // Determinar si es una encuesta de consulta (POST_CONSULTA) o de calidad general
+    const esEncuestaConsulta = encuesta.tipoEncuesta === 'POST_CONSULTA';
+
+    // Calcular promedio según el tipo de encuesta
+    let promedio;
+    if (esEncuestaConsulta) {
+      const campos = [
+        encuesta.atencionDoctor,
+        encuesta.claridadDoctor,
+        encuesta.tiempoConsulta,
+        encuesta.empatiaDoctor,
+        encuesta.satisfaccionGeneral
+      ].filter(v => v != null && v > 0);
+      promedio = campos.length > 0 ? campos.reduce((a, b) => a + b, 0) / campos.length : 0;
+    } else {
+      const campos = [
+        encuesta.accesibilidad,
+        encuesta.oportunidad,
+        encuesta.seguridadPaciente,
+        encuesta.experienciaAtencion,
+        encuesta.satisfaccionGeneral
+      ].filter(v => v != null && v > 0);
+      promedio = campos.length > 0 ? campos.reduce((a, b) => a + b, 0) / campos.length : 0;
+    }
 
     const getPromedioColor = (prom) => {
       if (prom >= 4.5) return 'text-green-600';
@@ -87,30 +105,57 @@ export default function EncuestasTab() {
       return 'text-red-600';
     };
 
+    const getTipoLabel = (tipo) => {
+      const labels = {
+        'POST_CONSULTA': 'Consulta Médica',
+        'SATISFACCION': 'Satisfacción General',
+        'SALIDA': 'Encuesta de Salida',
+        'AMBULATORIO': 'Atención Ambulatoria'
+      };
+      return labels[tipo] || tipo;
+    };
+
     return (
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="outline">{encuesta.servicioAtendido}</Badge>
-                <Badge variant="secondary">{encuesta.tipoEncuesta}</Badge>
+                {encuesta.servicioAtendido && (
+                  <Badge variant="outline">{encuesta.servicioAtendido}</Badge>
+                )}
+                <Badge variant={esEncuestaConsulta ? "default" : "secondary"} className={esEncuestaConsulta ? "bg-cyan-600" : ""}>
+                  {getTipoLabel(encuesta.tipoEncuesta)}
+                </Badge>
                 {encuesta.canal && (
                   <Badge variant="outline" className="text-xs">
                     {encuesta.canal}
                   </Badge>
                 )}
+                {encuesta.recomendaria === true && (
+                  <Badge variant="outline" className="text-xs text-green-600 border-green-600">
+                    Recomienda
+                  </Badge>
+                )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 {encuesta.nombrePaciente && (
                   <div className="flex items-center gap-2 text-sm">
                     <User className="h-4 w-4 text-muted-foreground" />
                     <span>{encuesta.nombrePaciente}</span>
                   </div>
                 )}
+                {esEncuestaConsulta && encuesta.nombreDoctor && (
+                  <div className="flex items-center gap-2 text-sm text-cyan-700">
+                    <span className="font-medium">Dr. {encuesta.nombreDoctor}</span>
+                    {encuesta.especialidad && (
+                      <span className="text-muted-foreground">({encuesta.especialidad})</span>
+                    )}
+                  </div>
+                )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <Calendar className="h-3 w-3" />
-                  <span>{format(new Date(encuesta.fechaEncuesta || encuesta.createdAt), 'dd/MM/yyyy', { locale: es })}</span>
+                  <span>{format(new Date(encuesta.fechaRespuesta || encuesta.fechaEncuesta || encuesta.createdAt), 'dd/MM/yyyy', { locale: es })}</span>
                 </div>
               </div>
             </div>
@@ -135,48 +180,96 @@ export default function EncuestasTab() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          {/* Dimensiones */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
-            <div className="space-y-1">
-              <p className="text-muted-foreground">Accesibilidad</p>
-              <div className="flex items-center gap-1">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{encuesta.accesibilidad || 0}</span>
+          {/* Dimensiones - diferentes según tipo de encuesta */}
+          {esEncuestaConsulta ? (
+            // Dimensiones para encuestas de consulta
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Atención Doctor</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.atencionDoctor || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Claridad</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.claridadDoctor || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Tiempo</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.tiempoConsulta || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Empatía</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.empatiaDoctor || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">General</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.satisfaccionGeneral || 0}</span>
+                </div>
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground">Oportunidad</p>
-              <div className="flex items-center gap-1">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{encuesta.oportunidad || 0}</span>
+          ) : (
+            // Dimensiones para encuestas de calidad general
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 text-xs">
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Accesibilidad</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.accesibilidad || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Oportunidad</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.oportunidad || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Seguridad</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.seguridadPaciente || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">Experiencia</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.experienciaAtencion || 0}</span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground">General</p>
+                <div className="flex items-center gap-1">
+                  <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
+                  <span className="font-medium">{encuesta.satisfaccionGeneral || 0}</span>
+                </div>
               </div>
             </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground">Seguridad</p>
-              <div className="flex items-center gap-1">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{encuesta.seguridadPaciente || 0}</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground">Experiencia</p>
-              <div className="flex items-center gap-1">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{encuesta.experienciaAtencion || 0}</span>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <p className="text-muted-foreground">General</p>
-              <div className="flex items-center gap-1">
-                <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
-                <span className="font-medium">{encuesta.satisfaccionGeneral || 0}</span>
-              </div>
-            </div>
-          </div>
+          )}
 
           {/* Comentarios */}
-          {(encuesta.aspectosPositivos || encuesta.aspectosMejorar || encuesta.sugerencias) && (
+          {(encuesta.comentarioDoctor || encuesta.aspectosPositivos || encuesta.aspectosMejorar || encuesta.sugerencias) && (
             <div className="border-t pt-3 space-y-2">
+              {encuesta.comentarioDoctor && (
+                <div className="text-sm">
+                  <p className="font-medium text-cyan-700">Comentario sobre el doctor:</p>
+                  <p className="text-muted-foreground line-clamp-2">{encuesta.comentarioDoctor}</p>
+                </div>
+              )}
               {encuesta.aspectosPositivos && (
                 <div className="text-sm">
                   <p className="font-medium text-green-700">Aspectos positivos:</p>

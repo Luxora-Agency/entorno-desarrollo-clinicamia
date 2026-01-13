@@ -135,20 +135,34 @@ class EncuestaService {
     }
     if (servicioAtendido) whereBase.servicioAtendido = servicioAtendido;
 
+    // Obtener inicio del mes actual
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+    inicioMes.setHours(0, 0, 0, 0);
+
     const [
       total,
+      totalMesActual,
       porServicio,
       porTipo,
       promedios,
+      promediosDoctor,
       porCategoria,
       bajaSatisfaccion,
+      porcentajeRecomendacion,
     ] = await Promise.all([
       prisma.encuestaSatisfaccion.count({ where: whereBase }),
+
+      // Encuestas del mes actual
+      prisma.encuestaSatisfaccion.count({
+        where: { ...whereBase, fechaEncuesta: { gte: inicioMes } },
+      }),
 
       prisma.encuestaSatisfaccion.groupBy({
         by: ['servicioAtendido'],
         where: whereBase,
         _count: true,
+        _avg: { satisfaccionGeneral: true },
       }),
 
       prisma.encuestaSatisfaccion.groupBy({
@@ -157,6 +171,7 @@ class EncuestaService {
         _count: true,
       }),
 
+      // Promedios para encuestas de calidad general
       prisma.encuestaSatisfaccion.aggregate({
         where: whereBase,
         _avg: {
@@ -164,6 +179,18 @@ class EncuestaService {
           oportunidad: true,
           seguridadPaciente: true,
           experienciaAtencion: true,
+          satisfaccionGeneral: true,
+        },
+      }),
+
+      // Promedios para encuestas de consulta (POST_CONSULTA)
+      prisma.encuestaSatisfaccion.aggregate({
+        where: { ...whereBase, tipoEncuesta: 'POST_CONSULTA' },
+        _avg: {
+          atencionDoctor: true,
+          claridadDoctor: true,
+          tiempoConsulta: true,
+          empatiaDoctor: true,
           satisfaccionGeneral: true,
         },
       }),
@@ -180,12 +207,56 @@ class EncuestaService {
           satisfaccionGeneral: { lt: 3 },
         },
       }),
+
+      // Porcentaje de recomendación
+      prisma.encuestaSatisfaccion.count({
+        where: { ...whereBase, recomendaria: true },
+      }),
     ]);
+
+    // Calcular promedio general combinando ambos tipos de encuestas
+    const promedioCalidad = [
+      promedios._avg.accesibilidad,
+      promedios._avg.oportunidad,
+      promedios._avg.seguridadPaciente,
+      promedios._avg.experienciaAtencion,
+      promedios._avg.satisfaccionGeneral,
+    ].filter(v => v != null);
+
+    const promedioConsulta = [
+      promediosDoctor._avg.atencionDoctor,
+      promediosDoctor._avg.claridadDoctor,
+      promediosDoctor._avg.tiempoConsulta,
+      promediosDoctor._avg.empatiaDoctor,
+      promediosDoctor._avg.satisfaccionGeneral,
+    ].filter(v => v != null);
+
+    const todosPromedios = [...promedioCalidad, ...promedioConsulta];
+    const promedioGeneral = todosPromedios.length > 0
+      ? todosPromedios.reduce((a, b) => a + b, 0) / todosPromedios.length
+      : 0;
+
+    // Encontrar mejor servicio
+    let mejorServicio = null;
+    if (porServicio.length > 0) {
+      const servicioOrdenado = porServicio
+        .filter(s => s._avg.satisfaccionGeneral != null)
+        .sort((a, b) => (b._avg.satisfaccionGeneral || 0) - (a._avg.satisfaccionGeneral || 0));
+      if (servicioOrdenado.length > 0) {
+        mejorServicio = {
+          servicio: servicioOrdenado[0].servicioAtendido || 'Consulta Médica',
+          promedio: servicioOrdenado[0]._avg.satisfaccionGeneral,
+        };
+      }
+    }
 
     return {
       total,
+      mesActual: totalMesActual,
+      promedioGeneral,
+      mejorServicio,
       porServicio: porServicio.reduce((acc, item) => {
-        acc[item.servicioAtendido] = item._count;
+        acc[item.servicioAtendido || 'Sin servicio'] = item._count;
         return acc;
       }, {}),
       porTipo: porTipo.reduce((acc, item) => {
@@ -193,17 +264,24 @@ class EncuestaService {
         return acc;
       }, {}),
       promedios: {
+        // Campos de calidad general
         accesibilidad: promedios._avg.accesibilidad || 0,
         oportunidad: promedios._avg.oportunidad || 0,
         seguridadPaciente: promedios._avg.seguridadPaciente || 0,
         experienciaAtencion: promedios._avg.experienciaAtencion || 0,
         satisfaccionGeneral: promedios._avg.satisfaccionGeneral || 0,
+        // Campos de encuestas de consulta
+        atencionDoctor: promediosDoctor._avg.atencionDoctor || 0,
+        claridadDoctor: promediosDoctor._avg.claridadDoctor || 0,
+        tiempoConsulta: promediosDoctor._avg.tiempoConsulta || 0,
+        empatiaDoctor: promediosDoctor._avg.empatiaDoctor || 0,
       },
       porCategoria: porCategoria.reduce((acc, item) => {
         acc[item.categoriaSugerencia] = item._count;
         return acc;
       }, {}),
       bajaSatisfaccion,
+      porcentajeRecomendacion: total > 0 ? ((porcentajeRecomendacion / total) * 100).toFixed(1) : 0,
     };
   }
 }

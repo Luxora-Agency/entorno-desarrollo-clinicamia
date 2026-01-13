@@ -99,15 +99,17 @@ class DisponibilidadService {
     }
 
     // Verificar bloqueos de agenda (vacaciones, permisos, etc.)
-    const bloqueo = await bloqueoService.verificarBloqueo(doctorId, fecha);
-    if (bloqueo && bloqueo.bloqueado && bloqueo.diaCompleto) {
+    const bloqueosDelDia = await bloqueoService.obtenerBloqueosParaFecha(doctorId, fecha);
+
+    // Si hay bloqueo de día completo, no hay disponibilidad
+    if (bloqueosDelDia.tieneBloqueoDiaCompleto) {
       return {
         fecha,
         horarios_configurados: true,
         bloques_del_dia: true,
         bloqueado: true,
-        bloqueo_tipo: bloqueo.tipo,
-        bloqueo_motivo: bloqueo.motivo,
+        bloqueo_tipo: bloqueosDelDia.bloqueoDiaCompleto.tipo,
+        bloqueo_motivo: bloqueosDelDia.bloqueoDiaCompleto.motivo,
         slots_disponibles: [],
       };
     }
@@ -154,7 +156,7 @@ class DisponibilidadService {
       fecha,
       duracionSlot,
       reservasActivas,
-      bloqueo // Puede ser parcial (con horaInicio/horaFin)
+      bloqueosDelDia.bloqueosParciales // Array de bloqueos parciales
     );
 
     return {
@@ -164,7 +166,7 @@ class DisponibilidadService {
       bloques: bloquesDelDia,
       citas_ocupadas: citasOcupadas.length,
       reservas_activas: reservasActivas.length,
-      bloqueo_parcial: bloqueo && !bloqueo.diaCompleto ? bloqueo : null,
+      bloqueos_parciales: bloqueosDelDia.bloqueosParciales,
       slots_disponibles: slotsDisponibles,
     };
   }
@@ -177,9 +179,9 @@ class DisponibilidadService {
    * @param {string} fecha - Fecha en formato YYYY-MM-DD
    * @param {number} duracionSlot - Duración de cada slot en minutos
    * @param {Array} reservasActivas - Reservas temporales activas
-   * @param {Object} bloqueoParcial - Bloqueo parcial si existe
+   * @param {Array} bloqueosParciales - Array de bloqueos parciales
    */
-  generarSlotsDisponibles(bloques, citasOcupadas, fecha, duracionSlot = 30, reservasActivas = [], bloqueoParcial = null) {
+  generarSlotsDisponibles(bloques, citasOcupadas, fecha, duracionSlot = 30, reservasActivas = [], bloqueosParciales = []) {
     const slots = [];
 
     // Detectar si la fecha es hoy para filtrar horas pasadas (usando hora de Colombia)
@@ -193,13 +195,15 @@ class DisponibilidadService {
       minutosActualesDelDia = ahoraColombia.getUTCHours() * 60 + ahoraColombia.getUTCMinutes();
     }
 
-    // Convertir bloqueo parcial a minutos si existe
-    let bloqueoInicioMinutos = null;
-    let bloqueoFinMinutos = null;
-    if (bloqueoParcial && !bloqueoParcial.diaCompleto && bloqueoParcial.horaInicio && bloqueoParcial.horaFin) {
-      bloqueoInicioMinutos = this.timeToMinutes(bloqueoParcial.horaInicio);
-      bloqueoFinMinutos = this.timeToMinutes(bloqueoParcial.horaFin);
-    }
+    // Convertir todos los bloqueos parciales a minutos
+    const bloqueosEnMinutos = (bloqueosParciales || [])
+      .filter(b => b && b.horaInicio && b.horaFin)
+      .map(b => ({
+        inicio: this.timeToMinutes(b.horaInicio),
+        fin: this.timeToMinutes(b.horaFin),
+        motivo: b.motivo || 'Bloqueado',
+        tipo: b.tipo,
+      }));
 
     bloques.forEach((bloque) => {
       const { inicio, fin } = bloque;
@@ -234,9 +238,17 @@ class DisponibilidadService {
           return minutos < reservaFin && slotFinMinutos > reservaInicio;
         });
 
-        // Verificar si está bloqueado parcialmente
-        const ocupadoPorBloqueo = bloqueoInicioMinutos !== null &&
-          minutos < bloqueoFinMinutos && slotFinMinutos > bloqueoInicioMinutos;
+        // Verificar si está bloqueado por ALGUNO de los bloqueos parciales
+        let ocupadoPorBloqueo = false;
+        let bloqueoMotivo = null;
+        for (const bloqueo of bloqueosEnMinutos) {
+          // El slot está bloqueado si hay overlap con el bloqueo
+          if (minutos < bloqueo.fin && slotFinMinutos > bloqueo.inicio) {
+            ocupadoPorBloqueo = true;
+            bloqueoMotivo = bloqueo.motivo;
+            break;
+          }
+        }
 
         // Verificar si el slot ya pasó (solo aplica si es hoy)
         const slotYaPaso = esHoy && minutos <= minutosActualesDelDia;
@@ -256,7 +268,7 @@ class DisponibilidadService {
           motivo = 'En proceso de reserva';
         } else if (ocupadoPorBloqueo) {
           estado = 'bloqueado';
-          motivo = bloqueoParcial?.motivo || 'Bloqueado';
+          motivo = bloqueoMotivo;
         }
 
         slots.push({

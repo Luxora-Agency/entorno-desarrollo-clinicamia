@@ -336,6 +336,58 @@ class BloqueoService {
   }
 
   /**
+   * Obtener todos los bloqueos para una fecha específica
+   * Retorna tanto bloqueos de día completo como parciales
+   *
+   * @param {string} doctorId - ID del doctor
+   * @param {string} fecha - Fecha (YYYY-MM-DD)
+   * @returns {Promise<Object>} Objeto con diaCompleto (bloqueo) y bloqueosParciales (array)
+   */
+  async obtenerBloqueosParaFecha(doctorId, fecha) {
+    const fechaDate = parseSimpleDate(fecha);
+
+    const bloqueos = await prisma.bloqueoAgenda.findMany({
+      where: {
+        doctorId,
+        activo: true,
+        fechaInicio: { lte: fechaDate },
+        fechaFin: { gte: fechaDate },
+      }
+    });
+
+    const resultado = {
+      tieneBloqueoDiaCompleto: false,
+      bloqueoDiaCompleto: null,
+      bloqueosParciales: [],
+    };
+
+    for (const bloqueo of bloqueos) {
+      // Si es bloqueo de día completo
+      if (!bloqueo.horaInicio || !bloqueo.horaFin) {
+        resultado.tieneBloqueoDiaCompleto = true;
+        resultado.bloqueoDiaCompleto = {
+          id: bloqueo.id,
+          tipo: bloqueo.tipo,
+          motivo: bloqueo.motivo,
+          diaCompleto: true,
+        };
+      } else {
+        // Es bloqueo parcial
+        resultado.bloqueosParciales.push({
+          id: bloqueo.id,
+          tipo: bloqueo.tipo,
+          motivo: bloqueo.motivo,
+          diaCompleto: false,
+          horaInicio: bloqueo.horaInicio,
+          horaFin: bloqueo.horaFin,
+        });
+      }
+    }
+
+    return resultado;
+  }
+
+  /**
    * Obtener resumen de bloqueos para un mes
    *
    * @param {string} doctorId - ID del doctor
