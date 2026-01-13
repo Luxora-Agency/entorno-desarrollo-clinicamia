@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import {
   Stethoscope, Activity, ClipboardList, Pill,
   CheckCircle, ChevronRight, ChevronLeft, Save,
@@ -17,6 +17,7 @@ import PatientContextBar from './PatientContextBar';
 import { useConsultationTimer } from './ConsultationTimer';
 import AnamnesisForm from './AnamnesisForm';
 import FormularioMotivoConsulta from '../consulta/FormularioMotivoConsulta';
+import FormularioSOAPConsulta from '../consulta/FormularioSOAPConsulta';
 import FormularioSignosVitalesConsulta from '../consulta/FormularioSignosVitalesConsulta';
 import FormularioDiagnosticoConsulta from '../consulta/FormularioDiagnosticoConsulta';
 import FormularioPrescripcionesConsulta from '../consulta/FormularioPrescripcionesConsulta';
@@ -34,7 +35,51 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { Building2 } from 'lucide-react';
+import { Building2, Shield, PenLine } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+
+// Wrapper memoizado para PatientContextBar que evita re-renders por el timer
+const MemoizedPatientContextBar = memo(function MemoizedPatientContextBar({
+  paciente,
+  vitalesActuales,
+  cita,
+  timerSeconds,
+  timerIsRunning,
+  timerIsWarning,
+  timerIsCritical,
+  timerOnToggle,
+  timerOnReset,
+  ...rest
+}) {
+  // Construir timerProps solo cuando los valores realmente cambian
+  const timerProps = useMemo(() => ({
+    seconds: timerSeconds,
+    isRunning: timerIsRunning,
+    isWarning: timerIsWarning,
+    isCritical: timerIsCritical,
+    onToggle: timerOnToggle,
+    onReset: timerOnReset,
+  }), [timerSeconds, timerIsRunning, timerIsWarning, timerIsCritical, timerOnToggle, timerOnReset]);
+
+  return (
+    <PatientContextBar
+      paciente={paciente}
+      vitalesActuales={vitalesActuales}
+      cita={cita}
+      timerProps={timerProps}
+      {...rest}
+    />
+  );
+});
 
 export default function ClinicalWorkspace({
   cita,
@@ -46,6 +91,7 @@ export default function ClinicalWorkspace({
   const [activeStep, setActiveStep] = useState('anamnesis');
   const [loading, setLoading] = useState(false);
   const [aiPanelOpen, setAIPanelOpen] = useState(false);
+  const [showConfirmFinish, setShowConfirmFinish] = useState(false);
 
   // Timer de consulta
   const consultationTimer = useConsultationTimer({
@@ -98,11 +144,13 @@ export default function ClinicalWorkspace({
     motivoConsulta: '',
     enfermedadActual: '',
     esPrimeraConsulta: false,
+    soap: null, // SOAP para consultas de control
   });
 
   // Validación de pasos
   const [stepsValid, setStepsValid] = useState({
     motivo: false,   // Obligatorio
+    soap: true,      // Obligatorio solo para controles (se valida dinámicamente)
     anamnesis: true, // Opcional
     revisionSistemas: true, // Opcional
     vitales: true,   // Opcional (pero recomendado)
@@ -126,6 +174,66 @@ export default function ClinicalWorkspace({
 
   // Clave única para el borrador en localStorage
   const draftKey = `consulta_draft_${cita?.id}`;
+
+  // ============ Callbacks memoizados para evitar re-renders ============
+  // Estos callbacks usan setState con función para no depender de consultaData/stepsValid
+  const handleDiagnosticoChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, diagnostico: data }));
+    setStepsValid(prev => ({ ...prev, diagnostico: isValid }));
+  }, []);
+
+  const handleMotivoChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({
+      ...prev,
+      motivoConsulta: data.motivoConsulta,
+      enfermedadActual: data.enfermedadActual
+    }));
+    setStepsValid(prev => ({ ...prev, motivo: isValid }));
+  }, []);
+
+  // Handler para SOAP (consultas de control)
+  const handleSoapChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, soap: data }));
+    setStepsValid(prev => ({ ...prev, soap: isValid }));
+  }, []);
+
+  const handleRevisionSistemasChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, revisionSistemas: data }));
+    setStepsValid(prev => ({ ...prev, revisionSistemas: isValid }));
+  }, []);
+
+  const handleVitalesChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, vitales: data }));
+    setStepsValid(prev => ({ ...prev, vitales: isValid }));
+  }, []);
+
+  const handlePrescripcionesChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, prescripciones: data }));
+    setStepsValid(prev => ({ ...prev, prescripciones: isValid }));
+  }, []);
+
+  const handleProcedimientosChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, procedimientos: data }));
+    setStepsValid(prev => ({ ...prev, procedimientos: isValid }));
+  }, []);
+
+  const handlePlanManejoChange = useCallback((data) => {
+    setConsultaData(prev => ({ ...prev, planManejo: data }));
+  }, []);
+
+  const handleRecomendacionesChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, recomendaciones: data }));
+    setStepsValid(prev => ({ ...prev, recomendaciones: isValid }));
+  }, []);
+
+  const handleAnamnesisChange = useCallback((data) => {
+    setConsultaData(prev => ({ ...prev, anamnesis: data }));
+  }, []);
+
+  const handleAnalisisChange = useCallback((e) => {
+    setConsultaData(prev => ({ ...prev, analisis: e.target.value }));
+  }, []);
+  // ============ Fin de callbacks memoizados ============
 
   // Recuperar borrador al cargar (solo una vez)
   useEffect(() => {
@@ -331,6 +439,8 @@ export default function ClinicalWorkspace({
           duration: 5000,
         });
       } else {
+        // Para consultas de control, SOAP es obligatorio - iniciar como inválido
+        setStepsValid(prev => ({ ...prev, soap: false }));
         toast({
           title: 'Consulta de control',
           description: data.mensaje,
@@ -509,19 +619,43 @@ export default function ClinicalWorkspace({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [steps, activeStep, aiPanelOpen, showHistorialCompleto]);
 
-  const handleFinish = async () => {
+  // Validar antes de mostrar confirmación
+  const handleFinish = () => {
     if (!stepsValid.motivo) {
       toast({ variant: 'destructive', title: 'Faltan datos', description: 'Debe completar el Motivo de Consulta antes de finalizar.' });
       return;
     }
 
-    if (!confirm('¿Está seguro de finalizar la consulta? Se generará la firma digital y no podrá editarse.')) return;
+    // Para consultas de control, validar SOAP
+    if (tipoConsulta === 'control' && !stepsValid.soap) {
+      toast({
+        variant: 'destructive',
+        title: 'SOAP incompleto',
+        description: 'Debe completar todos los campos de la nota SOAP para consultas de control.'
+      });
+      return;
+    }
 
+    // Mostrar diálogo de confirmación
+    setShowConfirmFinish(true);
+  };
+
+  // Procesar finalización de consulta (después de confirmar)
+  const processFinish = async () => {
+    setShowConfirmFinish(false);
     setLoading(true);
     try {
-      // Construir objeto SOAP estructurado
-      const soapData = {
-        subjetivo: `
+      // Para consultas de control, usar SOAP del formulario
+      // Para primera consulta, construir SOAP desde los datos recopilados
+      let soapData;
+
+      if (tipoConsulta === 'control' && consultaData.soap) {
+        // Usar SOAP del formulario directamente
+        soapData = consultaData.soap;
+      } else {
+        // Construir objeto SOAP estructurado desde los datos de la consulta
+        soapData = {
+          subjetivo: `
 MOTIVO DE CONSULTA:
 ${consultaData.motivoConsulta || 'No registrado'}
 
@@ -533,9 +667,9 @@ ${consultaData.anamnesis ? JSON.stringify(consultaData.anamnesis, null, 2) : 'Si
 
 REVISIÓN POR SISTEMAS:
 ${consultaData.revisionSistemas ? JSON.stringify(consultaData.revisionSistemas, null, 2) : 'Sin hallazgos'}
-        `.trim(),
-        
-        objetivo: `
+          `.trim(),
+
+          objetivo: `
 SIGNOS VITALES Y EXAMEN FÍSICO:
 Temperatura: ${consultaData.vitales?.temperatura || '--'} °C
 PA: ${consultaData.vitales?.presionSistolica || '--'}/${consultaData.vitales?.presionDiastolica || '--'} mmHg
@@ -548,11 +682,11 @@ IMC: ${consultaData.vitales?.imc?.value || '--'}
 
 HALLAZGOS ADICIONALES:
 ${consultaData.vitales?.hallazgos || 'Sin hallazgos adicionales'}
-        `.trim(),
-        
-        analisis: consultaData.analisis || 'Sin análisis registrado',
-        
-        plan: `
+          `.trim(),
+
+          analisis: consultaData.analisis || 'Sin análisis registrado',
+
+          plan: `
 PLAN DE MANEJO:
 ${consultaData.planManejo ? JSON.stringify(consultaData.planManejo, null, 2) : 'Ver prescripciones y órdenes'}
 
@@ -561,12 +695,13 @@ ${consultaData.prescripciones ? 'Se han generado recetas médicas.' : 'Ninguna'}
 
 PROCEDIMIENTOS/ÓRDENES:
 ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'}
-        `.trim()
-      };
+          `.trim()
+        };
+      }
 
       await onFinish({
         ...consultaData,
-        soap: soapData, // Agregamos el objeto SOAP requerido por el backend
+        soap: soapData, // SOAP del formulario (control) o construido (primera)
         citaId: cita.id,
         pacienteId: cita.pacienteId,
         doctorId: user.id,
@@ -700,18 +835,16 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                 </Button>
             </div>
         </div>
-        <PatientContextBar
+        <MemoizedPatientContextBar
           paciente={cita.paciente}
           vitalesActuales={consultaData.vitales}
           cita={cita}
-          timerProps={{
-            seconds: consultationTimer.seconds,
-            isRunning: consultationTimer.isRunning,
-            isWarning: consultationTimer.isWarning,
-            isCritical: consultationTimer.isCritical,
-            onToggle: consultationTimer.toggle,
-            onReset: consultationTimer.reset,
-          }}
+          timerSeconds={consultationTimer.seconds}
+          timerIsRunning={consultationTimer.isRunning}
+          timerIsWarning={consultationTimer.isWarning}
+          timerIsCritical={consultationTimer.isCritical}
+          timerOnToggle={consultationTimer.toggle}
+          timerOnReset={consultationTimer.reset}
         />
 
         {/* Banner de Motivo de Consulta */}
@@ -1020,21 +1153,22 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
         <div className="flex-1 overflow-y-auto bg-gray-50 p-6 md:p-8">
             <div className="max-w-5xl mx-auto min-h-[500px]">
                 {activeStep === 'motivo' && (
-                    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-300 space-y-6">
                         <FormularioMotivoConsulta
                             data={{
                                 motivoConsulta: consultaData.motivoConsulta,
                                 enfermedadActual: consultaData.enfermedadActual
                             }}
-                            onChange={(data, isValid) => {
-                                setConsultaData(prev => ({
-                                    ...prev,
-                                    motivoConsulta: data.motivoConsulta,
-                                    enfermedadActual: data.enfermedadActual
-                                }));
-                                setStepsValid(prev => ({ ...prev, motivo: isValid }));
-                            }}
+                            onChange={handleMotivoChange}
                         />
+
+                        {/* SOAP para consultas de control */}
+                        {tipoConsulta === 'control' && (
+                            <FormularioSOAPConsulta
+                                data={consultaData.soap}
+                                onChange={handleSoapChange}
+                            />
+                        )}
                     </div>
                 )}
 
@@ -1043,7 +1177,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                         <AnamnesisForm
                             pacienteId={cita.pacienteId}
                             initialData={consultaData.anamnesis}
-                            onSave={(data) => setConsultaData(prev => ({ ...prev, anamnesis: data }))}
+                            onSave={handleAnamnesisChange}
                         />
                         <AntecedentesEstructurados
                             pacienteId={cita.pacienteId}
@@ -1056,10 +1190,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                         <FormularioRevisionSistemas
                             data={consultaData.revisionSistemas}
-                            onChange={(data, isValid) => {
-                                setConsultaData(prev => ({ ...prev, revisionSistemas: data }));
-                                setStepsValid(prev => ({ ...prev, revisionSistemas: isValid }));
-                            }}
+                            onChange={handleRevisionSistemasChange}
                         />
                     </div>
                 )}
@@ -1069,10 +1200,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                         <FormularioSignosVitalesConsulta
                             data={consultaData.vitales}
                             pacienteId={cita.pacienteId}
-                            onChange={(data, isValid) => {
-                                setConsultaData(prev => ({ ...prev, vitales: data }));
-                                setStepsValid(prev => ({ ...prev, vitales: isValid }));
-                            }}
+                            onChange={handleVitalesChange}
                         />
                     </div>
                 )}
@@ -1090,11 +1218,11 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                                 <p className="text-sm text-gray-500 mb-2">
                                     Describa el análisis clínico integral, correlacionando hallazgos del examen físico con antecedentes y paraclínicos.
                                 </p>
-                                <Textarea 
+                                <Textarea
                                     placeholder="Escriba su análisis clínico aquí..."
                                     className="min-h-[200px] text-base"
                                     value={consultaData.analisis || ''}
-                                    onChange={(e) => setConsultaData(prev => ({ ...prev, analisis: e.target.value }))}
+                                    onChange={handleAnalisisChange}
                                 />
                             </CardContent>
                         </Card>
@@ -1106,10 +1234,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                         <FormularioDiagnosticoConsulta
                             data={consultaData.diagnostico}
                             pacienteId={cita.pacienteId}
-                            onChange={(data, isValid) => {
-                                setConsultaData(prev => ({ ...prev, diagnostico: data }));
-                                setStepsValid(prev => ({ ...prev, diagnostico: isValid }));
-                            }}
+                            onChange={handleDiagnosticoChange}
                         />
                     </div>
                 )}
@@ -1122,10 +1247,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                                 data={consultaData.prescripciones}
                                 diagnosticoConsulta={consultaData.diagnostico}
                                 pacienteId={cita.pacienteId}
-                                onChange={(data, isValid) => {
-                                    setConsultaData(prev => ({ ...prev, prescripciones: data }));
-                                    setStepsValid(prev => ({ ...prev, prescripciones: isValid }));
-                                }}
+                                onChange={handlePrescripcionesChange}
                             />
                         </div>
 
@@ -1133,10 +1255,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                              <h3 className="text-lg font-bold mb-4">Órdenes y Procedimientos</h3>
                              <FormularioProcedimientosExamenesConsulta
                                 data={consultaData.procedimientos}
-                                onChange={(data, isValid) => {
-                                    setConsultaData(prev => ({ ...prev, procedimientos: data }));
-                                    setStepsValid(prev => ({ ...prev, procedimientos: isValid }));
-                                }}
+                                onChange={handleProcedimientosChange}
                              />
                         </div>
 
@@ -1146,19 +1265,15 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                                 doctorId={user.id}
                                 citaId={cita.id}
                                 diagnostico={consultaData.diagnostico}
-                                onChange={(data) => {
-                                    setConsultaData(prev => ({ ...prev, planManejo: data }));
-                                }}
+                                data={consultaData.planManejo}
+                                onChange={handlePlanManejoChange}
                              />
                         </div>
 
                         <div className="border-t pt-8">
                              <FormularioRecomendaciones
                                 data={consultaData.recomendaciones}
-                                onChange={(data, isValid) => {
-                                    setConsultaData(prev => ({ ...prev, recomendaciones: data }));
-                                    setStepsValid(prev => ({ ...prev, recomendaciones: isValid }));
-                                }}
+                                onChange={handleRecomendacionesChange}
                              />
                         </div>
 
@@ -1279,6 +1394,46 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
           onClose={() => setShowHistorialCompleto(false)}
         />
       )}
+
+      {/* 8. Diálogo de Confirmación para Finalizar Consulta */}
+      <AlertDialog open={showConfirmFinish} onOpenChange={setShowConfirmFinish}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-green-100 to-emerald-100">
+              <Shield className="h-8 w-8 text-green-600" />
+            </div>
+            <AlertDialogTitle className="text-center text-xl">
+              Finalizar y Firmar Consulta
+            </AlertDialogTitle>
+            <AlertDialogDescription className="text-center space-y-3">
+              <p>
+                Está a punto de finalizar la consulta médica de <span className="font-semibold text-gray-900">{cita?.paciente?.nombre} {cita?.paciente?.apellido}</span>
+              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
+                <div className="flex items-center gap-2 mb-1">
+                  <PenLine className="h-4 w-4" />
+                  <span className="font-medium">Firma Digital</span>
+                </div>
+                <p className="text-xs">
+                  Se generará una firma digital y la consulta quedará registrada permanentemente. Esta acción no se puede deshacer.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="sm:justify-center gap-3 mt-4">
+            <AlertDialogCancel className="sm:w-32">
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={processFinish}
+              className="bg-green-600 hover:bg-green-700 sm:w-32"
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirmar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

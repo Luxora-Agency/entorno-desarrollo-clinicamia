@@ -33,19 +33,30 @@ export default function FormularioPlanManejo({
   doctorId,
   citaId,
   diagnostico,
+  data, // Datos iniciales para persistencia
   onChange
 }) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('aplicacion'); // Default to new tab
-  const [contadores, setContadores] = useState({
-    incapacidades: 0,
-    certificados: 0,
-    seguimientos: 0,
-    aplicaciones: 0,
+
+  // Estado para almacenar los items creados (para persistencia entre tabs)
+  const [itemsCreados, setItemsCreados] = useState({
+    incapacidades: data?.incapacidadesItems || [],
+    certificados: data?.certificadosItems || [],
+    seguimientos: data?.seguimientosItems || [],
+    aplicaciones: data?.aplicacionesItems || [],
   });
 
-  // Estado para kits seleccionados
-  const [kitsSeleccionados, setKitsSeleccionados] = useState([]);
+  // Contadores derivados de los items
+  const contadores = {
+    incapacidades: itemsCreados.incapacidades.length,
+    certificados: itemsCreados.certificados.length,
+    seguimientos: itemsCreados.seguimientos.length,
+    aplicaciones: itemsCreados.aplicaciones.length,
+  };
+
+  // Estado para kits seleccionados - restaurar desde data si existe
+  const [kitsSeleccionados, setKitsSeleccionados] = useState(data?.kitsAplicados || []);
   // Estado para preview y confirmación
   const [showPreview, setShowPreview] = useState(false);
   const [creandoOrden, setCreandoOrden] = useState(false);
@@ -142,16 +153,17 @@ export default function FormularioPlanManejo({
         description: `Se ha generado orden para ${kitsSeleccionados.length} kits (${medicamentosOrden.length} medicamentos).`,
       });
 
-      const newAplicaciones = contadores.aplicaciones + kitsSeleccionados.length;
-      setContadores(prev => ({ ...prev, aplicaciones: newAplicaciones }));
+      // Agregar los kits aplicados al estado
+      const nuevasAplicaciones = [...itemsCreados.aplicaciones, ...kitsSeleccionados];
+      setItemsCreados(prev => ({ ...prev, aplicaciones: nuevasAplicaciones }));
 
       if (onChange) {
         onChange({
-          incapacidades: contadores.incapacidades,
-          certificados: contadores.certificados,
-          seguimientos: contadores.seguimientos,
-          aplicaciones: newAplicaciones,
-          kitsAplicados: kitsSeleccionados // Guardamos los kits para persistencia
+          incapacidadesItems: itemsCreados.incapacidades,
+          certificadosItems: itemsCreados.certificados,
+          seguimientosItems: itemsCreados.seguimientos,
+          aplicacionesItems: nuevasAplicaciones,
+          kitsAplicados: [] // Limpiar selección actual
         });
       }
 
@@ -169,46 +181,45 @@ export default function FormularioPlanManejo({
     }
   };
 
-  // ... (existing handlers: handleIncapacidadSuccess, handleCertificadoSuccess, handleSeguimientoSuccess)
-  
-  const handleIncapacidadSuccess = (data) => {
-    setContadores(prev => ({
-      ...prev,
-      incapacidades: prev.incapacidades + 1
-    }));
+  // Handlers para guardar items y notificar al padre
+  const handleIncapacidadSuccess = (incapacidadData) => {
+    const nuevasIncapacidades = [...itemsCreados.incapacidades, incapacidadData];
+    setItemsCreados(prev => ({ ...prev, incapacidades: nuevasIncapacidades }));
+
     if (onChange) {
       onChange({
-        incapacidades: contadores.incapacidades + 1,
-        certificados: contadores.certificados,
-        seguimientos: contadores.seguimientos,
+        incapacidadesItems: nuevasIncapacidades,
+        certificadosItems: itemsCreados.certificados,
+        seguimientosItems: itemsCreados.seguimientos,
+        aplicacionesItems: itemsCreados.aplicaciones,
       });
     }
   };
 
-  const handleCertificadoSuccess = (data) => {
-    setContadores(prev => ({
-      ...prev,
-      certificados: prev.certificados + 1
-    }));
+  const handleCertificadoSuccess = (certificadoData) => {
+    const nuevosCertificados = [...itemsCreados.certificados, certificadoData];
+    setItemsCreados(prev => ({ ...prev, certificados: nuevosCertificados }));
+
     if (onChange) {
       onChange({
-        incapacidades: contadores.incapacidades,
-        certificados: contadores.certificados + 1,
-        seguimientos: contadores.seguimientos,
+        incapacidadesItems: itemsCreados.incapacidades,
+        certificadosItems: nuevosCertificados,
+        seguimientosItems: itemsCreados.seguimientos,
+        aplicacionesItems: itemsCreados.aplicaciones,
       });
     }
   };
 
-  const handleSeguimientoSuccess = (data) => {
-    setContadores(prev => ({
-      ...prev,
-      seguimientos: prev.seguimientos + 1
-    }));
+  const handleSeguimientoSuccess = (seguimientoData) => {
+    const nuevosSeguimientos = [...itemsCreados.seguimientos, seguimientoData];
+    setItemsCreados(prev => ({ ...prev, seguimientos: nuevosSeguimientos }));
+
     if (onChange) {
       onChange({
-        incapacidades: contadores.incapacidades,
-        certificados: contadores.certificados,
-        seguimientos: contadores.seguimientos + 1,
+        incapacidadesItems: itemsCreados.incapacidades,
+        certificadosItems: itemsCreados.certificados,
+        seguimientosItems: nuevosSeguimientos,
+        aplicacionesItems: itemsCreados.aplicaciones,
       });
     }
   };
@@ -451,6 +462,7 @@ export default function FormularioPlanManejo({
               doctorId={doctorId}
               citaId={citaId}
               diagnostico={diagnostico}
+              initialItems={itemsCreados.incapacidades}
               onSuccess={handleIncapacidadSuccess}
             />
           </TabsContent>
@@ -467,6 +479,7 @@ export default function FormularioPlanManejo({
               doctorId={doctorId}
               citaId={citaId}
               diagnostico={diagnostico}
+              initialItems={itemsCreados.certificados}
               onSuccess={handleCertificadoSuccess}
             />
           </TabsContent>
@@ -483,6 +496,7 @@ export default function FormularioPlanManejo({
               doctorId={doctorId}
               citaId={citaId}
               diagnostico={diagnostico}
+              initialItems={itemsCreados.seguimientos}
               onSuccess={handleSeguimientoSuccess}
             />
           </TabsContent>

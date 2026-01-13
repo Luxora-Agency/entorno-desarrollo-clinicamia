@@ -297,24 +297,16 @@ export default function PatientContextBar({
               <>
                 <div className="w-px h-6 bg-slate-600 mx-2" />
 
-                {/* Teléfono de contacto */}
+                {/* Teléfono de contacto - Tooltip temporalmente removido para debug */}
                 {phoneNumber && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <a
-                          href={`tel:${phoneNumber}`}
-                          className="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-700 hover:bg-slate-600 transition-colors text-xs"
-                        >
-                          <Phone className="h-3 w-3 text-green-400" />
-                          <span className="text-slate-300">Llamar</span>
-                        </a>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Llamar a: {paciente.telefono || paciente.celular}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
+                  <a
+                    href={`tel:${phoneNumber}`}
+                    className="flex items-center gap-1 px-2 py-1 rounded-md bg-slate-700 hover:bg-slate-600 transition-colors text-xs"
+                    title={`Llamar a: ${paciente.telefono || paciente.celular}`}
+                  >
+                    <Phone className="h-3 w-3 text-green-400" />
+                    <span className="text-slate-300">Llamar</span>
+                  </a>
                 )}
 
                 {/* Ver historial clínico */}

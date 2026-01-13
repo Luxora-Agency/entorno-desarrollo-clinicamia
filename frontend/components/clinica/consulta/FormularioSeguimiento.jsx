@@ -40,11 +40,12 @@ export default function FormularioSeguimiento({
   doctorId,
   citaId,
   diagnostico,
+  initialItems = [], // Items persistidos desde el padre
   onSuccess
 }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [seguimientos, setSeguimientos] = useState([]);
+  const [seguimientos, setSeguimientos] = useState(initialItems);
   const [showForm, setShowForm] = useState(false);
   const [crearCitaDirecta, setCrearCitaDirecta] = useState(false);
 

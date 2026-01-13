@@ -51,13 +51,17 @@ incapacidades.get('/doctor/:doctorId', async (c) => {
 });
 
 /**
- * GET /incapacidades/:id - Obtener incapacidad por ID
+ * GET /incapacidades/:id/pdf - Generar y descargar PDF de la incapacidad
+ * IMPORTANTE: Esta ruta debe estar ANTES de /:id para evitar conflictos
  */
-incapacidades.get('/:id', async (c) => {
+incapacidades.get('/:id/pdf', async (c) => {
   try {
     const { id } = c.req.param();
-    const data = await incapacidadService.getById(id);
-    return c.json(success(data));
+    const pdfBuffer = await incapacidadService.generatePdf(id);
+
+    c.header('Content-Type', 'application/pdf');
+    c.header('Content-Disposition', `attachment; filename="incapacidad-${id}.pdf"`);
+    return c.body(pdfBuffer);
   } catch (err) {
     return c.json(error(err.message), err.status || 500);
   }
@@ -72,6 +76,19 @@ incapacidades.put('/:id/pdf', async (c) => {
     const { pdfUrl } = await c.req.json();
     const data = await incapacidadService.updatePdfUrl(id, pdfUrl);
     return c.json(success(data, 'PDF actualizado'));
+  } catch (err) {
+    return c.json(error(err.message), err.status || 500);
+  }
+});
+
+/**
+ * GET /incapacidades/:id - Obtener incapacidad por ID
+ */
+incapacidades.get('/:id', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const data = await incapacidadService.getById(id);
+    return c.json(success(data));
   } catch (err) {
     return c.json(error(err.message), err.status || 500);
   }

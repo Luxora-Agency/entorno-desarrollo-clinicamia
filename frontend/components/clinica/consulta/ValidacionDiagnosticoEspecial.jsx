@@ -30,16 +30,19 @@ import { toast } from 'sonner';
 export default function ValidacionDiagnosticoEspecial({
   codigoCIE10,
   onDataChange,
-  initialData = {}
+  initialData
 }) {
+  // Manejar null y undefined
+  const data = initialData || {};
+
   const [validacion, setValidacion] = useState(null);
   const [datosValidacion, setDatosValidacion] = useState({
-    fechaDiagnosticoExacta: initialData.fechaDiagnosticoExacta || '',
-    estadoConfirmacion: initialData.estadoConfirmacion || '',
-    metodoConfirmacion: initialData.metodoConfirmacion || '',
-    metodoConfirmacionDetalle: initialData.metodoConfirmacionDetalle || '',
-    documentoRespaldo: initialData.documentoRespaldo || null,
-    documentoRespaldoNombre: initialData.documentoRespaldoNombre || '',
+    fechaDiagnosticoExacta: data.fechaDiagnosticoExacta || '',
+    estadoConfirmacion: data.estadoConfirmacion || '',
+    metodoConfirmacion: data.metodoConfirmacion || '',
+    metodoConfirmacionDetalle: data.metodoConfirmacionDetalle || '',
+    documentoRespaldo: data.documentoRespaldo || null,
+    documentoRespaldoNombre: data.documentoRespaldoNombre || '',
   });
 
   // Estados para OCR

@@ -15,7 +15,7 @@ import {
   Download, Clock, Building2, CheckCircle, XCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { apiPost } from '@/services/api';
+import { apiPost, getAuthToken } from '@/services/api';
 
 // Tipos de incapacidad según normatividad colombiana
 const TIPOS_INCAPACIDAD = [
@@ -45,11 +45,12 @@ export default function FormularioIncapacidad({
   doctorId,
   citaId,
   diagnostico, // Diagnóstico de la consulta
+  initialItems = [], // Items persistidos desde el padre
   onSuccess
 }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [incapacidades, setIncapacidades] = useState([]);
+  const [incapacidades, setIncapacidades] = useState(initialItems);
   const [showForm, setShowForm] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -187,7 +188,31 @@ export default function FormularioIncapacidad({
                   </p>
                 </div>
               </div>
-              <Button variant="outline" size="sm">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+                    const token = getAuthToken();
+                    const response = await fetch(`${apiUrl}/incapacidades/${inc.id}/pdf`, {
+                      headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (!response.ok) throw new Error('Error al descargar PDF');
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `incapacidad-${inc.codigo || inc.id}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                  } catch (error) {
+                    toast({ variant: 'destructive', title: 'Error', description: 'No se pudo descargar el PDF' });
+                  }
+                }}
+              >
                 <Download className="h-4 w-4 mr-1" />
                 PDF
               </Button>

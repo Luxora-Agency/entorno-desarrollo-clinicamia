@@ -123,101 +123,96 @@ class CertificadoService {
       doc.on('error', reject);
 
       // Header
-      doc.fontSize(18).font('Helvetica-Bold').text('CLÍNICA MÍA', { align: 'center' });
-      doc.fontSize(10).font('Helvetica').text('NIT: 901.XXX.XXX-X', { align: 'center' });
-      doc.text('Cra. 5 #28-85, Ibagué, Tolima', { align: 'center' });
-      doc.text('Tel: 324 333 8555', { align: 'center' });
-      doc.moveDown(2);
+      doc.fontSize(16).font('Helvetica-Bold').fillColor('#1a365d').text('CLÍNICA MÍA S.A.S.', { align: 'center' });
+      doc.fontSize(9).font('Helvetica').fillColor('#333').text('NIT: 901.654.789-1 | Cra. 5 #28-85, Ibagué, Tolima', { align: 'center' });
+      doc.text('Tel: (608) 324 333 8555 | contacto@clinicamia.com', { align: 'center' });
+      doc.moveDown(0.3);
+
+      // Línea separadora
+      doc.strokeColor('#2b6cb0').lineWidth(1.5)
+        .moveTo(50, doc.y).lineTo(562, doc.y).stroke();
+      doc.moveDown(0.8);
 
       // Título del certificado
-      doc.fontSize(14).font('Helvetica-Bold').text(certificado.titulo || 'CERTIFICADO MÉDICO', { align: 'center' });
-      doc.moveDown(1);
+      doc.fontSize(13).font('Helvetica-Bold').text(certificado.titulo || 'CERTIFICADO MÉDICO', { align: 'center' });
+      doc.moveDown(0.5);
 
-      // Código y fecha
-      doc.fontSize(10).font('Helvetica')
-        .text(`Código: ${certificado.codigo}`, { align: 'right' })
-        .text(`Fecha: ${new Date(certificado.fechaEmision || certificado.createdAt).toLocaleDateString('es-CO', {
+      // Código y fecha en una línea
+      doc.fontSize(9).font('Helvetica')
+        .text(`Código: ${certificado.codigo} | Fecha: ${new Date(certificado.fechaEmision || certificado.createdAt).toLocaleDateString('es-CO', {
           day: 'numeric',
           month: 'long',
           year: 'numeric',
         })}`, { align: 'right' });
-      doc.moveDown(2);
+      doc.moveDown(1);
 
       // Destinatario
       if (certificado.destinatario) {
         doc.font('Helvetica-Bold').text('A QUIEN CORRESPONDA:');
         doc.font('Helvetica').text(certificado.destinatario);
-        doc.moveDown(1);
+        doc.moveDown(0.5);
       }
 
       // Datos del paciente
       doc.font('Helvetica-Bold').text('DATOS DEL PACIENTE:', { underline: true });
-      doc.moveDown(0.5);
+      doc.moveDown(0.3);
       doc.font('Helvetica');
       if (certificado.paciente) {
+        const edad = certificado.paciente.fechaNacimiento
+          ? Math.floor((new Date() - new Date(certificado.paciente.fechaNacimiento)) / (365.25 * 24 * 60 * 60 * 1000))
+          : null;
         doc.text(`Nombre: ${certificado.paciente.nombre} ${certificado.paciente.apellido}`);
-        doc.text(`Documento: ${certificado.paciente.tipoDocumento || 'CC'} ${certificado.paciente.cedula || certificado.paciente.documento}`);
-        if (certificado.paciente.fechaNacimiento) {
-          const edad = Math.floor((new Date() - new Date(certificado.paciente.fechaNacimiento)) / (365.25 * 24 * 60 * 60 * 1000));
-          doc.text(`Edad: ${edad} años`);
-        }
+        doc.text(`Documento: ${certificado.paciente.tipoDocumento || 'CC'} ${certificado.paciente.cedula || certificado.paciente.documento}${edad ? ` | Edad: ${edad} años` : ''}`);
       }
-      doc.moveDown(2);
+      doc.moveDown(1);
 
       // Contenido del certificado
       doc.font('Helvetica-Bold').text('CONTENIDO:', { underline: true });
-      doc.moveDown(0.5);
+      doc.moveDown(0.3);
       doc.font('Helvetica').text(certificado.contenido || '', {
         align: 'justify',
-        lineGap: 3,
+        lineGap: 2,
       });
-      doc.moveDown(2);
+      doc.moveDown(1);
 
-      // Diagnóstico (si aplica)
+      // Diagnóstico (si aplica) - compacto
       if (certificado.diagnostico || certificado.codigoCIE10) {
         doc.font('Helvetica-Bold').text('DIAGNÓSTICO:', { underline: true });
-        doc.moveDown(0.5);
+        doc.moveDown(0.3);
         doc.font('Helvetica');
-        if (certificado.codigoCIE10) {
-          doc.text(`Código CIE-10: ${certificado.codigoCIE10}`);
-        }
-        if (certificado.diagnostico) {
-          doc.text(`${certificado.diagnostico}`);
-        }
-        doc.moveDown(2);
+        const dxText = [
+          certificado.codigoCIE10 ? `CIE-10: ${certificado.codigoCIE10}` : '',
+          certificado.diagnostico || ''
+        ].filter(Boolean).join(' - ');
+        doc.text(dxText);
+        doc.moveDown(0.8);
       }
 
-      // Vigencia
+      // Vigencia (si aplica) - compacto
       if (certificado.vigenciaDesde || certificado.vigenciaHasta) {
-        doc.font('Helvetica-Bold').text('VIGENCIA:', { underline: true });
-        doc.moveDown(0.5);
-        doc.font('Helvetica');
-        if (certificado.vigenciaDesde) {
-          doc.text(`Desde: ${new Date(certificado.vigenciaDesde).toLocaleDateString('es-CO')}`);
-        }
-        if (certificado.vigenciaHasta) {
-          doc.text(`Hasta: ${new Date(certificado.vigenciaHasta).toLocaleDateString('es-CO')}`);
-        }
-        doc.moveDown(2);
+        const vigenciaText = [
+          certificado.vigenciaDesde ? `Desde: ${new Date(certificado.vigenciaDesde).toLocaleDateString('es-CO')}` : '',
+          certificado.vigenciaHasta ? `Hasta: ${new Date(certificado.vigenciaHasta).toLocaleDateString('es-CO')}` : ''
+        ].filter(Boolean).join(' | ');
+        doc.font('Helvetica-Bold').text('VIGENCIA: ', { continued: true });
+        doc.font('Helvetica').text(vigenciaText);
       }
 
-      // Firma del médico
-      doc.moveDown(3);
-      doc.text('_______________________________', { align: 'center' });
+      // Firma del médico - espacio antes de firma
+      doc.moveDown(2);
+      doc.font('Helvetica').fontSize(10).text('_______________________________', { align: 'center' });
       if (certificado.doctor) {
         doc.font('Helvetica-Bold').text(`Dr(a). ${certificado.doctor.nombre} ${certificado.doctor.apellido}`, { align: 'center' });
-        doc.font('Helvetica').text(`Registro Médico: ${certificado.doctor.registroMedico || 'N/A'}`, { align: 'center' });
-        doc.text(`Especialidad: ${certificado.doctor.especialidad || 'Medicina General'}`, { align: 'center' });
+        doc.font('Helvetica').fontSize(9)
+          .text(`Reg. Médico: ${certificado.doctor.registroMedico || 'N/A'} | ${certificado.doctor.especialidad || 'Medicina General'}`, { align: 'center' });
       }
-      doc.moveDown(1);
-      doc.fontSize(8).text(`Fecha de firma: ${new Date(certificado.fechaFirma || certificado.createdAt).toLocaleDateString('es-CO')}`, { align: 'center' });
+      doc.fontSize(8).text(`Firmado: ${new Date(certificado.fechaFirma || certificado.createdAt).toLocaleDateString('es-CO')}`, { align: 'center' });
 
-      // Footer
-      doc.fontSize(7).text(
-        'Este documento ha sido generado electrónicamente y cuenta con validez legal según la normativa colombiana.',
-        50,
-        doc.page.height - 50,
-        { align: 'center', width: doc.page.width - 100 }
+      // Footer - espacio y texto compacto
+      doc.moveDown(1.5);
+      doc.fontSize(7).fillColor('#666').text(
+        'Documento generado electrónicamente con validez legal según normativa colombiana.',
+        { align: 'center' }
       );
 
       doc.end();

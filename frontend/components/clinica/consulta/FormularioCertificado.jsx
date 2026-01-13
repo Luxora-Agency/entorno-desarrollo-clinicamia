@@ -22,11 +22,12 @@ export default function FormularioCertificado({
   doctorId,
   citaId,
   diagnostico,
+  initialItems = [], // Items persistidos desde el padre
   onSuccess
 }) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
-  const [certificados, setCertificados] = useState([]);
+  const [certificados, setCertificados] = useState(initialItems);
   const [showForm, setShowForm] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
 

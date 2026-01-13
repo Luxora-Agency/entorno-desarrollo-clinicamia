@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -60,12 +60,23 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
   const [validacionEspecial, setValidacionEspecial] = useState(data?.validacionEspecial || null);
   const [validacionEspecialValida, setValidacionEspecialValida] = useState(true);
 
+  // Ref para prevenir actualizaciones innecesarias desde el padre
+  const lastDataRef = useRef(null);
+
   useEffect(() => {
     if (data) {
-      setFormData(data);
-      // Show secondary section if any secondary has data
-      if (data.secundarios?.some(s => s.codigoCIE10)) {
-        setShowSecundarios(true);
+      // Solo actualizar si el contenido realmente cambió (no solo la referencia)
+      const dataStr = JSON.stringify({
+        principal: data.principal,
+        secundarios: data.secundarios
+      });
+      if (lastDataRef.current !== dataStr) {
+        lastDataRef.current = dataStr;
+        setFormData(data);
+        // Show secondary section if any secondary has data
+        if (data.secundarios?.some(s => s.codigoCIE10)) {
+          setShowSecundarios(true);
+        }
       }
     }
   }, [data]);
@@ -76,6 +87,10 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
       cargarDiagnosticosFrecuentes();
     }
   }, [pacienteId]);
+
+  // NOTA: La validación especial se notifica directamente desde el callback onDataChange
+  // sin causar loops porque ValidacionDiagnosticoEspecial usa prevDataRef para evitar
+  // llamadas duplicadas
 
   const cargarDiagnosticosFrecuentes = async () => {
     if (!pacienteId) return;
@@ -156,6 +171,15 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
     notifyChange(newData);
   };
 
+  // Ref para prevenir notificaciones duplicadas
+  const lastNotifiedRef = useRef(null);
+
+  // Callback memoizado para ValidacionDiagnosticoEspecial
+  const handleValidacionEspecialChange = useCallback((data, isValid) => {
+    setValidacionEspecial(data);
+    setValidacionEspecialValida(isValid);
+  }, []);
+
   const notifyChange = (data) => {
     // Incluir validación especial en los datos
     const dataCompleta = {
@@ -166,6 +190,11 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
     // Validar: diagnóstico principal completo Y validación especial válida (si aplica)
     const isPrincipalValid = data.principal.codigoCIE10 && data.principal.descripcionCIE10;
     const isValid = isPrincipalValid && validacionEspecialValida;
+
+    // Solo notificar si realmente cambió
+    const notifyKey = JSON.stringify({ data: dataCompleta, isValid });
+    if (lastNotifiedRef.current === notifyKey) return;
+    lastNotifiedRef.current = notifyKey;
 
     onChange(dataCompleta, isValid);
   };
@@ -327,12 +356,7 @@ export default function FormularioDiagnosticoConsulta({ onChange, data, paciente
       {formData.principal.codigoCIE10 && (
         <ValidacionDiagnosticoEspecial
           codigoCIE10={formData.principal.codigoCIE10}
-          onDataChange={(data, isValid) => {
-            setValidacionEspecial(data);
-            setValidacionEspecialValida(isValid);
-            // Trigger parent re-validation
-            notifyChange(formData);
-          }}
+          onDataChange={handleValidacionEspecialChange}
           initialData={validacionEspecial}
         />
       )}

@@ -312,44 +312,52 @@ consultasRouter.post('/finalizar', async (c) => {
 
       // 3. Guardar Diagnóstico (si lo hay)
       if (diagnostico) {
-        const dataDiagnostico = {
-          pacienteId,
-          evolucionId: evolucion.id,
-          doctorId,
-          codigoCIE11: diagnostico.codigoCIE11,
-          descripcionCIE11: diagnostico.descripcionCIE11,
-          tipoDiagnostico: diagnostico.tipoDiagnostico || 'Principal',
-          estadoDiagnostico: 'Activo',
-          observaciones: diagnostico.observaciones,
-        };
+        // Soportar tanto CIE10 como CIE11 en los nombres de campos del frontend
+        const codigoDx = diagnostico.codigoCIE11 || diagnostico.codigoCIE10 || diagnostico.principal?.codigoCIE10;
+        const descripcionDx = diagnostico.descripcionCIE11 || diagnostico.descripcionCIE10 || diagnostico.principal?.descripcionCIE10;
+        const observacionesDx = diagnostico.observaciones || diagnostico.principal?.observaciones;
 
-        // Incluir campos de validación especial si existen
-        if (diagnostico.validacionEspecial) {
-          const val = diagnostico.validacionEspecial;
-          if (val.fechaDiagnosticoExacta) {
-            dataDiagnostico.fechaDiagnosticoExacta = new Date(val.fechaDiagnosticoExacta);
-          }
-          if (val.estadoConfirmacion) {
-            dataDiagnostico.estadoConfirmacion = val.estadoConfirmacion;
-          }
-          if (val.metodoConfirmacion) {
-            dataDiagnostico.metodoConfirmacion = val.metodoConfirmacion;
-          }
-          if (val.metodoConfirmacionDetalle) {
-            dataDiagnostico.metodoConfirmacionDetalle = val.metodoConfirmacionDetalle;
-          }
-          if (val.documentoRespaldoUrl) {
-            dataDiagnostico.documentoRespaldoUrl = val.documentoRespaldoUrl;
-          }
-          if (val.documentoRespaldoNombre) {
-            dataDiagnostico.documentoRespaldoNombre = val.documentoRespaldoNombre;
-          }
-        }
+        // Solo crear diagnóstico si hay código válido
+        if (codigoDx) {
+          const dataDiagnostico = {
+            pacienteId,
+            evolucionId: evolucion.id,
+            doctorId,
+            codigoCIE11: codigoDx,
+            descripcionCIE11: descripcionDx || codigoDx, // Fallback a código si no hay descripción
+            tipoDiagnostico: diagnostico.tipoDiagnostico || 'Principal',
+            estadoDiagnostico: 'Activo',
+            observaciones: observacionesDx,
+          };
 
-        const diagnosticoHCE = await tx.diagnosticoHCE.create({
-          data: dataDiagnostico,
-        });
-        resultados.diagnostico = diagnosticoHCE;
+          // Incluir campos de validación especial si existen
+          if (diagnostico.validacionEspecial) {
+            const val = diagnostico.validacionEspecial;
+            if (val.fechaDiagnosticoExacta) {
+              dataDiagnostico.fechaDiagnosticoExacta = new Date(val.fechaDiagnosticoExacta);
+            }
+            if (val.estadoConfirmacion) {
+              dataDiagnostico.estadoConfirmacion = val.estadoConfirmacion;
+            }
+            if (val.metodoConfirmacion) {
+              dataDiagnostico.metodoConfirmacion = val.metodoConfirmacion;
+            }
+            if (val.metodoConfirmacionDetalle) {
+              dataDiagnostico.metodoConfirmacionDetalle = val.metodoConfirmacionDetalle;
+            }
+            if (val.documentoRespaldoUrl) {
+              dataDiagnostico.documentoRespaldoUrl = val.documentoRespaldoUrl;
+            }
+            if (val.documentoRespaldoNombre) {
+              dataDiagnostico.documentoRespaldoNombre = val.documentoRespaldoNombre;
+            }
+          }
+
+          const diagnosticoHCE = await tx.diagnosticoHCE.create({
+            data: dataDiagnostico,
+          });
+          resultados.diagnostico = diagnosticoHCE;
+        } // cierre if (codigoDx)
       }
 
       // 4. Guardar Alerta (si la hay)
@@ -406,31 +414,39 @@ consultasRouter.post('/finalizar', async (c) => {
              interconsultasCreadas.push(interconsulta);
           } else {
              // Crear OrdenMedica y Cita (Procedimiento/Examen)
-             const ordenMedica = await tx.ordenMedica.create({
-               data: {
-                 pacienteId,
-                 citaId,
-                 examenProcedimientoId: orden.servicioId,
-                 doctorId,
-                 precioAplicado: parseFloat(orden.costo),
-                 observaciones: orden.observaciones || '',
-                 estado: 'Pendiente',
-               },
-             });
-             ordenesCreadas.push(ordenMedica);
-            
-             // Crear Cita con estado PorAgendar
-             const citaPorAgendar = await tx.cita.create({
-               data: {
-                 pacienteId,
-                 tipoCita: orden.tipo, 
-                 examenProcedimientoId: orden.servicioId,
-                 costo: parseFloat(orden.costo),
-                 motivo: orden.servicioNombre,
-                 estado: 'PorAgendar',
-               },
-             });
-             citasCreadas.push(citaPorAgendar);
+             // Validar que servicioId sea un UUID válido
+             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+             const servicioIdValido = orden.servicioId && uuidRegex.test(orden.servicioId);
+
+             if (servicioIdValido) {
+               const ordenMedica = await tx.ordenMedica.create({
+                 data: {
+                   pacienteId,
+                   citaId,
+                   examenProcedimientoId: orden.servicioId,
+                   doctorId,
+                   precioAplicado: parseFloat(orden.costo) || 0,
+                   observaciones: orden.observaciones || '',
+                   estado: 'Pendiente',
+                 },
+               });
+               ordenesCreadas.push(ordenMedica);
+
+               // Crear Cita con estado PorAgendar
+               const citaPorAgendar = await tx.cita.create({
+                 data: {
+                   pacienteId,
+                   tipoCita: orden.tipo || 'Procedimiento',
+                   examenProcedimientoId: orden.servicioId,
+                   costo: parseFloat(orden.costo) || 0,
+                   motivo: orden.servicioNombre || 'Orden médica',
+                   estado: 'PorAgendar',
+                 },
+               });
+               citasCreadas.push(citaPorAgendar);
+             } else {
+               console.warn(`Orden médica omitida: servicioId inválido (${orden.servicioId}) para ${orden.servicioNombre}`);
+             }
           }
         }
         

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,15 @@ export default function FormularioSOAPConsulta({ onChange, data }) {
   });
 
   const [errors, setErrors] = useState({});
+
+  // Notificar estado inicial al montar el componente
+  useEffect(() => {
+    const isValid = formData.subjetivo.trim() &&
+                    formData.objetivo.trim() &&
+                    formData.analisis.trim() &&
+                    formData.plan.trim();
+    onChange(formData, isValid);
+  }, []); // Solo al montar
 
   const handleChange = (field, value) => {
     const newData = { ...formData, [field]: value };

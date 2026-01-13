@@ -152,9 +152,9 @@ class ConsultaService {
         cita: {
           select: {
             id: true,
-            fechaCita: true,
+            fecha: true,
             tipoCita: true,
-            motivoConsulta: true
+            motivo: true
           }
         }
       }
@@ -192,7 +192,7 @@ class ConsultaService {
                 nombre: true,
                 principioActivo: true,
                 concentracion: true,
-                formaFarmaceutica: true
+                presentacion: true
               }
             }
           }
@@ -206,7 +206,7 @@ class ConsultaService {
     const ordenes = await prisma.ordenMedica.findMany({
       where: {
         pacienteId,
-        fechaCreacion: {
+        fechaOrden: {
           gte: new Date(evolucion.fechaEvolucion.getTime() - 24 * 60 * 60 * 1000),
           lte: new Date(evolucion.fechaEvolucion.getTime() + 24 * 60 * 60 * 1000)
         }
@@ -216,12 +216,11 @@ class ConsultaService {
           select: {
             id: true,
             nombre: true,
-            codigoCups: true,
             tipo: true
           }
         }
       },
-      orderBy: { fechaCreacion: 'desc' }
+      orderBy: { fechaOrden: 'desc' }
     });
 
     // Formatear respuesta
@@ -282,7 +281,7 @@ class ConsultaService {
             nombre: true,
             principioActivo: true,
             concentracion: true,
-            formaFarmaceutica: true
+            presentacion: true
           }
         });
 
@@ -297,7 +296,7 @@ class ConsultaService {
             dosis: true,
             via: true,
             frecuencia: true,
-            duracion: true,
+            duracionDias: true,
             instrucciones: true
           }
         });
@@ -320,17 +319,19 @@ class ConsultaService {
       take: 10
     });
 
-    // Órdenes más frecuentes
-    const ordenesFrecuentes = await prisma.ordenMedica.groupBy({
+    // Órdenes más frecuentes (filtrar nulls después del groupBy)
+    const ordenesFrecuentesRaw = await prisma.ordenMedica.groupBy({
       by: ['examenProcedimientoId'],
-      where: {
-        pacienteId,
-        examenProcedimientoId: { not: null }
-      },
+      where: { pacienteId },
       _count: { examenProcedimientoId: true },
       orderBy: { _count: { examenProcedimientoId: 'desc' } },
-      take: 10
+      take: 15 // Tomar más para compensar posibles nulls
     });
+
+    // Filtrar nulls y limitar a 10
+    const ordenesFrecuentes = ordenesFrecuentesRaw
+      .filter(o => o.examenProcedimientoId !== null)
+      .slice(0, 10);
 
     // Obtener detalles de las órdenes
     const ordenesDetalles = await Promise.all(
@@ -340,7 +341,6 @@ class ConsultaService {
           select: {
             id: true,
             nombre: true,
-            codigoCups: true,
             tipo: true
           }
         });

@@ -122,62 +122,40 @@ export function CompactTimer({
 }) {
   const formattedTime = formatTime(seconds);
 
+  // Tooltip removido temporalmente para evitar loop infinito con Radix UI
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div
-            className={`
-              flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all
-              ${isCritical
-                ? 'bg-red-100 text-red-700 border border-red-200'
-                : isWarning
-                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
-                  : 'bg-gray-100 text-gray-700 border border-gray-200'
-              }
-              ${className}
-            `}
-            onClick={onToggle}
-          >
-            <div className={`flex items-center gap-1.5 ${isRunning ? 'animate-pulse' : ''}`}>
-              <Timer className="h-4 w-4" />
-              <span className="font-mono text-sm font-medium">{formattedTime}</span>
-            </div>
-            {!isRunning && seconds > 0 && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-5 w-5 p-0"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onReset?.();
-                }}
-              >
-                <RotateCcw className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <p className="font-medium">Tiempo de consulta</p>
-          <p className="text-xs text-gray-400">
-            {isRunning ? 'Click para pausar' : 'Click para continuar'}
-          </p>
-          {isWarning && !isCritical && (
-            <p className="text-xs text-amber-500 mt-1">
-              <AlertCircle className="h-3 w-3 inline mr-1" />
-              Consulta extendida
-            </p>
-          )}
-          {isCritical && (
-            <p className="text-xs text-red-500 mt-1">
-              <AlertCircle className="h-3 w-3 inline mr-1" />
-              Tiempo excedido
-            </p>
-          )}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div
+      className={`
+        flex items-center gap-2 px-3 py-1.5 rounded-lg cursor-pointer transition-all
+        ${isCritical
+          ? 'bg-red-100 text-red-700 border border-red-200'
+          : isWarning
+            ? 'bg-amber-100 text-amber-700 border border-amber-200'
+            : 'bg-gray-100 text-gray-700 border border-gray-200'
+        }
+        ${className}
+      `}
+      onClick={onToggle}
+      title={isRunning ? 'Click para pausar' : 'Click para continuar'}
+    >
+      <div className={`flex items-center gap-1.5 ${isRunning ? 'animate-pulse' : ''}`}>
+        <Timer className="h-4 w-4" />
+        <span className="font-mono text-sm font-medium">{formattedTime}</span>
+      </div>
+      {!isRunning && seconds > 0 && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-5 w-5 p-0"
+          onClick={(e) => {
+            e.stopPropagation();
+            onReset?.();
+          }}
+        >
+          <RotateCcw className="h-3 w-3" />
+        </Button>
+      )}
+    </div>
   );
 }
 

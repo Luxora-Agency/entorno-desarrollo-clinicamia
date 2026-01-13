@@ -134,7 +134,7 @@ class CitaService {
               email: true,
               fechaNacimiento: true,
               genero: true,
-              grupoSanguineo: true,
+              tipoSangre: true,
               alergias: true,
             }
           },

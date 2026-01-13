@@ -3,7 +3,20 @@
  * Basado en normatividad colombiana: Decreto 2126/2023, Resolución 1843/2025
  */
 const prisma = require('../db/prisma');
+const PDFDocument = require('pdfkit');
 const { ValidationError, NotFoundError } = require('../utils/errors');
+
+// Información institucional de Clínica MIA
+const CLINICA_INFO = {
+  nombre: 'CLÍNICA MÍA S.A.S.',
+  nit: '901.654.789-1',
+  direccion: 'Cra. 5 #28-85, Ibagué, Tolima',
+  telefono: '(608) 324 333 8555',
+  celular: '324 333 8555',
+  email: 'contacto@clinicamia.com',
+  ciudad: 'Ibagué, Tolima',
+  codigoHabilitacion: '7300100XXX',
+};
 
 class IncapacidadService {
   /**
@@ -179,6 +192,168 @@ class IncapacidadService {
         estado: 'Cancelada',
         recomendaciones: `CANCELADA: ${motivo}\n\n${incapacidad.recomendaciones || ''}`,
       },
+    });
+  }
+
+  /**
+   * Generar PDF de la incapacidad médica
+   * @param {string} id - ID de la incapacidad
+   * @returns {Promise<Buffer>} - Buffer del PDF generado
+   */
+  async generatePdf(id) {
+    const incapacidad = await this.getById(id);
+
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({
+        size: 'LETTER',
+        margin: 50,
+        info: {
+          Title: `Incapacidad Médica - ${incapacidad.codigo}`,
+          Author: CLINICA_INFO.nombre,
+          Subject: 'Incapacidad Médica',
+        },
+      });
+
+      const chunks = [];
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // ============ ENCABEZADO INSTITUCIONAL (compacto) ============
+      doc.fontSize(16).font('Helvetica-Bold').fillColor('#1a365d')
+        .text(CLINICA_INFO.nombre, { align: 'center' });
+      doc.fontSize(9).font('Helvetica').fillColor('#333')
+        .text(`NIT: ${CLINICA_INFO.nit} | ${CLINICA_INFO.direccion}`, { align: 'center' })
+        .text(`Tel: ${CLINICA_INFO.telefono} | ${CLINICA_INFO.email}`, { align: 'center' });
+      doc.moveDown(0.3);
+
+      // Línea separadora
+      doc.strokeColor('#2b6cb0').lineWidth(1.5)
+        .moveTo(50, doc.y).lineTo(562, doc.y).stroke();
+      doc.moveDown(0.6);
+
+      // ============ TÍTULO DEL DOCUMENTO ============
+      doc.fontSize(13).font('Helvetica-Bold').fillColor('#c53030')
+        .text('CERTIFICADO DE INCAPACIDAD MÉDICA', { align: 'center' });
+      doc.fontSize(9).font('Helvetica').fillColor('#333')
+        .text(`No. ${incapacidad.codigo}`, { align: 'center' });
+      doc.moveDown(0.7);
+
+      // ============ INFORMACIÓN DEL PACIENTE ============
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d')
+        .text('DATOS DEL PACIENTE', { underline: true });
+      doc.moveDown(0.3);
+
+      doc.fontSize(9).font('Helvetica').fillColor('#333');
+      if (incapacidad.paciente) {
+        const edad = incapacidad.paciente.fechaNacimiento
+          ? Math.floor((new Date() - new Date(incapacidad.paciente.fechaNacimiento)) / (365.25 * 24 * 60 * 60 * 1000))
+          : null;
+        doc.text(`Nombre: ${incapacidad.paciente.nombre} ${incapacidad.paciente.apellido}`);
+        doc.text(`Documento: ${incapacidad.paciente.tipoDocumento || 'CC'} ${incapacidad.paciente.cedula}${edad ? ` | Edad: ${edad} años` : ''}${incapacidad.paciente.eps ? ` | EPS: ${incapacidad.paciente.eps}` : ''}`);
+      }
+      doc.moveDown(0.7);
+
+      // ============ INFORMACIÓN DE LA INCAPACIDAD ============
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d')
+        .text('INFORMACIÓN DE LA INCAPACIDAD', { underline: true });
+      doc.moveDown(0.3);
+
+      doc.fontSize(9).font('Helvetica').fillColor('#333');
+
+      // Tipo de incapacidad
+      const tiposIncapacidad = {
+        EnfermedadGeneral: 'Enfermedad General',
+        AccidenteTrabajo: 'Accidente de Trabajo',
+        EnfermedadLaboral: 'Enfermedad Laboral',
+        LicenciaMaternidad: 'Licencia de Maternidad',
+        LicenciaPaternidad: 'Licencia de Paternidad',
+      };
+      doc.text(`Tipo: ${tiposIncapacidad[incapacidad.tipoIncapacidad] || incapacidad.tipoIncapacidad}`);
+
+      // Fechas en una línea compacta
+      const fechaInicio = new Date(incapacidad.fechaInicio).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+      const fechaFin = new Date(incapacidad.fechaFin).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' });
+      doc.text(`Desde: ${fechaInicio} | Hasta: ${fechaFin}`);
+      doc.font('Helvetica-Bold').text(`Días de incapacidad: ${incapacidad.diasIncapacidad} días`);
+      doc.font('Helvetica');
+
+      // Prórroga (compacto)
+      if (incapacidad.esProrrogada) {
+        doc.fillColor('#dd6b20').text(`PRÓRROGA${incapacidad.diasAcumulados ? ` - Días acumulados: ${incapacidad.diasAcumulados}` : ''}`);
+        doc.fillColor('#333');
+      }
+      doc.moveDown(0.7);
+
+      // ============ DIAGNÓSTICO ============
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d')
+        .text('DIAGNÓSTICO', { underline: true });
+      doc.moveDown(0.3);
+
+      doc.fontSize(9).font('Helvetica').fillColor('#333');
+      if (incapacidad.diagnosticoCIE10) {
+        doc.font('Helvetica-Bold').text(`CIE-10: ${incapacidad.diagnosticoCIE10}`, { continued: true });
+        doc.font('Helvetica').text(incapacidad.descripcionDiagnostico ? ` - ${incapacidad.descripcionDiagnostico}` : '');
+      } else if (incapacidad.descripcionDiagnostico) {
+        doc.text(incapacidad.descripcionDiagnostico);
+      }
+      doc.moveDown(0.7);
+
+      // ============ JUSTIFICACIÓN CLÍNICA ============
+      if (incapacidad.justificacion) {
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#1a365d')
+          .text('JUSTIFICACIÓN CLÍNICA', { underline: true });
+        doc.moveDown(0.3);
+        doc.fontSize(9).font('Helvetica').fillColor('#333')
+          .text(incapacidad.justificacion, { align: 'justify', lineGap: 2 });
+        doc.moveDown(0.7);
+      }
+
+      // ============ RESTRICCIONES Y RECOMENDACIONES (compacto) ============
+      if (incapacidad.restricciones) {
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#c53030')
+          .text('RESTRICCIONES:', { underline: true });
+        doc.moveDown(0.2);
+        doc.fontSize(9).font('Helvetica').fillColor('#333')
+          .text(incapacidad.restricciones, { align: 'justify' });
+        doc.moveDown(0.5);
+      }
+
+      if (incapacidad.recomendaciones) {
+        doc.fontSize(10).font('Helvetica-Bold').fillColor('#38a169')
+          .text('RECOMENDACIONES:', { underline: true });
+        doc.moveDown(0.2);
+        doc.fontSize(9).font('Helvetica').fillColor('#333')
+          .text(incapacidad.recomendaciones, { align: 'justify' });
+        doc.moveDown(0.5);
+      }
+
+      // ============ FIRMA DEL MÉDICO ============
+      doc.moveDown(1.5);
+      doc.fontSize(10).font('Helvetica').text('_______________________________', { align: 'center' });
+
+      if (incapacidad.doctor) {
+        doc.font('Helvetica-Bold').fillColor('#333')
+          .text(`Dr(a). ${incapacidad.doctor.nombre} ${incapacidad.doctor.apellido}`, { align: 'center' });
+        doc.font('Helvetica').fontSize(9)
+          .text(`Reg. Médico: ${incapacidad.doctor.registroMedico || 'N/A'} | ${incapacidad.doctor.especialidad || 'Medicina General'}`, { align: 'center' });
+      }
+
+      // Fecha de firma
+      if (incapacidad.fechaFirma) {
+        const fechaFirma = new Date(incapacidad.fechaFirma).toLocaleDateString('es-CO');
+        doc.fontSize(8).text(`Firmado: ${fechaFirma}`, { align: 'center' });
+      }
+
+      // ============ PIE DE PÁGINA (flujo natural) ============
+      doc.moveDown(1);
+      doc.fontSize(7).fillColor('#718096')
+        .text(
+          'Documento generado electrónicamente con validez legal según normatividad colombiana (Decreto 2126/2023). Información confidencial - Ley 1581/2012.',
+          { align: 'center' }
+        );
+
+      doc.end();
     });
   }
 }
