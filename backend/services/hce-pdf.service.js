@@ -56,18 +56,18 @@ class HCEPdfService {
     // Información institucional de Clínica MÍA
     // Conforme a Resolución 3100/2019 - Habilitación de Servicios de Salud
     this.institucion = {
-      nombre: 'CLÍNICA MÍA S.A.S.',
-      razonSocial: 'CLÍNICA MÍA S.A.S.',
-      nit: '901.654.789-1',
-      codigoHabilitacion: '7300100XXX', // Código prestador ante MinSalud
+      nombre: 'CLINICA MIA MEDICINA INTEGRAL SAS',
+      razonSocial: 'CLINICA MIA MEDICINA INTEGRAL SAS',
+      nit: '901497975-7',
+      codigoHabilitacion: '7300103424', // Código prestador ante MinSalud
       codigoRethus: 'IPS-TOL-001', // Registro RETHUS
       direccion: 'Cra. 5 #28-85',
       ciudad: 'Ibagué',
       departamento: 'Tolima',
       pais: 'Colombia',
       telefono: '(608) 324 333 8555',
-      celular: '324 333 8555',
-      email: 'info@clinicamia.co',
+      celular: '3107839998',
+      email: 'infoclinicamia@gmail.com',
       web: 'https://clinicamia.co/',
       representanteLegal: 'Director Médico',
       nivelAtencion: 'II', // Nivel de atención

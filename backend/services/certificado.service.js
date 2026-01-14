@@ -123,9 +123,9 @@ class CertificadoService {
       doc.on('error', reject);
 
       // Header
-      doc.fontSize(16).font('Helvetica-Bold').fillColor('#1a365d').text('CLÍNICA MÍA S.A.S.', { align: 'center' });
-      doc.fontSize(9).font('Helvetica').fillColor('#333').text('NIT: 901.654.789-1 | Cra. 5 #28-85, Ibagué, Tolima', { align: 'center' });
-      doc.text('Tel: (608) 324 333 8555 | contacto@clinicamia.com', { align: 'center' });
+      doc.fontSize(16).font('Helvetica-Bold').fillColor('#1a365d').text('CLINICA MIA MEDICINA INTEGRAL SAS', { align: 'center' });
+      doc.fontSize(9).font('Helvetica').fillColor('#333').text('NIT: 901497975-7 | Cra. 5 #28-85, Ibagué, Tolima', { align: 'center' });
+      doc.text('Tel: (608) 324 333 8555 | infoclinicamia@gmail.com', { align: 'center' });
       doc.moveDown(0.3);
 
       // Línea separadora

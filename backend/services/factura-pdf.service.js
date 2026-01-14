@@ -53,16 +53,16 @@ class FacturaPDFService {
       .fontSize(24)
       .font('Helvetica-Bold')
       .fillColor('#047857')
-      .text('CLÍNICA MÍA', 50, 50);
+      .text('CLINICA MIA', 50, 50);
 
     doc
       .fontSize(10)
       .font('Helvetica')
       .fillColor('#374151')
-      .text('NIT: 900.123.456-7', 50, 80)
-      .text('Dirección: Calle 123 #45-67, Bogotá', 50, 92)
-      .text('Teléfono: (601) 234-5678', 50, 104)
-      .text('Email: facturacion@clinicamia.com', 50, 116);
+      .text('NIT: 901497975-7', 50, 80)
+      .text('Dirección: Cra. 5 #28-85, Ibagué, Tolima', 50, 92)
+      .text('Teléfono: (608) 324 333 8555 | Cel: 3107839998', 50, 104)
+      .text('Email: infoclinicamia@gmail.com', 50, 116);
 
     // Número de factura
     doc

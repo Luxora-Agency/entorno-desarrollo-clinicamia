@@ -340,8 +340,8 @@ class ProcedimientoPdfService {
   }
 
   _addHeader(doc, title) {
-    doc.fontSize(18).font('Helvetica-Bold').text('CLÍNICA MÍA', { align: 'center' });
-    doc.fontSize(10).font('Helvetica').text('Sistema de Gestión Hospitalaria', { align: 'center' });
+    doc.fontSize(18).font('Helvetica-Bold').text('CLINICA MIA MEDICINA INTEGRAL SAS', { align: 'center' });
+    doc.fontSize(10).font('Helvetica').text('NIT: 901497975-7 | Cód. Habilitación: 7300103424', { align: 'center' });
     doc.moveDown(0.5);
     doc.fontSize(14).font('Helvetica-Bold').text(title, { align: 'center' });
     doc.moveDown();

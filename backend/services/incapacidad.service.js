@@ -8,14 +8,14 @@ const { ValidationError, NotFoundError } = require('../utils/errors');
 
 // Información institucional de Clínica MIA
 const CLINICA_INFO = {
-  nombre: 'CLÍNICA MÍA S.A.S.',
-  nit: '901.654.789-1',
+  nombre: 'CLINICA MIA MEDICINA INTEGRAL SAS',
+  nit: '901497975-7',
   direccion: 'Cra. 5 #28-85, Ibagué, Tolima',
   telefono: '(608) 324 333 8555',
-  celular: '324 333 8555',
-  email: 'contacto@clinicamia.com',
+  celular: '3107839998',
+  email: 'infoclinicamia@gmail.com',
   ciudad: 'Ibagué, Tolima',
-  codigoHabilitacion: '7300100XXX',
+  codigoHabilitacion: '7300103424',
 };
 
 class IncapacidadService {

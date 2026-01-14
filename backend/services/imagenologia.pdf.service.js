@@ -61,13 +61,13 @@ async function generateInformePDF(estudio) {
         .fontSize(20)
         .font('Helvetica-Bold')
         .fillColor('#1e40af')
-        .text('CLÍNICA MÍA', { align: 'center' });
+        .text('CLINICA MIA MEDICINA INTEGRAL SAS', { align: 'center' });
 
       doc
         .fontSize(10)
         .font('Helvetica')
         .fillColor('#4b5563')
-        .text('Centro de Diagnóstico por Imagen', { align: 'center' });
+        .text('NIT: 901497975-7 | Centro de Diagnóstico por Imagen', { align: 'center' });
 
       doc.moveDown(0.5);
 
