@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, User, Briefcase, Calendar as CalendarIcon, X, Clock, Mail, Phone, GraduationCap, Award, FileText, Camera, Trash2, Lock, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Save, User, Briefcase, Calendar as CalendarIcon, X, Clock, Mail, Phone, GraduationCap, Award, FileText, Camera, Trash2, Lock, Eye, EyeOff, PenTool, Stamp } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import DoctorScheduleManager from './DoctorScheduleManager';
 
@@ -25,9 +25,15 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
   const [selectedDates, setSelectedDates] = useState({});
   const [fotoPreview, setFotoPreview] = useState(null);
   const [fotoBase64, setFotoBase64] = useState(null);
+  const [firmaPreview, setFirmaPreview] = useState(null);
+  const [firmaBase64, setFirmaBase64] = useState(null);
+  const [selloPreview, setSelloPreview] = useState(null);
+  const [selloBase64, setSelloBase64] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [password, setPassword] = useState('');
   const fotoInputRef = useRef(null);
+  const firmaInputRef = useRef(null);
+  const selloInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -95,11 +101,73 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
 
     if (editingDoctor.foto) {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
-      const fotoUrl = editingDoctor.foto.startsWith('http')
+      const fotoUrl = editingDoctor.foto.startsWith('http') || editingDoctor.foto.startsWith('data:')
         ? editingDoctor.foto
         : `${apiUrl}${editingDoctor.foto}`;
       setFotoPreview(fotoUrl);
     }
+
+    // Cargar firma si existe
+    if (editingDoctor.firma) {
+      setFirmaPreview(editingDoctor.firma);
+    }
+
+    // Cargar sello si existe
+    if (editingDoctor.sello) {
+      setSelloPreview(editingDoctor.sello);
+    }
+  };
+
+  // Manejador genérico para subir imágenes (firma/sello)
+  const handleImageUpload = (file, setPreview, setBase64, maxSize = 2) => {
+    if (!file) return;
+
+    // Validar tipo de archivo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Tipo de archivo no permitido. Use JPG, PNG o WEBP.'
+      });
+      return;
+    }
+
+    // Validar tamaño
+    if (file.size > maxSize * 1024 * 1024) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: `El archivo es muy grande. Máximo ${maxSize}MB.`
+      });
+      return;
+    }
+
+    // Crear preview y convertir a base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreview(reader.result);
+      setBase64(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFirmaChange = (e) => {
+    handleImageUpload(e.target.files?.[0], setFirmaPreview, setFirmaBase64, 2);
+  };
+
+  const handleSelloChange = (e) => {
+    handleImageUpload(e.target.files?.[0], setSelloPreview, setSelloBase64, 2);
+  };
+
+  const handleRemoveFirma = () => {
+    setFirmaPreview(null);
+    setFirmaBase64(null);
+  };
+
+  const handleRemoveSello = () => {
+    setSelloPreview(null);
+    setSelloBase64(null);
   };
 
   const handleFotoChange = (e) => {
@@ -229,6 +297,22 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
         console.log('[DEBUG] Enviando foto:', fotoBase64.substring(0, 50) + '...', `(${fotoBase64.length} chars)`);
       } else {
         console.log('[DEBUG] No hay foto para enviar. fotoBase64:', fotoBase64, 'fotoPreview:', fotoPreview);
+      }
+
+      // Incluir firma si se subió una nueva
+      if (firmaBase64) {
+        payload.firma = firmaBase64;
+      } else if (firmaPreview === null && editingDoctor?.firma) {
+        // Si se eliminó la firma
+        payload.firma = null;
+      }
+
+      // Incluir sello si se subió uno nuevo
+      if (selloBase64) {
+        payload.sello = selloBase64;
+      } else if (selloPreview === null && editingDoctor?.sello) {
+        // Si se eliminó el sello
+        payload.sello = null;
       }
 
       const url = editingDoctor
@@ -740,6 +824,135 @@ export default function DoctorForm({ user, editingDoctor, onBack }) {
                           className="border-gray-300 focus:border-purple-500 focus:ring-purple-500 rounded-lg resize-none"
                         />
                         <p className="text-xs text-gray-500">Esta información aparecerá en el perfil público del doctor</p>
+                      </div>
+                    </div>
+
+                    {/* Firma y Sello - Sección especial */}
+                    <div className="border-t-2 border-purple-200 pt-8">
+                      <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4 mb-6">
+                        <h3 className="text-lg font-bold text-gray-900 mb-2 flex items-center gap-2">
+                          <PenTool className="w-5 h-5 text-purple-600" />
+                          Firma y Sello Digital
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          La firma y sello digital se utilizarán para validar documentos médicos como historias clínicas,
+                          prescripciones, órdenes médicas y certificados. Estos elementos son importantes para la autenticación
+                          de documentos según la normatividad colombiana.
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Firma Digital */}
+                        <div>
+                          <h4 className="text-md font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <PenTool className="w-4 h-4 text-purple-600" />
+                            Firma Digital
+                          </h4>
+                          <div className="flex items-start gap-4">
+                            <div className="relative">
+                              <div className="w-48 h-24 rounded-lg overflow-hidden bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                                {firmaPreview ? (
+                                  <img
+                                    src={firmaPreview}
+                                    alt="Firma del doctor"
+                                    className="w-full h-full object-contain p-2"
+                                  />
+                                ) : (
+                                  <div className="text-center">
+                                    <PenTool className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+                                    <p className="text-xs text-gray-400">Sin firma</p>
+                                  </div>
+                                )}
+                              </div>
+                              {firmaPreview && (
+                                <button
+                                  type="button"
+                                  onClick={handleRemoveFirma}
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <input
+                                ref={firmaInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleFirmaChange}
+                                className="hidden"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => firmaInputRef.current?.click()}
+                                className="w-full border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
+                              >
+                                <PenTool className="w-4 h-4 mr-2" />
+                                {firmaPreview ? 'Cambiar Firma' : 'Subir Firma'}
+                              </Button>
+                              <p className="text-xs text-gray-500 mt-2">
+                                PNG o JPG con fondo transparente o blanco. Máx 2MB.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Sello Profesional */}
+                        <div>
+                          <h4 className="text-md font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <Stamp className="w-4 h-4 text-purple-600" />
+                            Sello Profesional
+                          </h4>
+                          <div className="flex items-start gap-4">
+                            <div className="relative">
+                              <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                                {selloPreview ? (
+                                  <img
+                                    src={selloPreview}
+                                    alt="Sello del doctor"
+                                    className="w-full h-full object-contain p-2"
+                                  />
+                                ) : (
+                                  <div className="text-center">
+                                    <Stamp className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+                                    <p className="text-xs text-gray-400">Sin sello</p>
+                                  </div>
+                                )}
+                              </div>
+                              {selloPreview && (
+                                <button
+                                  type="button"
+                                  onClick={handleRemoveSello}
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <input
+                                ref={selloInputRef}
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
+                                onChange={handleSelloChange}
+                                className="hidden"
+                              />
+                              <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => selloInputRef.current?.click()}
+                                className="w-full border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
+                              >
+                                <Stamp className="w-4 h-4 mr-2" />
+                                {selloPreview ? 'Cambiar Sello' : 'Subir Sello'}
+                              </Button>
+                              <p className="text-xs text-gray-500 mt-2">
+                                PNG o JPG con fondo transparente. Máx 2MB.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

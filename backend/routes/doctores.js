@@ -208,6 +208,58 @@ doctores.patch('/mi-agenda/horarios', async (c) => {
   }
 });
 
+/**
+ * @swagger
+ * /doctores/mi-perfil:
+ *   put:
+ *     summary: Actualizar mi propio perfil (para doctores)
+ *     tags: [Doctores]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Doctor'
+ *     responses:
+ *       200:
+ *         description: Perfil actualizado exitosamente
+ *       403:
+ *         description: Solo doctores pueden acceder
+ *       404:
+ *         description: Perfil no encontrado
+ */
+doctores.put('/mi-perfil', validate(updateDoctorSchema), async (c) => {
+  try {
+    const user = c.get('user');
+    // Verificar rol (case-insensitive)
+    const userRol = (user.rol || '').toUpperCase();
+    if (userRol !== 'DOCTOR' && userRol !== 'MEDICO') {
+      return c.json(error('Solo doctores pueden acceder a esta ruta'), 403);
+    }
+
+    // Obtener el doctor asociado al usuario
+    const doctorResult = await doctorService.listar({ usuarioId: user.id, limit: 1 });
+    if (!doctorResult.doctores || doctorResult.doctores.length === 0) {
+      return c.json(error('Perfil de doctor no encontrado'), 404);
+    }
+
+    const doctorId = doctorResult.doctores[0].id;
+    const body = c.req.validData;
+
+    // Campos restringidos que un doctor no puede cambiar por sí mismo
+    delete body.activo;
+    delete body.rol;
+    delete body.cedula; // La cédula no debe cambiar
+
+    const doctor = await doctorService.actualizar(doctorId, body);
+    return c.json(success({ doctor }, 'Perfil actualizado exitosamente'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
 doctores.get('/', async (c) => {
   try {
     const { search = '', limit = '50', page = '1', activo, usuarioId } = c.req.query();

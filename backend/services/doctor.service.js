@@ -2,7 +2,7 @@ const prisma = require('../db/prisma');
 const bcrypt = require('bcryptjs');
 const { ValidationError, NotFoundError, AppError } = require('../utils/errors');
 const { uploadImage, deleteImage, getPublicIdFromUrl, isConfigured: isCloudinaryConfigured } = require('../utils/cloudinary');
-const { saveBase64Image, deleteFile } = require('../utils/upload');
+const { saveBase64Image, deleteFile, resizeBase64Image } = require('../utils/upload');
 const emailService = require('./email.service');
 
 class DoctorService {
@@ -21,6 +21,8 @@ class DoctorService {
       anios_experiencia,
       biografia,
       foto,
+      firma, // Firma digital del doctor (base64)
+      sello, // Sello del doctor (base64)
       especialidades_ids,
       horarios,
       activo,
@@ -64,6 +66,22 @@ class DoctorService {
         console.log('[Doctor] No se proporcionó foto');
       }
 
+      // Procesar y redimensionar firma si se proporciona (máx 400x200px para PDF optimizado)
+      let firmaOptimizada = null;
+      if (firma && firma.startsWith('data:image')) {
+        console.log('[Doctor] Optimizando firma digital...');
+        firmaOptimizada = await resizeBase64Image(firma, { maxWidth: 400, maxHeight: 200 });
+        console.log('[Doctor] Firma optimizada');
+      }
+
+      // Procesar y redimensionar sello si se proporciona (máx 300x300px)
+      let selloOptimizado = null;
+      if (sello && sello.startsWith('data:image')) {
+        console.log('[Doctor] Optimizando sello...');
+        selloOptimizado = await resizeBase64Image(sello, { maxWidth: 300, maxHeight: 300 });
+        console.log('[Doctor] Sello optimizado');
+      }
+
       // Determinar la contraseña a usar (para guardar y para el correo)
       const passwordOriginal = customPassword && customPassword.length >= 6 ? customPassword : cedula;
 
@@ -94,6 +112,8 @@ class DoctorService {
             aniosExperiencia: anios_experiencia ? parseInt(anios_experiencia) : null,
             biografia,
             foto: fotoUrl,
+            firma: firmaOptimizada || firma || null, // Firma digital del doctor (optimizada)
+            sello: selloOptimizado || sello || null, // Sello del doctor (optimizado)
             horarios: horarios || {},
           },
           include: {
@@ -223,6 +243,8 @@ class DoctorService {
         aniosExperiencia: doctor.aniosExperiencia,
         biografia: doctor.biografia,
         foto: doctor.foto,
+        firma: doctor.firma, // Firma digital del doctor
+        sello: doctor.sello, // Sello médico del doctor
         horarios: doctor.horarios,
         especialidades: doctor.especialidades.map(de => de.especialidad.titulo),
         especialidadesIds: doctor.especialidades.map(de => de.especialidad.id),
@@ -278,6 +300,8 @@ class DoctorService {
       aniosExperiencia: doctor.aniosExperiencia,
       biografia: doctor.biografia,
       foto: doctor.foto,
+      firma: doctor.firma, // Firma digital del doctor
+      sello: doctor.sello, // Sello del doctor
       horarios: doctor.horarios,
       especialidades: doctor.especialidades?.map(de => de.especialidad?.titulo) || [],
       especialidadesIds: doctor.especialidades?.map(de => de.especialidad?.id) || [],
@@ -308,6 +332,8 @@ class DoctorService {
       anios_experiencia,
       biografia,
       foto,
+      firma, // Firma digital del doctor (base64)
+      sello, // Sello del doctor (base64)
       especialidades_ids,
       horarios,
       activo,
@@ -362,6 +388,30 @@ class DoctorService {
         fotoUrl = foto;
       }
 
+      // Procesar y redimensionar firma si se proporciona como base64 (máx 400x200px para PDF optimizado)
+      let firmaOptimizada = undefined;
+      if (firma !== undefined) {
+        if (firma && firma.startsWith('data:image')) {
+          console.log('[Doctor] Optimizando firma digital...');
+          firmaOptimizada = await resizeBase64Image(firma, { maxWidth: 400, maxHeight: 200 });
+          console.log('[Doctor] Firma optimizada');
+        } else {
+          firmaOptimizada = firma; // null o URL existente
+        }
+      }
+
+      // Procesar y redimensionar sello si se proporciona como base64 (máx 300x300px)
+      let selloOptimizado = undefined;
+      if (sello !== undefined) {
+        if (sello && sello.startsWith('data:image')) {
+          console.log('[Doctor] Optimizando sello...');
+          selloOptimizado = await resizeBase64Image(sello, { maxWidth: 300, maxHeight: 300 });
+          console.log('[Doctor] Sello optimizado');
+        } else {
+          selloOptimizado = sello; // null o URL existente
+        }
+      }
+
       await prisma.$transaction(async (tx) => {
         // 1. Actualizar usuario
         const usuarioUpdateData = {
@@ -396,6 +446,16 @@ class DoctorService {
         // Solo incluir foto si se proporcionó
         if (fotoUrl !== undefined) {
           doctorUpdateData.foto = fotoUrl;
+        }
+
+        // Actualizar firma si se proporcionó (usa versión optimizada)
+        if (firmaOptimizada !== undefined) {
+          doctorUpdateData.firma = firmaOptimizada;
+        }
+
+        // Actualizar sello si se proporcionó (usa versión optimizada)
+        if (selloOptimizado !== undefined) {
+          doctorUpdateData.sello = selloOptimizado;
         }
 
         await tx.doctor.update({

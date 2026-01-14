@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   User, Lock, Camera, Save, Eye, EyeOff, AlertCircle, Check,
-  Mail, Phone, MapPin, Building, FileText, Calendar, Loader2
+  Mail, Phone, MapPin, Building, FileText, Calendar, Loader2,
+  PenTool, Stamp, Trash2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,8 @@ import { useToast } from '@/hooks/use-toast';
 export default function DoctorSettingsModule({ user }) {
   const { toast } = useToast();
   const fileInputRef = useRef(null);
+  const firmaInputRef = useRef(null);
+  const selloInputRef = useRef(null);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -38,6 +41,10 @@ export default function DoctorSettingsModule({ user }) {
     biografia: '',
     foto: null,
     fotoPreview: null,
+    firma: null,
+    firmaPreview: null,
+    sello: null,
+    selloPreview: null,
   });
 
   // Estado para cambio de contraseña
@@ -81,6 +88,10 @@ export default function DoctorSettingsModule({ user }) {
             biografia: doctor.biografia || '',
             foto: null,
             fotoPreview: doctor.foto || null,
+            firma: null,
+            firmaPreview: doctor.firma || null,
+            sello: null,
+            selloPreview: doctor.sello || null,
           });
         }
       } catch (error) {
@@ -125,6 +136,74 @@ export default function DoctorSettingsModule({ user }) {
     }
   };
 
+  // Manejar cambio de firma
+  const handleFirmaChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: 'Error',
+          description: 'La firma no puede superar 2MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileData(prev => ({
+          ...prev,
+          firma: reader.result,
+          firmaPreview: reader.result,
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Manejar cambio de sello
+  const handleSelloChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        toast({
+          title: 'Error',
+          description: 'El sello no puede superar 2MB',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileData(prev => ({
+          ...prev,
+          sello: reader.result,
+          selloPreview: reader.result,
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Eliminar firma
+  const handleRemoveFirma = () => {
+    setProfileData(prev => ({
+      ...prev,
+      firma: null,
+      firmaPreview: null,
+    }));
+  };
+
+  // Eliminar sello
+  const handleRemoveSello = () => {
+    setProfileData(prev => ({
+      ...prev,
+      sello: null,
+      selloPreview: null,
+    }));
+  };
+
   // Guardar perfil
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -148,7 +227,22 @@ export default function DoctorSettingsModule({ user }) {
         updateData.foto = profileData.foto;
       }
 
-      const response = await fetch(`${apiUrl}/doctores/${doctorProfile.id}`, {
+      // Enviar firma si cambió o se eliminó
+      if (profileData.firma && profileData.firma.startsWith('data:')) {
+        updateData.firma = profileData.firma;
+      } else if (profileData.firmaPreview === null && doctorProfile?.firma) {
+        updateData.firma = null;
+      }
+
+      // Enviar sello si cambió o se eliminó
+      if (profileData.sello && profileData.sello.startsWith('data:')) {
+        updateData.sello = profileData.sello;
+      } else if (profileData.selloPreview === null && doctorProfile?.sello) {
+        updateData.sello = null;
+      }
+
+      // Usar endpoint /mi-perfil para que el doctor pueda actualizar su propio perfil
+      const response = await fetch(`${apiUrl}/doctores/mi-perfil`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -443,6 +537,135 @@ export default function DoctorSettingsModule({ user }) {
                     placeholder="Cuéntanos sobre ti, tu experiencia y especialización..."
                     rows={4}
                   />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Firma y Sello Digital */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PenTool className="h-5 w-5 text-purple-600" />
+                  Firma y Sello Digital
+                </CardTitle>
+                <CardDescription>
+                  Estos elementos se utilizarán para validar documentos médicos como historias clínicas,
+                  prescripciones y certificados, según la normatividad colombiana.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Firma Digital */}
+                  <div className="space-y-4">
+                    <Label className="flex items-center gap-2 text-base font-semibold">
+                      <PenTool className="h-4 w-4 text-purple-600" />
+                      Firma Digital
+                    </Label>
+                    <div className="flex items-start gap-4">
+                      <div className="relative">
+                        <div className="w-48 h-24 rounded-lg overflow-hidden bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                          {profileData.firmaPreview ? (
+                            <img
+                              src={profileData.firmaPreview}
+                              alt="Firma del doctor"
+                              className="w-full h-full object-contain p-2"
+                            />
+                          ) : (
+                            <div className="text-center">
+                              <PenTool className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+                              <p className="text-xs text-gray-400">Sin firma</p>
+                            </div>
+                          )}
+                        </div>
+                        {profileData.firmaPreview && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveFirma}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          ref={firmaInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleFirmaChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => firmaInputRef.current?.click()}
+                          className="w-full border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
+                        >
+                          <PenTool className="w-4 h-4 mr-2" />
+                          {profileData.firmaPreview ? 'Cambiar' : 'Subir'} Firma
+                        </Button>
+                        <p className="text-xs text-gray-500">
+                          PNG o JPG con fondo transparente o blanco. Máx 2MB.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sello Profesional */}
+                  <div className="space-y-4">
+                    <Label className="flex items-center gap-2 text-base font-semibold">
+                      <Stamp className="h-4 w-4 text-purple-600" />
+                      Sello Profesional
+                    </Label>
+                    <div className="flex items-start gap-4">
+                      <div className="relative">
+                        <div className="w-24 h-24 rounded-lg overflow-hidden bg-gray-50 border-2 border-dashed border-gray-300 flex items-center justify-center">
+                          {profileData.selloPreview ? (
+                            <img
+                              src={profileData.selloPreview}
+                              alt="Sello del doctor"
+                              className="w-full h-full object-contain p-2"
+                            />
+                          ) : (
+                            <div className="text-center">
+                              <Stamp className="w-8 h-8 text-gray-400 mx-auto mb-1" />
+                              <p className="text-xs text-gray-400">Sin sello</p>
+                            </div>
+                          )}
+                        </div>
+                        {profileData.selloPreview && (
+                          <button
+                            type="button"
+                            onClick={handleRemoveSello}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          ref={selloInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleSelloChange}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => selloInputRef.current?.click()}
+                          className="w-full border-2 border-purple-500 text-purple-600 hover:bg-purple-50"
+                        >
+                          <Stamp className="w-4 h-4 mr-2" />
+                          {profileData.selloPreview ? 'Cambiar' : 'Subir'} Sello
+                        </Button>
+                        <p className="text-xs text-gray-500">
+                          PNG o JPG con fondo transparente. Máx 2MB.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

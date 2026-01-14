@@ -13,68 +13,68 @@ class EmpleadoService {
     if (!emp) return null;
     return {
       id: emp.id,
-      usuarioId: emp.usuario_id,
-      candidatoId: emp.candidato_id,
-      tipoDocumento: emp.tipo_documento,
+      usuarioId: emp.usuarioId,
+      candidatoId: emp.candidatoId,
+      tipoDocumento: emp.tipoDocumento,
       documento: emp.documento,
       nombre: emp.nombre,
       apellido: emp.apellido,
-      fechaNacimiento: emp.fecha_nacimiento,
-      lugarNacimiento: emp.lugar_nacimiento,
+      fechaNacimiento: emp.fechaNacimiento,
+      lugarNacimiento: emp.lugarNacimiento,
       genero: emp.genero,
-      estadoCivil: emp.estado_civil,
+      estadoCivil: emp.estadoCivil,
       nacionalidad: emp.nacionalidad,
-      tipoSangre: emp.tipo_sangre,
-      fotoUrl: emp.foto_url,
+      tipoSangre: emp.tipoSangre,
+      fotoUrl: emp.fotoUrl,
       email: emp.email,
-      emailCorporativo: emp.email_corporativo,
+      emailCorporativo: emp.emailCorporativo,
       telefono: emp.telefono,
-      telefonoEmergencia: emp.telefono_emergencia,
-      contactoEmergencia: emp.contacto_emergencia,
-      parentescoEmergencia: emp.parentesco_emergencia,
+      telefonoEmergencia: emp.telefonoEmergencia,
+      contactoEmergencia: emp.contactoEmergencia,
+      parentescoEmergencia: emp.parentescoEmergencia,
       direccion: emp.direccion,
       ciudad: emp.ciudad,
-      departamentoGeo: emp.departamento_geo,
-      cargoId: emp.cargo_id,
-      departamentoId: emp.departamento_id,
-      jefeDirectoId: emp.jefe_directo_id,
-      fechaIngreso: emp.fecha_ingreso,
-      fechaRetiro: emp.fecha_retiro,
+      departamentoGeo: emp.departamentoGeo,
+      cargoId: emp.cargoId,
+      departamentoId: emp.departamentoId,
+      jefeDirectoId: emp.jefeDirectoId,
+      fechaIngreso: emp.fechaIngreso,
+      fechaRetiro: emp.fechaRetiro,
       estado: emp.estado,
-      tipoEmpleado: emp.tipo_empleado,
-      nivelEducativo: emp.nivel_educativo,
+      tipoEmpleado: emp.tipoEmpleado,
+      nivelEducativo: emp.nivelEducativo,
       profesion: emp.profesion,
       especializaciones: emp.especializaciones,
-      numeroTarjetaProfesional: emp.numero_tarjeta_profesional,
+      numeroTarjetaProfesional: emp.numeroTarjetaProfesional,
       rethus: emp.rethus,
       eps: emp.eps,
       afp: emp.afp,
       arl: emp.arl,
-      cajaCompensacion: emp.caja_compensacion,
+      cajaCompensacion: emp.cajaCompensacion,
       banco: emp.banco,
-      tipoCuenta: emp.tipo_cuenta,
-      numeroCuenta: emp.numero_cuenta,
+      tipoCuenta: emp.tipoCuenta,
+      numeroCuenta: emp.numeroCuenta,
       observaciones: emp.observaciones,
-      createdAt: emp.created_at,
-      updatedAt: emp.updated_at,
+      createdAt: emp.createdAt,
+      updatedAt: emp.updatedAt,
       // Relaciones
-      cargo: emp.th_cargos,
-      jefeDirecto: emp.th_empleados ? {
-        id: emp.th_empleados.id,
-        nombre: emp.th_empleados.nombre,
-        apellido: emp.th_empleados.apellido,
-        fotoUrl: emp.th_empleados.foto_url
+      cargo: emp.cargo,
+      jefeDirecto: emp.jefeDirecto ? {
+        id: emp.jefeDirecto.id,
+        nombre: emp.jefeDirecto.nombre,
+        apellido: emp.jefeDirecto.apellido,
+        fotoUrl: emp.jefeDirecto.fotoUrl
       } : null,
-      subordinados: emp.other_th_empleados?.map(sub => ({
+      subordinados: emp.subordinados?.map(sub => ({
         id: sub.id,
         nombre: sub.nombre,
         apellido: sub.apellido,
-        fotoUrl: sub.foto_url
+        fotoUrl: sub.fotoUrl
       })),
-      usuario: emp.usuarios,
+      usuario: emp.usuario,
       _count: emp._count ? {
-        subordinados: emp._count.other_th_empleados,
-        contratos: emp._count.th_contratos
+        subordinados: emp._count.subordinados,
+        contratos: emp._count.contratos
       } : undefined
     };
   }
@@ -85,9 +85,9 @@ class EmpleadoService {
   async list({ estado, departamentoId, cargoId, tipoEmpleado, search, page = 1, limit = 20 }) {
     const where = {};
     if (estado) where.estado = estado;
-    if (departamentoId) where.departamento_id = departamentoId;
-    if (cargoId) where.cargo_id = cargoId;
-    if (tipoEmpleado) where.tipo_empleado = tipoEmpleado;
+    if (departamentoId) where.departamentoId = departamentoId;
+    if (cargoId) where.cargoId = cargoId;
+    if (tipoEmpleado) where.tipoEmpleado = tipoEmpleado;
 
     if (search) {
       where.OR = [
@@ -99,18 +99,18 @@ class EmpleadoService {
     }
 
     const [data, total] = await Promise.all([
-      prisma.th_empleados.findMany({
+      prisma.tHEmpleado.findMany({
         where,
         include: {
-          th_cargos: true,
-          th_empleados: { select: { id: true, nombre: true, apellido: true } }, // Jefe
-          _count: { select: { other_th_empleados: true, th_contratos: true } }
+          cargo: true,
+          jefeDirecto: { select: { id: true, nombre: true, apellido: true } },
+          _count: { select: { subordinados: true, contratos: true } }
         },
         orderBy: { nombre: 'asc' },
         skip: (page - 1) * limit,
         take: limit
       }),
-      prisma.th_empleados.count({ where })
+      prisma.tHEmpleado.count({ where })
     ]);
 
     return {
@@ -123,13 +123,13 @@ class EmpleadoService {
    * Obtener empleado por ID
    */
   async getById(id) {
-    const empleado = await prisma.th_empleados.findUnique({
+    const empleado = await prisma.tHEmpleado.findUnique({
       where: { id },
       include: {
-        th_cargos: true,
-        th_empleados: { select: { id: true, nombre: true, apellido: true, foto_url: true } },
-        other_th_empleados: { select: { id: true, nombre: true, apellido: true, foto_url: true } },
-        usuarios: { select: { id: true, email: true, activo: true } }
+        cargo: true,
+        jefeDirecto: { select: { id: true, nombre: true, apellido: true, fotoUrl: true } },
+        subordinados: { select: { id: true, nombre: true, apellido: true, fotoUrl: true } },
+        usuario: { select: { id: true, email: true, activo: true } }
       }
     });
 
@@ -141,48 +141,47 @@ class EmpleadoService {
    * Obtener expediente completo del empleado
    */
   async getExpediente(id) {
-    const empleado = await prisma.th_empleados.findUnique({
+    const empleado = await prisma.tHEmpleado.findUnique({
       where: { id },
       include: {
-        th_cargos: true,
-        th_empleados: { select: { id: true, nombre: true, apellido: true } },
-        th_contratos: { orderBy: { fecha_inicio: 'desc' } },
-        th_movimientos: { orderBy: { fecha_efectiva: 'desc' }, take: 20 },
-        th_documentos_empleado: { orderBy: { created_at: 'desc' } },
-        // th_evaluaciones_desempeno (recibidas)
-        th_evaluaciones_desempeno_th_evaluaciones_desempeno_empleado_idToth_empleados: {
-          include: { th_periodos_evaluacion: true },
-          orderBy: { fecha_asignacion: 'desc' },
+        cargo: true,
+        jefeDirecto: { select: { id: true, nombre: true, apellido: true } },
+        contratos: { orderBy: { fechaInicio: 'desc' } },
+        movimientos: { orderBy: { fechaEfectiva: 'desc' }, take: 20 },
+        documentos: { orderBy: { createdAt: 'desc' } },
+        evaluacionesRecibidas: {
+          include: { periodo: true },
+          orderBy: { fechaAsignacion: 'desc' },
           take: 10
         },
-        th_asistentes_capacitacion: {
-          include: { th_capacitaciones: true },
-          orderBy: { created_at: 'desc' }, // Check if created_at exists in relation table
+        capacitaciones: {
+          include: { capacitacion: true },
+          orderBy: { createdAt: 'desc' },
           take: 10
         },
-        th_vacaciones: { orderBy: { solicitado_el: 'desc' }, take: 10 },
-        th_permisos: { orderBy: { solicitado_el: 'desc' }, take: 10 },
-        th_reconocimientos: { orderBy: { fecha: 'desc' }, take: 10 },
-        th_objetivos: {
+        vacaciones: { orderBy: { solicitadoEl: 'desc' }, take: 10 },
+        permisos: { orderBy: { solicitadoEl: 'desc' }, take: 10 },
+        reconocimientos: { orderBy: { fecha: 'desc' }, take: 10 },
+        objetivos: {
           where: { anio: new Date().getFullYear() },
-          orderBy: { created_at: 'desc' }
+          orderBy: { createdAt: 'desc' }
         }
       }
     });
 
     if (!empleado) throw new NotFoundError('Empleado no encontrado');
-    
+
     const entity = this.mapToEntity(empleado);
     // Map related collections
-    entity.contratos = empleado.th_contratos;
-    entity.movimientos = empleado.th_movimientos;
-    entity.documentos = empleado.th_documentos_empleado;
-    entity.evaluacionesRecibidas = empleado.th_evaluaciones_desempeno_th_evaluaciones_desempeno_empleado_idToth_empleados;
-    entity.capacitaciones = empleado.th_asistentes_capacitacion;
-    entity.vacaciones = empleado.th_vacaciones;
-    entity.permisos = empleado.th_permisos;
-    entity.reconocimientos = empleado.th_reconocimientos;
-    entity.objetivos = empleado.th_objetivos;
+    entity.contratos = empleado.contratos;
+    entity.movimientos = empleado.movimientos;
+    entity.documentos = empleado.documentos;
+    entity.evaluacionesRecibidas = empleado.evaluacionesRecibidas;
+    entity.capacitaciones = empleado.capacitaciones;
+    entity.vacaciones = empleado.vacaciones;
+    entity.permisos = empleado.permisos;
+    entity.reconocimientos = empleado.reconocimientos;
+    entity.objetivos = empleado.objetivos;
 
     return entity;
   }
@@ -192,7 +191,7 @@ class EmpleadoService {
    */
   async create(data) {
     // Verificar documento único
-    const existing = await prisma.th_empleados.findUnique({
+    const existing = await prisma.tHEmpleado.findUnique({
       where: { documento: data.documento }
     });
 
@@ -202,62 +201,62 @@ class EmpleadoService {
 
     // Verificar que el cargo exista
     if (data.cargoId) {
-      const cargo = await prisma.th_cargos.findUnique({ where: { id: data.cargoId } });
+      const cargo = await prisma.tHCargo.findUnique({ where: { id: data.cargoId } });
       if (!cargo) throw new ValidationError('Cargo no encontrado');
     }
 
-    // Map data to snake_case
+    // Map data to Prisma camelCase fields
     const dbData = {
-      tipo_documento: data.tipoDocumento,
+      tipoDocumento: data.tipoDocumento,
       documento: data.documento,
       nombre: data.nombre,
       apellido: data.apellido,
-      fecha_nacimiento: data.fechaNacimiento ? new Date(data.fechaNacimiento) : null,
-      lugar_nacimiento: data.lugarNacimiento,
+      fechaNacimiento: data.fechaNacimiento ? new Date(data.fechaNacimiento) : null,
+      lugarNacimiento: data.lugarNacimiento,
       genero: data.genero,
-      estado_civil: data.estadoCivil,
+      estadoCivil: data.estadoCivil,
       nacionalidad: data.nacionalidad,
-      tipo_sangre: data.tipoSangre,
-      foto_url: data.fotoUrl,
+      tipoSangre: data.tipoSangre,
+      fotoUrl: data.fotoUrl,
       email: data.email,
-      email_corporativo: data.emailCorporativo,
+      emailCorporativo: data.emailCorporativo,
       telefono: data.telefono,
-      telefono_emergencia: data.telefonoEmergencia,
-      contacto_emergencia: data.contactoEmergencia,
-      parentesco_emergencia: data.parentescoEmergencia,
+      telefonoEmergencia: data.telefonoEmergencia,
+      contactoEmergencia: data.contactoEmergencia,
+      parentescoEmergencia: data.parentescoEmergencia,
       direccion: data.direccion,
       ciudad: data.ciudad,
-      departamento_geo: data.departamentoGeo,
-      cargo_id: data.cargoId,
-      departamento_id: data.departamentoId,
-      jefe_directo_id: data.jefeDirectoId,
-      fecha_ingreso: new Date(data.fechaIngreso),
+      departamentoGeo: data.departamentoGeo,
+      cargoId: data.cargoId,
+      departamentoId: data.departamentoId,
+      jefeDirectoId: data.jefeDirectoId,
+      fechaIngreso: new Date(data.fechaIngreso),
       estado: data.estado || 'ACTIVO',
-      tipo_empleado: data.tipoEmpleado,
-      nivel_educativo: data.nivelEducativo,
+      tipoEmpleado: data.tipoEmpleado,
+      nivelEducativo: data.nivelEducativo,
       profesion: data.profesion,
       especializaciones: data.especializaciones,
-      numero_tarjeta_profesional: data.numeroTarjetaProfesional,
+      numeroTarjetaProfesional: data.numeroTarjetaProfesional,
       rethus: data.rethus,
       eps: data.eps,
       afp: data.afp,
       arl: data.arl,
-      caja_compensacion: data.cajaCompensacion,
+      cajaCompensacion: data.cajaCompensacion,
       banco: data.banco,
-      tipo_cuenta: data.tipoCuenta,
-      numero_cuenta: data.numeroCuenta,
+      tipoCuenta: data.tipoCuenta,
+      numeroCuenta: data.numeroCuenta,
       observaciones: data.observaciones
     };
 
-    const empleado = await prisma.th_empleados.create({
+    const empleado = await prisma.tHEmpleado.create({
       data: dbData,
-      include: { th_cargos: true }
+      include: { cargo: true }
     });
 
     // Hook SST: Inicializar perfil SST si tiene cargo asignado
-    if (empleado.cargo_id) {
+    if (empleado.cargoId) {
       try {
-        await integracionSST.onEmpleadoCreado(empleado.id, empleado.cargo_id);
+        await integracionSST.onEmpleadoCreado(empleado.id, empleado.cargoId);
       } catch (err) {
         console.warn('[SST Hook] Error al inicializar SST para empleado:', err.message);
       }
@@ -270,32 +269,32 @@ class EmpleadoService {
    * Actualizar empleado
    */
   async update(id, data) {
-    const empleado = await prisma.th_empleados.findUnique({ where: { id } });
+    const empleado = await prisma.tHEmpleado.findUnique({ where: { id } });
     if (!empleado) throw new NotFoundError('Empleado no encontrado');
 
-    const cargoAnterior = empleado.cargo_id;
+    const cargoAnterior = empleado.cargoId;
 
-    // Map update data
+    // Map update data using Prisma camelCase fields
     const dbData = {};
-    if (data.tipoDocumento !== undefined) dbData.tipo_documento = data.tipoDocumento;
+    if (data.tipoDocumento !== undefined) dbData.tipoDocumento = data.tipoDocumento;
     if (data.documento !== undefined) dbData.documento = data.documento;
     if (data.nombre !== undefined) dbData.nombre = data.nombre;
     if (data.apellido !== undefined) dbData.apellido = data.apellido;
-    if (data.fechaNacimiento !== undefined) dbData.fecha_nacimiento = data.fechaNacimiento;
+    if (data.fechaNacimiento !== undefined) dbData.fechaNacimiento = data.fechaNacimiento;
     if (data.email !== undefined) dbData.email = data.email;
     if (data.telefono !== undefined) dbData.telefono = data.telefono;
     if (data.direccion !== undefined) dbData.direccion = data.direccion;
-    if (data.cargoId !== undefined) dbData.cargo_id = data.cargoId;
-    if (data.departamentoId !== undefined) dbData.departamento_id = data.departamentoId;
-    if (data.jefeDirectoId !== undefined) dbData.jefe_directo_id = data.jefeDirectoId;
+    if (data.cargoId !== undefined) dbData.cargoId = data.cargoId;
+    if (data.departamentoId !== undefined) dbData.departamentoId = data.departamentoId;
+    if (data.jefeDirectoId !== undefined) dbData.jefeDirectoId = data.jefeDirectoId;
     if (data.estado !== undefined) dbData.estado = data.estado;
-    if (data.tipoEmpleado !== undefined) dbData.tipo_empleado = data.tipoEmpleado;
+    if (data.tipoEmpleado !== undefined) dbData.tipoEmpleado = data.tipoEmpleado;
     // ... add others as needed
 
-    const empleadoActualizado = await prisma.th_empleados.update({
+    const empleadoActualizado = await prisma.tHEmpleado.update({
       where: { id },
       data: dbData,
-      include: { th_cargos: true }
+      include: { cargo: true }
     });
 
     // Hook SST: Si cambió el cargo, actualizar riesgos y exámenes
@@ -314,15 +313,15 @@ class EmpleadoService {
    * Cambiar estado del empleado
    */
   async changeStatus(id, estado, motivo = null) {
-    const empleado = await prisma.th_empleados.findUnique({ where: { id } });
+    const empleado = await prisma.tHEmpleado.findUnique({ where: { id } });
     if (!empleado) throw new NotFoundError('Empleado no encontrado');
 
     const updateData = { estado };
     if (estado === 'RETIRADO') {
-      updateData.fecha_retiro = new Date();
+      updateData.fechaRetiro = new Date();
     }
 
-    return prisma.th_empleados.update({
+    return prisma.tHEmpleado.update({
       where: { id },
       data: updateData
     });
@@ -333,7 +332,7 @@ class EmpleadoService {
    */
   async linkToUser(empleadoId, usuarioId) {
     const [empleado, usuario] = await Promise.all([
-      prisma.th_empleados.findUnique({ where: { id: empleadoId } }),
+      prisma.tHEmpleado.findUnique({ where: { id: empleadoId } }),
       prisma.usuario.findUnique({ where: { id: usuarioId } })
     ]);
 
@@ -341,17 +340,17 @@ class EmpleadoService {
     if (!usuario) throw new NotFoundError('Usuario no encontrado');
 
     // Verificar que el usuario no esté ya vinculado
-    const existingLink = await prisma.th_empleados.findUnique({
-      where: { usuario_id: usuarioId }
+    const existingLink = await prisma.tHEmpleado.findUnique({
+      where: { usuarioId: usuarioId }
     });
 
     if (existingLink) {
       throw new ValidationError('El usuario ya está vinculado a otro empleado');
     }
 
-    return prisma.th_empleados.update({
+    return prisma.tHEmpleado.update({
       where: { id: empleadoId },
-      data: { usuario_id: usuarioId }
+      data: { usuarioId: usuarioId }
     });
   }
 
@@ -359,18 +358,18 @@ class EmpleadoService {
    * Obtener organigrama
    */
   async getOrganigrama() {
-    const empleados = await prisma.th_empleados.findMany({
+    const empleados = await prisma.tHEmpleado.findMany({
       where: { estado: 'ACTIVO' },
       select: {
         id: true,
         nombre: true,
         apellido: true,
-        foto_url: true,
-        jefe_directo_id: true,
-        th_cargos: { select: { id: true, nombre: true, nivel: true } }
+        fotoUrl: true,
+        jefeDirectoId: true,
+        cargo: { select: { id: true, nombre: true, nivel: true } }
       },
       orderBy: [
-        { th_cargos: { nivel: 'asc' } },
+        { cargo: { nivel: 'asc' } },
         { nombre: 'asc' }
       ]
     });
@@ -378,13 +377,13 @@ class EmpleadoService {
     // Construir árbol jerárquico
     const buildTree = (parentId = null) => {
       return empleados
-        .filter(e => e.jefe_directo_id === parentId)
+        .filter(e => e.jefeDirectoId === parentId)
         .map(e => ({
           id: e.id,
           nombre: e.nombre,
           apellido: e.apellido,
-          fotoUrl: e.foto_url,
-          cargo: e.th_cargos,
+          fotoUrl: e.fotoUrl,
+          cargo: e.cargo,
           subordinados: buildTree(e.id)
         }));
     };
@@ -403,22 +402,22 @@ class EmpleadoService {
       porDepartamento,
       contratosProxVencer
     ] = await Promise.all([
-      prisma.th_empleados.count(),
-      prisma.th_empleados.count({ where: { estado: 'ACTIVO' } }),
-      prisma.th_empleados.groupBy({
-        by: ['tipo_empleado'],
+      prisma.tHEmpleado.count(),
+      prisma.tHEmpleado.count({ where: { estado: 'ACTIVO' } }),
+      prisma.tHEmpleado.groupBy({
+        by: ['tipoEmpleado'],
         _count: true,
         where: { estado: 'ACTIVO' }
       }),
-      prisma.th_empleados.groupBy({
-        by: ['departamento_id'],
+      prisma.tHEmpleado.groupBy({
+        by: ['departamentoId'],
         _count: true,
         where: { estado: 'ACTIVO' }
       }),
-      prisma.th_contratos.count({
+      prisma.tHContrato.count({
         where: {
           estado: 'ACTIVO',
-          fecha_fin: {
+          fechaFin: {
             lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 días
           }
         }
@@ -441,7 +440,7 @@ class EmpleadoService {
    * Buscar empleados para autocompletar
    */
   async search(query, limit = 10) {
-    return prisma.th_empleados.findMany({
+    return prisma.tHEmpleado.findMany({
       where: {
         estado: 'ACTIVO',
         OR: [
@@ -455,8 +454,8 @@ class EmpleadoService {
         nombre: true,
         apellido: true,
         documento: true,
-        foto_url: true,
-        th_cargos: { select: { nombre: true } }
+        fotoUrl: true,
+        cargo: { select: { nombre: true } }
       },
       take: limit
     });

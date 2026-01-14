@@ -2302,6 +2302,151 @@ Recibirás recordatorios automáticos 7 días, 4 días y 3 horas antes de tu cit
       text
     });
   }
+
+  /**
+   * Envía email de agradecimiento cuando un candidato aplica a una vacante
+   * @param {Object} options - Opciones del email
+   * @param {string} options.to - Email del candidato
+   * @param {string} options.nombre - Nombre del candidato
+   * @param {string} options.apellido - Apellido del candidato
+   * @param {string} options.vacanteTitulo - Título de la vacante
+   */
+  async sendApplicationThankYou({ to, nombre, apellido, vacanteTitulo }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de agradecimiento no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombreCompleto = `${nombre} ${apellido}`.trim();
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gracias por tu postulacion</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header with Logo -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #144F79 0%, #53B896 100%); padding: 40px 20px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700;">Clinica Mia</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 14px;">Tu Aliado en Salud y Bienestar</p>
+      </td>
+    </tr>
+
+    <!-- Thank You Message -->
+    <tr>
+      <td style="padding: 40px 30px;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #53B896 0%, #144F79 100%); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+            <span style="font-size: 40px; color: white;">&#10003;</span>
+          </div>
+          <h2 style="color: #144F79; margin: 0; font-size: 24px;">Gracias por postularte, ${nombreCompleto}!</h2>
+        </div>
+
+        <p style="color: #555; font-size: 16px; line-height: 1.6; margin: 0 0 20px; text-align: center;">
+          Hemos recibido exitosamente tu aplicacion para la vacante de:
+        </p>
+
+        <!-- Vacancy Box -->
+        <div style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 2px solid #0ea5e9; border-radius: 12px; padding: 20px; margin: 25px 0; text-align: center;">
+          <h3 style="color: #0369a1; margin: 0; font-size: 20px;">
+            ${vacanteTitulo}
+          </h3>
+        </div>
+
+        <p style="color: #555; font-size: 16px; line-height: 1.6; margin: 0 0 20px;">
+          Nuestro equipo de Talento Humano revisara tu perfil y nos estaremos comunicando contigo si tu perfil se ajusta a los requisitos de la vacante.
+        </p>
+
+        <!-- What's Next Section -->
+        <div style="background-color: #f8f9fa; border-radius: 12px; padding: 25px; margin: 25px 0;">
+          <h3 style="color: #144F79; margin: 0 0 15px; font-size: 18px;">Que sigue?</h3>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 10px 0; vertical-align: top; width: 30px;">
+                <span style="color: #53B896; font-size: 18px; font-weight: bold;">1.</span>
+              </td>
+              <td style="padding: 10px 0; color: #555; font-size: 14px;">
+                Revisaremos tu aplicacion en los proximos dias habiles.
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; vertical-align: top; width: 30px;">
+                <span style="color: #53B896; font-size: 18px; font-weight: bold;">2.</span>
+              </td>
+              <td style="padding: 10px 0; color: #555; font-size: 14px;">
+                Si cumples con el perfil, te contactaremos para agendar una entrevista.
+              </td>
+            </tr>
+          </table>
+        </div>
+
+        <p style="color: #888; font-size: 14px; line-height: 1.6; text-align: center; margin: 20px 0 0;">
+          Si tienes alguna pregunta, no dudes en contactarnos a<br>
+          <a href="mailto:talentohumano@clinicamiacolombia.com" style="color: #144F79; text-decoration: none;">talentohumano@clinicamiacolombia.com</a>
+        </p>
+      </td>
+    </tr>
+
+    <!-- Contact Info -->
+    <tr>
+      <td style="padding: 20px 30px; background-color: #f0f9ff; border-top: 1px solid #e0f2fe;">
+        <p style="color: #0369a1; font-size: 14px; margin: 0; text-align: center;">
+          <strong>Clinica Mia</strong><br>
+          Cra. 5 #28-85, Ibague, Tolima<br>
+          Tel: 324 333 8555
+        </p>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #f8f9fa; padding: 25px; text-align: center; border-top: 1px solid #e5e5e5;">
+        <p style="color: #999; font-size: 12px; margin: 0;">
+          &copy; ${new Date().getFullYear()} Clinica Mia. Todos los derechos reservados.<br>
+          Ibague, Tolima - Colombia
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+Gracias por postularte, ${nombreCompleto}!
+
+Hemos recibido exitosamente tu aplicacion para la vacante de:
+${vacanteTitulo}
+
+Nuestro equipo de Talento Humano revisara tu perfil y nos estaremos comunicando contigo si tu perfil se ajusta a los requisitos de la vacante.
+
+QUE SIGUE?
+----------
+1. Revisaremos tu aplicacion en los proximos dias habiles.
+2. Si cumples con el perfil, te contactaremos para agendar una entrevista.
+
+Si tienes alguna pregunta, contactanos a: talentohumano@clinicamiacolombia.com
+
+---
+Clinica Mia
+Cra. 5 #28-85, Ibague, Tolima
+Tel: 324 333 8555
+
+(c) ${new Date().getFullYear()} Clinica Mia. Todos los derechos reservados.
+    `;
+
+    return this.send({
+      to,
+      subject: `Gracias por tu postulacion - ${vacanteTitulo} | Clinica Mia`,
+      html,
+      text
+    });
+  }
 }
 
 // Singleton

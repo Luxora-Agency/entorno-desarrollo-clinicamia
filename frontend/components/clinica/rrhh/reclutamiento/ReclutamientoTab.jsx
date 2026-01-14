@@ -55,7 +55,7 @@ const ESTADO_CANDIDATO_COLORS = {
   CONTRATADO: 'bg-emerald-100 text-emerald-700',
 };
 
-function VacanteCard({ vacante, onView, onEdit, onDelete }) {
+function VacanteCard({ vacante, onView, onEdit, onDelete, onViewCandidatos }) {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardContent className="pt-4">
@@ -113,7 +113,7 @@ function VacanteCard({ vacante, onView, onEdit, onDelete }) {
                 Editar
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onView(vacante)}>
+              <DropdownMenuItem onClick={() => onViewCandidatos(vacante)}>
                 <Users className="w-4 h-4 mr-2" />
                 Ver candidatos
               </DropdownMenuItem>
@@ -132,7 +132,7 @@ function VacanteCard({ vacante, onView, onEdit, onDelete }) {
           <span className="text-xs text-gray-400">
             Apertura: {new Date(vacante.fechaApertura).toLocaleDateString()}
           </span>
-          <Button variant="outline" size="sm" onClick={() => onView(vacante)}>
+          <Button variant="outline" size="sm" onClick={() => onViewCandidatos(vacante)}>
             Ver candidatos
             <ChevronRight className="w-4 h-4 ml-1" />
           </Button>
@@ -197,6 +197,7 @@ export default function ReclutamientoTab({ user }) {
   const [editingCandidato, setEditingCandidato] = useState(null);
   const [deleteCandidatoConfirm, setDeleteCandidatoConfirm] = useState(null);
   const [loadingCandidatoDetails, setLoadingCandidatoDetails] = useState(false);
+  const [filteringByVacante, setFilteringByVacante] = useState(null); // Vacante selected for filtering candidates
 
   const {
     vacantes, candidatos, loading,
@@ -298,16 +299,37 @@ export default function ReclutamientoTab({ user }) {
     setShowCandidatoModal(true);
   };
 
+  // Handler to view candidates for a specific vacancy
+  const openCandidatosForVacante = (vacante) => {
+    setFilteringByVacante(vacante);
+    setActiveSubTab('candidatos');
+  };
+
+  // Clear vacancy filter
+  const clearVacanteFilter = () => {
+    setFilteringByVacante(null);
+  };
+
   const filteredVacantes = vacantes.filter(v =>
     v.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
     v.departamento?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const filteredCandidatos = candidatos.filter(c =>
-    c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Filter candidates by search term AND by vacancy if one is selected
+  const filteredCandidatos = candidatos.filter(c => {
+    const matchesSearch =
+      c.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.email.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // If filtering by vacancy, only show candidates who applied to that vacancy
+    if (filteringByVacante) {
+      const appliedToVacante = c.vacantes?.some(v => v.vacanteId === filteringByVacante.id);
+      return matchesSearch && appliedToVacante;
+    }
+
+    return matchesSearch;
+  });
 
   return (
     <div className="space-y-6">
@@ -430,6 +452,7 @@ export default function ReclutamientoTab({ user }) {
                   onView={openViewVacante}
                   onEdit={openEditVacante}
                   onDelete={setDeleteVacanteConfirm}
+                  onViewCandidatos={openCandidatosForVacante}
                 />
               ))}
             </div>
@@ -437,13 +460,43 @@ export default function ReclutamientoTab({ user }) {
         </TabsContent>
 
         <TabsContent value="candidatos" className="mt-6">
+          {/* Filter header when viewing candidates for a specific vacancy */}
+          {filteringByVacante && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Briefcase className="w-5 h-5 text-blue-600" />
+                <div>
+                  <p className="text-sm text-blue-700">
+                    Mostrando candidatos para:
+                  </p>
+                  <p className="font-semibold text-blue-900">{filteringByVacante.titulo}</p>
+                </div>
+              </div>
+              <Button variant="outline" size="sm" onClick={clearVacanteFilter}>
+                <XCircle className="w-4 h-4 mr-2" />
+                Ver todos los candidatos
+              </Button>
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center py-12 text-gray-400">Cargando candidatos...</div>
           ) : filteredCandidatos.length === 0 ? (
             <div className="text-center py-12">
               <Users className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-              <h3 className="text-lg font-medium text-gray-500">No hay candidatos</h3>
-              <p className="text-sm text-gray-400 mt-1">Los candidatos aparecerán aquí cuando apliquen</p>
+              <h3 className="text-lg font-medium text-gray-500">
+                {filteringByVacante ? 'No hay candidatos para esta vacante' : 'No hay candidatos'}
+              </h3>
+              <p className="text-sm text-gray-400 mt-1">
+                {filteringByVacante
+                  ? 'Aún no hay postulantes para esta vacante'
+                  : 'Los candidatos aparecerán aquí cuando apliquen'}
+              </p>
+              {filteringByVacante && (
+                <Button variant="outline" className="mt-4" onClick={clearVacanteFilter}>
+                  Ver todos los candidatos
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">

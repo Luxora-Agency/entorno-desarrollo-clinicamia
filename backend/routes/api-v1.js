@@ -1842,7 +1842,7 @@ apiV1.get('/careers/vacantes', async c => {
     }
 
     const [vacantes, total] = await Promise.all([
-      prisma.th_vacantes.findMany({
+      prisma.tHVacante.findMany({
         where,
         skip,
         take: limit,
@@ -1850,14 +1850,14 @@ apiV1.get('/careers/vacantes', async c => {
           id: true,
           titulo: true,
           descripcion: true,
-          tipo_contrato: true,
+          tipoContrato: true,
           jornada: true,
-          salario_min: true,
-          salario_max: true,
+          salarioMin: true,
+          salarioMax: true,
           ubicacion: true,
-          fecha_apertura: true,
-          fecha_cierre: true,
-          cantidad_puestos: true,
+          fechaApertura: true,
+          fechaCierre: true,
+          cantidadPuestos: true,
           cargo: {
             select: {
               id: true,
@@ -1865,9 +1865,9 @@ apiV1.get('/careers/vacantes', async c => {
             },
           },
         },
-        orderBy: { fecha_apertura: 'desc' },
+        orderBy: { fechaApertura: 'desc' },
       }),
-      prisma.th_vacantes.count({ where }),
+      prisma.tHVacante.count({ where }),
     ]);
 
     // Format for frontend
@@ -1875,14 +1875,14 @@ apiV1.get('/careers/vacantes', async c => {
       id: v.id,
       titulo: v.titulo,
       descripcion: v.descripcion,
-      tipoContrato: v.tipo_contrato,
+      tipoContrato: v.tipoContrato,
       jornada: v.jornada,
-      salarioMin: v.salario_min ? parseFloat(v.salario_min) : null,
-      salarioMax: v.salario_max ? parseFloat(v.salario_max) : null,
+      salarioMin: v.salarioMin ? parseFloat(v.salarioMin) : null,
+      salarioMax: v.salarioMax ? parseFloat(v.salarioMax) : null,
       ubicacion: v.ubicacion,
-      fechaApertura: v.fecha_apertura,
-      fechaCierre: v.fecha_cierre,
-      cantidadPuestos: v.cantidad_puestos,
+      fechaApertura: v.fechaApertura,
+      fechaCierre: v.fechaCierre,
+      cantidadPuestos: v.cantidadPuestos,
       cargo: v.cargo?.nombre,
     }));
 
@@ -1909,26 +1909,25 @@ apiV1.get('/careers/vacantes', async c => {
 apiV1.get('/careers/vacantes/:id', async c => {
   try {
     const { id } = c.req.param();
-    const vacanteId = id;
 
-    const vacante = await prisma.th_vacantes.findFirst({
+    const vacante = await prisma.tHVacante.findFirst({
       where: {
         id,
         estado: 'ABIERTA',
-        publicar_externo: true,
+        publicarExterno: true,
       },
       select: {
         id: true,
         titulo: true,
         descripcion: true,
-        tipo_contrato: true,
+        tipoContrato: true,
         jornada: true,
-        salario_min: true,
-        salario_max: true,
+        salarioMin: true,
+        salarioMax: true,
         ubicacion: true,
-        fecha_apertura: true,
-        fecha_cierre: true,
-        cantidad_puestos: true,
+        fechaApertura: true,
+        fechaCierre: true,
+        cantidadPuestos: true,
         requisitos: true,
         cargo: {
           select: {
@@ -1963,14 +1962,14 @@ apiV1.get('/careers/vacantes/:id', async c => {
       id: vacante.id,
       titulo: vacante.titulo,
       descripcion: vacante.descripcion,
-      tipoContrato: vacante.tipo_contrato,
+      tipoContrato: vacante.tipoContrato,
       jornada: vacante.jornada,
-      salarioMin: vacante.salario_min ? parseFloat(vacante.salario_min) : null,
-      salarioMax: vacante.salario_max ? parseFloat(vacante.salario_max) : null,
+      salarioMin: vacante.salarioMin ? parseFloat(vacante.salarioMin) : null,
+      salarioMax: vacante.salarioMax ? parseFloat(vacante.salarioMax) : null,
       ubicacion: vacante.ubicacion,
-      fechaApertura: vacante.fecha_apertura,
-      fechaCierre: vacante.fecha_cierre,
-      cantidadPuestos: vacante.cantidad_puestos,
+      fechaApertura: vacante.fechaApertura,
+      fechaCierre: vacante.fechaCierre,
+      cantidadPuestos: vacante.cantidadPuestos,
       requisitos: requisitosTexto,
       beneficios: beneficios,
       cargo: vacante.cargo ? {
@@ -1997,10 +1996,10 @@ apiV1.get('/careers/vacantes/:id', async c => {
 apiV1.get('/careers/departamentos', async c => {
   try {
     // Get unique departamentoIds from open vacancies via cargo
-    const vacantesWithDept = await prisma.th_vacantes.findMany({
+    const vacantesWithDept = await prisma.tHVacante.findMany({
       where: {
         estado: 'ABIERTA',
-        publicar_externo: true,
+        publicarExterno: true,
         cargo: {
           departamentoId: { not: null },
         },
@@ -2040,10 +2039,10 @@ apiV1.get('/careers/departamentos', async c => {
 
     // Count vacancies per department
     const formatted = await Promise.all(departamentos.map(async (d) => {
-      const count = await prisma.th_vacantes.count({
+      const count = await prisma.tHVacante.count({
         where: {
           estado: 'ABIERTA',
-          publicar_externo: true,
+          publicarExterno: true,
           cargo: {
             departamentoId: d.id,
           },
@@ -2073,11 +2072,11 @@ apiV1.post('/careers/vacantes/:id/aplicar', async c => {
     const body = await c.req.json();
 
     // Verify vacancy exists and is open
-    const vacante = await prisma.th_vacantes.findFirst({
+    const vacante = await prisma.tHVacante.findFirst({
       where: {
         id: vacanteId,
         estado: 'ABIERTA',
-        publicar_externo: true,
+        publicarExterno: true,
       },
     });
 
@@ -2088,7 +2087,7 @@ apiV1.post('/careers/vacantes/:id/aplicar', async c => {
     // Create candidate in transaction
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create CandidatoTalento record (full application data)
-      const candidatoTalento = await tx.candidatos_talento.create({
+      const candidatoTalento = await tx.candidatoTalento.create({
         data: {
           firstName: body.firstName,
           lastName: body.lastName,
@@ -2141,40 +2140,40 @@ apiV1.post('/careers/vacantes/:id/aplicar', async c => {
       });
 
       // 2. Create or find THCandidato (simplified HR record)
-      let thCandidato = await tx.th_candidatos.findFirst({
+      let thCandidato = await tx.tHCandidato.findFirst({
         where: {
           OR: [
             { email: body.email },
-            { tipo_documento: body.documentType || 'CC', documento: body.documentNumber },
+            { tipoDocumento: body.documentType || 'CC', documento: body.documentNumber },
           ],
         },
       });
 
       if (!thCandidato) {
-        thCandidato = await tx.th_candidatos.create({
+        thCandidato = await tx.tHCandidato.create({
           data: {
             nombre: body.firstName,
             apellido: body.lastName,
             email: body.email,
             telefono: body.mobilePhone,
             documento: body.documentNumber,
-            tipo_documento: body.documentType || 'CC',
+            tipoDocumento: body.documentType || 'CC',
             direccion: body.residenceAddress,
             ciudad: body.city,
             profesion: body.profession,
-            experiencia_anios: body.yearsOfExperience,
-            expectativa_salarial: body.salaryExpectation,
-            fuente_aplicacion: 'Portal Web',
+            experienciaAnios: body.yearsOfExperience,
+            expectativaSalarial: body.salaryExpectation,
+            fuenteAplicacion: 'Portal Web',
             notas: body.motivation,
           },
         });
       }
 
       // 3. Check if already applied to this vacancy
-      const existingApplication = await tx.th_candidato_vacante.findFirst({
+      const existingApplication = await tx.tHCandidatoVacante.findFirst({
         where: {
-          candidato_id: thCandidato.id,
-          vacante_id: vacanteId,
+          candidatoId: thCandidato.id,
+          vacanteId: vacanteId,
         },
       });
 
@@ -2183,10 +2182,10 @@ apiV1.post('/careers/vacantes/:id/aplicar', async c => {
       }
 
       // 4. Create application to vacancy
-      const aplicacion = await tx.th_candidato_vacante.create({
+      const aplicacion = await tx.tHCandidatoVacante.create({
         data: {
-          candidato_id: thCandidato.id,
-          vacante_id: vacanteId,
+          candidatoId: thCandidato.id,
+          vacanteId: vacanteId,
           estado: 'APLICADO',
           notas: body.motivation,
         },
@@ -2196,8 +2195,33 @@ apiV1.post('/careers/vacantes/:id/aplicar', async c => {
         candidatoId: thCandidato.id,
         candidatoTalentoId: candidatoTalento.id,
         aplicacionId: aplicacion.id,
+        email: body.email,
+        firstName: body.firstName,
+        lastName: body.lastName,
+        vacanteTitulo: vacante.titulo,
       };
     });
+
+    // Enviar email de agradecimiento (no bloquea la respuesta)
+    try {
+      const emailService = require('../services/email.service');
+      emailService.sendApplicationThankYou({
+        to: result.email,
+        nombre: result.firstName,
+        apellido: result.lastName,
+        vacanteTitulo: result.vacanteTitulo,
+      }).then(emailResult => {
+        if (emailResult.success) {
+          console.log('[Careers] Email de agradecimiento enviado a:', result.email);
+        } else {
+          console.warn('[Careers] No se pudo enviar email de agradecimiento:', emailResult.error);
+        }
+      }).catch(err => {
+        console.error('[Careers] Error enviando email de agradecimiento:', err.message);
+      });
+    } catch (emailErr) {
+      console.warn('[Careers] Error al importar email service:', emailErr.message);
+    }
 
     return c.json(success(result, 'Aplicación enviada exitosamente'), 201);
   } catch (err) {

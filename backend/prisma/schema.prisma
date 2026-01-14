@@ -461,6 +461,8 @@ model Doctor {
   aniosExperiencia Int?                 @map("anios_experiencia")
   biografia        String?
   foto             String?              @db.VarChar(500)
+  firma            String?              @db.Text // Firma digital del doctor (base64)
+  sello            String?              @db.Text // Sello del doctor (base64)
   horarios         Json?
   createdAt        DateTime             @default(now()) @map("created_at")
   updatedAt        DateTime             @updatedAt @map("updated_at")

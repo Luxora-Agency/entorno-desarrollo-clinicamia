@@ -38,7 +38,7 @@ export default function TeamStyle2({
 
   return (
     <div className="cs_team cs_style_1 cs_type_2 text-center cs_radius_20 ">
-      <div className="cs_member_img" style={{ position: 'relative', minHeight: '300px' }}>
+      <div className="cs_member_img" style={{ position: 'relative' }}>
         {/* Skeleton mientras carga */}
         {isLoading && !hasError && avatar && (
           <div
@@ -46,8 +46,8 @@ export default function TeamStyle2({
               position: 'absolute',
               top: 0,
               left: 0,
-              right: 0,
-              bottom: 0,
+              width: '100%',
+              height: '100%',
               background: 'linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%)',
               backgroundSize: '200% 100%',
               animation: 'shimmer 1.5s infinite',

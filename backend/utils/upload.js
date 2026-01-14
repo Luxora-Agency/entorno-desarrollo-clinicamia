@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const sharp = require('sharp');
 
 // Base directory for uploads
 const UPLOAD_BASE_DIR = path.join(__dirname, '..', 'public', 'uploads');
@@ -220,12 +221,72 @@ async function saveBase64Image(base64Data, subDir) {
   return `/uploads/${subDir}/${filename}`;
 }
 
+/**
+ * Resizes a base64 image to fit within max dimensions
+ * Optimized for signatures and stamps (firma/sello)
+ * @param {string} base64Data - Base64 encoded image data (with data URI prefix)
+ * @param {Object} options - Options for resizing
+ * @param {number} options.maxWidth - Maximum width (default: 400)
+ * @param {number} options.maxHeight - Maximum height (default: 200)
+ * @param {number} options.quality - JPEG quality 1-100 (default: 85)
+ * @returns {Promise<string>} Resized base64 image with data URI prefix
+ */
+async function resizeBase64Image(base64Data, options = {}) {
+  if (!base64Data) return null;
+
+  const { maxWidth = 400, maxHeight = 200, quality = 85 } = options;
+
+  try {
+    // Extract mime type and data from base64 string
+    let mimeType = 'image/png';
+    let base64Content = base64Data;
+
+    if (base64Data.includes(',')) {
+      const matches = base64Data.match(/^data:(.+);base64,(.+)$/);
+      if (matches) {
+        mimeType = matches[1];
+        base64Content = matches[2];
+      }
+    }
+
+    // Convert base64 to buffer
+    const inputBuffer = Buffer.from(base64Content, 'base64');
+
+    // Get image metadata to check if resizing is needed
+    const metadata = await sharp(inputBuffer).metadata();
+
+    // If image is already small enough, return original (but convert to PNG for consistency)
+    if (metadata.width <= maxWidth && metadata.height <= maxHeight) {
+      const optimizedBuffer = await sharp(inputBuffer)
+        .png({ quality })
+        .toBuffer();
+      return `data:image/png;base64,${optimizedBuffer.toString('base64')}`;
+    }
+
+    // Resize maintaining aspect ratio
+    const resizedBuffer = await sharp(inputBuffer)
+      .resize(maxWidth, maxHeight, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .png({ quality })
+      .toBuffer();
+
+    return `data:image/png;base64,${resizedBuffer.toString('base64')}`;
+  } catch (error) {
+    console.error('[Upload] Error resizing image:', error.message);
+    // Return original if resize fails
+    return base64Data;
+  }
+}
+
 module.exports = {
   validateImage,
   validateDocument,
   saveFile,
   deleteFile,
   saveBase64Image,
+  resizeBase64Image,
   ensureUploadDir,
   generateUniqueFilename,
   getExtensionFromMime,

@@ -11,22 +11,22 @@ class VacanteService {
   async list({ estado, departamentoId, cargoId, page = 1, limit = 20 }) {
     const where = {};
     if (estado) where.estado = estado;
-    if (departamentoId) where.departamento_id = departamentoId;
-    if (cargoId) where.cargo_id = cargoId;
+    if (departamentoId) where.departamentoId = departamentoId;
+    if (cargoId) where.cargoId = cargoId;
 
     const [data, total] = await Promise.all([
-      prisma.th_vacantes.findMany({
+      prisma.tHVacante.findMany({
         where,
         include: {
-          th_cargos: true,
-          usuarios: { select: { id: true, nombre: true, apellido: true } },
-          _count: { select: { th_candidato_vacante: true } }
+          cargo: true,
+          creador: { select: { id: true, nombre: true, apellido: true } },
+          _count: { select: { candidatos: true } }
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit
       }),
-      prisma.th_vacantes.count({ where })
+      prisma.tHVacante.count({ where })
     ]);
 
     // Map result to cleaner structure if needed, or return snake_case
@@ -49,16 +49,16 @@ class VacanteService {
    * Obtener vacante por ID
    */
   async getById(id) {
-    const vacante = await prisma.th_vacantes.findUnique({
+    const vacante = await prisma.tHVacante.findUnique({
       where: { id },
       include: {
-        th_cargos: true,
-        usuarios: { select: { id: true, nombre: true, apellido: true } },
-        th_candidato_vacante: {
+        cargo: true,
+        creador: { select: { id: true, nombre: true, apellido: true } },
+        candidatos: {
           include: {
-            th_candidatos: true
+            candidato: true
           },
-          orderBy: { fecha_aplicacion: 'desc' }
+          orderBy: { fechaAplicacion: 'desc' }
         }
       }
     });
@@ -76,38 +76,36 @@ class VacanteService {
   async create(data, userId) {
     // Validar que el cargo exista si se proporciona
     if (data.cargoId) {
-      const cargo = await prisma.th_cargos.findUnique({ where: { id: data.cargoId } });
+      const cargo = await prisma.tHCargo.findUnique({ where: { id: data.cargoId } });
       if (!cargo) throw new ValidationError('Cargo no encontrado');
     }
 
-    // Map camelCase data to snake_case
+    // Use camelCase field names (Prisma model fields)
     const dbData = {
-        id: require('uuid').v4(),
         titulo: data.titulo,
         descripcion: data.descripcion,
-        departamento_id: data.departamentoId,
-        cargo_id: data.cargoId,
+        departamentoId: data.departamentoId,
+        cargoId: data.cargoId,
         requisitos: data.requisitos,
-        salario_min: data.salarioMin,
-        salario_max: data.salarioMax,
-        tipo_contrato: data.tipoContrato,
+        salarioMin: data.salarioMin,
+        salarioMax: data.salarioMax,
+        tipoContrato: data.tipoContrato,
         jornada: data.jornada,
         ubicacion: data.ubicacion,
-        cantidad_puestos: data.cantidadPuestos,
-        fecha_apertura: data.fechaApertura ? new Date(data.fechaApertura) : new Date(),
-        fecha_cierre: data.fechaCierre ? new Date(data.fechaCierre) : null,
+        cantidadPuestos: data.cantidadPuestos,
+        fechaApertura: data.fechaApertura ? new Date(data.fechaApertura) : new Date(),
+        fechaCierre: data.fechaCierre ? new Date(data.fechaCierre) : null,
         estado: data.estado || 'ABIERTA',
-        publicar_externo: data.publicarExterno || false,
-        urls_publicacion: data.urlsPublicacion,
-        created_by: userId,
-        updated_at: new Date()
+        publicarExterno: data.publicarExterno || false,
+        urlsPublicacion: data.urlsPublicacion,
+        createdBy: userId,
     };
 
-    return prisma.th_vacantes.create({
+    return prisma.tHVacante.create({
       data: dbData,
       include: {
-        th_cargos: true,
-        usuarios: { select: { id: true, nombre: true, apellido: true } }
+        cargo: true,
+        creador: { select: { id: true, nombre: true, apellido: true } }
       }
     });
   }
@@ -116,40 +114,39 @@ class VacanteService {
    * Actualizar vacante
    */
   async update(id, data) {
-    const vacante = await prisma.th_vacantes.findUnique({ where: { id } });
+    const vacante = await prisma.tHVacante.findUnique({ where: { id } });
     if (!vacante) throw new NotFoundError('Vacante no encontrada');
 
     if (data.cargoId) {
-      const cargo = await prisma.th_cargos.findUnique({ where: { id: data.cargoId } });
+      const cargo = await prisma.tHCargo.findUnique({ where: { id: data.cargoId } });
       if (!cargo) throw new ValidationError('Cargo no encontrado');
     }
 
-    // Map camelCase data to snake_case for update
+    // Use camelCase field names (Prisma model fields)
     const dbData = {};
     if (data.titulo !== undefined) dbData.titulo = data.titulo;
     if (data.descripcion !== undefined) dbData.descripcion = data.descripcion;
-    if (data.departamentoId !== undefined) dbData.departamento_id = data.departamentoId;
-    if (data.cargoId !== undefined) dbData.cargo_id = data.cargoId;
+    if (data.departamentoId !== undefined) dbData.departamentoId = data.departamentoId;
+    if (data.cargoId !== undefined) dbData.cargoId = data.cargoId;
     if (data.requisitos !== undefined) dbData.requisitos = data.requisitos;
-    if (data.salarioMin !== undefined) dbData.salario_min = data.salarioMin;
-    if (data.salarioMax !== undefined) dbData.salario_max = data.salarioMax;
-    if (data.tipoContrato !== undefined) dbData.tipo_contrato = data.tipoContrato;
+    if (data.salarioMin !== undefined) dbData.salarioMin = data.salarioMin;
+    if (data.salarioMax !== undefined) dbData.salarioMax = data.salarioMax;
+    if (data.tipoContrato !== undefined) dbData.tipoContrato = data.tipoContrato;
     if (data.jornada !== undefined) dbData.jornada = data.jornada;
     if (data.ubicacion !== undefined) dbData.ubicacion = data.ubicacion;
-    if (data.cantidadPuestos !== undefined) dbData.cantidad_puestos = data.cantidadPuestos;
-    if (data.fechaApertura !== undefined) dbData.fecha_apertura = new Date(data.fechaApertura);
-    if (data.fechaCierre !== undefined) dbData.fecha_cierre = new Date(data.fechaCierre);
+    if (data.cantidadPuestos !== undefined) dbData.cantidadPuestos = data.cantidadPuestos;
+    if (data.fechaApertura !== undefined) dbData.fechaApertura = new Date(data.fechaApertura);
+    if (data.fechaCierre !== undefined) dbData.fechaCierre = new Date(data.fechaCierre);
     if (data.estado !== undefined) dbData.estado = data.estado;
-    if (data.publicarExterno !== undefined) dbData.publicar_externo = data.publicarExterno;
-    if (data.urlsPublicacion !== undefined) dbData.urls_publicacion = data.urlsPublicacion;
-    dbData.updated_at = new Date();
+    if (data.publicarExterno !== undefined) dbData.publicarExterno = data.publicarExterno;
+    if (data.urlsPublicacion !== undefined) dbData.urlsPublicacion = data.urlsPublicacion;
 
-    return prisma.th_vacantes.update({
+    return prisma.tHVacante.update({
       where: { id },
       data: dbData,
       include: {
-        th_cargos: true,
-        usuarios: { select: { id: true, nombre: true, apellido: true } }
+        cargo: true,
+        creador: { select: { id: true, nombre: true, apellido: true } }
       }
     });
   }
@@ -158,13 +155,13 @@ class VacanteService {
    * Eliminar vacante
    */
   async delete(id) {
-    const vacante = await prisma.th_vacantes.findUnique({ where: { id } });
+    const vacante = await prisma.tHVacante.findUnique({ where: { id } });
     if (!vacante) throw new NotFoundError('Vacante no encontrada');
 
     // Verificar que no tenga candidatos activos (en proceso)
-    const candidatosActivos = await prisma.th_candidato_vacante.count({
+    const candidatosActivos = await prisma.tHCandidatoVacante.count({
       where: {
-        vacante_id: id,
+        vacanteId: id,
         estado: { notIn: ['RECHAZADO', 'RETIRADO', 'CONTRATADO'] }
       }
     });
@@ -176,13 +173,13 @@ class VacanteService {
     // Eliminar en transacción para mantener integridad
     return prisma.$transaction(async (tx) => {
       // Eliminar entrevistas relacionadas
-      await tx.th_entrevistas.deleteMany({ where: { vacante_id: id } });
+      await tx.tHEntrevista.deleteMany({ where: { vacanteId: id } });
 
       // Eliminar relaciones candidato-vacante (los que ya están rechazados/retirados/contratados)
-      await tx.th_candidato_vacante.deleteMany({ where: { vacante_id: id } });
+      await tx.tHCandidatoVacante.deleteMany({ where: { vacanteId: id } });
 
       // Finalmente eliminar la vacante
-      return tx.th_vacantes.delete({ where: { id } });
+      return tx.tHVacante.delete({ where: { id } });
     });
   }
 
@@ -190,15 +187,14 @@ class VacanteService {
    * Cambiar estado de vacante
    */
   async changeStatus(id, estado) {
-    const vacante = await prisma.th_vacantes.findUnique({ where: { id } });
+    const vacante = await prisma.tHVacante.findUnique({ where: { id } });
     if (!vacante) throw new NotFoundError('Vacante no encontrada');
 
-    return prisma.th_vacantes.update({
+    return prisma.tHVacante.update({
       where: { id },
       data: {
         estado,
-        ...(estado === 'CERRADA' && { fecha_cierre: new Date() }),
-        updated_at: new Date()
+        ...(estado === 'CERRADA' && { fechaCierre: new Date() }),
       }
     });
   }
@@ -208,10 +204,10 @@ class VacanteService {
    */
   async getStats() {
     const [total, abiertas, enProceso, cerradas] = await Promise.all([
-      prisma.th_vacantes.count(),
-      prisma.th_vacantes.count({ where: { estado: 'ABIERTA' } }),
-      prisma.th_vacantes.count({ where: { estado: 'EN_PROCESO' } }),
-      prisma.th_vacantes.count({ where: { estado: 'CERRADA' } })
+      prisma.tHVacante.count(),
+      prisma.tHVacante.count({ where: { estado: 'ABIERTA' } }),
+      prisma.tHVacante.count({ where: { estado: 'EN_PROCESO' } }),
+      prisma.tHVacante.count({ where: { estado: 'CERRADA' } })
     ]);
 
     return { total, abiertas, enProceso, cerradas };

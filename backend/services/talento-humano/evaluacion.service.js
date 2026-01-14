@@ -16,16 +16,16 @@ class EvaluacionService {
     if (estado) where.estado = estado;
 
     const [data, total] = await Promise.all([
-      prisma.th_periodos_evaluacion.findMany({
+      prisma.tHPeriodoEvaluacion.findMany({
         where,
         include: {
-          _count: { select: { th_evaluaciones_desempeno: true } }
+          _count: { select: { evaluaciones: true } }
         },
-        orderBy: [{ anio: 'desc' }, { fecha_inicio: 'desc' }],
+        orderBy: [{ anio: 'desc' }, { fechaInicio: 'desc' }],
         skip: (page - 1) * limit,
         take: limit
       }),
-      prisma.th_periodos_evaluacion.count({ where })
+      prisma.tHPeriodoEvaluacion.count({ where })
     ]);
 
     // Map properties to match frontend expectation (camelCase)
@@ -33,11 +33,11 @@ class EvaluacionService {
       id: p.id,
       nombre: p.nombre,
       anio: p.anio,
-      fechaInicio: p.fecha_inicio,
-      fechaFin: p.fecha_fin,
+      fechaInicio: p.fechaInicio,
+      fechaFin: p.fechaFin,
       estado: p.estado,
-      pesosEvaluadores: p.pesos_evaluadores,
-      evaluacionesCount: p._count.th_evaluaciones_desempeno
+      pesosEvaluadores: p.pesosEvaluadores,
+      evaluacionesCount: p._count.evaluaciones
     }));
 
     return {
@@ -50,14 +50,16 @@ class EvaluacionService {
    * Crear periodo de evaluación
    */
   async createPeriodo(data) {
-    return prisma.th_periodos_evaluacion.create({
+    return prisma.tHPeriodoEvaluacion.create({
       data: {
         nombre: data.nombre,
         anio: data.anio,
-        fecha_inicio: new Date(data.fechaInicio),
-        fecha_fin: new Date(data.fechaFin),
+        tipo: data.tipo || 'SEMESTRAL',
+        fechaInicio: new Date(data.fechaInicio),
+        fechaFin: new Date(data.fechaFin),
+        fechaLimiteEval: new Date(data.fechaLimiteEval || data.fechaFin),
         estado: data.estado || 'CONFIGURACION',
-        pesos_evaluadores: data.pesosEvaluadores
+        pesosEvaluadores: data.pesosEvaluadores
       }
     });
   }
@@ -66,38 +68,38 @@ class EvaluacionService {
    * Obtener periodo con evaluaciones
    */
   async getPeriodo(id) {
-    const periodo = await prisma.th_periodos_evaluacion.findUnique({
+    const periodo = await prisma.tHPeriodoEvaluacion.findUnique({
       where: { id },
       include: {
-        th_evaluaciones_desempeno: {
+        evaluaciones: {
           include: {
-            th_empleados_th_evaluaciones_desempeno_empleado_idToth_empleados: { select: { id: true, nombre: true, apellido: true } },
-            th_empleados_th_evaluaciones_desempeno_evaluador_idToth_empleados: { select: { id: true, nombre: true, apellido: true } }
+            empleado: { select: { id: true, nombre: true, apellido: true } },
+            evaluador: { select: { id: true, nombre: true, apellido: true } }
           }
         }
       }
     });
 
     if (!periodo) throw new NotFoundError('Periodo no encontrado');
-    
+
     // Map to camelCase
     return {
       id: periodo.id,
       nombre: periodo.nombre,
       anio: periodo.anio,
-      fechaInicio: periodo.fecha_inicio,
-      fechaFin: periodo.fecha_fin,
+      fechaInicio: periodo.fechaInicio,
+      fechaFin: periodo.fechaFin,
       estado: periodo.estado,
-      pesosEvaluadores: periodo.pesos_evaluadores,
-      evaluaciones: periodo.th_evaluaciones_desempeno.map(e => ({
+      pesosEvaluadores: periodo.pesosEvaluadores,
+      evaluaciones: periodo.evaluaciones.map(e => ({
         id: e.id,
-        empleadoId: e.empleado_id,
-        evaluadorId: e.evaluador_id,
-        tipoEvaluador: e.tipo_evaluador,
+        empleadoId: e.empleadoId,
+        evaluadorId: e.evaluadorId,
+        tipoEvaluador: e.tipoEvaluador,
         estado: e.estado,
-        scoreTotal: e.score_total,
-        empleado: e.th_empleados_th_evaluaciones_desempeno_empleado_idToth_empleados,
-        evaluador: e.th_empleados_th_evaluaciones_desempeno_evaluador_idToth_empleados
+        scoreTotal: e.scoreTotal,
+        empleado: e.empleado,
+        evaluador: e.evaluador
       }))
     };
   }
@@ -106,7 +108,7 @@ class EvaluacionService {
    * Iniciar periodo de evaluación (generar evaluaciones)
    */
   async iniciarPeriodo(periodoId) {
-    const periodo = await prisma.th_periodos_evaluacion.findUnique({ where: { id: periodoId } });
+    const periodo = await prisma.tHPeriodoEvaluacion.findUnique({ where: { id: periodoId } });
     if (!periodo) throw new NotFoundError('Periodo no encontrado');
 
     if (periodo.estado !== 'CONFIGURACION') {
@@ -114,11 +116,11 @@ class EvaluacionService {
     }
 
     // Obtener empleados activos
-    const empleados = await prisma.th_empleados.findMany({
+    const empleados = await prisma.tHEmpleado.findMany({
       where: { estado: 'ACTIVO' },
       include: {
-        th_empleados_th_empleados_jefe_inmediato_idToth_empleados: true, // jefeDirecto
-        other_th_empleados: { select: { id: true } } // subordinados
+        jefeDirecto: true,
+        subordinados: { select: { id: true } }
       }
     });
 
@@ -128,40 +130,40 @@ class EvaluacionService {
       // Autoevaluación
       evaluaciones.push({
         id: require('uuid').v4(),
-        periodo_id: periodoId,
-        empleado_id: empleado.id,
-        evaluador_id: empleado.id,
-        tipo_evaluador: 'AUTO',
+        periodoId: periodoId,
+        empleadoId: empleado.id,
+        evaluadorId: empleado.id,
+        tipoEvaluador: 'AUTO',
         estado: 'PENDIENTE',
-        fecha_asignacion: new Date()
+        fechaAsignacion: new Date()
       });
 
       // Evaluación del jefe
-      if (empleado.th_empleados_th_empleados_jefe_inmediato_idToth_empleados) {
+      if (empleado.jefeDirecto) {
         evaluaciones.push({
           id: require('uuid').v4(),
-          periodo_id: periodoId,
-          empleado_id: empleado.id,
-          evaluador_id: empleado.th_empleados_th_empleados_jefe_inmediato_idToth_empleados.id,
-          tipo_evaluador: 'JEFE',
+          periodoId: periodoId,
+          empleadoId: empleado.id,
+          evaluadorId: empleado.jefeDirecto.id,
+          tipoEvaluador: 'JEFE',
           estado: 'PENDIENTE',
-          fecha_asignacion: new Date()
+          fechaAsignacion: new Date()
         });
       }
 
       // Si es 360, agregar pares y subordinados según configuración
-      if (periodo.pesos_evaluadores?.pares) {
+      if (periodo.pesosEvaluadores?.pares) {
         // Se pueden agregar evaluaciones de pares
       }
     }
 
     // Crear evaluaciones
-    await prisma.th_evaluaciones_desempeno.createMany({
+    await prisma.tHEvaluacionDesempeno.createMany({
       data: evaluaciones
     });
 
     // Actualizar estado del periodo
-    await prisma.th_periodos_evaluacion.update({
+    await prisma.tHPeriodoEvaluacion.update({
       where: { id: periodoId },
       data: { estado: 'EN_EVALUACION' }
     });
@@ -175,32 +177,32 @@ class EvaluacionService {
    * Obtener evaluaciones pendientes de un evaluador
    */
   async getEvaluacionesPendientes(evaluadorId) {
-    const evaluaciones = await prisma.th_evaluaciones_desempeno.findMany({
+    const evaluaciones = await prisma.tHEvaluacionDesempeno.findMany({
       where: {
-        evaluador_id: evaluadorId,
+        evaluadorId: evaluadorId,
         estado: { in: ['PENDIENTE', 'EN_PROGRESO'] }
       },
       include: {
-        th_empleados_th_evaluaciones_desempeno_empleado_idToth_empleados: { select: { id: true, nombre: true, apellido: true, foto_url: true } },
-        th_periodos_evaluacion: true
+        empleado: { select: { id: true, nombre: true, apellido: true, fotoUrl: true } },
+        periodo: true
       },
-      orderBy: { fecha_asignacion: 'asc' }
+      orderBy: { fechaAsignacion: 'asc' }
     });
 
     return evaluaciones.map(e => ({
       id: e.id,
       estado: e.estado,
-      fechaAsignacion: e.fecha_asignacion,
-      tipoEvaluador: e.tipo_evaluador,
+      fechaAsignacion: e.fechaAsignacion,
+      tipoEvaluador: e.tipoEvaluador,
       empleado: {
-        id: e.th_empleados_th_evaluaciones_desempeno_empleado_idToth_empleados.id,
-        nombre: e.th_empleados_th_evaluaciones_desempeno_empleado_idToth_empleados.nombre,
-        apellido: e.th_empleados_th_evaluaciones_desempeno_empleado_idToth_empleados.apellido,
-        fotoUrl: e.th_empleados_th_evaluaciones_desempeno_empleado_idToth_empleados.foto_url
+        id: e.empleado.id,
+        nombre: e.empleado.nombre,
+        apellido: e.empleado.apellido,
+        fotoUrl: e.empleado.fotoUrl
       },
       periodo: {
-        id: e.th_periodos_evaluacion.id,
-        nombre: e.th_periodos_evaluacion.nombre
+        id: e.periodo.id,
+        nombre: e.periodo.nombre
       }
     }));
   }
@@ -209,13 +211,13 @@ class EvaluacionService {
    * Responder evaluación
    */
   async responderEvaluacion(evaluacionId, evaluadorId, data) {
-    const evaluacion = await prisma.th_evaluaciones_desempeno.findUnique({
+    const evaluacion = await prisma.tHEvaluacionDesempeno.findUnique({
       where: { id: evaluacionId },
-      include: { th_periodos_evaluacion: true }
+      include: { periodo: true }
     });
 
     if (!evaluacion) throw new NotFoundError('Evaluación no encontrada');
-    if (evaluacion.evaluador_id !== evaluadorId) {
+    if (evaluacion.evaluadorId !== evaluadorId) {
       throw new ValidationError('No tienes permiso para responder esta evaluación');
     }
 
@@ -240,24 +242,24 @@ class EvaluacionService {
       scoreTotal = scoreTotal / totalPeso;
     }
 
-    const updated = await prisma.th_evaluaciones_desempeno.update({
+    const updated = await prisma.tHEvaluacionDesempeno.update({
       where: { id: evaluacionId },
       data: {
         respuestas: data.respuestas,
-        score_total: scoreTotal,
+        scoreTotal: scoreTotal,
         fortalezas: data.fortalezas,
-        areas_mejora: data.areasMejora,
-        comentario_general: data.comentarioGeneral,
+        areasMejora: data.areasMejora,
+        comentarioGeneral: data.comentarioGeneral,
         estado: 'COMPLETADA',
-        fecha_completado: new Date()
+        fechaCompletado: new Date()
       }
     });
 
     return {
       id: updated.id,
-      scoreTotal: updated.score_total,
+      scoreTotal: updated.scoreTotal,
       estado: updated.estado,
-      fechaCompletado: updated.fecha_completado
+      fechaCompletado: updated.fechaCompletado
     };
   }
 
@@ -265,27 +267,27 @@ class EvaluacionService {
    * Obtener resultados de un empleado
    */
   async getResultadosEmpleado(empleadoId, anio = null) {
-    const where = { empleado_id: empleadoId, estado: 'COMPLETADA' };
+    const where = { empleadoId: empleadoId, estado: 'COMPLETADA' };
     if (anio) {
-      where.th_periodos_evaluacion = { anio };
+      where.periodo = { anio };
     }
 
-    const evaluaciones = await prisma.th_evaluaciones_desempeno.findMany({
+    const evaluaciones = await prisma.tHEvaluacionDesempeno.findMany({
       where,
       include: {
-        th_empleados_th_evaluaciones_desempeno_evaluador_idToth_empleados: { select: { id: true, nombre: true, apellido: true } },
-        th_periodos_evaluacion: true
+        evaluador: { select: { id: true, nombre: true, apellido: true } },
+        periodo: true
       },
-      orderBy: { fecha_completado: 'desc' }
+      orderBy: { fechaCompletado: 'desc' }
     });
 
     // Calcular promedios por tipo de evaluador
     const porTipo = evaluaciones.reduce((acc, e) => {
-      if (!acc[e.tipo_evaluador]) {
-        acc[e.tipo_evaluador] = { total: 0, count: 0 };
+      if (!acc[e.tipoEvaluador]) {
+        acc[e.tipoEvaluador] = { total: 0, count: 0 };
       }
-      acc[e.tipo_evaluador].total += Number(e.score_total || 0);
-      acc[e.tipo_evaluador].count++;
+      acc[e.tipoEvaluador].total += Number(e.scoreTotal || 0);
+      acc[e.tipoEvaluador].count++;
       return acc;
     }, {});
 
@@ -299,7 +301,7 @@ class EvaluacionService {
     let totalPeso = 0;
     evaluaciones.forEach(e => {
       const peso = 1; // Se puede obtener del periodo
-      scoreConsolidado += Number(e.score_total || 0) * peso;
+      scoreConsolidado += Number(e.scoreTotal || 0) * peso;
       totalPeso += peso;
     });
     if (totalPeso > 0) {
@@ -309,11 +311,11 @@ class EvaluacionService {
     return {
       evaluaciones: evaluaciones.map(e => ({
         id: e.id,
-        periodo: e.th_periodos_evaluacion.nombre,
-        tipoEvaluador: e.tipo_evaluador,
-        score: e.score_total,
-        fecha: e.fecha_completado,
-        evaluador: e.th_empleados_th_evaluaciones_desempeno_evaluador_idToth_empleados
+        periodo: e.periodo.nombre,
+        tipoEvaluador: e.tipoEvaluador,
+        score: e.scoreTotal,
+        fecha: e.fechaCompletado,
+        evaluador: e.evaluador
       })),
       promedios,
       scoreConsolidado,
@@ -327,23 +329,21 @@ class EvaluacionService {
    * Crear objetivo
    */
   async createObjetivo(empleadoId, data) {
-    const empleado = await prisma.th_empleados.findUnique({ where: { id: empleadoId } });
+    const empleado = await prisma.tHEmpleado.findUnique({ where: { id: empleadoId } });
     if (!empleado) throw new NotFoundError('Empleado no encontrado');
 
-    return prisma.th_objetivos.create({
+    return prisma.tHObjetivo.create({
       data: {
-        empleado_id: empleadoId,
+        empleadoId: empleadoId,
         titulo: data.titulo,
         descripcion: data.descripcion,
-        tipo: data.tipo,
-        fecha_inicio: new Date(data.fechaInicio),
-        fecha_fin: new Date(data.fechaFin),
-        peso: data.peso,
-        metrica: data.metrica,
-        meta: data.meta,
-        valor_actual: 0,
+        metrica: data.metrica || 'PORCENTAJE',
+        fechaLimite: data.fechaFin ? new Date(data.fechaFin) : null,
+        peso: data.peso || 100,
+        valorMeta: data.meta,
+        valorActual: 0,
         progreso: 0,
-        estado: 'PENDIENTE',
+        estado: 'EN_PROGRESO',
         anio: data.anio || new Date().getFullYear()
       }
     });
@@ -353,12 +353,12 @@ class EvaluacionService {
    * Listar objetivos de un empleado
    */
   async listObjetivos(empleadoId, anio = null) {
-    const where = { empleado_id: empleadoId };
+    const where = { empleadoId: empleadoId };
     if (anio) where.anio = anio;
 
-    const objetivos = await prisma.th_objetivos.findMany({
+    const objetivos = await prisma.tHObjetivo.findMany({
       where,
-      orderBy: [{ anio: 'desc' }, { created_at: 'asc' }]
+      orderBy: [{ anio: 'desc' }, { createdAt: 'asc' }]
     });
 
     return objetivos.map(o => ({
@@ -367,9 +367,9 @@ class EvaluacionService {
       descripcion: o.descripcion,
       progreso: o.progreso,
       estado: o.estado,
-      fechaFin: o.fecha_fin,
-      meta: o.meta,
-      valorActual: o.valor_actual
+      fechaFin: o.fechaLimite,
+      meta: o.valorMeta,
+      valorActual: o.valorActual
     }));
   }
 
@@ -377,14 +377,14 @@ class EvaluacionService {
    * Actualizar progreso de objetivo
    */
   async updateProgresoObjetivo(id, progreso, valorActual = null) {
-    const objetivo = await prisma.th_objetivos.findUnique({ where: { id } });
+    const objetivo = await prisma.tHObjetivo.findUnique({ where: { id } });
     if (!objetivo) throw new NotFoundError('Objetivo no encontrado');
 
     const updateData = { progreso };
-    if (valorActual !== null) updateData.valor_actual = valorActual;
+    if (valorActual !== null) updateData.valorActual = valorActual;
     if (progreso >= 100) updateData.estado = 'COMPLETADO';
 
-    return prisma.th_objetivos.update({
+    return prisma.tHObjetivo.update({
       where: { id },
       data: updateData
     });
@@ -396,14 +396,14 @@ class EvaluacionService {
    * Crear feedback
    */
   async createFeedback(empleadoId, deParteId, data) {
-    return prisma.th_feedback.create({
+    return prisma.tHFeedback.create({
       data: {
-        empleado_id: empleadoId,
-        autor_id: deParteId,
+        empleadoId: empleadoId,
+        deParte: deParteId,
         tipo: data.tipo, // RECONOCIMIENTO, MEJORA, GENERAL
-        mensaje: data.mensaje,
-        visibilidad: data.visibilidad || 'PRIVADO',
-        competencias: data.competencias // Array
+        contenido: data.mensaje,
+        esPublico: data.visibilidad === 'PUBLICO',
+        competenciaRelacionada: data.competencias ? data.competencias[0] : null
       }
     });
   }
@@ -412,34 +412,34 @@ class EvaluacionService {
    * Listar feedback de un empleado
    */
   async listFeedback(empleadoId, { tipo, page = 1, limit = 20 }) {
-    const where = { empleado_id: empleadoId };
+    const where = { empleadoId: empleadoId };
     if (tipo) where.tipo = tipo;
 
     const [data, total] = await Promise.all([
-      prisma.th_feedback.findMany({
+      prisma.tHFeedback.findMany({
         where,
         include: {
-          th_empleados_th_feedback_autor_idToth_empleados: { select: { id: true, nombre: true, apellido: true, foto_url: true } }
+          autor: { select: { id: true, nombre: true, apellido: true, fotoUrl: true } }
         },
-        orderBy: { created_at: 'desc' },
+        orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit
       }),
-      prisma.th_feedback.count({ where })
+      prisma.tHFeedback.count({ where })
     ]);
 
     const mappedData = data.map(f => ({
       id: f.id,
       tipo: f.tipo,
-      mensaje: f.mensaje,
-      fecha: f.created_at,
+      mensaje: f.contenido,
+      fecha: f.createdAt,
       autor: {
-        id: f.th_empleados_th_feedback_autor_idToth_empleados.id,
-        nombre: f.th_empleados_th_feedback_autor_idToth_empleados.nombre,
-        apellido: f.th_empleados_th_feedback_autor_idToth_empleados.apellido,
-        fotoUrl: f.th_empleados_th_feedback_autor_idToth_empleados.foto_url
+        id: f.autor.id,
+        nombre: f.autor.nombre,
+        apellido: f.autor.apellido,
+        fotoUrl: f.autor.fotoUrl
       },
-      competencias: f.competencias
+      competencias: f.competenciaRelacionada ? [f.competenciaRelacionada] : []
     }));
 
     return {
@@ -454,15 +454,15 @@ class EvaluacionService {
    * Obtener estadísticas de evaluaciones
    */
   async getStats(periodoId = null) {
-    const where = periodoId ? { periodo_id: periodoId } : {};
+    const where = periodoId ? { periodoId: periodoId } : {};
 
     const [total, pendientes, completadas, promedioGeneral] = await Promise.all([
-      prisma.th_evaluaciones_desempeno.count({ where }),
-      prisma.th_evaluaciones_desempeno.count({ where: { ...where, estado: 'PENDIENTE' } }),
-      prisma.th_evaluaciones_desempeno.count({ where: { ...where, estado: 'COMPLETADA' } }),
-      prisma.th_evaluaciones_desempeno.aggregate({
+      prisma.tHEvaluacionDesempeno.count({ where }),
+      prisma.tHEvaluacionDesempeno.count({ where: { ...where, estado: 'PENDIENTE' } }),
+      prisma.tHEvaluacionDesempeno.count({ where: { ...where, estado: 'COMPLETADA' } }),
+      prisma.tHEvaluacionDesempeno.aggregate({
         where: { ...where, estado: 'COMPLETADA' },
-        _avg: { score_total: true }
+        _avg: { scoreTotal: true }
       })
     ]);
 
@@ -471,8 +471,8 @@ class EvaluacionService {
       pendientes,
       completadas,
       porcentajeCompletado: total > 0 ? Math.round((completadas / total) * 100) : 0,
-      promedioGeneral: promedioGeneral._avg.score_total
-        ? Math.round(promedioGeneral._avg.score_total * 100) / 100
+      promedioGeneral: promedioGeneral._avg.scoreTotal
+        ? Math.round(promedioGeneral._avg.scoreTotal * 100) / 100
         : null
     };
   }

@@ -18,13 +18,14 @@ import {
   Plus, X, Trash2, Edit2, Save, Loader2, Calendar, CheckCircle
 } from 'lucide-react';
 
+// Orden según PDF "Resumen de Atención": Farmacológicos → Gineco → Patológicos → Quirúrgicos → Familiares → Alérgicos
 const TABS = [
-  { id: 'patologicos', label: 'Patológicos', icon: Heart, color: 'text-red-600' },
-  { id: 'quirurgicos', label: 'Quirúrgicos', icon: Scissors, color: 'text-blue-600' },
-  { id: 'alergicos', label: 'Alergias', icon: AlertTriangle, color: 'text-yellow-600' },
-  { id: 'familiares', label: 'Familiares', icon: Users, color: 'text-green-600' },
   { id: 'farmacologicos', label: 'Medicamentos', icon: Pill, color: 'text-purple-600' },
   { id: 'gineco', label: 'Gineco-Obstétrico', icon: Baby, color: 'text-pink-600' },
+  { id: 'patologicos', label: 'Patológicos', icon: Heart, color: 'text-red-600' },
+  { id: 'quirurgicos', label: 'Quirúrgicos', icon: Scissors, color: 'text-blue-600' },
+  { id: 'familiares', label: 'Familiares', icon: Users, color: 'text-green-600' },
+  { id: 'alergicos', label: 'Alergias', icon: AlertTriangle, color: 'text-yellow-600' },
 ];
 
 const TIPOS_ALERGIA = ['Medicamento', 'Alimento', 'Ambiental', 'Contacto', 'Otro'];

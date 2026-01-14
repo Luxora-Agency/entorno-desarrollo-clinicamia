@@ -31,17 +31,17 @@ class NominaService {
     if (estado) where.estado = estado;
 
     const [data, total] = await Promise.all([
-      prisma.th_periodos_nomina.findMany({
+      prisma.tHPeriodoNomina.findMany({
         where,
         include: {
-          usuarios: { select: { id: true, nombre: true, apellido: true } },
-          _count: { select: { th_nomina_detalle: true } }
+          procesador: { select: { id: true, nombre: true, apellido: true } },
+          _count: { select: { detalles: true } }
         },
         orderBy: [{ anio: 'desc' }, { mes: 'desc' }, { quincena: 'desc' }],
         skip: (page - 1) * limit,
         take: limit
       }),
-      prisma.th_periodos_nomina.count({ where })
+      prisma.tHPeriodoNomina.count({ where })
     ]);
 
     // Map to camelCase
@@ -50,16 +50,16 @@ class NominaService {
       anio: p.anio,
       mes: p.mes,
       quincena: p.quincena,
-      fechaInicio: p.fecha_inicio,
-      fechaFin: p.fecha_fin,
-      fechaPago: p.fecha_pago,
+      fechaInicio: p.fechaInicio,
+      fechaFin: p.fechaFin,
+      fechaPago: p.fechaPago,
       estado: p.estado,
-      procesadoPor: p.usuarios ? {
-        id: p.usuarios.id,
-        nombre: p.usuarios.nombre,
-        apellido: p.usuarios.apellido
+      procesadoPor: p.procesador ? {
+        id: p.procesador.id,
+        nombre: p.procesador.nombre,
+        apellido: p.procesador.apellido
       } : null,
-      detallesCount: p._count.th_nomina_detalle
+      detallesCount: p._count.detalles
     }));
 
     return {
@@ -73,7 +73,7 @@ class NominaService {
    */
   async createPeriodo(data) {
     // Verificar que no exista el periodo
-    const existing = await prisma.th_periodos_nomina.findFirst({
+    const existing = await prisma.tHPeriodoNomina.findFirst({
       where: {
         anio: data.anio,
         mes: data.mes,
@@ -89,79 +89,79 @@ class NominaService {
       anio: data.anio,
       mes: data.mes,
       quincena: data.quincena,
-      fecha_inicio: new Date(data.fechaInicio),
-      fecha_fin: new Date(data.fechaFin),
-      fecha_pago: new Date(data.fechaPago),
+      fechaInicio: new Date(data.fechaInicio),
+      fechaFin: new Date(data.fechaFin),
+      fechaPago: new Date(data.fechaPago),
       estado: 'ABIERTO',
       observaciones: data.observaciones
     };
 
-    return prisma.th_periodos_nomina.create({ data: dbData });
+    return prisma.tHPeriodoNomina.create({ data: dbData });
   }
 
   /**
    * Obtener periodo con detalles
    */
   async getPeriodo(id) {
-    const periodo = await prisma.th_periodos_nomina.findUnique({
+    const periodo = await prisma.tHPeriodoNomina.findUnique({
       where: { id },
       include: {
-        th_nomina_detalle: {
+        detalles: {
           include: {
-            th_empleados: {
+            empleado: {
               select: { id: true, nombre: true, apellido: true, documento: true }
             }
           }
         },
-        usuarios: { select: { id: true, nombre: true, apellido: true } }
+        procesador: { select: { id: true, nombre: true, apellido: true } }
       }
     });
 
     if (!periodo) throw new NotFoundError('Periodo no encontrado');
-    
+
     // Map to camelCase
     return {
       id: periodo.id,
       anio: periodo.anio,
       mes: periodo.mes,
       quincena: periodo.quincena,
-      fechaInicio: periodo.fecha_inicio,
-      fechaFin: periodo.fecha_fin,
-      fechaPago: periodo.fecha_pago,
+      fechaInicio: periodo.fechaInicio,
+      fechaFin: periodo.fechaFin,
+      fechaPago: periodo.fechaPago,
       estado: periodo.estado,
       observaciones: periodo.observaciones,
-      procesadoPor: periodo.usuarios,
-      fechaProceso: periodo.fecha_proceso,
-      detalles: periodo.th_nomina_detalle.map(d => ({
+      procesadoPor: periodo.procesador,
+      fechaProceso: periodo.fechaProceso,
+      detalles: periodo.detalles.map(d => ({
         id: d.id,
-        empleadoId: d.empleado_id,
-        empleado: d.th_empleados,
-        salarioBase: d.salario_base,
-        auxTransporte: d.aux_transporte,
-        horasExtras: d.horas_extras,
+        empleadoId: d.empleadoId,
+        empleado: d.empleado,
+        salarioBase: d.salarioBase,
+        auxTransporte: d.auxTransporte,
+        horasExtras: d.horasExtras,
         comisiones: d.comisiones,
         bonificaciones: d.bonificaciones,
-        otrosIngresos: d.otros_ingresos,
-        totalDevengado: d.total_devengado,
-        saludEmpleado: d.salud_empleado,
-        pensionEmpleado: d.pension_empleado,
-        fondoSolidaridad: d.fondo_solidaridad,
-        retencionFuente: d.retencion_fuente,
+        otrosIngresos: d.otrosIngresos,
+        totalDevengado: d.totalDevengado,
+        saludEmpleado: d.saludEmpleado,
+        pensionEmpleado: d.pensionEmpleado,
+        fondoSolidaridad: d.fondoSolidaridad,
+        retencionFuente: d.retencionFuente,
         embargos: d.embargos,
         prestamos: d.prestamos,
-        otrosDescuentos: d.otros_descuentos,
-        totalDeducciones: d.total_deducciones,
-        netoPagar: d.neto_pagar,
-        saludEmpresa: d.salud_empresa,
-        pensionEmpresa: d.pension_empresa,
+        otrosDescuentos: d.otrosDescuentos,
+        totalDeducciones: d.totalDeducciones,
+        netoPagar: d.netoPagar,
+        saludEmpresa: d.saludEmpresa,
+        pensionEmpresa: d.pensionEmpresa,
         arl: d.arl,
-        cajaCompensacion: d.caja_compensacion,
+        cajaCompensacion: d.cajaCompensacion,
         sena: d.sena,
         icbf: d.icbf,
         cesantias: d.cesantias,
-        intCesantias: d.int_cesantias,
+        intCesantias: d.intCesantias,
         prima: d.prima,
-        vacacionesProv: d.vacaciones_prov
+        vacacionesProv: d.vacacionesProv
       }))
     };
   }
@@ -170,7 +170,7 @@ class NominaService {
    * Procesar nómina del periodo
    */
   async procesarNomina(periodoId, userId) {
-    const periodo = await prisma.th_periodos_nomina.findUnique({ where: { id: periodoId } });
+    const periodo = await prisma.tHPeriodoNomina.findUnique({ where: { id: periodoId } });
     if (!periodo) throw new NotFoundError('Periodo no encontrado');
 
     if (periodo.estado !== 'ABIERTO') {
@@ -178,49 +178,49 @@ class NominaService {
     }
 
     // Obtener empleados activos con contrato vigente
-    const empleados = await prisma.th_empleados.findMany({
+    const empleados = await prisma.tHEmpleado.findMany({
       where: { estado: 'ACTIVO' },
       include: {
-        th_contratos: {
+        contratos: {
           where: { estado: 'ACTIVO' },
           take: 1
         },
-        th_cargos: true
+        cargo: true
       }
     });
 
     // Obtener novedades del periodo
-    const novedades = await prisma.th_novedades_nomina.findMany({
+    const novedades = await prisma.tHNovedadNomina.findMany({
       where: {
         OR: [
-          { periodo_id: periodoId },
+          { periodoId: periodoId },
           { recurrente: true, estado: 'APROBADO' }
         ]
       }
     });
 
     const novedadesPorEmpleado = novedades.reduce((acc, n) => {
-      if (!acc[n.empleado_id]) acc[n.empleado_id] = [];
-      acc[n.empleado_id].push(n);
+      if (!acc[n.empleadoId]) acc[n.empleadoId] = [];
+      acc[n.empleadoId].push(n);
       return acc;
     }, {});
 
     // Calcular nómina por empleado
     const detalles = [];
     for (const empleado of empleados) {
-      if (!empleado.th_contratos.length) continue;
+      if (!empleado.contratos.length) continue;
 
-      const contrato = empleado.th_contratos[0];
+      const contrato = empleado.contratos[0];
       const novedadesEmp = novedadesPorEmpleado[empleado.id] || [];
 
       // Mapear contrato y novedades a formato de cálculo
       const contratoCalc = {
-        salarioBase: Number(contrato.salario_base),
-        auxTransporte: contrato.aux_transporte,
-        tipoRiesgoARL: empleado.th_cargos?.riesgo_arl || 'I',
-        tipoCargo: empleado.th_cargos?.nivel || 'ADMINISTRATIVO'
+        salarioBase: Number(contrato.salarioBase),
+        auxTransporte: contrato.auxTransporte,
+        tipoRiesgoARL: empleado.cargo?.riesgoArl || 'I',
+        tipoCargo: empleado.cargo?.nivel || 'ADMINISTRATIVO'
       };
-      
+
       const novedadesCalc = novedadesEmp.map(n => ({
         tipo: n.tipo,
         valor: Number(n.valor),
@@ -229,54 +229,54 @@ class NominaService {
 
       // Usar servicio de cálculos
       const detalle = this.calcularNominaEmpleado(contratoCalc, novedadesCalc);
-      
+
       // Mapear detalle calculado a modelo DB
       detalles.push({
         id: require('uuid').v4(),
-        periodo_id: periodoId,
-        empleado_id: empleado.id,
-        salario_base: detalle.salarioBase,
-        aux_transporte: detalle.auxTransporte,
-        horas_extras: detalle.horasExtras,
+        periodoId: periodoId,
+        empleadoId: empleado.id,
+        salarioBase: detalle.salarioBase,
+        auxTransporte: detalle.auxTransporte,
+        horasExtras: detalle.horasExtras,
         comisiones: detalle.comisiones,
         bonificaciones: detalle.bonificaciones,
-        otros_ingresos: detalle.otrosIngresos,
-        total_devengado: detalle.totalDevengado,
-        salud_empleado: detalle.saludEmpleado,
-        pension_empleado: detalle.pensionEmpleado,
-        fondo_solidaridad: detalle.fondoSolidaridad,
-        retencion_fuente: detalle.retencionFuente,
+        otrosIngresos: detalle.otrosIngresos,
+        totalDevengado: detalle.totalDevengado,
+        saludEmpleado: detalle.saludEmpleado,
+        pensionEmpleado: detalle.pensionEmpleado,
+        fondoSolidaridad: detalle.fondoSolidaridad,
+        retencionFuente: detalle.retencionFuente,
         embargos: detalle.embargos,
         prestamos: detalle.prestamos,
-        otros_descuentos: detalle.otrosDescuentos,
-        total_deducciones: detalle.totalDeducciones,
-        neto_pagar: detalle.netoPagar,
-        salud_empresa: detalle.saludEmpresa,
-        pension_empresa: detalle.pensionEmpresa,
+        otrosDescuentos: detalle.otrosDescuentos,
+        totalDeducciones: detalle.totalDeducciones,
+        netoPagar: detalle.netoPagar,
+        saludEmpresa: detalle.saludEmpresa,
+        pensionEmpresa: detalle.pensionEmpresa,
         arl: detalle.arl,
-        caja_compensacion: detalle.cajaCompensacion,
+        cajaCompensacion: detalle.cajaCompensacion,
         sena: detalle.sena,
         icbf: detalle.icbf,
         cesantias: detalle.cesantias,
-        int_cesantias: detalle.intCesantias,
+        intCesantias: detalle.intCesantias,
         prima: detalle.prima,
-        vacaciones_prov: detalle.vacacionesProv
+        vacacionesProv: detalle.vacacionesProv
       });
     }
 
     // Eliminar detalles anteriores y crear nuevos
-    await prisma.th_nomina_detalle.deleteMany({ where: { periodo_id: periodoId } });
+    await prisma.tHNominaDetalle.deleteMany({ where: { periodoId: periodoId } });
     if (detalles.length > 0) {
-      await prisma.th_nomina_detalle.createMany({ data: detalles });
+      await prisma.tHNominaDetalle.createMany({ data: detalles });
     }
 
     // Actualizar estado del periodo
-    await prisma.th_periodos_nomina.update({
+    await prisma.tHPeriodoNomina.update({
       where: { id: periodoId },
       data: {
         estado: 'EN_PROCESO',
-        procesado_por: userId, // Assuming userId maps to an employee ID somewhere or needs lookup
-        fecha_proceso: new Date()
+        procesadoPor: userId,
+        fechaProceso: new Date()
       }
     });
 
@@ -287,13 +287,13 @@ class NominaService {
    * Cerrar periodo de nómina
    */
   async cerrarPeriodo(id) {
-    const periodo = await prisma.th_periodos_nomina.findUnique({ where: { id } });
+    const periodo = await prisma.tHPeriodoNomina.findUnique({ where: { id } });
     if (!periodo) throw new NotFoundError('Periodo no encontrado');
     if (periodo.estado !== 'EN_PROCESO') {
       throw new ValidationError('El periodo debe estar en proceso para cerrarse');
     }
 
-    return prisma.th_periodos_nomina.update({
+    return prisma.tHPeriodoNomina.update({
       where: { id },
       data: { estado: 'CERRADO' }
     });
@@ -426,32 +426,32 @@ class NominaService {
   }
 
   async getResumenPeriodo(periodoId) {
-    const periodo = await prisma.th_periodos_nomina.findUnique({
+    const periodo = await prisma.tHPeriodoNomina.findUnique({
       where: { id: periodoId },
-      include: { th_detalles_nomina: true }
+      include: { detalles: true }
     });
 
     if (!periodo) throw new NotFoundError('Periodo no encontrado');
 
-    const resumen = periodo.th_detalles_nomina.reduce(
+    const resumen = periodo.detalles.reduce(
       (acc, d) => ({
-        totalDevengado: acc.totalDevengado + Number(d.total_devengado),
-        totalDeducciones: acc.totalDeducciones + Number(d.total_deducciones),
-        netoPagar: acc.netoPagar + Number(d.neto_pagar),
+        totalDevengado: acc.totalDevengado + Number(d.totalDevengado),
+        totalDeducciones: acc.totalDeducciones + Number(d.totalDeducciones),
+        netoPagar: acc.netoPagar + Number(d.netoPagar),
         aportesEmpresa:
           acc.aportesEmpresa +
-          Number(d.salud_empresa) +
-          Number(d.pension_empresa) +
+          Number(d.saludEmpresa) +
+          Number(d.pensionEmpresa) +
           Number(d.arl) +
-          Number(d.caja_compensacion) +
+          Number(d.cajaCompensacion) +
           Number(d.sena) +
           Number(d.icbf),
         provisiones:
           acc.provisiones +
           Number(d.cesantias) +
-          Number(d.int_cesantias) +
+          Number(d.intCesantias) +
           Number(d.prima) +
-          Number(d.vacaciones_prov),
+          Number(d.vacacionesProv),
         empleados: acc.empleados + 1
       }),
       {
@@ -484,65 +484,62 @@ class NominaService {
 
   async listNovedades({ empleadoId, periodoId, tipo, estado, page = 1, limit = 20 }) {
     const where = {};
-    if (empleadoId) where.empleado_id = empleadoId;
-    if (periodoId) where.periodo_id = periodoId;
+    if (empleadoId) where.empleadoId = empleadoId;
+    if (periodoId) where.periodoId = periodoId;
     if (tipo) where.tipo = tipo;
     if (estado) where.estado = estado;
 
     const [data, total] = await Promise.all([
-      prisma.th_novedades_nomina.findMany({
+      prisma.tHNovedadNomina.findMany({
         where,
-        include: {
-          th_empleados: { select: { id: true, nombre: true, apellido: true } }
-        },
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { created_at: 'desc' }
+        orderBy: { createdAt: 'desc' }
       }),
-      prisma.th_novedades_nomina.count({ where })
+      prisma.tHNovedadNomina.count({ where })
     ]);
 
     return {
       data: data.map(n => ({
-          id: n.id,
-          tipo: n.tipo,
-          valor: n.valor,
-          cantidad: n.cantidad,
-          observaciones: n.observaciones,
-          estado: n.estado,
-          fechaReporte: n.fecha_reporte,
-          empleado: n.th_empleados
+        id: n.id,
+        tipo: n.tipo,
+        valor: n.valor,
+        cantidad: n.cantidad,
+        observaciones: n.observaciones,
+        estado: n.estado,
+        fechaInicio: n.fechaInicio,
+        empleadoId: n.empleadoId
       })),
       pagination: { page, limit, total, totalPages: Math.ceil(total / limit) }
     };
   }
 
   async createNovedad(data) {
-    return prisma.th_novedades_nomina.create({
+    return prisma.tHNovedadNomina.create({
       data: {
-        empleado_id: data.empleadoId,
-        periodo_id: data.periodoId,
+        empleadoId: data.empleadoId,
+        periodoId: data.periodoId,
         tipo: data.tipo,
+        concepto: data.concepto || data.tipo,
         valor: data.valor,
         cantidad: data.cantidad,
         observaciones: data.observaciones,
         recurrente: data.recurrente || false,
         estado: 'PENDIENTE',
-        fecha_reporte: new Date()
+        fechaInicio: new Date()
       }
     });
   }
 
   async aprobarNovedad(id, userId) {
-    const novedad = await prisma.th_novedades_nomina.findUnique({ where: { id } });
+    const novedad = await prisma.tHNovedadNomina.findUnique({ where: { id } });
     if (!novedad) throw new NotFoundError('Novedad no encontrada');
 
-    return prisma.th_novedades_nomina.update({
+    return prisma.tHNovedadNomina.update({
       where: { id },
       data: {
         estado: 'APROBADO',
-        aprobado_por: userId,
-        fecha_aprobacion: new Date()
+        aprobadoPor: userId
       }
     });
   }
@@ -572,28 +569,28 @@ class NominaService {
   }
 
   async generarLiquidacion(empleadoId, fechaRetiro, motivoRetiro) {
-    const empleado = await prisma.th_empleados.findUnique({
+    const empleado = await prisma.tHEmpleado.findUnique({
       where: { id: empleadoId },
       include: {
-        th_contratos: { where: { estado: 'ACTIVO' }, take: 1 }
+        contratos: { where: { estado: 'ACTIVO' }, take: 1 }
       }
     });
     if (!empleado) throw new NotFoundError('Empleado no encontrado');
-    if (!empleado.th_contratos.length) throw new ValidationError('Empleado sin contrato activo');
+    if (!empleado.contratos.length) throw new ValidationError('Empleado sin contrato activo');
 
-    const contrato = empleado.th_contratos[0];
-    
+    const contrato = empleado.contratos[0];
+
     // Preparar objeto empleado para el servicio de cálculo
     const empleadoData = {
-      salarioBase: Number(contrato.salario_base),
-      auxTransporte: contrato.aux_transporte,
-      tipoContrato: contrato.tipo_contrato,
-      fechaFinContrato: contrato.fecha_fin
+      salarioBase: Number(contrato.salarioBase),
+      auxTransporte: contrato.auxTransporte,
+      tipoContrato: contrato.tipoContrato,
+      fechaFinContrato: contrato.fechaFin
     };
 
     return calculosService.calcularLiquidacionDefinitiva(
       empleadoData,
-      new Date(contrato.fecha_inicio),
+      new Date(contrato.fechaInicio),
       fechaRetiro,
       motivoRetiro
     );
@@ -616,22 +613,22 @@ class NominaService {
   }
 
   async calcularNominaCompleta(empleadoId, novedades) {
-    const empleado = await prisma.th_empleados.findUnique({
+    const empleado = await prisma.tHEmpleado.findUnique({
       where: { id: empleadoId },
       include: {
-        th_contratos: { where: { estado: 'ACTIVO' }, take: 1 },
-        th_cargos: true
+        contratos: { where: { estado: 'ACTIVO' }, take: 1 },
+        cargo: true
       }
     });
     if (!empleado) throw new NotFoundError('Empleado no encontrado');
-    if (!empleado.th_contratos.length) throw new ValidationError('Empleado sin contrato activo');
+    if (!empleado.contratos.length) throw new ValidationError('Empleado sin contrato activo');
 
-    const contrato = empleado.th_contratos[0];
+    const contrato = empleado.contratos[0];
     const empleadoData = {
-      salarioBase: Number(contrato.salario_base),
-      auxTransporte: contrato.aux_transporte,
-      tipoRiesgoARL: empleado.th_cargos?.riesgo_arl || 'I',
-      tipoCargo: empleado.th_cargos?.nivel || 'ADMINISTRATIVO'
+      salarioBase: Number(contrato.salarioBase),
+      auxTransporte: contrato.auxTransporte,
+      tipoRiesgoARL: empleado.cargo?.riesgoArl || 'I',
+      tipoCargo: empleado.cargo?.nivel || 'ADMINISTRATIVO'
     };
 
     return calculosService.calcularNominaMensual(empleadoData, novedades);

@@ -16,6 +16,8 @@ const doctorSchema = z.object({
   anios_experiencia: z.union([z.string(), z.number()]).optional(),
   biografia: z.string().optional(),
   foto: z.string().optional(), // Base64 image or URL
+  firma: z.string().nullable().optional(), // Firma digital en base64
+  sello: z.string().nullable().optional(), // Sello médico en base64
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres').optional(),
 
   // Arrays/Objects
@@ -41,6 +43,8 @@ const updateDoctorSchema = z.object({
   anios_experiencia: z.union([z.string(), z.number()]).optional(),
   biografia: z.string().optional(),
   foto: z.string().nullable().optional(), // Base64 image, URL, or null to remove
+  firma: z.string().nullable().optional(), // Firma digital en base64
+  sello: z.string().nullable().optional(), // Sello médico en base64
   password: z.string().min(6).optional(),
 
   especialidades_ids: z.array(z.string().uuid()).optional(),
