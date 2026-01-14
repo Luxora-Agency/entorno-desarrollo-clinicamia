@@ -247,9 +247,9 @@ export default function MiAgendaView({ user }) {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-500">Horarios configurados</p>
+              <p className="text-sm text-gray-500">Plantilla semanal</p>
               <p className="text-2xl font-bold text-cyan-600">
-                {Object.keys(horarios).length} días
+                {Object.keys(horarios).filter(k => !k.includes('-') && horarios[k]?.length > 0).length} días
               </p>
             </div>
           </div>
@@ -275,8 +275,8 @@ export default function MiAgendaView({ user }) {
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-800">
               <strong>Instrucciones:</strong> Arrastra el mouse sobre el calendario para crear bloques de disponibilidad.
-              Puedes mover y redimensionar los bloques. Los horarios que configures aquí serán visibles para
-              los pacientes y el personal administrativo al agendar citas.
+              Al soltar, podrás elegir si el horario aplica a <strong>todas las semanas</strong> (plantilla semanal - verde)
+              o <strong>solo a esa fecha específica</strong> (azul). Las fechas específicas tienen prioridad sobre la plantilla.
             </AlertDescription>
           </Alert>
 
@@ -291,14 +291,15 @@ export default function MiAgendaView({ user }) {
           {/* Resumen de Horarios */}
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Resumen de Horarios</CardTitle>
-              <CardDescription>Vista rápida de tu disponibilidad semanal</CardDescription>
+              <CardTitle className="text-base">Resumen de Plantilla Semanal</CardTitle>
+              <CardDescription>Horarios que se repiten cada semana (verde). Las fechas específicas (azul) se configuran directamente en el calendario.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-7 gap-2">
                 {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((dia, index) => {
-                  const bloquesDelDia = horarios[index] || [];
-                  const tieneHorarios = bloquesDelDia.length > 0;
+                  // Solo mostrar horarios de plantilla semanal (keys 0-6)
+                  const bloquesDelDia = horarios[index] || horarios[String(index)] || [];
+                  const tieneHorarios = Array.isArray(bloquesDelDia) && bloquesDelDia.length > 0;
 
                   return (
                     <div
@@ -329,6 +330,34 @@ export default function MiAgendaView({ user }) {
                   );
                 })}
               </div>
+
+              {/* Mostrar fechas específicas si existen */}
+              {(() => {
+                const fechasEspecificas = Object.entries(horarios)
+                  .filter(([key]) => key.includes('-'))
+                  .sort(([a], [b]) => a.localeCompare(b));
+
+                if (fechasEspecificas.length === 0) return null;
+
+                return (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm font-medium text-blue-700 mb-2">Fechas con horario especial:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {fechasEspecificas.slice(0, 10).map(([fecha, bloques]) => (
+                        <div key={fecha} className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs">
+                          <span className="font-medium text-blue-800">{fecha}</span>
+                          <span className="text-blue-600 ml-1">
+                            ({bloques.length} {bloques.length === 1 ? 'bloque' : 'bloques'})
+                          </span>
+                        </div>
+                      ))}
+                      {fechasEspecificas.length > 10 && (
+                        <span className="text-xs text-gray-500">+{fechasEspecificas.length - 10} más</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
