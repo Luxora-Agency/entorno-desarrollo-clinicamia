@@ -20,8 +20,19 @@ import TabHospitalizaciones from './hce/TabHospitalizaciones';
 import TabCirugias from './hce/TabCirugias';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { FileHeart, FileDown, Loader2 } from 'lucide-react';
+import { FileHeart, FileDown, Loader2, ArrowLeft, Eye, Shield, FileText, Calendar, X } from 'lucide-react';
 import { getAuthToken } from '@/services/api';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 export default function HCEModule({ user }) {
   const router = useRouter();
@@ -31,15 +42,41 @@ export default function HCEModule({ user }) {
   const [loading, setLoading] = useState(true);
   const [descargandoPDF, setDescargandoPDF] = useState(false);
 
+  // Estados para modal de descarga
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [tipoDescarga, setTipoDescarga] = useState('completa'); // 'completa' o 'rango'
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
+
+  const abrirModalDescarga = () => {
+    // Establecer fechas por defecto (último año)
+    const hoy = new Date();
+    const hace1Anio = new Date();
+    hace1Anio.setFullYear(hace1Anio.getFullYear() - 1);
+
+    setFechaHasta(hoy.toISOString().split('T')[0]);
+    setFechaDesde(hace1Anio.toISOString().split('T')[0]);
+    setTipoDescarga('completa');
+    setShowDownloadModal(true);
+  };
+
   const descargarPDF = async () => {
     if (!pacienteId) return;
 
     try {
       setDescargandoPDF(true);
+      setShowDownloadModal(false);
+
       const token = getAuthToken();
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-      const response = await fetch(`${apiUrl}/hce/${pacienteId}/pdf`, {
+      // Construir URL con parámetros de fecha si es rango
+      let url = `${apiUrl}/hce/${pacienteId}/pdf`;
+      if (tipoDescarga === 'rango' && fechaDesde && fechaHasta) {
+        url += `?fechaDesde=${fechaDesde}&fechaHasta=${fechaHasta}`;
+      }
+
+      const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -53,9 +90,9 @@ export default function HCEModule({ user }) {
       const blob = await response.blob();
 
       // Crear URL y descargar
-      const url = window.URL.createObjectURL(blob);
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = blobUrl;
 
       // Obtener nombre del archivo desde Content-Disposition o usar default
       const contentDisposition = response.headers.get('Content-Disposition');
@@ -68,7 +105,7 @@ export default function HCEModule({ user }) {
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(blobUrl);
       document.body.removeChild(a);
     } catch (error) {
       console.error('Error descargando PDF:', error);
@@ -154,31 +191,64 @@ export default function HCEModule({ user }) {
               <p className="text-sm text-gray-600">Documentación Clínica del Paciente</p>
             </div>
           </div>
-          {paciente && (
-            <Button
-              onClick={descargarPDF}
-              disabled={descargandoPDF}
-              className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg"
-            >
-              {descargandoPDF ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generando PDF...
-                </>
-              ) : (
-                <>
-                  <FileDown className="w-4 h-4 mr-2" />
-                  Descargar HCE (PDF)
-                </>
-              )}
-            </Button>
-          )}
+          <div className="flex items-center gap-3">
+            {pacienteId && (
+              <Button
+                variant="outline"
+                onClick={() => router.push('/?module=hce')}
+                className="border-gray-300 hover:bg-gray-100"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Buscar Paciente
+              </Button>
+            )}
+            {paciente && (
+              <Button
+                onClick={abrirModalDescarga}
+                disabled={descargandoPDF}
+                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white shadow-lg"
+              >
+                {descargandoPDF ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Generando PDF...
+                  </>
+                ) : (
+                  <>
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Descargar HCE
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
         </div>
 
         {paciente && (
           <div className="space-y-6">
             {/* Panel Superior del Paciente */}
             <PanelPacienteHCE paciente={paciente} />
+
+            {/* Barra de Cumplimiento Normativo */}
+            <div className="flex items-center justify-between px-4 py-2 bg-white border rounded-lg shadow-sm">
+              <div className="flex items-center gap-4 text-xs text-gray-500">
+                <span className="flex items-center gap-1">
+                  <Shield className="w-3.5 h-3.5 text-green-600" />
+                  <span>Res. 1995/1999</span>
+                </span>
+                <span className="hidden md:flex items-center gap-1">
+                  <FileText className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Ley 2015/2020</span>
+                </span>
+                <span className="hidden lg:flex items-center gap-1">
+                  <Shield className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Res. 866/2021</span>
+                </span>
+              </div>
+              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                HCE Conforme a Normatividad Colombiana
+              </Badge>
+            </div>
 
             {/* Contenido Principal con Tabs */}
             <Tabs defaultValue="timeline" className="w-full">
@@ -189,6 +259,9 @@ export default function HCEModule({ user }) {
                   </TabsTrigger>
                   <TabsTrigger value="evoluciones" className="text-xs lg:text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
                     Evoluciones
+                  </TabsTrigger>
+                  <TabsTrigger value="notas-enfermeria" className="text-xs lg:text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-pink-100 data-[state=active]:text-pink-700">
+                    Notas Enfermería
                   </TabsTrigger>
                   <TabsTrigger value="signos-vitales" className="text-xs lg:text-sm px-3 py-2 whitespace-nowrap data-[state=active]:bg-blue-100 data-[state=active]:text-blue-700">
                     Signos Vitales
@@ -284,6 +357,96 @@ export default function HCEModule({ user }) {
             </Tabs>
           </div>
         )}
+
+        {/* Modal de selección de rango de fechas */}
+        <Dialog open={showDownloadModal} onOpenChange={setShowDownloadModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileDown className="w-5 h-5 text-red-600" />
+                Descargar Historia Clínica
+              </DialogTitle>
+              <DialogDescription>
+                Seleccione el rango de información que desea incluir en el PDF
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-6 py-4">
+              <RadioGroup value={tipoDescarga} onValueChange={setTipoDescarga} className="space-y-3">
+                <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer">
+                  <RadioGroupItem value="completa" id="completa" />
+                  <Label htmlFor="completa" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Historia Clínica Completa</div>
+                    <div className="text-sm text-gray-500">Incluye toda la información del paciente desde su registro</div>
+                  </Label>
+                </div>
+
+                <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-gray-50 cursor-pointer">
+                  <RadioGroupItem value="rango" id="rango" />
+                  <Label htmlFor="rango" className="flex-1 cursor-pointer">
+                    <div className="font-medium">Rango de Fechas</div>
+                    <div className="text-sm text-gray-500">Solo información dentro del período seleccionado</div>
+                  </Label>
+                </div>
+              </RadioGroup>
+
+              {tipoDescarga === 'rango' && (
+                <div className="space-y-4 p-4 bg-gray-50 rounded-lg border animate-in fade-in duration-200">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="fechaDesde" className="text-sm font-medium flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Desde
+                      </Label>
+                      <Input
+                        type="date"
+                        id="fechaDesde"
+                        value={fechaDesde}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                        max={fechaHasta || undefined}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="fechaHasta" className="text-sm font-medium flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        Hasta
+                      </Label>
+                      <Input
+                        type="date"
+                        id="fechaHasta"
+                        value={fechaHasta}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                        min={fechaDesde || undefined}
+                        max={new Date().toISOString().split('T')[0]}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                  {fechaDesde && fechaHasta && (
+                    <p className="text-xs text-gray-500 text-center">
+                      Período: {new Date(fechaDesde + 'T00:00:00').toLocaleDateString('es-CO')} - {new Date(fechaHasta + 'T00:00:00').toLocaleDateString('es-CO')}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button variant="outline" onClick={() => setShowDownloadModal(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={descargarPDF}
+                disabled={tipoDescarga === 'rango' && (!fechaDesde || !fechaHasta)}
+                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
+              >
+                <FileDown className="w-4 h-4 mr-2" />
+                Generar PDF
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

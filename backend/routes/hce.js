@@ -29,6 +29,18 @@ hce.use('*', authMiddleware);
  *           type: string
  *           format: uuid
  *         description: ID del paciente
+ *       - in: query
+ *         name: fechaDesde
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha inicial del rango (YYYY-MM-DD)
+ *       - in: query
+ *         name: fechaHasta
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Fecha final del rango (YYYY-MM-DD)
  *     responses:
  *       200:
  *         description: PDF generado exitosamente
@@ -45,9 +57,22 @@ hce.use('*', authMiddleware);
 hce.get('/:pacienteId/pdf', async (c) => {
   try {
     const { pacienteId } = c.req.param();
+    const fechaDesde = c.req.query('fechaDesde');
+    const fechaHasta = c.req.query('fechaHasta');
+
+    // Construir opciones de filtro por fecha
+    const opciones = {};
+    if (fechaDesde && fechaHasta) {
+      // Parsear fechas como fecha local (no UTC) para Colombia
+      const [yearD, monthD, dayD] = fechaDesde.split('-').map(Number);
+      const [yearH, monthH, dayH] = fechaHasta.split('-').map(Number);
+
+      opciones.fechaDesde = new Date(yearD, monthD - 1, dayD, 0, 0, 0, 0);
+      opciones.fechaHasta = new Date(yearH, monthH - 1, dayH, 23, 59, 59, 999);
+    }
 
     // Generar el PDF
-    const pdfBuffer = await hcePdfService.generarPDF(pacienteId);
+    const pdfBuffer = await hcePdfService.generarPDF(pacienteId, opciones);
 
     // Obtener nombre del paciente para el archivo
     const prisma = require('../db/prisma');

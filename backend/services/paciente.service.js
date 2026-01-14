@@ -283,6 +283,7 @@ class PacienteService {
         eps: true,
         tipoSangre: true,
         tipoDocumento: true,
+        fotoUrl: true, // Foto del paciente para mostrar en búsqueda
       },
     });
 

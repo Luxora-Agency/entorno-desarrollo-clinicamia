@@ -136,6 +136,8 @@ class CitaService {
               genero: true,
               tipoSangre: true,
               alergias: true,
+              enfermedadesCronicas: true,
+              fotoUrl: true, // Foto del paciente para mostrar en consulta
             }
           },
           doctor: { select: { id: true, nombre: true, apellido: true } },

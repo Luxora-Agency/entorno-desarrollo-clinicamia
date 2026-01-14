@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   User, Activity, Heart, AlertTriangle,
   Thermometer, Droplet, Scale, Ruler,
@@ -139,6 +140,25 @@ export default function PatientContextBar({
   const origenConfig = cita?.origenPaciente ? getOrigenConfig(cita.origenPaciente) : null;
   const pagoConfig = cita?.estadoPago ? getPagoConfig(cita.estadoPago) : null;
 
+  // Obtener URL de foto del paciente
+  const getPatientPhotoUrl = (fotoUrl) => {
+    if (!fotoUrl) return null;
+    if (fotoUrl.startsWith('data:image')) return fotoUrl; // Base64
+    if (fotoUrl.startsWith('http')) return fotoUrl; // URL absoluta
+    // URL relativa - construir URL completa
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    return `${apiUrl}${fotoUrl.startsWith('/') ? '' : '/'}${fotoUrl}`;
+  };
+
+  const patientPhotoUrl = getPatientPhotoUrl(paciente.fotoUrl || paciente.foto);
+
+  // Obtener iniciales del paciente para fallback
+  const getInitials = (nombre, apellido) => {
+    const n = (nombre || '').charAt(0).toUpperCase();
+    const a = (apellido || '').charAt(0).toUpperCase();
+    return `${n}${a}` || 'P';
+  };
+
   // Formatear teléfono para llamada
   const formatPhone = (phone) => {
     if (!phone) return null;
@@ -152,9 +172,18 @@ export default function PatientContextBar({
       <CardContent className={`flex ${compact ? 'flex-col p-2 space-y-2' : 'flex-row items-center justify-between p-4'}`}>
         {/* Patient Identity */}
         <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center border-2 border-white/20">
-            <User className="h-6 w-6 text-white" />
-          </div>
+          <Avatar className="h-12 w-12 border-2 border-white/20">
+            {patientPhotoUrl ? (
+              <AvatarImage
+                src={patientPhotoUrl}
+                alt={`${paciente.nombre} ${paciente.apellido}`}
+                className="object-cover"
+              />
+            ) : null}
+            <AvatarFallback className="bg-blue-600 text-white font-semibold">
+              {getInitials(paciente.nombre, paciente.apellido)}
+            </AvatarFallback>
+          </Avatar>
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               {paciente.nombre} {paciente.apellido}

@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Check, ChevronsUpDown, Search, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   Command,
   CommandEmpty,
@@ -17,6 +18,22 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
+
+// Helper para obtener URL de foto
+const getPatientPhotoUrl = (fotoUrl) => {
+  if (!fotoUrl) return null;
+  if (fotoUrl.startsWith('data:image')) return fotoUrl;
+  if (fotoUrl.startsWith('http')) return fotoUrl;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  return `${apiUrl}${fotoUrl.startsWith('/') ? '' : '/'}${fotoUrl}`;
+};
+
+// Helper para iniciales
+const getInitials = (nombre, apellido) => {
+  const n = (nombre || '').charAt(0).toUpperCase();
+  const a = (apellido || '').charAt(0).toUpperCase();
+  return `${n}${a}` || 'P';
+};
 
 export default function PatientSelect({ onSelect, value, className }) {
   const [open, setOpen] = React.useState(false);
@@ -68,7 +85,14 @@ export default function PatientSelect({ onSelect, value, className }) {
         >
           {selectedPatient ? (
               <span className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-blue-500" />
+                  <Avatar className="h-6 w-6">
+                    {(selectedPatient.fotoUrl || selectedPatient.foto) ? (
+                      <AvatarImage src={getPatientPhotoUrl(selectedPatient.fotoUrl || selectedPatient.foto)} />
+                    ) : null}
+                    <AvatarFallback className="bg-blue-500 text-white text-xs">
+                      {getInitials(selectedPatient.nombre, selectedPatient.apellido)}
+                    </AvatarFallback>
+                  </Avatar>
                   {selectedPatient.nombre} {selectedPatient.apellido}
               </span>
           ) : (
@@ -104,15 +128,24 @@ export default function PatientSelect({ onSelect, value, className }) {
                     onSelect(patient);
                     setOpen(false);
                   }}
+                  className="flex items-center gap-2"
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4",
+                      "h-4 w-4 shrink-0",
                       value === patient.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex flex-col">
-                      <span className="font-medium">{patient.nombre} {patient.apellido}</span>
+                  <Avatar className="h-8 w-8 shrink-0">
+                    {(patient.fotoUrl || patient.foto) ? (
+                      <AvatarImage src={getPatientPhotoUrl(patient.fotoUrl || patient.foto)} />
+                    ) : null}
+                    <AvatarFallback className="bg-blue-500 text-white text-xs">
+                      {getInitials(patient.nombre, patient.apellido)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col min-w-0">
+                      <span className="font-medium truncate">{patient.nombre} {patient.apellido}</span>
                       <span className="text-xs text-gray-500">{patient.tipoDocumento || 'CC'}: {patient.cedula}</span>
                   </div>
                 </CommandItem>

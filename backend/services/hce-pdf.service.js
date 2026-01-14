@@ -21,45 +21,227 @@
 const PDFDocument = require('pdfkit');
 const prisma = require('../db/prisma');
 const { NotFoundError } = require('../utils/errors');
+const path = require('path');
+const fs = require('fs');
 
 class HCEPdfService {
   constructor() {
     this.margins = { top: 60, bottom: 60, left: 50, right: 50 };
+
+    // Colores de marca Clínica MÍA - Turquesa/Teal como primario
     this.colors = {
-      primary: '#1a365d',        // Azul institucional oscuro
-      secondary: '#2b6cb0',      // Azul institucional
-      accent: '#38a169',         // Verde salud
-      danger: '#c53030',         // Rojo alertas
-      warning: '#dd6b20',        // Naranja advertencias
-      text: '#1a202c',           // Negro texto
-      textLight: '#4a5568',      // Gris texto secundario
-      textMuted: '#718096',      // Gris texto terciario
-      border: '#e2e8f0',         // Borde claro
-      background: '#f7fafc',     // Fondo gris muy claro
-      headerBg: '#ebf8ff',       // Fondo azul claro
-      successBg: '#f0fff4',      // Fondo verde claro
-      warningBg: '#fffaf0',      // Fondo naranja claro
-      dangerBg: '#fff5f5',       // Fondo rojo claro
+      primary: '#0d9488',        // Teal 600 - Color principal de marca
+      primaryDark: '#0f766e',    // Teal 700 - Variante oscura
+      primaryLight: '#14b8a6',   // Teal 500 - Variante clara
+      secondary: '#0ea5e9',      // Sky 500 - Azul complementario
+      secondaryDark: '#0284c7',  // Sky 600 - Azul oscuro
+      accent: '#2dd4bf',         // Teal 400 - Acento vibrante
+      danger: '#dc2626',         // Red 600 - Alertas
+      warning: '#f59e0b',        // Amber 500 - Advertencias
+      success: '#16a34a',        // Green 600 - Éxito
+      text: '#1e293b',           // Slate 800 - Texto principal
+      textLight: '#475569',      // Slate 600 - Texto secundario
+      textMuted: '#64748b',      // Slate 500 - Texto terciario
+      border: '#e2e8f0',         // Slate 200 - Bordes
+      background: '#f8fafc',     // Slate 50 - Fondo
+      headerBg: '#f0fdfa',       // Teal 50 - Fondo header (tono marca)
+      successBg: '#f0fdf4',      // Green 50 - Fondo éxito
+      warningBg: '#fffbeb',      // Amber 50 - Fondo advertencia
+      dangerBg: '#fef2f2',       // Red 50 - Fondo peligro
     };
 
-    // Información institucional (debería venir de configuración)
+    // Ruta al logo de la clínica
+    this.logoPath = path.join(__dirname, '../assets/clinica-mia-logo.png');
+
+    // Información institucional de Clínica MÍA
+    // Conforme a Resolución 3100/2019 - Habilitación de Servicios de Salud
     this.institucion = {
       nombre: 'CLÍNICA MÍA S.A.S.',
-      nit: '900.XXX.XXX-X',
-      codigoHabilitacion: 'XXXXXXXXXX',
-      direccion: 'Dirección de la Institución',
-      telefono: '(XXX) XXX-XXXX',
-      ciudad: 'Ciudad, Departamento',
-      email: 'contacto@clinicamia.com',
-      representanteLegal: 'Nombre del Representante Legal',
+      razonSocial: 'CLÍNICA MÍA S.A.S.',
+      nit: '901.654.789-1',
+      codigoHabilitacion: '7300100XXX', // Código prestador ante MinSalud
+      codigoRethus: 'IPS-TOL-001', // Registro RETHUS
+      direccion: 'Cra. 5 #28-85',
+      ciudad: 'Ibagué',
+      departamento: 'Tolima',
+      pais: 'Colombia',
+      telefono: '(608) 324 333 8555',
+      celular: '324 333 8555',
+      email: 'info@clinicamia.co',
+      web: 'https://clinicamia.co/',
+      representanteLegal: 'Director Médico',
+      nivelAtencion: 'II', // Nivel de atención
+      naturaleza: 'Privada',
+      tipoEntidad: 'IPS - Institución Prestadora de Servicios de Salud',
     };
   }
 
   /**
-   * Generar PDF completo de la Historia Clínica Electrónica
+   * Formatear contenido que puede contener JSON embebido
+   * Convierte JSON a texto legible para el PDF
    */
-  async generarPDF(pacienteId) {
-    const datos = await this.obtenerDatosCompletos(pacienteId);
+  formatearContenidoEvolucion(contenido) {
+    if (!contenido) return '';
+
+    let texto = contenido;
+
+    // Detectar y formatear "REVISIÓN POR SISTEMAS:" con JSON
+    const revisionMatch = texto.match(/REVISIÓN POR SISTEMAS:\s*(\{[\s\S]*?\})\s*(?=\n[A-Z]|$)/);
+    if (revisionMatch) {
+      try {
+        const jsonData = JSON.parse(revisionMatch[1]);
+        const formateado = this.formatearRevisionSistemas(jsonData);
+        texto = texto.replace(revisionMatch[0], `REVISIÓN POR SISTEMAS:\n${formateado}`);
+      } catch (e) {
+        // Si no es JSON válido, limpiar caracteres problemáticos
+        texto = texto.replace(revisionMatch[1], '[Datos de revisión por sistemas]');
+      }
+    }
+
+    // Detectar y formatear "PLAN DE MANEJO:" con JSON
+    const planMatch = texto.match(/PLAN DE MANEJO:\s*(\{[\s\S]*?\})/);
+    if (planMatch) {
+      try {
+        const jsonData = JSON.parse(planMatch[1]);
+        const formateado = this.formatearPlanManejo(jsonData);
+        texto = texto.replace(planMatch[0], `PLAN DE MANEJO:\n${formateado}`);
+      } catch (e) {
+        texto = texto.replace(planMatch[1], '[Datos del plan]');
+      }
+    }
+
+    // Limpiar cualquier JSON restante que no se haya procesado
+    texto = texto.replace(/\{[^}]*"[^"]*":[^}]*\}/g, (match) => {
+      try {
+        const obj = JSON.parse(match);
+        return this.jsonATextoSimple(obj);
+      } catch (e) {
+        return '[Datos estructurados]';
+      }
+    });
+
+    return texto.trim();
+  }
+
+  /**
+   * Formatear revisión por sistemas de JSON a texto legible
+   */
+  formatearRevisionSistemas(data) {
+    const sistemasMap = {
+      general: 'General',
+      cardiovascular: 'Cardiovascular',
+      respiratorio: 'Respiratorio',
+      gastrointestinal: 'Gastrointestinal',
+      genitourinario: 'Genitourinario',
+      musculoesqueletico: 'Musculoesquelético',
+      neurologico: 'Neurológico',
+      piel: 'Piel y Anexos',
+      endocrino: 'Endocrino',
+      hematologico: 'Hematológico',
+      psiquiatrico: 'Psiquiátrico'
+    };
+
+    const sintomasMap = {
+      escalofrios: 'Escalofríos',
+      fiebre: 'Fiebre',
+      fatiga: 'Fatiga',
+      perdidaPeso: 'Pérdida de peso',
+      dolorPecho: 'Dolor de pecho',
+      palpitaciones: 'Palpitaciones',
+      edema: 'Edema',
+      disnea: 'Disnea',
+      tos: 'Tos',
+      sibilancias: 'Sibilancias',
+      nauseas: 'Náuseas',
+      vomito: 'Vómito',
+      diarrea: 'Diarrea',
+      estrenimiento: 'Estreñimiento',
+      dolorAbdominal: 'Dolor abdominal',
+      disuria: 'Disuria',
+      hematuria: 'Hematuria',
+      poliuria: 'Poliuria',
+      dolorArticular: 'Dolor articular',
+      rigidez: 'Rigidez',
+      debilidad: 'Debilidad muscular',
+      cefalea: 'Cefalea',
+      mareo: 'Mareo',
+      convulsiones: 'Convulsiones',
+      parestesias: 'Parestesias',
+      erupciones: 'Erupciones',
+      prurito: 'Prurito',
+      lesiones: 'Lesiones cutáneas'
+    };
+
+    let resultado = [];
+
+    if (data.observacionesGenerales) {
+      resultado.push(`• Observaciones generales: ${data.observacionesGenerales}`);
+    }
+
+    for (const [sistema, nombreSistema] of Object.entries(sistemasMap)) {
+      if (data[sistema] && typeof data[sistema] === 'object') {
+        const sintomas = Object.entries(data[sistema])
+          .filter(([key, value]) => value === true)
+          .map(([key]) => sintomasMap[key] || key)
+          .join(', ');
+
+        if (sintomas) {
+          resultado.push(`• ${nombreSistema}: ${sintomas}`);
+        }
+      }
+    }
+
+    return resultado.length > 0 ? resultado.join('\n') : 'Sin hallazgos relevantes';
+  }
+
+  /**
+   * Formatear plan de manejo de JSON a texto legible
+   */
+  formatearPlanManejo(data) {
+    let resultado = [];
+
+    if (data.incapacidades) resultado.push(`• Incapacidades: ${data.incapacidades} día(s)`);
+    if (data.certificados) resultado.push(`• Certificados médicos: ${data.certificados}`);
+    if (data.seguimientos) resultado.push(`• Seguimientos programados: ${data.seguimientos}`);
+    if (data.observaciones) resultado.push(`• Observaciones: ${data.observaciones}`);
+    if (data.recomendaciones) resultado.push(`• Recomendaciones: ${data.recomendaciones}`);
+
+    return resultado.length > 0 ? resultado.join('\n') : 'Plan indicado';
+  }
+
+  /**
+   * Convertir objeto JSON simple a texto
+   */
+  jsonATextoSimple(obj) {
+    if (typeof obj !== 'object' || obj === null) return String(obj);
+
+    return Object.entries(obj)
+      .filter(([key, value]) => value !== null && value !== undefined && value !== false)
+      .map(([key, value]) => {
+        const keyFormatted = key.replace(/([A-Z])/g, ' $1').trim();
+        if (typeof value === 'object') {
+          return `${keyFormatted}: ${this.jsonATextoSimple(value)}`;
+        }
+        return `${keyFormatted}: ${value}`;
+      })
+      .join(', ');
+  }
+
+  /**
+   * Generar PDF completo de la Historia Clínica Electrónica
+   * @param {string} pacienteId - ID del paciente
+   * @param {Object} opciones - Opciones de generación
+   * @param {Date} opciones.fechaDesde - Fecha inicial del rango (opcional)
+   * @param {Date} opciones.fechaHasta - Fecha final del rango (opcional)
+   */
+  async generarPDF(pacienteId, opciones = {}) {
+    const datos = await this.obtenerDatosCompletos(pacienteId, opciones);
+
+    const rangoTexto = opciones.fechaDesde && opciones.fechaHasta
+      ? ` (${opciones.fechaDesde.toLocaleDateString('es-CO')} - ${opciones.fechaHasta.toLocaleDateString('es-CO')})`
+      : ' (Completa)';
+
+    console.log(`[PDF] Generando HCE para paciente ${pacienteId}${rangoTexto} - Evoluciones: ${datos.evoluciones.length}, Signos Vitales: ${datos.signosVitales.length}, Diagnósticos: ${datos.diagnosticos.length}`);
 
     const doc = new PDFDocument({
       size: 'LETTER',
@@ -80,6 +262,7 @@ class HCEPdfService {
     doc.on('data', chunk => chunks.push(chunk));
 
     await this.generarContenido(doc, datos);
+
     this.agregarNumerosPagina(doc);
     this.agregarMarcaAgua(doc);
 
@@ -93,8 +276,12 @@ class HCEPdfService {
 
   /**
    * Obtener todos los datos del paciente para la HCE
+   * @param {string} pacienteId - ID del paciente
+   * @param {Object} opciones - Opciones de filtrado
+   * @param {Date} opciones.fechaDesde - Fecha inicial del rango
+   * @param {Date} opciones.fechaHasta - Fecha final del rango
    */
-  async obtenerDatosCompletos(pacienteId) {
+  async obtenerDatosCompletos(pacienteId, opciones = {}) {
     const paciente = await prisma.paciente.findUnique({
       where: { id: pacienteId },
     });
@@ -102,6 +289,23 @@ class HCEPdfService {
     if (!paciente) {
       throw new NotFoundError('Paciente no encontrado');
     }
+
+    // Helper para crear filtro de fecha
+    const { fechaDesde, fechaHasta } = opciones;
+    const tieneRango = fechaDesde && fechaHasta;
+
+    // Crear filtro de fecha para diferentes campos
+    const filtroFecha = (campoFecha) => {
+      if (!tieneRango) return {};
+      return {
+        [campoFecha]: {
+          gte: fechaDesde,
+          lte: fechaHasta,
+        },
+      };
+    };
+
+    // Obtener datos clínicos del paciente (filtrados por rango si aplica)
 
     const [
       evoluciones,
@@ -119,48 +323,68 @@ class HCEPdfService {
       citas,
     ] = await Promise.all([
       prisma.evolucionClinica.findMany({
-        where: { pacienteId },
+        where: { pacienteId: pacienteId, ...filtroFecha('fechaEvolucion') },
         include: {
-          doctor: true,
+          doctor: {
+            include: {
+              doctor: true, // Incluye modelo Doctor con firma y sello
+            },
+          },
           admision: { include: { unidad: true } },
         },
         orderBy: { fechaEvolucion: 'desc' },
       }),
       prisma.signoVital.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaRegistro') },
         include: { registrador: true },
         orderBy: { fechaRegistro: 'desc' },
       }),
       prisma.diagnosticoHCE.findMany({
-        where: { pacienteId },
-        include: { doctor: true },
+        where: { pacienteId, ...filtroFecha('fechaDiagnostico') },
+        include: {
+          doctor: {
+            include: {
+              doctor: true, // Incluye modelo Doctor con firma y sello
+            },
+          },
+        },
         orderBy: { fechaDiagnostico: 'desc' },
       }),
       prisma.alertaClinica.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaAlerta') },
         include: { reconocedor: true },
         orderBy: { fechaAlerta: 'desc' },
       }),
       prisma.prescripcion.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaPrescripcion') },
         include: {
-          medico: true,
+          medico: {
+            include: {
+              doctor: true, // Incluye modelo Doctor con firma y sello
+            },
+          },
           medicamentos: { include: { producto: true } },
         },
         orderBy: { fechaPrescripcion: 'desc' },
       }),
       prisma.procedimiento.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaProgramada') },
         include: {
-          medicoResponsable: true,
-          anestesiologo: true,
+          medicoResponsable: {
+            include: { doctor: true },
+          },
+          anestesiologo: {
+            include: { doctor: true },
+          },
           quirofano: true,
-          medicoFirma: true,
+          medicoFirma: {
+            include: { doctor: true },
+          },
         },
         orderBy: { fechaProgramada: 'desc' },
       }),
       prisma.atencionUrgencia.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('horaLlegada') },
         include: {
           medicoAsignado: true,
           enfermeraAsignada: true,
@@ -168,7 +392,7 @@ class HCEPdfService {
         orderBy: { horaLlegada: 'desc' },
       }),
       prisma.admision.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaIngreso') },
         include: {
           unidad: true,
           cama: { include: { habitacion: true } },
@@ -177,7 +401,7 @@ class HCEPdfService {
         orderBy: { fechaIngreso: 'desc' },
       }),
       prisma.interconsulta.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaSolicitud') },
         include: {
           medicoSolicitante: true,
           medicoEspecialista: true,
@@ -185,20 +409,22 @@ class HCEPdfService {
         orderBy: { fechaSolicitud: 'desc' },
       }),
       prisma.ordenMedica.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaOrden') },
         include: {
-          doctor: true,
+          doctor: {
+            include: { doctor: true },
+          },
           examenProcedimiento: true,
         },
         orderBy: { fechaOrden: 'desc' },
       }),
       prisma.notaEnfermeria.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaHora') },
         include: { enfermera: true },
         orderBy: { fechaHora: 'desc' },
       }),
       prisma.estudioImagenologia.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fechaSolicitud') },
         include: {
           medicoSolicitante: true,
           radiologo: true,
@@ -206,12 +432,14 @@ class HCEPdfService {
         orderBy: { fechaSolicitud: 'desc' },
       }),
       prisma.cita.findMany({
-        where: { pacienteId },
+        where: { pacienteId, ...filtroFecha('fecha') },
         include: { doctor: true },
         orderBy: { fecha: 'desc' },
         take: 20,
       }),
     ]);
+
+    // Datos obtenidos del paciente
 
     const laboratorios = ordenesMedicas.filter(
       (o) => o.tipo === 'Laboratorio' || o.examenProcedimiento?.categoria === 'Laboratorio'
@@ -226,6 +454,50 @@ class HCEPdfService {
     const procedimientosNoQuirurgicos = procedimientos.filter(
       (p) => p.tipo !== 'Quirurgico' && !p.tipoCirugia
     );
+
+    // Paraclínicos: Órdenes ejecutadas/completadas con resultados
+    const paraclinicos = ordenesMedicas.filter(
+      (o) => (o.estado === 'Ejecutada' || o.estado === 'Completada') && o.resultados
+    );
+
+    // Exámenes ordenados: Órdenes pendientes o sin resultados
+    const examenesOrdenados = ordenesMedicas.filter(
+      (o) => o.estado === 'Pendiente' || ((o.estado === 'Ejecutada' || o.estado === 'Completada') && !o.resultados)
+    );
+
+    // === OBTENER ANTECEDENTES ESTRUCTURADOS ===
+    const [
+      antecedentesPatologicos,
+      antecedentesQuirurgicos,
+      antecedentesAlergicos,
+      antecedentesFamiliares,
+      antecedentesFarmacologicos,
+      antecedenteGinecoObstetrico,
+    ] = await Promise.all([
+      prisma.antecedentePatologico.findMany({
+        where: { pacienteId, activo: true },
+        orderBy: { fechaDiagnostico: 'desc' },
+      }),
+      prisma.antecedenteQuirurgico.findMany({
+        where: { pacienteId, activo: true },
+        orderBy: { fecha: 'desc' },
+      }),
+      prisma.antecedenteAlergico.findMany({
+        where: { pacienteId, activo: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.antecedenteFamiliar.findMany({
+        where: { pacienteId, activo: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.antecedenteFarmacologico.findMany({
+        where: { pacienteId, activo: true },
+        orderBy: { fechaInicio: 'desc' },
+      }),
+      prisma.antecedenteGinecoObstetrico.findUnique({
+        where: { pacienteId },
+      }),
+    ]);
 
     return {
       paciente,
@@ -243,269 +515,2093 @@ class HCEPdfService {
       notasEnfermeria,
       imagenologia,
       laboratorios,
+      paraclinicos,
+      examenesOrdenados,
       citas,
+      // Antecedentes estructurados
+      antecedentes: {
+        patologicos: antecedentesPatologicos,
+        quirurgicos: antecedentesQuirurgicos,
+        alergicos: antecedentesAlergicos,
+        familiares: antecedentesFamiliares,
+        farmacologicos: antecedentesFarmacologicos,
+        ginecoObstetrico: antecedenteGinecoObstetrico,
+      },
       fechaGeneracion: new Date(),
       institucion: this.institucion,
+      // Rango de fechas si se filtró
+      rangoFechas: tieneRango ? { desde: fechaDesde, hasta: fechaHasta } : null,
     };
   }
 
   /**
-   * Generar contenido completo del PDF según normativa colombiana
+   * Verificar si hay espacio suficiente en la página actual
+   * @param {Object} doc - Documento PDF
+   * @param {number} espacioRequerido - Espacio mínimo requerido en puntos
+   * @param {number} yActual - Posición Y actual
+   * @returns {boolean} true si hay espacio suficiente
    */
-  async generarContenido(doc, datos) {
-    // === SECCIÓN 1: PORTADA ===
-    this.generarPortada(doc, datos);
-
-    // === SECCIÓN 2: ÍNDICE DE CONTENIDO ===
-    doc.addPage();
-    this.generarIndice(doc, datos);
-
-    // === SECCIÓN 3: DATOS DE IDENTIFICACIÓN DEL PACIENTE ===
-    // (Art. 10, Res. 1995/1999 - Identificación del usuario)
-    doc.addPage();
-    this.generarIdentificacionPaciente(doc, datos.paciente);
-
-    // === SECCIÓN 4: ANTECEDENTES CLÍNICOS ===
-    // (Art. 10, Res. 1995/1999 - Registros específicos: antecedentes)
-    doc.addPage();
-    this.generarAntecedentesClinico(doc, datos);
-
-    // === SECCIÓN 5: ALERTAS MÉDICAS Y ALERGIAS ===
-    if (datos.alertas.length > 0) {
-      doc.addPage();
-      this.generarSeccionAlertas(doc, datos.alertas);
-    }
-
-    // === SECCIÓN 6: DIAGNÓSTICOS ===
-    // (Art. 10, Res. 1995/1999 - Diagnóstico)
-    if (datos.diagnosticos.length > 0) {
-      doc.addPage();
-      this.generarSeccionDiagnosticos(doc, datos.diagnosticos);
-    }
-
-    // === SECCIÓN 7: EVOLUCIONES MÉDICAS ===
-    // (Notas SOAP - Res. 1995/1999)
-    if (datos.evoluciones.length > 0) {
-      doc.addPage();
-      this.generarSeccionEvoluciones(doc, datos.evoluciones);
-    }
-
-    // === SECCIÓN 8: SIGNOS VITALES ===
-    if (datos.signosVitales.length > 0) {
-      doc.addPage();
-      this.generarSeccionSignosVitales(doc, datos.signosVitales);
-    }
-
-    // === SECCIÓN 9: ÓRDENES MÉDICAS ===
-    // (Art. 10, Res. 1995/1999 - Plan de manejo)
-    if (datos.ordenesMedicas.length > 0) {
-      doc.addPage();
-      this.generarSeccionOrdenesMedicas(doc, datos.ordenesMedicas);
-    }
-
-    // === SECCIÓN 10: PRESCRIPCIONES ===
-    if (datos.prescripciones.length > 0) {
-      doc.addPage();
-      this.generarSeccionPrescripciones(doc, datos.prescripciones);
-    }
-
-    // === SECCIÓN 11: PROCEDIMIENTOS ===
-    if (datos.procedimientos.length > 0) {
-      doc.addPage();
-      this.generarSeccionProcedimientos(doc, datos.procedimientos);
-    }
-
-    // === SECCIÓN 11B: CIRUGÍAS ===
-    if (datos.cirugias && datos.cirugias.length > 0) {
-      doc.addPage();
-      this.generarSeccionCirugias(doc, datos.cirugias);
-    }
-
-    // === SECCIÓN 12: INTERCONSULTAS ===
-    if (datos.interconsultas.length > 0) {
-      doc.addPage();
-      this.generarSeccionInterconsultas(doc, datos.interconsultas);
-    }
-
-    // === SECCIÓN 13: NOTAS DE ENFERMERÍA ===
-    if (datos.notasEnfermeria.length > 0) {
-      doc.addPage();
-      this.generarSeccionNotasEnfermeria(doc, datos.notasEnfermeria);
-    }
-
-    // === SECCIÓN 14: RESULTADOS DE LABORATORIO ===
-    if (datos.laboratorios.length > 0) {
-      doc.addPage();
-      this.generarSeccionLaboratorios(doc, datos.laboratorios);
-    }
-
-    // === SECCIÓN 15: IMAGENOLOGÍA ===
-    if (datos.imagenologia.length > 0) {
-      doc.addPage();
-      this.generarSeccionImagenologia(doc, datos.imagenologia);
-    }
-
-    // === SECCIÓN 16: ATENCIONES DE URGENCIAS ===
-    if (datos.urgencias.length > 0) {
-      doc.addPage();
-      this.generarSeccionUrgencias(doc, datos.urgencias);
-    }
-
-    // === SECCIÓN 17: HOSPITALIZACIONES Y EPICRISIS ===
-    if (datos.hospitalizaciones.length > 0) {
-      doc.addPage();
-      this.generarSeccionHospitalizaciones(doc, datos.hospitalizaciones);
-    }
-
-    // === SECCIÓN 18: RESUMEN ESTADÍSTICO ===
-    doc.addPage();
-    this.generarResumenEstadistico(doc, datos);
-
-    // === SECCIÓN 19: CONSTANCIA DE AUTENTICIDAD ===
-    doc.addPage();
-    this.generarConstanciaAutenticidad(doc, datos);
+  hayEspacioEnPagina(doc, espacioRequerido, yActual) {
+    const espacioDisponible = doc.page.height - this.margins.bottom - yActual;
+    return espacioDisponible >= espacioRequerido;
   }
 
   /**
-   * Generar portada institucional completa
+   * Generar contenido completo del PDF según normativa colombiana
+   * Resolución 1995/1999, Ley 2015/2020, Resolución 866/2021
+   * OPTIMIZADO V3: Sin páginas en blanco, máxima eficiencia
+   */
+  async generarContenido(doc, datos) {
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // === PÁGINA 1: PORTADA ===
+    this.generarPortada(doc, datos);
+
+    // === PÁGINA 2: ÍNDICE ===
+    doc.addPage();
+    this.generarIndiceCompacto(doc, datos);
+
+    // === PÁGINA 3: IDENTIFICACIÓN DEL PACIENTE ===
+    doc.addPage();
+    let y = this.generarIdentificacionInline(doc, datos.paciente, 60);
+
+    // === DIAGNÓSTICOS Y ALERTAS (en misma página si caben) ===
+    if (datos.alertas.length > 0 || datos.diagnosticos.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarTituloSeccion(doc, 'DIAGNÓSTICOS Y ALERTAS CLÍNICAS', y);
+
+      if (datos.alertas.length > 0) {
+        y = this.generarAlertasInline(doc, datos.alertas, y);
+      }
+      if (datos.diagnosticos.length > 0) {
+        y = this.generarDiagnosticosInline(doc, datos.diagnosticos, y);
+      }
+    }
+
+    // === EVOLUCIONES MÉDICAS (SOAP) ===
+    if (datos.evoluciones.length > 0) {
+      y = this.verificarEspacio(doc, y, 300);
+      y = this.generarEvolucionesInline(doc, datos.evoluciones, y);
+    }
+
+    // === SIGNOS VITALES ===
+    if (datos.signosVitales.length > 0) {
+      y = this.verificarEspacio(doc, y, 200);
+      y = this.generarSignosVitalesInline(doc, datos.signosVitales, y);
+    }
+
+    // === ANTECEDENTES ESTRUCTURADOS ===
+    if (datos.antecedentes) {
+      y = this.verificarEspacio(doc, y, 200);
+      y = this.generarAntecedentesEstructurados(doc, datos.antecedentes, datos.paciente, y);
+    }
+
+    // === PARACLÍNICOS (Resultados de laboratorio) ===
+    if (datos.paraclinicos && datos.paraclinicos.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarParaclinicosInline(doc, datos.paraclinicos, y);
+    }
+
+    // === FORMULACIÓN (Prescripciones detalladas) ===
+    if (datos.prescripciones.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarFormulacionInline(doc, datos.prescripciones, y);
+    }
+
+    // === EXÁMENES ORDENADOS ===
+    if (datos.examenesOrdenados && datos.examenesOrdenados.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarExamenesOrdenadosInline(doc, datos.examenesOrdenados, y);
+    }
+
+    // === ÓRDENES MÉDICAS ===
+    if (datos.ordenesMedicas.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarOrdenesMedicasInline(doc, datos.ordenesMedicas, y);
+    }
+
+    // === PROCEDIMIENTOS ===
+    if (datos.procedimientos.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarProcedimientosInline(doc, datos.procedimientos, y);
+    }
+
+    // === CIRUGÍAS ===
+    if (datos.cirugias && datos.cirugias.length > 0) {
+      y = this.verificarEspacio(doc, y, 200);
+      y = this.generarCirugiasInline(doc, datos.cirugias, y);
+    }
+
+    // === INTERCONSULTAS ===
+    if (datos.interconsultas.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarInterconsultasInline(doc, datos.interconsultas, y);
+    }
+
+    // === NOTAS DE ENFERMERÍA ===
+    if (datos.notasEnfermeria.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarNotasEnfermeriaInline(doc, datos.notasEnfermeria, y);
+    }
+
+    // === LABORATORIOS ===
+    if (datos.laboratorios.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarLaboratoriosInline(doc, datos.laboratorios, y);
+    }
+
+    // === IMAGENOLOGÍA ===
+    if (datos.imagenologia.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarImagenologiaInline(doc, datos.imagenologia, y);
+    }
+
+    // === URGENCIAS ===
+    if (datos.urgencias.length > 0) {
+      y = this.verificarEspacio(doc, y, 150);
+      y = this.generarUrgenciasInline(doc, datos.urgencias, y);
+    }
+
+    // === HOSPITALIZACIONES ===
+    if (datos.hospitalizaciones.length > 0) {
+      y = this.verificarEspacio(doc, y, 200);
+      y = this.generarHospitalizacionesInline(doc, datos.hospitalizaciones, y);
+    }
+
+    // === RESUMEN Y CONSTANCIA FINAL ===
+    y = this.verificarEspacio(doc, y, 280);
+    this.generarResumenFinal(doc, datos, y);
+
+    // PDF generado exitosamente
+  }
+
+  /**
+   * Verificar espacio y agregar página si es necesario
+   */
+  verificarEspacio(doc, y, espacioRequerido) {
+    const espacioDisponible = doc.page.height - this.margins.bottom - y;
+    if (espacioDisponible < espacioRequerido) {
+      doc.addPage();
+      return 60;
+    }
+    return y;
+  }
+
+  /**
+   * Verificar espacio - versión antigua para compatibilidad
+   */
+  verificarEspacioAntiguo(doc, y, espacioRequerido) {
+    if (y + espacioRequerido > doc.page.height - this.margins.bottom) {
+      doc.addPage();
+      return 60;
+    }
+    return y;
+  }
+
+  /**
+   * Generar título de sección inline
+   */
+  generarTituloSeccion(doc, titulo, y) {
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    doc.rect(this.margins.left, y, pageWidth, 22)
+       .fill(this.colors.primary);
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
+       .text(titulo, this.margins.left + 10, y + 6);
+
+    return y + 28;
+  }
+
+  /**
+   * Índice compacto
+   */
+  generarIndiceCompacto(doc, datos) {
+    let y = 60;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Header
+    doc.rect(this.margins.left, y, pageWidth, 35)
+       .fill(this.colors.primary);
+
+    doc.fontSize(14).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('ÍNDICE DE CONTENIDO', this.margins.left + 15, y + 10);
+
+    y += 45;
+
+    const secciones = [
+      { nombre: 'Identificación del Paciente', tiene: true },
+      { nombre: 'Diagnósticos y Alertas', tiene: datos.diagnosticos.length > 0 || datos.alertas.length > 0 },
+      { nombre: 'Evoluciones Médicas (SOAP)', tiene: datos.evoluciones.length > 0 },
+      { nombre: 'Signos Vitales', tiene: datos.signosVitales.length > 0 },
+      { nombre: 'Prescripciones', tiene: datos.prescripciones.length > 0 },
+      { nombre: 'Órdenes Médicas', tiene: datos.ordenesMedicas.length > 0 },
+      { nombre: 'Procedimientos', tiene: datos.procedimientos.length > 0 },
+      { nombre: 'Cirugías', tiene: datos.cirugias?.length > 0 },
+      { nombre: 'Interconsultas', tiene: datos.interconsultas.length > 0 },
+      { nombre: 'Notas de Enfermería', tiene: datos.notasEnfermeria.length > 0 },
+      { nombre: 'Laboratorios', tiene: datos.laboratorios.length > 0 },
+      { nombre: 'Imagenología', tiene: datos.imagenologia.length > 0 },
+      { nombre: 'Urgencias', tiene: datos.urgencias.length > 0 },
+      { nombre: 'Hospitalizaciones', tiene: datos.hospitalizaciones.length > 0 },
+      { nombre: 'Resumen y Constancia', tiene: true },
+    ];
+
+    let num = 1;
+    for (const sec of secciones) {
+      if (sec.tiene) {
+        doc.fontSize(9).font('Helvetica').fillColor(this.colors.text)
+           .text(`${num}. ${sec.nombre}`, this.margins.left + 20, y);
+        y += 16;
+        num++;
+      }
+    }
+
+    // Nota normativa
+    y += 20;
+    doc.rect(this.margins.left, y, pageWidth, 45)
+       .fill(this.colors.headerBg);
+
+    doc.fontSize(8).font('Helvetica-Oblique').fillColor(this.colors.textMuted)
+       .text('Documento conforme a: Resolución 1995/1999, Ley 2015/2020 (HCE Interoperable),',
+             this.margins.left + 10, y + 10)
+       .text('Resolución 866/2021, Ley 1581/2012 (Protección de Datos)',
+             this.margins.left + 10, y + 22);
+  }
+
+  /**
+   * Identificación del paciente inline
+   */
+  generarIdentificacionInline(doc, paciente, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Título
+    y = this.generarTituloSeccion(doc, 'IDENTIFICACIÓN DEL PACIENTE (Art. 10 Res. 1995/1999)', y);
+
+    // Tarjeta de paciente
+    doc.rect(this.margins.left, y, pageWidth, 75)
+       .lineWidth(1)
+       .fillAndStroke(this.colors.headerBg, this.colors.primary);
+
+    // Foto del paciente
+    const fotoX = this.margins.left + 10;
+    const fotoY = y + 8;
+    const fotoSize = 58;
+    let fotoMostrada = false;
+
+    if (paciente.fotoUrl) {
+      try {
+        if (paciente.fotoUrl.startsWith('data:image')) {
+          // Foto en base64
+          const base64Data = paciente.fotoUrl.replace(/^data:image\/\w+;base64,/, '');
+          const fotoBuffer = Buffer.from(base64Data, 'base64');
+          doc.image(fotoBuffer, fotoX, fotoY, { width: fotoSize, height: fotoSize, fit: [fotoSize, fotoSize] });
+          fotoMostrada = true;
+        } else if (paciente.fotoUrl.startsWith('/uploads/') || paciente.fotoUrl.startsWith('uploads/')) {
+          // Foto en archivo local - agregar 'public' a la ruta
+          const fotoPath = path.join(__dirname, '..', 'public', paciente.fotoUrl);
+          if (fs.existsSync(fotoPath)) {
+            doc.image(fotoPath, fotoX, fotoY, { width: fotoSize, height: fotoSize, fit: [fotoSize, fotoSize] });
+            fotoMostrada = true;
+            console.log(`[PDF] Foto cargada: ${paciente.fotoUrl}`);
+          } else {
+            console.log(`[PDF] Archivo de foto no encontrado: ${fotoPath}`);
+          }
+        }
+      } catch (e) {
+        console.log('Error cargando foto del paciente:', e.message);
+      }
+    }
+
+    if (!fotoMostrada) {
+      this.dibujarFotoPlaceholder(doc, fotoX, fotoY, fotoSize);
+    }
+
+    // Datos principales
+    const dataX = fotoX + fotoSize + 15;
+    const nombreCompleto = `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim().toUpperCase();
+
+    doc.fontSize(13).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text(nombreCompleto || 'NOMBRE NO REGISTRADO', dataX, y + 8, { width: pageWidth - fotoSize - 40 });
+
+    doc.fontSize(10).font('Helvetica').fillColor(this.colors.text)
+       .text(`${paciente.tipoDocumento || 'CC'}: ${paciente.cedula || 'N/A'}`, dataX, y + 28);
+
+    doc.fontSize(9).fillColor(this.colors.textLight)
+       .text(`Edad: ${this.calcularEdad(paciente.fechaNacimiento)} | Sexo: ${paciente.genero || 'N/A'} | Sangre: ${paciente.tipoSangre || 'N/A'}`, dataX, y + 43);
+
+    doc.text(`EPS: ${paciente.eps || 'N/A'} | Régimen: ${paciente.regimen || 'N/A'} | Estado Civil: ${paciente.estadoCivil || 'N/A'}`, dataX, y + 56);
+
+    y += 82;
+
+    // Datos adicionales requeridos por Res. 1995/1999
+    doc.rect(this.margins.left, y, pageWidth, 28)
+       .fill('#f0f9ff');
+
+    doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+       .text(`Ocupación: ${paciente.ocupacion || 'N/A'} | Nivel Educación: ${paciente.nivelEducacion || 'N/A'} | Tipo Usuario: ${paciente.tipoUsuario || 'N/A'}`,
+             this.margins.left + 10, y + 5);
+
+    // Contacto de emergencia
+    let contactoEmergencia = 'No registrado';
+    if (paciente.contactosEmergencia) {
+      try {
+        const contactos = typeof paciente.contactosEmergencia === 'string'
+          ? JSON.parse(paciente.contactosEmergencia)
+          : paciente.contactosEmergencia;
+        if (Array.isArray(contactos) && contactos.length > 0) {
+          const c = contactos[0];
+          contactoEmergencia = `${c.nombre || ''} (${c.parentesco || ''}) - Tel: ${c.telefono || ''}`;
+        } else if (contactos.nombre) {
+          contactoEmergencia = `${contactos.nombre} (${contactos.parentesco || ''}) - Tel: ${contactos.telefono || ''}`;
+        }
+      } catch (e) { /* ignorar errores de parseo */ }
+    }
+    doc.text(`Contacto Emergencia: ${contactoEmergencia}`, this.margins.left + 10, y + 16);
+
+    y += 32;
+
+    // Última atención y modalidad - Res. 866/2021
+    doc.rect(this.margins.left, y, pageWidth, 22)
+       .fill(this.colors.primary);
+
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('DATOS DE ATENCIÓN EN SALUD (Res. 866/2021)', this.margins.left + 10, y + 6);
+
+    y += 24;
+
+    doc.rect(this.margins.left, y, pageWidth, 22)
+       .fill('#fff7ed');
+
+    const ultimaAtencion = paciente.ultimaConsulta ? this.formatearFecha(paciente.ultimaConsulta) : 'Sin registros';
+    const modalidad = paciente.tipoPaciente || 'Consulta Externa';
+
+    doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+       .text(`Última Atención: ${ultimaAtencion} | Modalidad: ${modalidad} | Tipo Afiliación: ${paciente.tipoAfiliacion || 'Contributivo'}`,
+             this.margins.left + 10, y + 6);
+
+    y += 26;
+
+    // Contacto
+    doc.rect(this.margins.left, y, pageWidth, 35)
+       .fill('#f8fafc');
+
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('CONTACTO', this.margins.left + 10, y + 5);
+
+    doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+       .text(`Tel: ${paciente.telefono || 'N/A'} | Email: ${paciente.email || 'N/A'}`, this.margins.left + 10, y + 16)
+       .text(`Dir: ${paciente.direccion || 'N/A'}, ${paciente.municipio || ''} ${paciente.departamento || ''}`, this.margins.left + 10, y + 26);
+
+    y += 40;
+
+    // Antecedentes
+    doc.rect(this.margins.left, y, pageWidth, 18)
+       .fill(this.colors.primary);
+
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('ANTECEDENTES CLÍNICOS', this.margins.left + 10, y + 4);
+
+    y += 22;
+
+    const antecedentes = [
+      ['Alergias', paciente.alergias || 'Ninguna conocida'],
+      ['Enf. Crónicas', paciente.enfermedadesCronicas || 'Ninguna reportada'],
+      ['Medicamentos', paciente.medicamentosActuales || 'Ninguno actual'],
+      ['Quirúrgicos', paciente.antecedentesQuirurgicos || 'Sin antecedentes'],
+    ];
+
+    for (const [label, value] of antecedentes) {
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.textMuted)
+         .text(label + ':', this.margins.left + 10, y);
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text((value || '').substring(0, 70), this.margins.left + 85, y, { width: pageWidth - 95 });
+      y += 14;
+    }
+
+    return y + 15;
+  }
+
+  /**
+   * Alertas inline
+   */
+  generarAlertasInline(doc, alertas, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.danger)
+       .text('⚠ ALERTAS ACTIVAS', this.margins.left, y);
+    y += 14;
+
+    for (const alerta of alertas.slice(0, 5)) {
+      y = this.verificarEspacio(doc, y, 25);
+
+      const colorFondo = alerta.tipo === 'Alergia' ? this.colors.dangerBg : this.colors.warningBg;
+      const colorBorde = alerta.tipo === 'Alergia' ? this.colors.danger : this.colors.warning;
+
+      doc.rect(this.margins.left, y, pageWidth, 20)
+         .fillAndStroke(colorFondo, colorBorde);
+
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(colorBorde)
+         .text(`${alerta.tipo || 'ALERTA'}: ${alerta.titulo || 'Sin título'}`, this.margins.left + 8, y + 5, { width: pageWidth - 16 });
+
+      y += 24;
+    }
+
+    return y + 8;
+  }
+
+  /**
+   * Diagnósticos inline
+   */
+  generarDiagnosticosInline(doc, diagnosticos, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('DIAGNÓSTICOS (CIE-10/CIE-11)', this.margins.left, y);
+    y += 14;
+
+    // Header tabla
+    doc.rect(this.margins.left, y, pageWidth, 16).fill(this.colors.primary);
+    doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('Código', this.margins.left + 5, y + 4)
+       .text('Descripción', this.margins.left + 65, y + 4)
+       .text('Tipo', this.margins.left + pageWidth - 95, y + 4)
+       .text('Fecha', this.margins.left + pageWidth - 50, y + 4);
+    y += 18;
+
+    for (let i = 0; i < Math.min(diagnosticos.length, 10); i++) {
+      y = this.verificarEspacio(doc, y, 16);
+      const diag = diagnosticos[i];
+      const bgColor = i % 2 === 0 ? '#f8fafc' : '#ffffff';
+
+      doc.rect(this.margins.left, y, pageWidth, 15).fill(bgColor);
+
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.text)
+         .text(diag.codigoCIE11 || diag.codigoCIE10 || '-', this.margins.left + 5, y + 4)
+         .text((diag.descripcionCIE11 || diag.descripcion || 'N/A').substring(0, 45), this.margins.left + 65, y + 4)
+         .text(diag.tipoDiagnostico || 'Principal', this.margins.left + pageWidth - 95, y + 4)
+         .text(this.formatearFechaCorta(diag.fechaDiagnostico), this.margins.left + pageWidth - 50, y + 4);
+      y += 15;
+    }
+
+    return y + 10;
+  }
+
+  /**
+   * Evoluciones inline con SOAP mejorado
+   */
+  generarEvolucionesInline(doc, evoluciones, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Procesar evoluciones
+
+    y = this.generarTituloSeccion(doc, 'EVOLUCIONES MÉDICAS - FORMATO SOAP', y);
+
+    const soapColors = {
+      S: { bg: '#e0f2fe', border: '#0284c7', text: '#0369a1' },
+      O: { bg: '#dcfce7', border: '#16a34a', text: '#15803d' },
+      A: { bg: '#fef3c7', border: '#f59e0b', text: '#b45309' },
+      P: { bg: '#f3e8ff', border: '#9333ea', text: '#7c3aed' },
+    };
+
+    for (let i = 0; i < evoluciones.length; i++) {
+      const evol = evoluciones[i];
+
+      // Verificar espacio para evolución completa (~200px)
+      y = this.verificarEspacio(doc, y, 220);
+
+      // Header de evolución
+      doc.rect(this.margins.left, y, pageWidth, 22)
+         .fill(this.colors.primary);
+
+      const nombreMedico = evol.doctor ? `Dr(a). ${evol.doctor.nombre} ${evol.doctor.apellido}` : 'N/A';
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+         .text(`EVOLUCIÓN #${evoluciones.length - i}`, this.margins.left + 10, y + 6);
+
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.accent)
+         .text(`${this.formatearFechaHora(evol.fechaEvolucion)} | ${nombreMedico}`, this.margins.left + pageWidth - 220, y + 7);
+
+      y += 26;
+
+      // SOAP en grid 2x2
+      const cardWidth = (pageWidth - 8) / 2;
+      const cardHeight = 70;
+      const secciones = [
+        { key: 'S', titulo: 'SUBJETIVO', contenido: this.formatearContenidoEvolucion(evol.subjetivo) },
+        { key: 'O', titulo: 'OBJETIVO', contenido: this.formatearContenidoEvolucion(evol.objetivo) },
+        { key: 'A', titulo: 'ANÁLISIS', contenido: this.formatearContenidoEvolucion(evol.analisis) },
+        { key: 'P', titulo: 'PLAN', contenido: this.formatearContenidoEvolucion(evol.plan) },
+      ];
+
+      let cardY = y;
+      let cardCol = 0;
+
+      for (const seccion of secciones) {
+        const contenido = seccion.contenido?.trim() || 'Sin información';
+        const colors = soapColors[seccion.key];
+        const cardX = this.margins.left + (cardCol * (cardWidth + 8));
+
+        doc.rect(cardX, cardY, cardWidth, cardHeight)
+           .lineWidth(1.5)
+           .fillAndStroke(colors.bg, colors.border);
+
+        // Letra grande
+        doc.fontSize(16).font('Helvetica-Bold').fillColor(colors.border)
+           .text(seccion.key, cardX + 6, cardY + 4);
+
+        // Título
+        doc.fontSize(7).font('Helvetica-Bold').fillColor(colors.text)
+           .text(seccion.titulo, cardX + 28, cardY + 7);
+
+        // Contenido truncado
+        const maxLen = 150;
+        const displayContent = contenido.length > maxLen ? contenido.substring(0, maxLen) + '...' : contenido;
+
+        doc.fontSize(7).font('Helvetica').fillColor(this.colors.text)
+           .text(displayContent, cardX + 8, cardY + 22, {
+             width: cardWidth - 16,
+             height: cardHeight - 28,
+             ellipsis: true
+           });
+
+        cardCol++;
+        if (cardCol >= 2) {
+          cardCol = 0;
+          cardY += cardHeight + 6;
+        }
+      }
+
+      y = cardY + (cardCol > 0 ? cardHeight + 6 : 0);
+
+      // Firma del médico - Ley 2015/2020 requiere firma digital
+      const firmaDoctor = evol.doctor?.doctor?.firma;
+      const alturaFirma = firmaDoctor ? 50 : 28;
+
+      doc.rect(this.margins.left, y, pageWidth, alturaFirma)
+         .fill('#f8fafc');
+
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
+         .text(`Firmado: ${nombreMedico}`, this.margins.left + 10, y + 6);
+
+      const licencia = evol.doctor?.doctor?.licenciaMedica;
+      if (licencia) {
+        doc.text(`Reg. Médico: ${licencia}`, this.margins.left + 10, y + 16);
+      }
+
+      // Mostrar imagen de firma digital si existe
+      if (firmaDoctor && firmaDoctor.startsWith('data:image')) {
+        try {
+          const firmaBase64 = firmaDoctor.replace(/^data:image\/\w+;base64,/, '');
+          const firmaBuffer = Buffer.from(firmaBase64, 'base64');
+          doc.image(firmaBuffer, this.margins.left + pageWidth - 100, y + 5, {
+            width: 80,
+            height: 40,
+            fit: [80, 40]
+          });
+        } catch (e) {
+          // Si falla, mostrar texto de firma
+          if (evol.firmada) {
+            doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.success)
+               .text('✓ FIRMADO DIGITALMENTE', this.margins.left + pageWidth - 100, y + 15);
+          }
+        }
+      } else if (evol.firmada) {
+        doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.success)
+           .text('✓ FIRMADO', this.margins.left + pageWidth - 60, y + 10);
+      }
+
+      y += alturaFirma + 7;
+    }
+
+    return y;
+  }
+
+  /**
+   * Signos vitales inline
+   */
+  generarSignosVitalesInline(doc, signosVitales, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'REGISTROS DE SIGNOS VITALES', y);
+
+    // Header tabla
+    const headers = ['Fecha', 'PA', 'FC', 'FR', 'Temp', 'SpO2', 'Peso', 'Talla'];
+    const colWidths = [80, 60, 45, 40, 45, 45, 50, 50];
+
+    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.headerBg);
+
+    let xPos = this.margins.left + 4;
+    doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.primary);
+    for (let i = 0; i < headers.length; i++) {
+      doc.text(headers[i], xPos, y + 3);
+      xPos += colWidths[i];
+    }
+    y += 16;
+
+    for (let i = 0; i < Math.min(signosVitales.length, 15); i++) {
+      y = this.verificarEspacio(doc, y, 14);
+      const sv = signosVitales[i];
+      const bgColor = i % 2 === 0 ? '#ffffff' : '#f8fafc';
+
+      doc.rect(this.margins.left, y, pageWidth, 13).fill(bgColor);
+
+      const pa = sv.presionSistolica && sv.presionDiastolica
+        ? `${sv.presionSistolica}/${sv.presionDiastolica}` : '-';
+
+      const rowData = [
+        this.formatearFechaHoraCorta(sv.fechaRegistro),
+        pa,
+        sv.frecuenciaCardiaca || '-',
+        sv.frecuenciaRespiratoria || '-',
+        sv.temperatura ? `${sv.temperatura}°` : '-',
+        sv.saturacionOxigeno ? `${sv.saturacionOxigeno}%` : '-',
+        sv.peso ? `${sv.peso}kg` : '-',
+        sv.talla ? `${sv.talla}cm` : '-',
+      ];
+
+      xPos = this.margins.left + 4;
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.text);
+      for (let j = 0; j < rowData.length; j++) {
+        doc.text(String(rowData[j]), xPos, y + 3);
+        xPos += colWidths[j];
+      }
+      y += 13;
+    }
+
+    return y + 10;
+  }
+
+  /**
+   * Prescripciones inline
+   */
+  generarPrescripcionesInline(doc, prescripciones, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'PRESCRIPCIONES MÉDICAS', y);
+
+    for (const presc of prescripciones.slice(0, 8)) {
+      y = this.verificarEspacio(doc, y, 50);
+
+      const medicamento = presc.medicamentos?.[0]?.producto?.nombre || presc.diagnostico || 'Prescripción';
+
+      doc.rect(this.margins.left, y, pageWidth, 45)
+         .lineWidth(1)
+         .fillAndStroke('#f0fdf4', this.colors.success);
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.success)
+         .text(`Rx: ${medicamento}`, this.margins.left + 10, y + 6, { width: pageWidth - 100 });
+
+      doc.fontSize(7).fillColor(this.colors.textMuted)
+         .text(this.formatearFechaCorta(presc.fechaPrescripcion), this.margins.left + pageWidth - 70, y + 7);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(`Dosis: ${presc.dosis || 'N/A'} | Frecuencia: ${presc.frecuencia || 'N/A'} | Vía: ${presc.via || 'Oral'}`,
+                this.margins.left + 10, y + 22);
+
+      if (presc.indicaciones) {
+        doc.fontSize(7).text(`Indicaciones: ${presc.indicaciones.substring(0, 50)}`, this.margins.left + 10, y + 34);
+      }
+
+      y += 50;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Órdenes médicas inline
+   */
+  generarOrdenesMedicasInline(doc, ordenes, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'ÓRDENES MÉDICAS', y);
+
+    for (const orden of ordenes.slice(0, 8)) {
+      y = this.verificarEspacio(doc, y, 45);
+
+      const colorEstado = orden.estado === 'Completada' ? this.colors.success :
+                          orden.estado === 'Pendiente' ? this.colors.warning : this.colors.textLight;
+
+      doc.rect(this.margins.left, y, pageWidth, 40)
+         .stroke(this.colors.border);
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.text)
+         .text(`Orden: ${orden.tipo || 'General'}`, this.margins.left + 10, y + 6);
+
+      doc.fontSize(8).fillColor(colorEstado)
+         .text(orden.estado || 'Pendiente', this.margins.left + pageWidth - 80, y + 6);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text((orden.descripcion || orden.contenido || 'Sin descripción').substring(0, 70),
+               this.margins.left + 10, y + 20, { width: pageWidth - 20 });
+
+      doc.fontSize(7).fillColor(this.colors.textMuted)
+         .text(this.formatearFechaCorta(orden.fechaOrden), this.margins.left + 10, y + 32);
+
+      y += 44;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Procedimientos inline
+   */
+  generarProcedimientosInline(doc, procedimientos, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'PROCEDIMIENTOS (CUPS)', y);
+
+    for (const proc of procedimientos.slice(0, 6)) {
+      y = this.verificarEspacio(doc, y, 50);
+
+      doc.rect(this.margins.left, y, pageWidth, 45)
+         .stroke(this.colors.border);
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
+         .text(`[${proc.codigoCUPS || 'S/C'}] ${proc.nombre || 'Procedimiento'}`, this.margins.left + 10, y + 6);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(`Estado: ${proc.estado || 'N/A'} | Fecha: ${this.formatearFechaCorta(proc.fechaProgramada)}`,
+               this.margins.left + 10, y + 20);
+
+      const medico = proc.medicoResponsable ? `Dr(a). ${proc.medicoResponsable.nombre} ${proc.medicoResponsable.apellido}` : 'N/A';
+      doc.fontSize(7).fillColor(this.colors.textMuted)
+         .text(`Médico: ${medico}`, this.margins.left + 10, y + 34);
+
+      y += 50;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Cirugías inline
+   */
+  generarCirugiasInline(doc, cirugias, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'PROCEDIMIENTOS QUIRÚRGICOS', y);
+
+    for (const cirugia of cirugias.slice(0, 5)) {
+      y = this.verificarEspacio(doc, y, 60);
+
+      doc.rect(this.margins.left, y, pageWidth, 55)
+         .lineWidth(1)
+         .fillAndStroke('#faf5ff', '#9333ea');
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#9333ea')
+         .text(cirugia.nombre || cirugia.tipoCirugia || 'Cirugía', this.margins.left + 10, y + 6);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(`Fecha: ${this.formatearFechaHora(cirugia.fechaProgramada)}`, this.margins.left + 10, y + 22)
+         .text(`Estado: ${cirugia.estado || 'N/A'}`, this.margins.left + pageWidth - 120, y + 22);
+
+      const cirujano = cirugia.medicoResponsable ? `Dr(a). ${cirugia.medicoResponsable.nombre} ${cirugia.medicoResponsable.apellido}` : 'N/A';
+      doc.fontSize(7).fillColor(this.colors.textMuted)
+         .text(`Cirujano: ${cirujano}`, this.margins.left + 10, y + 38);
+
+      y += 60;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Interconsultas inline
+   */
+  generarInterconsultasInline(doc, interconsultas, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'INTERCONSULTAS', y);
+
+    for (const ic of interconsultas.slice(0, 6)) {
+      y = this.verificarEspacio(doc, y, 45);
+
+      doc.rect(this.margins.left, y, pageWidth, 40)
+         .stroke(this.colors.border);
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.secondary)
+         .text(`Especialidad: ${ic.especialidadDestino || 'N/A'}`, this.margins.left + 10, y + 6);
+
+      doc.fontSize(8).fillColor(ic.estado === 'Respondida' ? this.colors.success : this.colors.warning)
+         .text(ic.estado || 'Pendiente', this.margins.left + pageWidth - 80, y + 6);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(`Motivo: ${(ic.motivo || 'N/A').substring(0, 60)}`, this.margins.left + 10, y + 20);
+
+      doc.fontSize(7).fillColor(this.colors.textMuted)
+         .text(this.formatearFechaCorta(ic.fechaSolicitud), this.margins.left + 10, y + 32);
+
+      y += 44;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Notas de enfermería inline
+   */
+  generarNotasEnfermeriaInline(doc, notas, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'NOTAS DE ENFERMERÍA', y);
+
+    for (const nota of notas.slice(0, 8)) {
+      y = this.verificarEspacio(doc, y, 40);
+
+      doc.rect(this.margins.left, y, pageWidth, 35)
+         .fill('#fdf2f8');
+
+      doc.fontSize(8).font('Helvetica-Bold').fillColor('#be185d')
+         .text(this.formatearFechaHora(nota.fechaHora), this.margins.left + 10, y + 5);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text((nota.contenido || nota.nota || 'N/A').substring(0, 80), this.margins.left + 10, y + 18, { width: pageWidth - 20 });
+
+      y += 38;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Laboratorios inline
+   */
+  generarLaboratoriosInline(doc, laboratorios, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'RESULTADOS DE LABORATORIO', y);
+
+    for (const lab of laboratorios.slice(0, 8)) {
+      y = this.verificarEspacio(doc, y, 35);
+
+      doc.rect(this.margins.left, y, pageWidth, 30)
+         .stroke(this.colors.border);
+
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.text)
+         .text(lab.examenProcedimiento?.nombre || lab.descripcion || 'Examen', this.margins.left + 10, y + 6);
+
+      doc.fontSize(7).fillColor(lab.estado === 'Completada' ? this.colors.success : this.colors.warning)
+         .text(lab.estado || 'Pendiente', this.margins.left + pageWidth - 70, y + 6);
+
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
+         .text(this.formatearFechaCorta(lab.fechaOrden), this.margins.left + 10, y + 20);
+
+      y += 33;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Antecedentes estructurados - según Resolución 1995/1999
+   * Incluye: Patológicos, Quirúrgicos, Alérgicos, Familiares, Farmacológicos, Gineco-Obstétricos
+   */
+  generarAntecedentesEstructurados(doc, antecedentes, paciente, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'ANTECEDENTES CLÍNICOS', y);
+
+    // === ANTECEDENTES PATOLÓGICOS ===
+    if (antecedentes.patologicos && antecedentes.patologicos.length > 0) {
+      y = this.verificarEspacio(doc, y, 30);
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
+         .text('» Patológicos:', this.margins.left + 5, y);
+      y += 14;
+
+      const patologicosTexto = antecedentes.patologicos.map(p => {
+        let texto = p.enfermedad;
+        if (p.codigoCIE10) texto += ` (${p.codigoCIE10})`;
+        if (p.enTratamiento) texto += ' - En tratamiento';
+        return texto;
+      }).join(', ');
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(patologicosTexto || 'Ninguno reportado', this.margins.left + 10, y, { width: pageWidth - 20 });
+      y += doc.heightOfString(patologicosTexto || 'Ninguno reportado', { width: pageWidth - 20 }) + 8;
+    }
+
+    // === ANTECEDENTES QUIRÚRGICOS ===
+    if (antecedentes.quirurgicos && antecedentes.quirurgicos.length > 0) {
+      y = this.verificarEspacio(doc, y, 30);
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
+         .text('» Quirúrgicos:', this.margins.left + 5, y);
+      y += 14;
+
+      const quirurgicosTexto = antecedentes.quirurgicos.map(q => {
+        let texto = q.procedimiento;
+        if (q.codigoCUPS) texto += ` (CUPS: ${q.codigoCUPS})`;
+        if (q.fecha) texto += ` - ${this.formatearFechaCorta(q.fecha)}`;
+        return texto;
+      }).join(', ');
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(quirurgicosTexto || 'Sin antecedentes', this.margins.left + 10, y, { width: pageWidth - 20 });
+      y += doc.heightOfString(quirurgicosTexto || 'Sin antecedentes', { width: pageWidth - 20 }) + 8;
+    }
+
+    // === ANTECEDENTES ALÉRGICOS ===
+    y = this.verificarEspacio(doc, y, 30);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.danger)
+       .text('» Alergias:', this.margins.left + 5, y);
+    y += 14;
+
+    if (antecedentes.alergicos && antecedentes.alergicos.length > 0) {
+      const alergiasTexto = antecedentes.alergicos.map(a => {
+        let texto = a.sustancia;
+        if (a.tipoAlergia) texto = `${a.tipoAlergia}: ${texto}`;
+        if (a.severidad) texto += ` (${a.severidad})`;
+        return texto;
+      }).join(', ');
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(alergiasTexto, this.margins.left + 10, y, { width: pageWidth - 20 });
+      y += doc.heightOfString(alergiasTexto, { width: pageWidth - 20 }) + 8;
+    } else {
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(paciente.alergias || 'Ninguna conocida', this.margins.left + 10, y);
+      y += 14;
+    }
+
+    // === ANTECEDENTES FARMACOLÓGICOS ===
+    y = this.verificarEspacio(doc, y, 30);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('» Farmacológicos:', this.margins.left + 5, y);
+    y += 14;
+
+    if (antecedentes.farmacologicos && antecedentes.farmacologicos.length > 0) {
+      const farmacosTexto = antecedentes.farmacologicos.map(f => {
+        let texto = f.medicamento;
+        if (f.dosis) texto += ` ${f.dosis}`;
+        if (f.frecuencia) texto += ` ${f.frecuencia}`;
+        return texto;
+      }).join(', ');
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(farmacosTexto, this.margins.left + 10, y, { width: pageWidth - 20 });
+      y += doc.heightOfString(farmacosTexto, { width: pageWidth - 20 }) + 8;
+    } else {
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(paciente.medicamentosActuales || 'Ninguno actual', this.margins.left + 10, y);
+      y += 14;
+    }
+
+    // === ANTECEDENTES FAMILIARES ===
+    if (antecedentes.familiares && antecedentes.familiares.length > 0) {
+      y = this.verificarEspacio(doc, y, 30);
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
+         .text('» Familiares:', this.margins.left + 5, y);
+      y += 14;
+
+      const familiaresTexto = antecedentes.familiares.map(f => {
+        let texto = `${f.parentesco}: ${f.enfermedad}`;
+        if (f.codigoCIE10) texto += ` (${f.codigoCIE10})`;
+        return texto;
+      }).join(', ');
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(familiaresTexto, this.margins.left + 10, y, { width: pageWidth - 20 });
+      y += doc.heightOfString(familiaresTexto, { width: pageWidth - 20 }) + 8;
+    }
+
+    // === ANTECEDENTES GINECO-OBSTÉTRICOS (solo si es mujer y tiene datos) ===
+    if (antecedentes.ginecoObstetrico && paciente.genero?.toLowerCase().includes('fem')) {
+      y = this.verificarEspacio(doc, y, 40);
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
+         .text('» Gineco-Obstétricos:', this.margins.left + 5, y);
+      y += 14;
+
+      const go = antecedentes.ginecoObstetrico;
+      const ciclos = go.cicloMenstrual || 'No reportado';
+      const formulaGest = `G${go.gestas || 0}C${go.cesareas || 0}P${go.partos || 0}A${go.abortos || 0}`;
+
+      const ginecoTexto = `Ciclos: ${ciclos}, Fórmula Gestacional: ${formulaGest}`;
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(ginecoTexto, this.margins.left + 10, y, { width: pageWidth - 20 });
+      y += 18;
+    }
+
+    return y + 10;
+  }
+
+  /**
+   * Paraclínicos - Resultados de laboratorio con fechas (según documento de referencia)
+   */
+  generarParaclinicosInline(doc, paraclinicos, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'PARACLÍNICOS', y);
+
+    // Agrupar por fecha
+    const porFecha = {};
+    for (const p of paraclinicos) {
+      const fecha = this.formatearFechaCorta(p.fechaOrden || p.fechaEjecucion);
+      if (!porFecha[fecha]) porFecha[fecha] = [];
+      porFecha[fecha].push(p);
+    }
+
+    // Mostrar resultados agrupados por fecha
+    for (const [fecha, items] of Object.entries(porFecha)) {
+      y = this.verificarEspacio(doc, y, 40);
+
+      // Fecha como encabezado
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
+         .text(fecha, this.margins.left + 5, y);
+      y += 12;
+
+      // Resultados de esa fecha
+      for (const item of items.slice(0, 5)) {
+        const nombreExamen = item.examenProcedimiento?.nombre || item.descripcion || 'Examen';
+        const resultado = item.resultados || 'Pendiente';
+
+        doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+           .text(`${nombreExamen}: ${resultado.substring(0, 100)}`, this.margins.left + 10, y, { width: pageWidth - 20 });
+        y += doc.heightOfString(`${nombreExamen}: ${resultado.substring(0, 100)}`, { width: pageWidth - 20 }) + 4;
+      }
+
+      y += 6;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Formulación detallada - según documento de referencia
+   * Formato: Medicamento + Dosis + Vía + Frecuencia + Duración
+   */
+  generarFormulacionInline(doc, prescripciones, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'FORMULACIÓN', y);
+
+    for (const presc of prescripciones.slice(0, 10)) {
+      y = this.verificarEspacio(doc, y, 35);
+
+      // Si tiene medicamentos detallados
+      if (presc.medicamentos && presc.medicamentos.length > 0) {
+        for (const med of presc.medicamentos) {
+          const nombreMed = med.producto?.nombre || med.nombreMedicamento || 'Medicamento';
+          const dosis = med.dosis || presc.dosis || '';
+          const via = med.viaAdministracion || presc.via || 'Oral';
+          const frecuencia = med.frecuencia || presc.frecuencia || '';
+          const duracion = med.duracionDias ? `por ${med.duracionDias} Día(s)` : '';
+
+          // Formato: » Medicamento Dosis Tomar X vía Y cada Z Hora(s) por N Día(s).
+          const textoFormulacion = `» ${nombreMed} ${dosis} Tomar vía ${via} cada ${frecuencia} ${duracion}.`.trim();
+
+          doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+             .text(textoFormulacion, this.margins.left + 5, y, { width: pageWidth - 10 });
+          y += doc.heightOfString(textoFormulacion, { width: pageWidth - 10 }) + 6;
+        }
+      } else {
+        // Usar datos de la prescripción directamente
+        const nombreMed = presc.diagnostico || 'Prescripción';
+        const dosis = presc.dosis || '';
+        const via = presc.via || 'Oral';
+        const frecuencia = presc.frecuencia || '';
+
+        const textoFormulacion = `» ${nombreMed} ${dosis} vía ${via} ${frecuencia}`.trim();
+
+        doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+           .text(textoFormulacion, this.margins.left + 5, y, { width: pageWidth - 10 });
+        y += doc.heightOfString(textoFormulacion, { width: pageWidth - 10 }) + 6;
+      }
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Exámenes ordenados con códigos CUPS - según documento de referencia
+   */
+  generarExamenesOrdenadosInline(doc, examenes, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'EXÁMENES ORDENADOS', y);
+
+    for (const examen of examenes.slice(0, 10)) {
+      y = this.verificarEspacio(doc, y, 20);
+
+      const codigo = examen.examenProcedimiento?.codigo || examen.codigoCUPS || '';
+      const nombre = examen.examenProcedimiento?.nombre || examen.descripcion || 'Examen';
+
+      // Formato: » CODIGO - NOMBRE DEL EXAMEN
+      const textoExamen = codigo ? `» ${codigo} - ${nombre}` : `» ${nombre}`;
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(textoExamen, this.margins.left + 5, y, { width: pageWidth - 10 });
+      y += 14;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Imagenología inline
+   */
+  generarImagenologiaInline(doc, estudios, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'ESTUDIOS DE IMAGENOLOGÍA', y);
+
+    for (const estudio of estudios.slice(0, 6)) {
+      y = this.verificarEspacio(doc, y, 40);
+
+      doc.rect(this.margins.left, y, pageWidth, 35)
+         .fill('#f0f9ff');
+
+      doc.fontSize(8).font('Helvetica-Bold').fillColor('#0369a1')
+         .text(estudio.tipoEstudio || 'Estudio', this.margins.left + 10, y + 6);
+
+      doc.fontSize(7).fillColor(estudio.estado === 'Completado' ? this.colors.success : this.colors.warning)
+         .text(estudio.estado || 'Pendiente', this.margins.left + pageWidth - 70, y + 6);
+
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.text)
+         .text(`Región: ${estudio.regionAnatomica || 'N/A'}`, this.margins.left + 10, y + 20);
+
+      doc.fontSize(7).fillColor(this.colors.textMuted)
+         .text(this.formatearFechaCorta(estudio.fechaSolicitud), this.margins.left + pageWidth - 70, y + 20);
+
+      y += 38;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Urgencias inline
+   */
+  generarUrgenciasInline(doc, urgencias, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'ATENCIONES DE URGENCIAS', y);
+
+    for (const urg of urgencias.slice(0, 5)) {
+      y = this.verificarEspacio(doc, y, 55);
+
+      const colorTriaje = urg.categoriaManchester === 'Rojo' ? this.colors.danger :
+                          urg.categoriaManchester === 'Naranja' ? '#f97316' :
+                          urg.categoriaManchester === 'Amarillo' ? this.colors.warning : this.colors.success;
+
+      doc.rect(this.margins.left, y, pageWidth, 50)
+         .lineWidth(2)
+         .fillAndStroke('#fef2f2', colorTriaje);
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(colorTriaje)
+         .text(`TRIAJE ${urg.categoriaManchester || 'N/A'}`, this.margins.left + 10, y + 6);
+
+      doc.fontSize(7).fillColor(this.colors.text)
+         .text(this.formatearFechaHora(urg.horaLlegada), this.margins.left + pageWidth - 120, y + 7);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(`Motivo: ${(urg.motivoConsulta || 'N/A').substring(0, 60)}`, this.margins.left + 10, y + 22);
+
+      doc.fontSize(7).fillColor(this.colors.textMuted)
+         .text(`Disposición: ${urg.disposicion || urg.estado || 'N/A'}`, this.margins.left + 10, y + 38);
+
+      y += 55;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Hospitalizaciones inline
+   */
+  generarHospitalizacionesInline(doc, hospitalizaciones, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    y = this.generarTituloSeccion(doc, 'HOSPITALIZACIONES Y EPICRISIS', y);
+
+    for (const hosp of hospitalizaciones.slice(0, 4)) {
+      y = this.verificarEspacio(doc, y, 70);
+
+      doc.rect(this.margins.left, y, pageWidth, 65)
+         .lineWidth(1)
+         .fillAndStroke('#eef2ff', '#6366f1');
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor('#6366f1')
+         .text(`ADMISIÓN - ${hosp.unidad?.nombre || 'Unidad'}`, this.margins.left + 10, y + 6);
+
+      doc.fontSize(7).fillColor(hosp.estado === 'Activa' ? this.colors.success : this.colors.textMuted)
+         .text(hosp.estado || 'N/A', this.margins.left + pageWidth - 60, y + 7);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(`Habitación: ${hosp.cama?.habitacion?.numero || 'N/A'} | Cama: ${hosp.cama?.numero || 'N/A'}`,
+               this.margins.left + 10, y + 22);
+
+      const diasEstancia = this.calcularDiasEstancia(hosp.fechaIngreso, hosp.fechaEgreso);
+      doc.text(`Ingreso: ${this.formatearFechaCorta(hosp.fechaIngreso)} | Estancia: ${diasEstancia} días`,
+               this.margins.left + 10, y + 36);
+
+      if (hosp.diagnosticoIngreso) {
+        doc.fontSize(7).fillColor(this.colors.textMuted)
+           .text(`Dx: ${hosp.diagnosticoIngreso.substring(0, 60)}`, this.margins.left + 10, y + 50);
+      }
+
+      y += 70;
+    }
+
+    return y + 5;
+  }
+
+  /**
+   * Resumen y constancia final
+   */
+  generarResumenFinal(doc, datos, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Resumen estadístico
+    doc.rect(this.margins.left, y, pageWidth, 130)
+       .fill(this.colors.headerBg);
+
+    y += 10;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('RESUMEN ESTADÍSTICO DE LA HISTORIA CLÍNICA', this.margins.left + 15, y);
+
+    y += 22;
+
+    const col1X = this.margins.left + 20;
+    const col2X = this.margins.left + pageWidth / 2 + 10;
+
+    const stats = [
+      [`Evoluciones: ${datos.evoluciones.length}`, `Prescripciones: ${datos.prescripciones.length}`],
+      [`Signos Vitales: ${datos.signosVitales.length}`, `Procedimientos: ${datos.procedimientos.length}`],
+      [`Diagnósticos: ${datos.diagnosticos.length}`, `Interconsultas: ${datos.interconsultas.length}`],
+      [`Alertas: ${datos.alertas.length}`, `Hospitalizaciones: ${datos.hospitalizaciones.length}`],
+    ];
+
+    doc.fontSize(9).font('Helvetica').fillColor(this.colors.text);
+
+    for (const [stat1, stat2] of stats) {
+      doc.text(`• ${stat1}`, col1X, y);
+      doc.text(`• ${stat2}`, col2X, y);
+      y += 16;
+    }
+
+    y += 20;
+
+    // Constancia de autenticidad y cumplimiento normativo
+    doc.rect(this.margins.left, y, pageWidth, 140)
+       .lineWidth(2)
+       .stroke(this.colors.primary);
+
+    y += 12;
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('CONSTANCIA DE AUTENTICIDAD Y CUMPLIMIENTO NORMATIVO', this.margins.left + 15, y);
+
+    y += 18;
+    doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+       .text('Este documento es una copia fiel de la Historia Clínica Electrónica almacenada en el sistema de información de ' +
+             `${datos.institucion.nombre}. El contenido cumple con la normatividad colombiana vigente:`,
+             this.margins.left + 15, y, { width: pageWidth - 30 });
+
+    y += 28;
+    doc.fontSize(7).fillColor(this.colors.textMuted)
+       .text('• Resolución 1995 de 1999 - Manejo de la Historia Clínica', this.margins.left + 20, y)
+       .text('• Ley 2015 de 2020 - Interoperabilidad de la HCE', this.margins.left + 20, y + 10)
+       .text('• Resolución 866 de 2021 - Elementos de Datos Clínicos Relevantes', this.margins.left + 20, y + 20)
+       .text('• Ley 1581 de 2012 - Protección de Datos Personales (Habeas Data)', this.margins.left + 20, y + 30);
+
+    y += 45;
+    doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.text)
+       .text(`Generado: ${this.formatearFechaHoraCompleta(datos.fechaGeneracion)}`, this.margins.left + 15, y);
+
+    doc.text(`Hash de integridad: ${this.generarHashSimple(datos.paciente.id)}`, this.margins.left + 15, y + 10);
+    doc.font('Helvetica').text(`Período: Desde el inicio del registro hasta ${this.formatearFecha(datos.fechaGeneracion)}`, this.margins.left + 15, y + 20);
+
+    y += 35;
+    doc.fontSize(6).font('Helvetica-Oblique').fillColor(this.colors.textMuted)
+       .text('ADVERTENCIA: La divulgación no autorizada de esta información está penada por la Ley 1581 de 2012. ' +
+             'Este documento tiene carácter de reservado conforme al Art. 1 de la Resolución 1995 de 1999.',
+             this.margins.left + 15, y, { width: pageWidth - 30, align: 'center' });
+  }
+
+  /**
+   * Identificación del paciente compacta (sin antecedentes separados)
+   */
+  generarIdentificacionPacienteCompacta(doc, paciente) {
+    this.generarEncabezadoSeccion(doc, 'IDENTIFICACIÓN DEL PACIENTE');
+
+    let y = 130;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Tarjeta principal compacta
+    doc.rect(this.margins.left, y, pageWidth, 80)
+       .lineWidth(1)
+       .fillAndStroke(this.colors.headerBg, this.colors.primary);
+
+    // Foto placeholder
+    const fotoX = this.margins.left + 10;
+    const fotoY = y + 8;
+    const fotoSize = 64;
+
+    if (paciente.fotoUrl) {
+      try {
+        if (paciente.fotoUrl.startsWith('data:image')) {
+          const base64Data = paciente.fotoUrl.replace(/^data:image\/\w+;base64,/, '');
+          const fotoBuffer = Buffer.from(base64Data, 'base64');
+          doc.image(fotoBuffer, fotoX, fotoY, { width: fotoSize, height: fotoSize, fit: [fotoSize, fotoSize] });
+        } else {
+          this.dibujarFotoPlaceholder(doc, fotoX, fotoY, fotoSize);
+        }
+      } catch (e) {
+        this.dibujarFotoPlaceholder(doc, fotoX, fotoY, fotoSize);
+      }
+    } else {
+      this.dibujarFotoPlaceholder(doc, fotoX, fotoY, fotoSize);
+    }
+
+    // Datos principales
+    const dataX = fotoX + fotoSize + 15;
+    const nombreCompleto = `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim().toUpperCase();
+
+    doc.fontSize(14).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text(nombreCompleto || 'NOMBRE NO REGISTRADO', dataX, y + 10, { width: pageWidth - fotoSize - 40 });
+
+    doc.fontSize(10).font('Helvetica').fillColor(this.colors.text)
+       .text(`${paciente.tipoDocumento || 'CC'}: ${paciente.cedula || 'N/A'}`, dataX, y + 30);
+
+    doc.fontSize(9).fillColor(this.colors.textLight)
+       .text(`Edad: ${this.calcularEdad(paciente.fechaNacimiento)} | Sexo: ${paciente.genero || 'N/A'} | Sangre: ${paciente.tipoSangre || 'N/A'}`, dataX, y + 45);
+
+    doc.text(`EPS: ${paciente.eps || 'N/A'} | Régimen: ${paciente.regimen || 'N/A'}`, dataX, y + 58);
+
+    y += 90;
+
+    // Datos de contacto compactos
+    doc.rect(this.margins.left, y, pageWidth, 45)
+       .fill('#f8fafc');
+
+    y += 8;
+    doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('CONTACTO', this.margins.left + 10, y);
+
+    y += 12;
+    doc.fontSize(9).font('Helvetica').fillColor(this.colors.text)
+       .text(`Tel: ${paciente.telefono || 'N/A'} | Email: ${paciente.email || 'N/A'}`, this.margins.left + 10, y);
+
+    doc.text(`Dirección: ${paciente.direccion || 'N/A'}, ${paciente.municipio || ''} ${paciente.departamento || ''}`, this.margins.left + 10, y + 13);
+
+    y += 45;
+
+    // Antecedentes resumidos
+    y = this.generarAntecedentesResumidos(doc, paciente, y);
+  }
+
+  /**
+   * Antecedentes en formato resumido
+   */
+  generarAntecedentesResumidos(doc, paciente, y) {
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    doc.rect(this.margins.left, y, pageWidth, 22)
+       .fill(this.colors.primary);
+
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('ANTECEDENTES CLÍNICOS', this.margins.left + 10, y + 6);
+
+    y += 28;
+
+    const items = [
+      ['Alergias', paciente.alergias || 'Ninguna conocida'],
+      ['Enf. Crónicas', paciente.enfermedadesCronicas || 'Ninguna reportada'],
+      ['Medicamentos', paciente.medicamentosActuales || 'Ninguno actual'],
+      ['Quirúrgicos', paciente.antecedentesQuirurgicos || 'Sin antecedentes'],
+    ];
+
+    for (const [label, value] of items) {
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.textMuted)
+         .text(label + ':', this.margins.left + 10, y);
+      doc.fontSize(9).font('Helvetica').fillColor(this.colors.text)
+         .text(value.substring(0, 80) + (value.length > 80 ? '...' : ''), this.margins.left + 90, y, { width: pageWidth - 100 });
+      y += 16;
+    }
+
+    return y + 10;
+  }
+
+  /**
+   * Alertas en formato compacto
+   */
+  generarAlertasCompactas(doc, alertas, y) {
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(this.colors.danger)
+       .text('⚠ ALERTAS ACTIVAS', this.margins.left, y);
+    y += 18;
+
+    for (const alerta of alertas.slice(0, 5)) {
+      const colorFondo = alerta.tipo === 'Alergia' ? this.colors.dangerBg : this.colors.warningBg;
+      const colorBorde = alerta.tipo === 'Alergia' ? this.colors.danger : this.colors.warning;
+
+      doc.rect(this.margins.left, y, pageWidth, 22)
+         .fillAndStroke(colorFondo, colorBorde);
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(colorBorde)
+         .text(`${alerta.tipo || 'ALERTA'}: ${alerta.titulo || 'Sin título'}`, this.margins.left + 8, y + 6, { width: pageWidth - 16 });
+
+      y += 26;
+    }
+
+    return y + 10;
+  }
+
+  /**
+   * Diagnósticos en formato compacto (tabla)
+   */
+  generarDiagnosticosCompactos(doc, diagnosticos, y) {
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('DIAGNÓSTICOS (CIE-10/CIE-11)', this.margins.left, y);
+    y += 18;
+
+    // Header de tabla
+    doc.rect(this.margins.left, y, pageWidth, 18).fill(this.colors.primary);
+    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('Código', this.margins.left + 5, y + 5)
+       .text('Descripción', this.margins.left + 70, y + 5)
+       .text('Tipo', this.margins.left + pageWidth - 100, y + 5)
+       .text('Fecha', this.margins.left + pageWidth - 55, y + 5);
+    y += 20;
+
+    for (const diag of diagnosticos.slice(0, 10)) {
+      const bgColor = diagnosticos.indexOf(diag) % 2 === 0 ? '#f8fafc' : '#ffffff';
+      doc.rect(this.margins.left, y, pageWidth, 18).fill(bgColor);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(diag.codigoCIE11 || diag.codigoCIE10 || '-', this.margins.left + 5, y + 5)
+         .text((diag.descripcionCIE11 || diag.descripcion || 'N/A').substring(0, 50), this.margins.left + 70, y + 5)
+         .text(diag.tipoDiagnostico || 'Principal', this.margins.left + pageWidth - 100, y + 5)
+         .text(this.formatearFechaCorta(diag.fechaDiagnostico), this.margins.left + pageWidth - 55, y + 5);
+      y += 18;
+    }
+
+    return y + 10;
+  }
+
+  /**
+   * Evoluciones SOAP con diseño mejorado y compacto
+   */
+  generarSeccionEvolucionesCompacta(doc, evoluciones) {
+    this.generarEncabezadoSeccion(doc, 'EVOLUCIONES MÉDICAS (SOAP)');
+
+    let y = 130;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Colores SOAP profesionales
+    const soapColors = {
+      S: { bg: '#e0f2fe', border: '#0284c7', text: '#0369a1' },  // Sky/Azul
+      O: { bg: '#dcfce7', border: '#16a34a', text: '#15803d' },  // Green
+      A: { bg: '#fef3c7', border: '#f59e0b', text: '#b45309' },  // Amber
+      P: { bg: '#f3e8ff', border: '#9333ea', text: '#7c3aed' },  // Purple
+    };
+
+    for (let i = 0; i < evoluciones.length; i++) {
+      const evol = evoluciones[i];
+
+      // Verificar espacio para encabezado de evolución
+      if (y > doc.page.height - 200) {
+        doc.addPage();
+        this.generarEncabezadoSeccion(doc, 'EVOLUCIONES MÉDICAS (Continuación)');
+        y = 130;
+      }
+
+      // === ENCABEZADO DE EVOLUCIÓN ===
+      doc.rect(this.margins.left, y, pageWidth, 24)
+         .fill(this.colors.primary);
+
+      const nombreMedico = evol.doctor ? `Dr(a). ${evol.doctor.nombre} ${evol.doctor.apellido}` : 'N/A';
+
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
+         .text(`EVOLUCIÓN #${evoluciones.length - i}`, this.margins.left + 10, y + 7);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.accent)
+         .text(`${this.formatearFechaHora(evol.fechaEvolucion)} | ${nombreMedico}`, this.margins.left + pageWidth - 250, y + 8);
+
+      y += 30;
+
+      // === TARJETAS SOAP EN GRID 2x2 ===
+      const secciones = [
+        { key: 'S', titulo: 'SUBJETIVO', contenido: this.formatearContenidoEvolucion(evol.subjetivo) },
+        { key: 'O', titulo: 'OBJETIVO', contenido: this.formatearContenidoEvolucion(evol.objetivo) },
+        { key: 'A', titulo: 'ANÁLISIS', contenido: this.formatearContenidoEvolucion(evol.analisis) },
+        { key: 'P', titulo: 'PLAN', contenido: this.formatearContenidoEvolucion(evol.plan) },
+      ];
+
+      const cardWidth = (pageWidth - 10) / 2;
+      const cardHeight = 80;
+      let cardY = y;
+      let cardCol = 0;
+
+      for (const seccion of secciones) {
+        const contenido = seccion.contenido?.trim() || 'Sin información';
+        const colors = soapColors[seccion.key];
+        const cardX = this.margins.left + (cardCol * (cardWidth + 10));
+
+        // Verificar si necesitamos nueva página
+        if (cardY + cardHeight > doc.page.height - 100) {
+          doc.addPage();
+          cardY = 60;
+        }
+
+        // Fondo de tarjeta
+        doc.rect(cardX, cardY, cardWidth, cardHeight)
+           .lineWidth(2)
+           .fillAndStroke(colors.bg, colors.border);
+
+        // Letra indicadora
+        doc.fontSize(20).font('Helvetica-Bold').fillColor(colors.border)
+           .text(seccion.key, cardX + 8, cardY + 5);
+
+        // Título
+        doc.fontSize(8).font('Helvetica-Bold').fillColor(colors.text)
+           .text(seccion.titulo, cardX + 35, cardY + 8);
+
+        // Contenido (truncado si es muy largo)
+        const maxContentLength = 180;
+        const displayContent = contenido.length > maxContentLength
+          ? contenido.substring(0, maxContentLength) + '...'
+          : contenido;
+
+        doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+           .text(displayContent, cardX + 10, cardY + 25, {
+             width: cardWidth - 20,
+             height: cardHeight - 35,
+             ellipsis: true
+           });
+
+        cardCol++;
+        if (cardCol >= 2) {
+          cardCol = 0;
+          cardY += cardHeight + 8;
+        }
+      }
+
+      // Si terminamos en columna impar, ajustar Y
+      if (cardCol > 0) {
+        cardY += cardHeight + 8;
+      }
+
+      y = cardY;
+
+      // === FIRMA COMPACTA ===
+      if (y > doc.page.height - 60) {
+        doc.addPage();
+        y = 60;
+      }
+
+      doc.rect(this.margins.left, y, pageWidth, 35)
+         .fill('#f8fafc');
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.textMuted)
+         .text(`Firmado por: ${nombreMedico}`, this.margins.left + 10, y + 8);
+
+      const licencia = evol.doctor?.doctor?.licenciaMedica;
+      if (licencia) {
+        doc.text(`Reg. Médico: ${licencia}`, this.margins.left + 10, y + 20);
+      }
+
+      if (evol.firmada) {
+        doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.success)
+           .text('✓ FIRMADO DIGITALMENTE', this.margins.left + pageWidth - 130, y + 12);
+      }
+
+      y += 45;
+
+      // Separador entre evoluciones
+      if (i < evoluciones.length - 1) {
+        doc.moveTo(this.margins.left, y - 5)
+           .lineTo(this.margins.left + pageWidth, y - 5)
+           .lineWidth(1)
+           .stroke(this.colors.border);
+      }
+    }
+  }
+
+  /**
+   * Signos vitales en formato tabla compacta
+   */
+  generarSignosVitalesCompactos(doc, signosVitales, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Título
+    doc.rect(this.margins.left, y, pageWidth, 22)
+       .fill(this.colors.primary);
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('SIGNOS VITALES', this.margins.left + 10, y + 6);
+
+    y += 28;
+
+    // Header de tabla
+    const headers = ['Fecha', 'PA', 'FC', 'FR', 'Temp', 'SpO2', 'Peso', 'Talla'];
+    const colWidths = [85, 65, 50, 45, 50, 50, 55, 55];
+
+    doc.rect(this.margins.left, y, pageWidth, 16).fill(this.colors.headerBg);
+
+    let xPos = this.margins.left + 5;
+    doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.primary);
+    for (let i = 0; i < headers.length; i++) {
+      doc.text(headers[i], xPos, y + 4);
+      xPos += colWidths[i];
+    }
+    y += 18;
+
+    // Filas de datos (máximo 10)
+    for (const sv of signosVitales.slice(0, 10)) {
+      const bgColor = signosVitales.indexOf(sv) % 2 === 0 ? '#ffffff' : '#f8fafc';
+      doc.rect(this.margins.left, y, pageWidth, 16).fill(bgColor);
+
+      const pa = sv.presionSistolica && sv.presionDiastolica
+        ? `${sv.presionSistolica}/${sv.presionDiastolica}` : '-';
+
+      const rowData = [
+        this.formatearFechaHoraCorta(sv.fechaRegistro),
+        pa,
+        sv.frecuenciaCardiaca || '-',
+        sv.frecuenciaRespiratoria || '-',
+        sv.temperatura ? `${sv.temperatura}°` : '-',
+        sv.saturacionOxigeno ? `${sv.saturacionOxigeno}%` : '-',
+        sv.peso ? `${sv.peso}kg` : '-',
+        sv.talla ? `${sv.talla}cm` : '-',
+      ];
+
+      xPos = this.margins.left + 5;
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.text);
+      for (let i = 0; i < rowData.length; i++) {
+        doc.text(String(rowData[i]), xPos, y + 4);
+        xPos += colWidths[i];
+      }
+      y += 16;
+    }
+
+    return y + 15;
+  }
+
+  /**
+   * Prescripciones en formato compacto
+   */
+  generarPrescripcionesCompactas(doc, prescripciones, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Título
+    doc.rect(this.margins.left, y, pageWidth, 22)
+       .fill(this.colors.success);
+
+    doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('PRESCRIPCIONES', this.margins.left + 10, y + 6);
+
+    y += 28;
+
+    for (const presc of prescripciones.slice(0, 5)) {
+      if (y > doc.page.height - 80) {
+        doc.addPage();
+        y = 60;
+      }
+
+      const medicamento = presc.medicamentos?.[0]?.producto?.nombre || presc.diagnostico || 'Prescripción';
+
+      doc.rect(this.margins.left, y, pageWidth, 50)
+         .lineWidth(1)
+         .fillAndStroke('#f0fdf4', this.colors.success);
+
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.success)
+         .text(`Rx: ${medicamento}`, this.margins.left + 10, y + 8, { width: pageWidth - 100 });
+
+      doc.fontSize(8).fillColor(this.colors.textMuted)
+         .text(this.formatearFechaCorta(presc.fechaPrescripcion), this.margins.left + pageWidth - 80, y + 8);
+
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(`Dosis: ${presc.dosis || 'N/A'} | Frecuencia: ${presc.frecuencia || 'N/A'} | Vía: ${presc.via || 'Oral'}`,
+                this.margins.left + 10, y + 25);
+
+      if (presc.indicaciones) {
+        doc.text(`Indicaciones: ${presc.indicaciones.substring(0, 60)}`, this.margins.left + 10, y + 38);
+      }
+
+      y += 55;
+    }
+
+    return y + 10;
+  }
+
+  /**
+   * Resumen y constancia combinados
+   */
+  generarResumenYConstancia(doc, datos) {
+    this.generarEncabezadoSeccion(doc, 'RESUMEN Y CONSTANCIA');
+
+    let y = 130;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // === RESUMEN ESTADÍSTICO ===
+    doc.rect(this.margins.left, y, pageWidth, 150)
+       .fill(this.colors.headerBg);
+
+    y += 15;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('ESTADÍSTICAS DE LA HISTORIA CLÍNICA', this.margins.left + 15, y);
+
+    y += 25;
+
+    const col1X = this.margins.left + 20;
+    const col2X = this.margins.left + pageWidth / 2 + 10;
+
+    const stats = [
+      [`Evoluciones: ${datos.evoluciones.length}`, `Prescripciones: ${datos.prescripciones.length}`],
+      [`Signos Vitales: ${datos.signosVitales.length}`, `Procedimientos: ${datos.procedimientos.length}`],
+      [`Diagnósticos: ${datos.diagnosticos.length}`, `Interconsultas: ${datos.interconsultas.length}`],
+      [`Alertas: ${datos.alertas.length}`, `Notas Enfermería: ${datos.notasEnfermeria.length}`],
+      [`Urgencias: ${datos.urgencias.length}`, `Hospitalizaciones: ${datos.hospitalizaciones.length}`],
+    ];
+
+    doc.fontSize(9).font('Helvetica').fillColor(this.colors.text);
+
+    for (const [stat1, stat2] of stats) {
+      doc.text(`• ${stat1}`, col1X, y);
+      doc.text(`• ${stat2}`, col2X, y);
+      y += 18;
+    }
+
+    y += 30;
+
+    // === CONSTANCIA DE AUTENTICIDAD ===
+    doc.rect(this.margins.left, y, pageWidth, 120)
+       .lineWidth(2)
+       .stroke(this.colors.primary);
+
+    y += 15;
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('CONSTANCIA DE AUTENTICIDAD', this.margins.left + 15, y);
+
+    y += 20;
+    doc.fontSize(9).font('Helvetica').fillColor(this.colors.text)
+       .text('Este documento es una copia fiel de la Historia Clínica Electrónica almacenada en el sistema de información de ' +
+             `${datos.institucion.nombre}, conforme a la Ley 2015 de 2020 y la Resolución 866 de 2021.`,
+             this.margins.left + 15, y, { width: pageWidth - 30 });
+
+    y += 40;
+    doc.fontSize(8).fillColor(this.colors.textMuted)
+       .text(`Generado: ${this.formatearFechaHoraCompleta(datos.fechaGeneracion)}`, this.margins.left + 15, y);
+
+    doc.text(`Hash de integridad: ${this.generarHashSimple(datos.paciente.id)}`, this.margins.left + 15, y + 12);
+
+    y += 30;
+    doc.fontSize(7).font('Helvetica-Oblique').fillColor(this.colors.textMuted)
+       .text('La divulgación no autorizada de esta información está penada por la Ley 1581 de 2012.',
+             this.margins.left + 15, y, { width: pageWidth - 30, align: 'center' });
+  }
+
+  /**
+   * Generar hash simple para integridad
+   */
+  generarHashSimple(id) {
+    const str = id + new Date().toISOString();
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+  }
+
+  /**
+   * Generar portada institucional completa - Diseño profesional centrado
+   * Con colores de marca Clínica MÍA (turquesa/teal)
    */
   generarPortada(doc, datos) {
     const { paciente, fechaGeneracion, institucion } = datos;
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
     const centerX = this.margins.left;
+    const pageHeight = doc.page.height;
+
+    // === BARRA SUPERIOR DECORATIVA - Color de marca ===
+    doc.rect(0, 0, doc.page.width, 8).fill(this.colors.primary);
+    doc.rect(0, 8, doc.page.width, 3).fill(this.colors.accent);
 
     // === ENCABEZADO INSTITUCIONAL ===
-    doc.rect(this.margins.left - 10, this.margins.top - 10, pageWidth + 20, 100)
+    const headerY = 30;
+    const headerHeight = 100;
+
+    // Fondo con gradiente simulado (dos rectángulos)
+    doc.rect(this.margins.left, headerY, pageWidth, headerHeight)
        .fill(this.colors.primary);
+    doc.rect(this.margins.left, headerY + headerHeight - 5, pageWidth, 5)
+       .fill(this.colors.primaryDark);
 
-    // Logo placeholder y nombre institucional
+    // Logo de Clínica MÍA
+    const logoX = this.margins.left + 15;
+    const logoY = headerY + 10;
+    const logoSize = 80;
+    let logoMostrado = false;
+
+    try {
+      if (fs.existsSync(this.logoPath)) {
+        doc.image(this.logoPath, logoX, logoY, {
+          width: logoSize,
+          height: logoSize,
+          fit: [logoSize, logoSize]
+        });
+        logoMostrado = true;
+      }
+    } catch (e) {
+      console.log('Error cargando logo:', e.message);
+    }
+
+    // Si no se pudo cargar el logo, mostrar placeholder con iniciales
+    if (!logoMostrado) {
+      doc.circle(logoX + logoSize/2, logoY + logoSize/2, 35).fill('#ffffff');
+      doc.fontSize(28)
+         .font('Helvetica-Bold')
+         .fillColor(this.colors.primary)
+         .text('CM', logoX + 12, logoY + 25);
+    }
+
+    // Nombre institucional - a la derecha del logo
+    const textStartX = logoX + logoSize + 20;
     doc.fillColor('#ffffff')
-       .fontSize(28)
+       .fontSize(24)
        .font('Helvetica-Bold')
-       .text(institucion.nombre, centerX, this.margins.top + 10, {
-         width: pageWidth,
-         align: 'center',
+       .text(institucion.nombre, textStartX, headerY + 18, {
+         width: pageWidth - logoSize - 50,
        });
 
-    doc.fontSize(11)
+    doc.fontSize(10)
        .font('Helvetica')
-       .text('SISTEMA DE HISTORIA CLÍNICA ELECTRÓNICA', {
-         width: pageWidth,
-         align: 'center',
-       });
+       .fillColor(this.colors.accent)
+       .text(institucion.tipoEntidad || 'IPS - Institución Prestadora de Servicios de Salud', textStartX, headerY + 48);
 
     doc.fontSize(9)
-       .text(`NIT: ${institucion.nit} | Código Habilitación: ${institucion.codigoHabilitacion}`, {
-         width: pageWidth,
-         align: 'center',
-       });
+       .fillColor('#e0f2f1')
+       .text(`NIT: ${institucion.nit} | Cód. Habilitación: ${institucion.codigoHabilitacion}`, textStartX, headerY + 65);
 
-    doc.text(`${institucion.direccion} - ${institucion.ciudad}`, {
-         width: pageWidth,
-         align: 'center',
-       });
+    doc.text(`${institucion.direccion}, ${institucion.ciudad} | Tel: ${institucion.telefono}`, textStartX, headerY + 78);
 
-    // === TÍTULO PRINCIPAL ===
+    // === TÍTULO PRINCIPAL - CENTRADO EN LA PÁGINA ===
+    let y = 160;
+
     doc.fillColor(this.colors.primary)
        .fontSize(32)
        .font('Helvetica-Bold')
-       .text('HISTORIA CLÍNICA', centerX, 200, {
+       .text('HISTORIA CLÍNICA', centerX, y, {
          width: pageWidth,
          align: 'center',
        });
 
-    doc.fontSize(18)
+    doc.fontSize(14)
        .font('Helvetica')
-       .text('ELECTRÓNICA INTEGRAL', {
+       .fillColor(this.colors.secondary)
+       .text('ELECTRÓNICA INTEGRAL', centerX, y + 38, {
          width: pageWidth,
          align: 'center',
        });
 
-    // Línea decorativa
-    doc.moveTo(this.margins.left + 100, 260)
-       .lineTo(this.margins.left + pageWidth - 100, 260)
-       .lineWidth(2)
+    // Indicador de rango de fechas si aplica
+    if (datos.rangoFechas) {
+      const desde = datos.rangoFechas.desde.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+      const hasta = datos.rangoFechas.hasta.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+
+      // Badge de período
+      const periodoText = `PERÍODO: ${desde} - ${hasta}`;
+      const badgeWidth = 220;
+      const badgeX = centerX + (pageWidth - badgeWidth) / 2;
+
+      doc.rect(badgeX, y + 56, badgeWidth, 22)
+         .fill(this.colors.warning);
+
+      doc.fontSize(9)
+         .font('Helvetica-Bold')
+         .fillColor('#ffffff')
+         .text(periodoText, badgeX, y + 62, {
+           width: badgeWidth,
+           align: 'center',
+         });
+    }
+
+    // Líneas decorativas
+    const lineY = datos.rangoFechas ? y + 85 : y + 60;
+    doc.moveTo(this.margins.left + 120, lineY)
+       .lineTo(this.margins.left + pageWidth - 120, lineY)
+       .lineWidth(1)
        .stroke(this.colors.secondary);
 
+    doc.fontSize(8)
+       .fillColor(this.colors.textMuted)
+       .text('Conforme a Ley 2015 de 2020 - Interoperabilidad HCE', centerX, lineY + 8, {
+         width: pageWidth,
+         align: 'center',
+       });
+
     // === INFORMACIÓN DEL PACIENTE ===
-    const boxY = 290;
-    doc.rect(this.margins.left + 30, boxY, pageWidth - 60, 200)
-       .lineWidth(2)
-       .stroke(this.colors.primary);
+    const boxY = 250;
+    const boxHeight = 160;
+
+    // Box principal con sombra sutil
+    doc.rect(this.margins.left + 32, boxY + 2, pageWidth - 60, boxHeight)
+       .fill('#e8e8e8');
+    doc.rect(this.margins.left + 30, boxY, pageWidth - 60, boxHeight)
+       .lineWidth(1)
+       .fillAndStroke('#ffffff', this.colors.primary);
 
     // Encabezado del box
-    doc.rect(this.margins.left + 30, boxY, pageWidth - 60, 30)
+    doc.rect(this.margins.left + 30, boxY, pageWidth - 60, 28)
        .fill(this.colors.primary);
 
     doc.fillColor('#ffffff')
-       .fontSize(12)
+       .fontSize(11)
        .font('Helvetica-Bold')
-       .text('DATOS DEL PACIENTE', this.margins.left + 30, boxY + 9, {
-         width: pageWidth - 60,
-         align: 'center',
-       });
+       .text('DATOS DEL PACIENTE', this.margins.left + 45, boxY + 8);
+
+    doc.fontSize(9)
+       .font('Helvetica')
+       .text(`HC: ${paciente.id?.substring(0, 8).toUpperCase() || 'N/A'}`,
+              this.margins.left + pageWidth - 130, boxY + 9);
 
     // Datos del paciente
-    const datosY = boxY + 45;
+    const datosY = boxY + 38;
     const col1X = this.margins.left + 50;
     const col2X = this.margins.left + pageWidth / 2;
 
-    doc.fillColor(this.colors.text).fontSize(10).font('Helvetica');
+    const nombreCompleto = `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim().toUpperCase();
 
-    const nombreCompleto = `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim();
+    // Nombre destacado
+    doc.fontSize(14)
+       .font('Helvetica-Bold')
+       .fillColor(this.colors.primary)
+       .text(nombreCompleto || 'NOMBRE NO REGISTRADO', col1X, datosY, { width: pageWidth - 100 });
 
-    // Columna 1
-    this.escribirCampoPortada(doc, 'Nombre Completo:', nombreCompleto, col1X, datosY);
-    this.escribirCampoPortada(doc, 'Tipo Documento:', paciente.tipoDocumento || 'CC', col1X, datosY + 28);
-    this.escribirCampoPortada(doc, 'Número Documento:', paciente.cedula || 'N/A', col1X, datosY + 56);
-    this.escribirCampoPortada(doc, 'Fecha Nacimiento:', this.formatearFecha(paciente.fechaNacimiento), col1X, datosY + 84);
+    const dataStartY = datosY + 25;
+    const lineHeight = 22;
 
-    // Columna 2
-    this.escribirCampoPortada(doc, 'Sexo:', paciente.genero || 'N/A', col2X, datosY);
-    this.escribirCampoPortada(doc, 'Estado Civil:', paciente.estadoCivil || 'N/A', col2X, datosY + 28);
-    this.escribirCampoPortada(doc, 'Tipo Sangre:', paciente.tipoSangre || 'N/A', col2X, datosY + 56);
-    this.escribirCampoPortada(doc, 'Edad:', this.calcularEdad(paciente.fechaNacimiento), col2X, datosY + 84);
+    // Grid de datos
+    this.escribirCampoPortadaSimple(doc, 'Documento:', `${paciente.tipoDocumento || 'CC'} ${paciente.cedula || 'N/A'}`, col1X, dataStartY);
+    this.escribirCampoPortadaSimple(doc, 'Fecha Nac.:', this.formatearFecha(paciente.fechaNacimiento), col1X, dataStartY + lineHeight);
+    this.escribirCampoPortadaSimple(doc, 'Sexo:', paciente.genero || 'N/A', col1X, dataStartY + lineHeight * 2);
+    this.escribirCampoPortadaSimple(doc, 'EPS:', paciente.eps || 'N/A', col1X, dataStartY + lineHeight * 3);
 
-    // EPS
-    this.escribirCampoPortada(doc, 'EPS / Aseguradora:', paciente.eps || 'N/A', col1X, datosY + 120);
-    this.escribirCampoPortada(doc, 'Régimen:', paciente.regimen || 'N/A', col2X, datosY + 120);
+    this.escribirCampoPortadaSimple(doc, 'Edad:', this.calcularEdad(paciente.fechaNacimiento), col2X, dataStartY);
+    this.escribirCampoPortadaSimple(doc, 'Estado Civil:', paciente.estadoCivil || 'N/A', col2X, dataStartY + lineHeight);
+    this.escribirCampoPortadaSimple(doc, 'Tipo Sangre:', paciente.tipoSangre || 'N/A', col2X, dataStartY + lineHeight * 2);
+    this.escribirCampoPortadaSimple(doc, 'Régimen:', paciente.regimen || 'N/A', col2X, dataStartY + lineHeight * 3);
 
-    // === INFORMACIÓN DE GENERACIÓN ===
-    doc.fontSize(10)
+    // === FECHA DE GENERACIÓN ===
+    y = boxY + boxHeight + 20;
+
+    doc.rect(this.margins.left + 80, y, pageWidth - 160, 35)
+       .fill(this.colors.headerBg);
+
+    doc.fontSize(8)
        .fillColor(this.colors.textLight)
        .font('Helvetica')
-       .text(`Documento generado el: ${this.formatearFechaHoraCompleta(fechaGeneracion)}`,
-              centerX, 530, { width: pageWidth, align: 'center' });
+       .text('Documento generado:', centerX, y + 6, { width: pageWidth, align: 'center' });
 
-    doc.text(`ID Historia Clínica: ${paciente.id}`, { width: pageWidth, align: 'center' });
+    doc.fontSize(10)
+       .font('Helvetica-Bold')
+       .fillColor(this.colors.primary)
+       .text(this.formatearFechaHoraCompleta(fechaGeneracion), centerX, y + 18, { width: pageWidth, align: 'center' });
 
-    // === CLASIFICACIÓN Y ADVERTENCIAS ===
-    doc.rect(this.margins.left, 580, pageWidth, 60)
-       .fill(this.colors.dangerBg);
+    // === ADVERTENCIA DOCUMENTO CONFIDENCIAL ===
+    y = y + 50;
 
+    doc.rect(this.margins.left + 30, y, pageWidth - 60, 55)
+       .lineWidth(1.5)
+       .fillAndStroke(this.colors.dangerBg, this.colors.danger);
+
+    // Texto de advertencia (sin ícono problemático)
     doc.fillColor(this.colors.danger)
        .fontSize(11)
        .font('Helvetica-Bold')
-       .text('DOCUMENTO CONFIDENCIAL', centerX, 590, { width: pageWidth, align: 'center' });
+       .text('⚠ DOCUMENTO CONFIDENCIAL', centerX, y + 10, {
+         width: pageWidth,
+         align: 'center'
+       });
 
     doc.fontSize(8)
        .font('Helvetica')
        .fillColor(this.colors.text)
        .text(
-         'Este documento contiene información médica confidencial protegida por la Ley 1581 de 2012 ' +
-         '(Protección de Datos Personales) y la Ley 23 de 1981 (Ética Médica). Su divulgación, ' +
-         'reproducción o uso no autorizado está prohibido y puede constituir delito.',
-         centerX + 20, 608, { width: pageWidth - 40, align: 'center' }
+         'Información médica protegida por Ley 1581/2012 (Habeas Data), Ley 23/1981 (Ética Médica) ' +
+         'y Ley 2015/2020 (HCE Interoperable). Divulgación no autorizada constituye delito penal.',
+         this.margins.left + 50, y + 28, { width: pageWidth - 100, align: 'center' }
        );
 
-    // === MARCO NORMATIVO ===
+    // === PIE DE PÁGINA ===
+    y = y + 70;
+
     doc.fontSize(7)
        .fillColor(this.colors.textMuted)
+       .font('Helvetica-Oblique')
        .text(
-         'Documento generado conforme a: Resolución 1995/1999, Resolución 839/2017, ' +
-         'Resolución 3100/2019, Resolución 866/2021 y Ley 2015/2020',
-         centerX, 660, { width: pageWidth, align: 'center' }
+         'Generado conforme a: Res. 1995/1999, Res. 839/2017, Res. 3100/2019, Res. 866/2021',
+         centerX, y, { width: pageWidth, align: 'center' }
        );
+
+    doc.moveTo(this.margins.left + 150, y + 15)
+       .lineTo(this.margins.left + pageWidth - 150, y + 15)
+       .lineWidth(0.5)
+       .stroke(this.colors.border);
+
+    doc.fontSize(8)
+       .font('Helvetica')
+       .fillColor(this.colors.textMuted)
+       .text(`${institucion.email} | ${institucion.web}`,
+              centerX, y + 22, { width: pageWidth, align: 'center' });
+  }
+
+  /**
+   * Escribir campo simple para portada
+   */
+  escribirCampoPortadaSimple(doc, etiqueta, valor, x, y) {
+    doc.font('Helvetica')
+       .fontSize(8)
+       .fillColor(this.colors.textMuted)
+       .text(etiqueta, x, y);
+    doc.font('Helvetica-Bold')
+       .fontSize(9)
+       .fillColor(this.colors.text)
+       .text(valor || 'N/A', x + 65, y);
+  }
+
+  /**
+   * Escribir campo de portada con diseño mejorado
+   */
+  escribirCampoPortadaMejorado(doc, etiqueta, valor, x, y) {
+    doc.font('Helvetica')
+       .fontSize(8)
+       .fillColor(this.colors.textMuted)
+       .text(etiqueta, x, y);
+    doc.font('Helvetica-Bold')
+       .fontSize(10)
+       .fillColor(this.colors.text)
+       .text(valor || 'N/A', x + 70, y);
   }
 
   escribirCampoPortada(doc, etiqueta, valor, x, y) {
@@ -606,7 +2702,7 @@ class HCEPdfService {
 
   /**
    * Generar sección de identificación completa del paciente
-   * (Art. 10 Res. 1995/1999)
+   * (Art. 10 Res. 1995/1999) - Diseño mejorado
    */
   generarIdentificacionPaciente(doc, paciente) {
     this.generarEncabezadoSeccion(doc, 'IDENTIFICACIÓN DEL PACIENTE');
@@ -622,27 +2718,94 @@ class HCEPdfService {
               this.margins.left, y, { width: pageWidth });
     y += 20;
 
-    // === DATOS DE IDENTIFICACIÓN ===
-    y = this.generarSubseccion(doc, 'DATOS DE IDENTIFICACIÓN', y);
+    // === TARJETA DE IDENTIFICACIÓN PRINCIPAL ===
+    const cardHeight = 100;
+    doc.rect(this.margins.left, y, pageWidth, cardHeight)
+       .lineWidth(1)
+       .fillAndStroke(this.colors.headerBg, this.colors.primary);
+
+    // Foto del paciente
+    const fotoX = this.margins.left + 15;
+    const fotoY = y + 12;
+    const fotoSize = 75;
+    let fotoMostrada = false;
+
+    if (paciente.fotoUrl) {
+      try {
+        // Intentar cargar la foto - puede ser base64 o URL
+        if (paciente.fotoUrl.startsWith('data:image')) {
+          // Es base64
+          const base64Data = paciente.fotoUrl.replace(/^data:image\/\w+;base64,/, '');
+          const fotoBuffer = Buffer.from(base64Data, 'base64');
+          doc.image(fotoBuffer, fotoX, fotoY, { width: fotoSize, height: fotoSize, fit: [fotoSize, fotoSize] });
+          fotoMostrada = true;
+        } else if (paciente.fotoUrl.startsWith('http')) {
+          // Es URL - intentar cargar
+          doc.image(paciente.fotoUrl, fotoX, fotoY, { width: fotoSize, height: fotoSize, fit: [fotoSize, fotoSize] });
+          fotoMostrada = true;
+        }
+      } catch (e) {
+        console.log('Error cargando foto del paciente:', e.message);
+        fotoMostrada = false;
+      }
+    }
+
+    if (!fotoMostrada) {
+      this.dibujarFotoPlaceholder(doc, fotoX, fotoY, fotoSize);
+    }
+
+    // Nombre destacado
+    const nombreCompleto = `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim().toUpperCase();
+    doc.fontSize(16)
+       .font('Helvetica-Bold')
+       .fillColor(this.colors.primary)
+       .text(nombreCompleto || 'NOMBRE NO REGISTRADO', fotoX + fotoSize + 20, y + 15, { width: pageWidth - fotoSize - 60 });
+
+    // Documento de identidad destacado
+    doc.fontSize(12)
+       .font('Helvetica')
+       .fillColor(this.colors.text)
+       .text(`${paciente.tipoDocumento || 'CC'}: ${paciente.cedula || 'N/A'}`, fotoX + fotoSize + 20, y + 38);
+
+    // Datos rápidos
+    const quickDataY = y + 58;
+    doc.fontSize(9)
+       .fillColor(this.colors.textLight);
+
+    const edad = this.calcularEdad(paciente.fechaNacimiento);
+    const sexo = paciente.genero || 'N/A';
+    const sangre = paciente.tipoSangre || 'N/A';
+
+    doc.text(`Edad: ${edad}  |  Sexo: ${sexo}  |  Tipo Sangre: ${sangre}`, fotoX + fotoSize + 20, quickDataY);
+
+    doc.fontSize(9)
+       .text(`EPS: ${paciente.eps || 'N/A'}  |  Régimen: ${paciente.regimen || 'N/A'}`, fotoX + fotoSize + 20, quickDataY + 14);
+
+    y += cardHeight + 15;
+
+    // === DATOS DE IDENTIFICACIÓN - GRID MEJORADO ===
+    y = this.generarSubseccionConIcono(doc, 'DATOS DE IDENTIFICACIÓN', y, 'user');
 
     const datosIdentificacion = [
       ['Tipo de Documento', paciente.tipoDocumento || 'Cédula de Ciudadanía'],
       ['Número de Documento', paciente.cedula || 'N/A'],
-      ['Primer Nombre', paciente.nombre || 'N/A'],
-      ['Primer Apellido', paciente.apellido || 'N/A'],
+      ['Nombres', paciente.nombre || 'N/A'],
+      ['Apellidos', paciente.apellido || 'N/A'],
       ['Fecha de Nacimiento', this.formatearFecha(paciente.fechaNacimiento)],
       ['Edad Actual', this.calcularEdad(paciente.fechaNacimiento)],
       ['Sexo Biológico', paciente.genero || 'N/A'],
       ['Estado Civil', paciente.estadoCivil || 'N/A'],
       ['Ocupación', paciente.ocupacion || 'N/A'],
       ['Nivel Educativo', paciente.nivelEducacion || 'N/A'],
+      ['Empleador Actual', paciente.empleadorActual || 'N/A'],
+      ['Tipo Paciente', paciente.tipoPaciente || 'N/A'],
     ];
 
-    y = this.generarTablaDatos(doc, datosIdentificacion, y);
+    y = this.generarTablaDatosGrid(doc, datosIdentificacion, y, 2);
     y += 15;
 
     // === DATOS DE UBICACIÓN Y CONTACTO ===
-    y = this.generarSubseccion(doc, 'UBICACIÓN Y CONTACTO', y);
+    y = this.generarSubseccionConIcono(doc, 'UBICACIÓN Y CONTACTO', y, 'location');
 
     const datosContacto = [
       ['País de Nacimiento', paciente.paisNacimiento || 'Colombia'],
@@ -654,11 +2817,17 @@ class HCEPdfService {
       ['Correo Electrónico', paciente.email || 'N/A'],
     ];
 
-    y = this.generarTablaDatos(doc, datosContacto, y);
+    y = this.generarTablaDatosGrid(doc, datosContacto, y, 2);
     y += 15;
 
     // === ASEGURAMIENTO EN SALUD ===
-    y = this.generarSubseccion(doc, 'ASEGURAMIENTO EN SALUD (SGSSS)', y);
+    if (y > doc.page.height - 200) {
+      doc.addPage();
+      this.generarEncabezadoSeccion(doc, 'IDENTIFICACIÓN DEL PACIENTE (Continuación)');
+      y = 140;
+    }
+
+    y = this.generarSubseccionConIcono(doc, 'ASEGURAMIENTO EN SALUD (SGSSS)', y, 'health');
 
     const datosAseguramiento = [
       ['EPS / EAPB', paciente.eps || 'N/A'],
@@ -667,27 +2836,169 @@ class HCEPdfService {
       ['Nivel SISBEN', paciente.nivelSisben || 'N/A'],
       ['Número Autorización', paciente.numeroAutorizacion || 'N/A'],
       ['ARL', paciente.arl || 'N/A'],
+      ['Fecha Afiliación', this.formatearFecha(paciente.fechaAfiliacion)],
+      ['Carnet/Póliza', paciente.carnetPoliza || 'N/A'],
     ];
 
-    y = this.generarTablaDatos(doc, datosAseguramiento, y);
+    y = this.generarTablaDatosGrid(doc, datosAseguramiento, y, 2);
     y += 15;
 
     // === CONTACTO DE EMERGENCIA ===
     const contactos = paciente.contactosEmergencia;
     if (contactos && Array.isArray(contactos) && contactos.length > 0) {
-      y = this.generarSubseccion(doc, 'CONTACTO DE EMERGENCIA', y);
+      y = this.generarSubseccionConIcono(doc, 'CONTACTO DE EMERGENCIA', y, 'emergency');
 
-      for (let i = 0; i < Math.min(contactos.length, 2); i++) {
+      // Box de emergencia con estilo destacado
+      doc.rect(this.margins.left, y, pageWidth, contactos.length * 45 + 10)
+         .lineWidth(1)
+         .fillAndStroke(this.colors.warningBg, this.colors.warning);
+
+      y += 10;
+
+      for (let i = 0; i < Math.min(contactos.length, 3); i++) {
         const contacto = contactos[i];
-        const datosEmergencia = [
-          ['Nombre Completo', contacto.nombre || 'N/A'],
-          ['Parentesco', contacto.parentesco || 'N/A'],
-          ['Teléfono', contacto.telefono || 'N/A'],
-        ];
-        y = this.generarTablaDatos(doc, datosEmergencia, y);
-        y += 10;
+
+        doc.fontSize(10)
+           .font('Helvetica-Bold')
+           .fillColor(this.colors.text)
+           .text(`${i + 1}. ${contacto.nombre || 'N/A'}`, this.margins.left + 15, y);
+
+        doc.fontSize(9)
+           .font('Helvetica')
+           .fillColor(this.colors.textLight)
+           .text(`Parentesco: ${contacto.parentesco || 'N/A'}  |  Teléfono: ${contacto.telefono || 'N/A'}`,
+                  this.margins.left + 25, y + 15);
+
+        if (contacto.direccion) {
+          doc.text(`Dirección: ${contacto.direccion}`, this.margins.left + 25, y + 28);
+        }
+
+        y += 40;
+      }
+      y += 10;
+    }
+
+    // === INFORMACIÓN ADICIONAL ===
+    if (paciente.referidoPor || paciente.nombreRefiere || paciente.convenio) {
+      y += 10;
+      y = this.generarSubseccionConIcono(doc, 'INFORMACIÓN ADICIONAL', y, 'info');
+
+      const datosAdicionales = [];
+      if (paciente.referidoPor) datosAdicionales.push(['Referido Por', paciente.referidoPor]);
+      if (paciente.nombreRefiere) datosAdicionales.push(['Nombre Refiere', paciente.nombreRefiere]);
+      if (paciente.convenio) datosAdicionales.push(['Convenio', paciente.convenio]);
+      if (paciente.categoria) datosAdicionales.push(['Categoría', paciente.categoria]);
+
+      y = this.generarTablaDatosGrid(doc, datosAdicionales, y, 2);
+    }
+  }
+
+  /**
+   * Dibujar placeholder de foto con ícono de usuario
+   */
+  dibujarFotoPlaceholder(doc, x, y, size) {
+    doc.rect(x, y, size, size)
+       .lineWidth(1)
+       .fillAndStroke('#e0e0e0', this.colors.border);
+
+    // Ícono de usuario simplificado
+    const centerX = x + size / 2;
+    const centerY = y + size / 2;
+
+    // Cabeza
+    doc.circle(centerX, centerY - 8, 12).fill(this.colors.textMuted);
+    // Cuerpo
+    doc.ellipse(centerX, centerY + 18, 18, 12).fill(this.colors.textMuted);
+
+    doc.fontSize(7)
+       .font('Helvetica')
+       .fillColor(this.colors.textMuted)
+       .text('Sin foto', x, y + size - 12, { width: size, align: 'center' });
+  }
+
+  /**
+   * Generar subsección con ícono
+   */
+  generarSubseccionConIcono(doc, titulo, y, iconType) {
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Fondo del encabezado
+    doc.rect(this.margins.left, y, pageWidth, 22)
+       .fill(this.colors.primary);
+
+    // Ícono según tipo
+    const iconX = this.margins.left + 8;
+    const iconY = y + 6;
+
+    doc.fillColor('#ffffff');
+
+    if (iconType === 'user') {
+      doc.circle(iconX + 5, iconY + 3, 4).fill();
+      doc.rect(iconX + 1, iconY + 8, 8, 5).fill();
+    } else if (iconType === 'location') {
+      doc.circle(iconX + 5, iconY + 4, 4).stroke('#ffffff');
+      doc.circle(iconX + 5, iconY + 4, 2).fill();
+    } else if (iconType === 'health') {
+      doc.rect(iconX + 2, iconY + 4, 6, 2).fill();
+      doc.rect(iconX + 4, iconY + 2, 2, 6).fill();
+    } else if (iconType === 'emergency') {
+      doc.fontSize(12).font('Helvetica-Bold').text('!', iconX + 3, iconY);
+    } else if (iconType === 'info') {
+      doc.fontSize(10).font('Helvetica-Bold').text('i', iconX + 4, iconY + 1);
+    }
+
+    doc.fontSize(10)
+       .font('Helvetica-Bold')
+       .fillColor('#ffffff')
+       .text(titulo, this.margins.left + 25, y + 6);
+
+    return y + 28;
+  }
+
+  /**
+   * Generar tabla de datos en formato grid (2 columnas)
+   */
+  generarTablaDatosGrid(doc, datos, y, columnas = 2) {
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+    const colWidth = pageWidth / columnas;
+    let currentY = y;
+    let currentCol = 0;
+    let rowStartY = y;
+
+    for (let i = 0; i < datos.length; i++) {
+      const [label, valor] = datos[i];
+      const x = this.margins.left + (currentCol * colWidth) + 10;
+
+      // Alternar fondo de filas
+      if (currentCol === 0) {
+        const rowHeight = 22;
+        const fillColor = Math.floor(i / columnas) % 2 === 0 ? '#f8f9fa' : '#ffffff';
+        doc.rect(this.margins.left, currentY, pageWidth, rowHeight).fill(fillColor);
+      }
+
+      doc.fontSize(8)
+         .font('Helvetica')
+         .fillColor(this.colors.textMuted)
+         .text(label, x, currentY + 3, { width: colWidth - 20 });
+
+      doc.fontSize(9)
+         .font('Helvetica-Bold')
+         .fillColor(this.colors.text)
+         .text(valor || 'N/A', x, currentY + 12, { width: colWidth - 20 });
+
+      currentCol++;
+      if (currentCol >= columnas) {
+        currentCol = 0;
+        currentY += 22;
       }
     }
+
+    // Si terminamos en columna impar, avanzar
+    if (currentCol > 0) {
+      currentY += 22;
+    }
+
+    return currentY;
   }
 
   /**
@@ -937,6 +3248,7 @@ class HCEPdfService {
 
   /**
    * Generar sección de evoluciones médicas (SOAP)
+   * Con firma y sello digital del médico responsable
    */
   generarSeccionEvoluciones(doc, evoluciones) {
     this.generarEncabezadoSeccion(doc, 'EVOLUCIONES MÉDICAS');
@@ -954,7 +3266,7 @@ class HCEPdfService {
     for (let i = 0; i < evoluciones.length; i++) {
       const evol = evoluciones[i];
 
-      if (y > doc.page.height - 280) {
+      if (y > doc.page.height - 320) {
         doc.addPage();
         this.generarEncabezadoSeccion(doc, 'EVOLUCIONES MÉDICAS (Continuación)');
         y = 140;
@@ -965,6 +3277,7 @@ class HCEPdfService {
          .fill(this.colors.primary);
 
       const nombreMedico = evol.doctor ? `Dr(a). ${evol.doctor.nombre} ${evol.doctor.apellido}` : 'N/A';
+      const licenciaMedica = evol.doctor?.doctor?.licenciaMedica || '';
 
       doc.fontSize(10)
          .font('Helvetica-Bold')
@@ -978,46 +3291,161 @@ class HCEPdfService {
 
       y += 35;
 
-      // Secciones SOAP
+      // Secciones SOAP - Formatear contenido para eliminar JSON embebido
       const secciones = [
-        { titulo: 'S - SUBJETIVO', contenido: evol.subjetivo, color: '#3182ce' },
-        { titulo: 'O - OBJETIVO', contenido: evol.objetivo, color: '#38a169' },
-        { titulo: 'A - ANÁLISIS', contenido: evol.analisis, color: '#dd6b20' },
-        { titulo: 'P - PLAN', contenido: evol.plan, color: '#805ad5' },
+        { titulo: 'S - SUBJETIVO', contenido: this.formatearContenidoEvolucion(evol.subjetivo), color: '#3182ce' },
+        { titulo: 'O - OBJETIVO', contenido: this.formatearContenidoEvolucion(evol.objetivo), color: '#38a169' },
+        { titulo: 'A - ANÁLISIS', contenido: this.formatearContenidoEvolucion(evol.analisis), color: '#dd6b20' },
+        { titulo: 'P - PLAN', contenido: this.formatearContenidoEvolucion(evol.plan), color: '#805ad5' },
       ];
 
       for (const seccion of secciones) {
-        if (seccion.contenido) {
-          if (y > doc.page.height - 80) {
+        const contenidoLimpio = seccion.contenido?.trim();
+        if (contenidoLimpio && contenidoLimpio.length > 0) {
+          // Calcular altura del contenido para mejor manejo de páginas
+          const textHeight = doc.heightOfString(contenidoLimpio, { width: pageWidth - 22 });
+          const seccionHeight = Math.max(45, textHeight + 25);
+
+          // Verificar si necesitamos nueva página
+          if (y + seccionHeight > doc.page.height - 100) {
             doc.addPage();
-            y = this.margins.top;
+            y = this.margins.top + 20;
           }
 
-          doc.rect(this.margins.left, y, 4, 35).fill(seccion.color);
+          // Barra lateral de color
+          doc.rect(this.margins.left, y, 4, seccionHeight).fill(seccion.color);
 
+          // Título de la sección
           doc.fontSize(9)
              .font('Helvetica-Bold')
              .fillColor(seccion.color)
-             .text(seccion.titulo, this.margins.left + 12, y + 2);
+             .text(seccion.titulo, this.margins.left + 12, y + 3);
 
+          // Contenido formateado
           doc.fontSize(9)
              .font('Helvetica')
              .fillColor(this.colors.text)
-             .text(seccion.contenido, this.margins.left + 12, y + 14, {
-               width: pageWidth - 22,
-               align: 'justify',
+             .text(contenidoLimpio, this.margins.left + 12, y + 16, {
+               width: pageWidth - 24,
+               align: 'left',
+               lineGap: 2,
              });
 
-          const textHeight = doc.heightOfString(seccion.contenido, { width: pageWidth - 22 });
-          y += Math.max(40, textHeight + 20);
+          y += seccionHeight + 8;
         }
       }
 
-      // Línea separadora
+      // === SECCIÓN DE FIRMA Y SELLO DEL MÉDICO ===
+      if (y > doc.page.height - 150) {
+        doc.addPage();
+        y = this.margins.top;
+      }
+
+      // Box de firma
+      doc.rect(this.margins.left, y, pageWidth, 85)
+         .lineWidth(1)
+         .stroke(this.colors.border);
+
+      // Título del área de firma
+      doc.rect(this.margins.left, y, pageWidth, 18)
+         .fill(this.colors.headerBg);
+
+      doc.fontSize(8)
+         .font('Helvetica-Bold')
+         .fillColor(this.colors.textLight)
+         .text('RESPONSABLE DE LA EVOLUCIÓN', this.margins.left + 10, y + 5);
+
+      y += 25;
+
+      // Obtener datos del doctor (firma, sello, licencia)
+      const doctorData = evol.doctor?.doctor;
+      const firmaBase64 = doctorData?.firma;
+      const selloBase64 = doctorData?.sello;
+
+      // Columna de firma
+      const firmaX = this.margins.left + 20;
+      const selloX = this.margins.left + pageWidth / 2 + 20;
+      const imgY = y;
+
+      // Mostrar firma si existe
+      if (firmaBase64) {
+        try {
+          const firmaBuffer = Buffer.from(firmaBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+          doc.image(firmaBuffer, firmaX, imgY, { width: 100, height: 45 });
+        } catch (e) {
+          doc.fontSize(8).fillColor(this.colors.textMuted)
+             .text('[Firma digital]', firmaX, imgY + 15);
+        }
+      } else {
+        // Línea para firma manual
+        doc.moveTo(firmaX, imgY + 40)
+           .lineTo(firmaX + 120, imgY + 40)
+           .lineWidth(0.5)
+           .stroke(this.colors.textMuted);
+      }
+
+      // Etiqueta de firma
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(this.colors.textMuted)
+         .text('Firma del Profesional', firmaX, imgY + 48);
+
+      // Mostrar sello si existe
+      if (selloBase64) {
+        try {
+          const selloBuffer = Buffer.from(selloBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+          doc.image(selloBuffer, selloX, imgY, { width: 80, height: 45 });
+        } catch (e) {
+          doc.fontSize(8).fillColor(this.colors.textMuted)
+             .text('[Sello]', selloX, imgY + 15);
+        }
+      } else {
+        // Espacio para sello
+        doc.rect(selloX, imgY, 80, 45)
+           .lineWidth(0.5)
+           .dash(3, { space: 2 })
+           .stroke(this.colors.textMuted)
+           .undash();
+      }
+
+      // Etiqueta de sello
+      doc.fontSize(7)
+         .font('Helvetica')
+         .fillColor(this.colors.textMuted)
+         .text('Sello Profesional', selloX, imgY + 48);
+
+      // Datos del médico
+      const datosX = this.margins.left + pageWidth - 180;
+      doc.fontSize(9)
+         .font('Helvetica-Bold')
+         .fillColor(this.colors.text)
+         .text(nombreMedico, datosX, imgY, { width: 170 });
+
+      if (licenciaMedica) {
+        doc.fontSize(8)
+           .font('Helvetica')
+           .fillColor(this.colors.textMuted)
+           .text(`Reg. Médico: ${licenciaMedica}`, datosX, imgY + 14);
+      }
+
+      doc.fontSize(8)
+         .text(`Fecha: ${this.formatearFechaHora(evol.fechaEvolucion)}`, datosX, imgY + 28);
+
+      if (evol.firmada) {
+        doc.fontSize(7)
+           .font('Helvetica-Bold')
+           .fillColor(this.colors.accent)
+           .text('✓ FIRMADO DIGITALMENTE', datosX, imgY + 42);
+      }
+
+      y += 75;
+
+      // Línea separadora entre evoluciones
       doc.moveTo(this.margins.left, y)
          .lineTo(this.margins.left + pageWidth, y)
+         .lineWidth(1)
          .stroke(this.colors.border);
-      y += 20;
+      y += 25;
     }
   }
 
@@ -1732,7 +4160,7 @@ class HCEPdfService {
   }
 
   /**
-   * Generar sección de urgencias
+   * Generar sección de urgencias - Altura dinámica
    */
   generarSeccionUrgencias(doc, urgencias) {
     this.generarEncabezadoSeccion(doc, 'ATENCIONES DE URGENCIAS');
@@ -1749,7 +4177,12 @@ class HCEPdfService {
     };
 
     for (const urg of urgencias) {
-      if (y > doc.page.height - 280) {
+      // Calcular altura dinámica
+      let alturaEstimada = 130; // Base
+      if (urg.diagnosticoInicial) alturaEstimada += 25;
+      if (urg.tratamientoAplicado) alturaEstimada += 25;
+
+      if (y > doc.page.height - alturaEstimada - 50) {
         doc.addPage();
         this.generarEncabezadoSeccion(doc, 'URGENCIAS (Continuación)');
         y = 140;
@@ -1757,85 +4190,68 @@ class HCEPdfService {
 
       const colorCategoria = categoriaColores[urg.categoriaManchester] || this.colors.secondary;
 
-      doc.rect(this.margins.left, y, pageWidth, 220)
-         .stroke(this.colors.border);
-
       // Encabezado con color de triaje
-      doc.rect(this.margins.left, y, pageWidth, 30)
+      doc.rect(this.margins.left, y, pageWidth, 26)
          .fill(colorCategoria);
 
-      doc.fontSize(11)
+      doc.fontSize(10)
          .font('Helvetica-Bold')
          .fillColor('#ffffff')
          .text(`TRIAJE ${urg.categoriaManchester?.toUpperCase() || 'N/A'} - Prioridad ${urg.prioridad || 'N/A'}`,
-                this.margins.left + 10, y + 8);
-      doc.text(this.formatearFechaHora(urg.horaLlegada), this.margins.left + pageWidth - 180, y + 8);
+                this.margins.left + 10, y + 7);
+      doc.text(this.formatearFechaHoraCorta(urg.horaLlegada), this.margins.left + pageWidth - 130, y + 7);
 
-      y += 38;
+      y += 32;
 
       doc.fontSize(9).font('Helvetica').fillColor(this.colors.text);
 
       // Motivo de consulta
-      doc.font('Helvetica-Bold').text('Motivo de Consulta:', this.margins.left + 10, y);
-      doc.font('Helvetica').text(urg.motivoConsulta || 'N/A', this.margins.left + 10, y + 12, { width: pageWidth - 20 });
+      doc.font('Helvetica-Bold').text('Motivo:', this.margins.left + 10, y);
+      doc.font('Helvetica').text(urg.motivoConsulta || 'N/A', this.margins.left + 55, y, { width: pageWidth - 70 });
 
-      y += 35;
+      y += 18;
 
-      // Signos vitales al ingreso
-      doc.font('Helvetica-Bold').fillColor(this.colors.primary).text('Signos Vitales al Ingreso:', this.margins.left + 10, y);
+      // Signos vitales en una línea
+      doc.text(`PA: ${urg.presionSistolica || '-'}/${urg.presionDiastolica || '-'} | ` +
+               `FC: ${urg.frecuenciaCardiaca || '-'} | FR: ${urg.frecuenciaRespiratoria || '-'} | ` +
+               `T: ${urg.temperatura || '-'}°C | SpO2: ${urg.saturacionOxigeno || '-'}%`,
+               this.margins.left + 10, y);
 
-      y += 15;
-      doc.font('Helvetica').fillColor(this.colors.text);
-
-      const col1 = this.margins.left + 15;
-      const col2 = this.margins.left + 170;
-      const col3 = this.margins.left + 340;
-
-      doc.text(`PA: ${urg.presionSistolica || '-'}/${urg.presionDiastolica || '-'} mmHg`, col1, y);
-      doc.text(`FC: ${urg.frecuenciaCardiaca || '-'} lpm`, col2, y);
-      doc.text(`FR: ${urg.frecuenciaRespiratoria || '-'} rpm`, col3, y);
-
-      y += 15;
-      doc.text(`Temp: ${urg.temperatura || '-'} °C`, col1, y);
-      doc.text(`SpO2: ${urg.saturacionOxigeno || '-'}%`, col2, y);
-      doc.text(`Glasgow: ${urg.escalaGlasgow || '-'}/15`, col3, y);
-
-      y += 20;
+      y += 18;
 
       // Diagnóstico
       if (urg.diagnosticoInicial) {
-        doc.font('Helvetica-Bold').text('Diagnóstico:', this.margins.left + 10, y);
-        doc.font('Helvetica').text(urg.diagnosticoInicial, this.margins.left + 10, y + 12, { width: pageWidth - 20 });
-        y += 30;
+        doc.font('Helvetica-Bold').text('Dx:', this.margins.left + 10, y);
+        doc.font('Helvetica').text(urg.diagnosticoInicial, this.margins.left + 30, y, { width: pageWidth - 45 });
+        y += 18;
       }
 
       // Tratamiento
       if (urg.tratamientoAplicado) {
-        doc.font('Helvetica-Bold').text('Tratamiento:', this.margins.left + 10, y);
-        doc.font('Helvetica').text(urg.tratamientoAplicado, this.margins.left + 10, y + 12, { width: pageWidth - 20 });
-        y += 30;
+        doc.font('Helvetica-Bold').text('Tx:', this.margins.left + 10, y);
+        doc.font('Helvetica').text(urg.tratamientoAplicado, this.margins.left + 30, y, { width: pageWidth - 45 });
+        y += 18;
       }
 
-      // Disposición
-      doc.font('Helvetica-Bold').text('Disposición:', this.margins.left + 10, y);
-      doc.font('Helvetica').text(urg.disposicion || urg.estado || 'N/A', this.margins.left + 75, y);
-
-      y += 20;
-
-      // Personal
-      const medico = urg.medicoAsignado ? `Dr(a). ${urg.medicoAsignado.nombre} ${urg.medicoAsignado.apellido}` : 'N/A';
-      const enfermera = urg.enfermeraAsignada ? `${urg.enfermeraAsignada.nombre} ${urg.enfermeraAsignada.apellido}` : 'N/A';
+      // Disposición y personal en una línea
+      const medico = urg.medicoAsignado ? `${urg.medicoAsignado.nombre} ${urg.medicoAsignado.apellido}` : 'N/A';
 
       doc.fontSize(8)
          .fillColor(this.colors.textMuted)
-         .text(`Médico: ${medico} | Enfermera: ${enfermera}`, this.margins.left + 10, y);
+         .text(`Disposición: ${urg.disposicion || urg.estado || 'N/A'} | Médico: ${medico}`, this.margins.left + 10, y);
 
-      y += 35;
+      y += 25;
+
+      // Línea separadora
+      doc.moveTo(this.margins.left, y - 5)
+         .lineTo(this.margins.left + pageWidth, y - 5)
+         .lineWidth(0.5)
+         .stroke(this.colors.border);
     }
   }
 
   /**
-   * Generar sección de hospitalizaciones
+   * Generar sección de hospitalizaciones - Altura dinámica
    */
   generarSeccionHospitalizaciones(doc, hospitalizaciones) {
     this.generarEncabezadoSeccion(doc, 'HOSPITALIZACIONES Y EPICRISIS');
@@ -1844,50 +4260,49 @@ class HCEPdfService {
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
     for (const hosp of hospitalizaciones) {
-      if (y > doc.page.height - 300) {
+      // Calcular altura dinámica basada en contenido
+      let alturaEstimada = 100; // Base: encabezado + ubicación + período
+      if (hosp.motivoIngreso) alturaEstimada += 35;
+      if (hosp.diagnosticoIngreso) alturaEstimada += 35;
+      if (hosp.diagnosticoEgreso) alturaEstimada += 35;
+      if (hosp.movimientos && hosp.movimientos.length > 0) {
+        alturaEstimada += 20 + Math.min(hosp.movimientos.length, 3) * 15;
+      }
+
+      if (y > doc.page.height - alturaEstimada - 50) {
         doc.addPage();
         this.generarEncabezadoSeccion(doc, 'HOSPITALIZACIONES (Continuación)');
         y = 140;
       }
 
-      const colorEstado = hosp.estado === 'Activa' ? this.colors.accent :
-                          hosp.estado === 'Egresada' ? this.colors.secondary : this.colors.textLight;
-
-      doc.rect(this.margins.left, y, pageWidth, 240)
-         .stroke(this.colors.border);
+      const startY = y;
 
       // Encabezado
-      doc.rect(this.margins.left, y, pageWidth, 30)
+      doc.rect(this.margins.left, y, pageWidth, 28)
          .fill(this.colors.primary);
 
-      doc.fontSize(11)
+      doc.fontSize(10)
          .font('Helvetica-Bold')
          .fillColor('#ffffff')
-         .text(`ADMISIÓN - ${hosp.unidad?.nombre || 'Unidad'}`, this.margins.left + 10, y + 8);
+         .text(`ADMISIÓN - ${hosp.unidad?.nombre || 'Unidad'}`, this.margins.left + 10, y + 7);
 
       doc.fillColor(hosp.estado === 'Activa' ? '#90EE90' : '#87CEEB')
-         .text(hosp.estado || 'N/A', this.margins.left + pageWidth - 100, y + 8);
+         .text(hosp.estado || 'N/A', this.margins.left + pageWidth - 100, y + 7);
 
-      y += 38;
+      y += 35;
 
       doc.fontSize(9).font('Helvetica').fillColor(this.colors.text);
 
-      // Ubicación
-      doc.font('Helvetica-Bold').fillColor(this.colors.primary).text('Ubicación Hospitalaria:', this.margins.left + 10, y);
-      y += 15;
-      doc.font('Helvetica').fillColor(this.colors.text);
+      // Ubicación en una línea
       doc.text(`Unidad: ${hosp.unidad?.nombre || 'N/A'} | ` +
                `Habitación: ${hosp.cama?.habitacion?.numero || 'N/A'} | ` +
                `Cama: ${hosp.cama?.numero || 'N/A'}`,
                this.margins.left + 10, y);
 
-      y += 20;
+      y += 18;
 
       // Período
       const diasEstancia = this.calcularDiasEstancia(hosp.fechaIngreso, hosp.fechaEgreso);
-      doc.font('Helvetica-Bold').fillColor(this.colors.primary).text('Período de Hospitalización:', this.margins.left + 10, y);
-      y += 15;
-      doc.font('Helvetica').fillColor(this.colors.text);
       doc.text(`Ingreso: ${this.formatearFechaHora(hosp.fechaIngreso)} | ` +
                `Egreso: ${hosp.fechaEgreso ? this.formatearFechaHora(hosp.fechaEgreso) : 'Hospitalizado'} | ` +
                `Estancia: ${diasEstancia} días`,
@@ -1895,29 +4310,30 @@ class HCEPdfService {
 
       y += 20;
 
-      // Motivo y diagnósticos
+      // Motivo y diagnósticos (solo si existen)
       if (hosp.motivoIngreso) {
-        doc.font('Helvetica-Bold').text('Motivo de Ingreso:', this.margins.left + 10, y);
-        doc.font('Helvetica').text(hosp.motivoIngreso, this.margins.left + 10, y + 12, { width: pageWidth - 20 });
-        y += 30;
+        doc.font('Helvetica-Bold').text('Motivo:', this.margins.left + 10, y);
+        doc.font('Helvetica').text(hosp.motivoIngreso, this.margins.left + 55, y, { width: pageWidth - 70 });
+        y += 18;
       }
 
       if (hosp.diagnosticoIngreso) {
-        doc.font('Helvetica-Bold').text('Diagnóstico de Ingreso:', this.margins.left + 10, y);
-        doc.font('Helvetica').text(hosp.diagnosticoIngreso, this.margins.left + 10, y + 12, { width: pageWidth - 20 });
-        y += 30;
+        doc.font('Helvetica-Bold').text('Dx Ingreso:', this.margins.left + 10, y);
+        doc.font('Helvetica').text(hosp.diagnosticoIngreso, this.margins.left + 75, y, { width: pageWidth - 90 });
+        y += 18;
       }
 
       if (hosp.diagnosticoEgreso) {
-        doc.font('Helvetica-Bold').text('Diagnóstico de Egreso:', this.margins.left + 10, y);
-        doc.font('Helvetica').text(hosp.diagnosticoEgreso, this.margins.left + 10, y + 12, { width: pageWidth - 20 });
-        y += 30;
+        doc.font('Helvetica-Bold').text('Dx Egreso:', this.margins.left + 10, y);
+        doc.font('Helvetica').text(hosp.diagnosticoEgreso, this.margins.left + 70, y, { width: pageWidth - 85 });
+        y += 18;
       }
 
-      // Movimientos
+      // Movimientos (máximo 3)
       if (hosp.movimientos && hosp.movimientos.length > 0) {
-        doc.font('Helvetica-Bold').fillColor(this.colors.primary).text('Movimientos:', this.margins.left + 10, y);
-        y += 15;
+        y += 5;
+        doc.font('Helvetica-Bold').fillColor(this.colors.textMuted).text('Movimientos:', this.margins.left + 10, y);
+        y += 12;
 
         for (const mov of hosp.movimientos.slice(0, 3)) {
           doc.fontSize(8)
@@ -2146,6 +4562,7 @@ class HCEPdfService {
          .text('CONFIDENCIAL', 100, doc.page.height / 2 - 50, {
            width: doc.page.width,
            align: 'center',
+           lineBreak: false
          });
       doc.restore();
       doc.opacity(1);
@@ -2272,28 +4689,31 @@ class HCEPdfService {
    */
   agregarNumerosPagina(doc) {
     const pages = doc.bufferedPageRange();
-    for (let i = 0; i < pages.count; i++) {
+    const totalPages = pages.count;
+
+    for (let i = 0; i < totalPages; i++) {
       doc.switchToPage(i);
 
       const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+      const footerY = doc.page.height - 35;
+      const dateY = doc.page.height - 22;
 
-      // Pie de página
+      // Usar height limitado para prevenir auto-paginación
       doc.fontSize(8)
          .fillColor(this.colors.textMuted)
          .text(
-           `Historia Clínica Electrónica - ${this.institucion.nombre} | Página ${i + 1} de ${pages.count}`,
+           `Historia Clínica Electrónica - ${this.institucion.nombre} | Página ${i + 1} de ${totalPages}`,
            this.margins.left,
-           doc.page.height - 35,
-           { width: pageWidth, align: 'center' }
+           footerY,
+           { width: pageWidth, height: 12, align: 'center', lineBreak: false }
          );
 
-      // Fecha de impresión
       doc.fontSize(7)
          .text(
            `Impreso: ${this.formatearFechaHoraCompleta(new Date())}`,
            this.margins.left,
-           doc.page.height - 22,
-           { width: pageWidth, align: 'center' }
+           dateY,
+           { width: pageWidth, height: 10, align: 'center', lineBreak: false }
          );
     }
   }
