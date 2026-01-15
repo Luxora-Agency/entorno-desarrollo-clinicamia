@@ -52,6 +52,7 @@ import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
 import MisCitasDelDiaView from './doctor/MisCitasDelDiaView';
 import MiAgendaView from './doctor/MiAgendaView';
 import AIMedicalAssistant from './doctor/AIMedicalAssistant';
+import ClinicalWorkspace from './doctor/ClinicalWorkspace';
 import CalidadModule from './calidad/CalidadModule';
 import DocsInscripcionModule from './calidad2/docs-inscripcion/DocsInscripcionModule';
 import TalentoHumanoModule from './calidad2/talento-humano/TalentoHumanoModule';
@@ -80,18 +81,29 @@ export default function Dashboard({ user, onLogout }) {
   const [editingDoctor, setEditingDoctor] = useState(null);
   const [editingPaciente, setEditingPaciente] = useState(null);
   const [loadingPaciente, setLoadingPaciente] = useState(false);
+  // Estado para consulta médica
+  const [consultaCita, setConsultaCita] = useState(null);
+  const [loadingCita, setLoadingCita] = useState(false);
 
   // Sincronizar con la URL
   useEffect(() => {
     const module = searchParams.get('module') || 'dashboard';
     setActiveModule(module);
-    
+
     // Cargar paciente si está en modo edición
     const pacienteId = searchParams.get('pacienteId');
     if (module === 'agregar-paciente' && pacienteId) {
       loadPaciente(pacienteId);
     } else {
       setEditingPaciente(null);
+    }
+
+    // Cargar cita si es módulo de consulta
+    const citaId = searchParams.get('citaId');
+    if (module === 'consulta' && citaId) {
+      loadCita(citaId);
+    } else if (module !== 'consulta') {
+      setConsultaCita(null);
     }
   }, [searchParams]);
 
@@ -100,7 +112,7 @@ export default function Dashboard({ user, onLogout }) {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      
+
       const response = await fetch(`${apiUrl}/pacientes/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -116,6 +128,41 @@ export default function Dashboard({ user, onLogout }) {
     } finally {
       setLoadingPaciente(false);
     }
+  };
+
+  // Cargar cita para consulta médica
+  const loadCita = async (citaId) => {
+    setLoadingCita(true);
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+      const response = await fetch(`${apiUrl}/citas/${citaId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const cita = result.data?.cita || result.data || result;
+        setConsultaCita(cita);
+      } else {
+        console.error('Error al cargar cita:', response.status);
+        setConsultaCita(null);
+      }
+    } catch (error) {
+      console.error('Error al cargar cita:', error);
+      setConsultaCita(null);
+    } finally {
+      setLoadingCita(false);
+    }
+  };
+
+  // Finalizar consulta y volver al dashboard
+  const handleFinishConsulta = () => {
+    setConsultaCita(null);
+    router.push('/?module=mis-citas', { scroll: false });
   };
 
   // Función para cambiar de módulo y actualizar URL
@@ -170,6 +217,39 @@ export default function Dashboard({ user, onLogout }) {
               }}
             />
           );
+        }
+        return <DashboardHome user={user} />;
+
+      // Consulta médica - vista de trabajo clínico
+      case 'consulta':
+        if (isDoctor) {
+          if (loadingCita) {
+            return (
+              <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
+                  <p className="text-gray-600">Cargando consulta...</p>
+                </div>
+              </div>
+            );
+          }
+          if (consultaCita) {
+            return (
+              <ClinicalWorkspace
+                cita={consultaCita}
+                user={user}
+                onClose={() => {
+                  if (confirm('¿Salir sin finalizar? Se perderán los datos no guardados.')) {
+                    setConsultaCita(null);
+                    router.push('/?module=mis-citas', { scroll: false });
+                  }
+                }}
+                onFinish={handleFinishConsulta}
+              />
+            );
+          }
+          // Si no hay cita, volver a mis citas
+          return <MisCitasDelDiaView user={user} />;
         }
         return <DashboardHome user={user} />;
 

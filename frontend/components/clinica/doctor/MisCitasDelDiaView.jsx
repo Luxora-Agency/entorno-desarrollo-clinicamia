@@ -413,7 +413,7 @@ export default function MisCitasDelDiaView({ user }) {
               </div>
               <div className="flex gap-2">
                 <Button
-                  onClick={() => window.location.href = `/?module=hce&pacienteId=${citaAtendiendo.paciente?.id}&citaId=${citaAtendiendo.id}`}
+                  onClick={() => window.location.href = `/?module=consulta&pacienteId=${citaAtendiendo.paciente?.id}&citaId=${citaAtendiendo.id}`}
                   variant="outline"
                   className="rounded-xl border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                 >
@@ -483,7 +483,7 @@ export default function MisCitasDelDiaView({ user }) {
                     className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-200 text-base px-6"
                     onClick={() => {
                       cambiarEstadoCita(primeraEnEspera.id, 'Atendiendo');
-                      window.location.href = `/?module=hce&pacienteId=${primeraEnEspera.paciente?.id}&citaId=${primeraEnEspera.id}`;
+                      window.location.href = `/?module=consulta&pacienteId=${primeraEnEspera.paciente?.id}&citaId=${primeraEnEspera.id}`;
                     }}
                   >
                     <PlayCircle className="h-5 w-5 mr-2" />
@@ -658,7 +658,7 @@ export default function MisCitasDelDiaView({ user }) {
                     className="rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg shadow-emerald-200"
                     onClick={() => {
                       cambiarEstadoCita(proximaCita.id, 'Atendiendo');
-                      window.location.href = `/?module=hce&pacienteId=${proximaCita.paciente?.id}&citaId=${proximaCita.id}`;
+                      window.location.href = `/?module=consulta&pacienteId=${proximaCita.paciente?.id}&citaId=${proximaCita.id}`;
                     }}
                   >
                     <PlayCircle className="h-4 w-4 mr-1.5" />
@@ -1050,7 +1050,7 @@ function CitaCard({ cita, onCambiarEstado, isExpanded, onToggleExpand, compact =
                       onCambiarEstado(cita.id, 'Atendiendo');
                     }
                     // Navegar a la HCE para iniciar la consulta
-                    window.location.href = `/?module=hce&pacienteId=${paciente?.id}&citaId=${cita.id}`;
+                    window.location.href = `/?module=consulta&pacienteId=${paciente?.id}&citaId=${cita.id}`;
                   }}
                 >
                   <Stethoscope className="h-4 w-4 mr-2" />
