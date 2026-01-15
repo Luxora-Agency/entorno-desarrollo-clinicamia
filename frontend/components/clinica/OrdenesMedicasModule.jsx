@@ -181,7 +181,7 @@ const PAQUETES_PREDEFINIDOS = [
   },
 ];
 
-export default function OrdenesMedicasModule() {
+export default function OrdenesMedicasModule({ user }) {
   const { toast } = useToast();
 
   // Estados principales
@@ -189,6 +189,11 @@ export default function OrdenesMedicasModule() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
+
+  // Rol del usuario para determinar si filtrar solo por doctor
+  const userRole = user?.rol?.toLowerCase() || user?.role?.toLowerCase() || '';
+  const isDoctor = userRole === 'doctor' || userRole === 'medico';
+  const doctorUserId = user?.id;
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -214,7 +219,7 @@ export default function OrdenesMedicasModule() {
   const [pacientes, setPacientes] = useState([]);
   const [doctores, setDoctores] = useState([]);
 
-  // Formulario nueva orden
+  // Formulario nueva orden - ahora incluye doctor_id del usuario logueado
   const [nuevaOrden, setNuevaOrden] = useState({
     paciente_id: '',
     tipo: 'Laboratorio',
@@ -222,6 +227,7 @@ export default function OrdenesMedicasModule() {
     descripcion: '',
     prioridad: 'Media',
     observaciones: '',
+    doctor_id: doctorUserId || '',
   });
   const [searchPaciente, setSearchPaciente] = useState('');
   const [searchExamen, setSearchExamen] = useState('');
@@ -232,7 +238,7 @@ export default function OrdenesMedicasModule() {
     observaciones: '',
   });
 
-  // Cargar órdenes
+  // Cargar órdenes - filtradas por doctor si el usuario es doctor
   const loadOrdenes = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     else setLoading(true);
@@ -242,6 +248,12 @@ export default function OrdenesMedicasModule() {
         page: page.toString(),
         limit: limit.toString(),
       });
+
+      // Si el usuario es doctor, filtrar sus órdenes y las de sus pacientes
+      if (isDoctor && doctorUserId) {
+        params.append('doctor_id', doctorUserId);
+        params.append('mis_ordenes', 'true'); // Incluir órdenes de pacientes que ha atendido
+      }
 
       if (filterEstado !== 'todas') params.append('estado', filterEstado);
       if (filterTipo !== 'todos') params.append('tipo', filterTipo);
@@ -267,7 +279,7 @@ export default function OrdenesMedicasModule() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, filterEstado, filterTipo, filterPrioridad, filterFecha, searchTerm, toast]);
+  }, [page, filterEstado, filterTipo, filterPrioridad, filterFecha, searchTerm, toast, isDoctor, doctorUserId]);
 
   // Cargar datos auxiliares
   const loadAuxiliaryData = useCallback(async () => {
@@ -358,18 +370,28 @@ export default function OrdenesMedicasModule() {
       return;
     }
 
-    if (!nuevaOrden.descripcion && !nuevaOrden.examen_procedimiento_id) {
+    if (!nuevaOrden.examen_procedimiento_id) {
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Debe especificar el examen o procedimiento.',
+        description: 'Debe seleccionar el examen o procedimiento.',
       });
       return;
     }
 
+    // Obtener precio del examen seleccionado
+    const examenSeleccionado = examenes.find(e => e.id === nuevaOrden.examen_procedimiento_id);
+    const precioAplicado = examenSeleccionado?.costoBase || examenSeleccionado?.precio || 0;
+
     setLoading(true);
     try {
-      const response = await apiPost('/ordenes-medicas', nuevaOrden);
+      const ordenData = {
+        ...nuevaOrden,
+        doctor_id: doctorUserId, // Siempre usar el ID del doctor logueado
+        precio_aplicado: precioAplicado,
+      };
+
+      const response = await apiPost('/ordenes-medicas', ordenData);
 
       if (response.success) {
         toast({
@@ -384,6 +406,7 @@ export default function OrdenesMedicasModule() {
           descripcion: '',
           prioridad: 'Media',
           observaciones: '',
+          doctor_id: doctorUserId || '',
         });
         setSearchPaciente('');
         setSearchExamen('');
@@ -412,15 +435,33 @@ export default function OrdenesMedicasModule() {
       return;
     }
 
+    if (!doctorUserId) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo identificar al médico. Intente cerrar sesión y volver a ingresar.',
+      });
+      return;
+    }
+
     setLoading(true);
     try {
       let creadas = 0;
       for (const orden of paquete.ordenes) {
+        // Buscar examen por descripción para obtener el ID y precio
+        const examenMatch = examenes.find(e =>
+          e.nombre?.toLowerCase().includes(orden.descripcion?.toLowerCase()) ||
+          orden.descripcion?.toLowerCase().includes(e.nombre?.toLowerCase())
+        );
+
         const response = await apiPost('/ordenes-medicas', {
           paciente_id: nuevaOrden.paciente_id,
+          doctor_id: doctorUserId,
+          examen_procedimiento_id: examenMatch?.id || null,
           tipo: orden.tipo,
           descripcion: orden.descripcion,
           prioridad: orden.prioridad,
+          precio_aplicado: examenMatch?.costoBase || examenMatch?.precio || 0,
           observaciones: `Paquete: ${paquete.nombre}`,
         });
         if (response.success) creadas++;
@@ -815,6 +856,7 @@ export default function OrdenesMedicasModule() {
                   <TableHead className="font-semibold">Paciente</TableHead>
                   <TableHead className="font-semibold">Tipo</TableHead>
                   <TableHead className="font-semibold">Descripción</TableHead>
+                  <TableHead className="font-semibold">Solicitante</TableHead>
                   <TableHead className="font-semibold">Prioridad</TableHead>
                   <TableHead className="font-semibold">Estado</TableHead>
                   <TableHead className="font-semibold">Fecha</TableHead>
@@ -866,6 +908,22 @@ export default function OrdenesMedicasModule() {
                             {orden.observaciones}
                           </p>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          {orden.doctorId === doctorUserId ? (
+                            <Badge className="bg-green-100 text-green-700 text-xs">
+                              Yo
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-gray-100 text-gray-700 text-xs">
+                              Otro
+                            </Badge>
+                          )}
+                          <span className="text-xs text-gray-600">
+                            {orden.doctor?.nombre ? `Dr. ${orden.doctor.nombre}` : ''}
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge className={`${prioridadInfo.bgColor} ${prioridadInfo.textColor} ${prioridadInfo.pulse ? 'animate-pulse' : ''}`}>
@@ -1000,7 +1058,7 @@ export default function OrdenesMedicasModule() {
                   </p>
 
                   {/* Badges */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <Badge className={`${prioridadInfo.bgColor} ${prioridadInfo.textColor} text-xs`}>
                       {prioridadInfo.label}
                     </Badge>
@@ -1008,6 +1066,15 @@ export default function OrdenesMedicasModule() {
                       <EstadoIcon className="w-3 h-3 mr-1" />
                       {estadoInfo.label}
                     </Badge>
+                    {orden.doctorId === doctorUserId ? (
+                      <Badge className="bg-green-100 text-green-700 text-xs">
+                        Mi orden
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-blue-100 text-blue-700 text-xs" title={orden.doctor?.nombre ? `Dr. ${orden.doctor.nombre} ${orden.doctor.apellido || ''}` : 'Otro doctor'}>
+                        Otro Dr.
+                      </Badge>
+                    )}
                   </div>
                 </CardContent>
               </Card>

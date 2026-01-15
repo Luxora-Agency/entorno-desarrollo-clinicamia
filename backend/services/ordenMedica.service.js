@@ -8,22 +8,79 @@ class OrdenMedicaService {
   /**
    * Obtener todas las órdenes médicas con filtros
    */
-  async getAll({ 
-    page = 1, 
-    limit = 20, 
-    paciente_id, 
-    estado, 
+  async getAll({
+    page = 1,
+    limit = 20,
+    paciente_id,
+    estado,
     cita_id,
-    admision_id 
+    admision_id,
+    doctor_id,
+    mis_ordenes, // Si es true, incluir órdenes de pacientes que el doctor ha atendido
+    tipo,
+    prioridad,
+    search
   }) {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const where = {
+    let where = {
       ...(paciente_id && { pacienteId: paciente_id }),
       ...(estado && { estado }),
       ...(cita_id && { citaId: cita_id }),
       ...(admision_id && { admisionId: admision_id }),
+      ...(tipo && { examenProcedimiento: { tipo } }),
+      ...(prioridad && { prioridad }),
     };
+
+    // Si es vista de "mis órdenes" del doctor, filtrar por:
+    // 1. Órdenes creadas por el doctor
+    // 2. Órdenes de pacientes que el doctor ha atendido (tiene citas con ellos)
+    if (doctor_id && mis_ordenes === 'true') {
+      // Obtener IDs de pacientes que el doctor ha atendido
+      const citasDelDoctor = await prisma.cita.findMany({
+        where: { doctorId: doctor_id },
+        select: { pacienteId: true },
+        distinct: ['pacienteId'],
+      });
+      const pacientesAtendidos = citasDelDoctor.map(c => c.pacienteId);
+
+      where = {
+        ...where,
+        OR: [
+          { doctorId: doctor_id }, // Órdenes creadas por el doctor
+          { pacienteId: { in: pacientesAtendidos } }, // Órdenes de sus pacientes
+        ],
+      };
+    } else if (doctor_id) {
+      // Solo órdenes creadas por el doctor
+      where.doctorId = doctor_id;
+    }
+
+    // Búsqueda por texto
+    if (search) {
+      const searchConditions = {
+        OR: [
+          { paciente: { nombre: { contains: search, mode: 'insensitive' } } },
+          { paciente: { apellido: { contains: search, mode: 'insensitive' } } },
+          { paciente: { cedula: { contains: search, mode: 'insensitive' } } },
+          { examenProcedimiento: { nombre: { contains: search, mode: 'insensitive' } } },
+          { observaciones: { contains: search, mode: 'insensitive' } },
+        ],
+      };
+
+      // Combinar con filtros existentes
+      if (where.OR) {
+        where = {
+          AND: [
+            { OR: where.OR },
+            searchConditions,
+          ],
+        };
+        delete where.OR;
+      } else {
+        where = { ...where, ...searchConditions };
+      }
+    }
 
     const [ordenes, total] = await Promise.all([
       prisma.ordenMedica.findMany({
@@ -131,21 +188,27 @@ class OrdenMedicaService {
   async create(data) {
     // Validar campos requeridos
     if (!data.paciente_id) throw new ValidationError('paciente_id es requerido');
-    if (!data.examen_procedimiento_id) throw new ValidationError('examen_procedimiento_id es requerido');
     if (!data.doctor_id) throw new ValidationError('doctor_id es requerido');
-    if (!data.precio_aplicado) throw new ValidationError('precio_aplicado es requerido');
+    // examen_procedimiento_id es requerido a menos que se proporcione descripción
+    if (!data.examen_procedimiento_id && !data.descripcion) {
+      throw new ValidationError('examen_procedimiento_id o descripcion es requerido');
+    }
+    // precio_aplicado puede ser 0 pero debe estar definido
+    if (data.precio_aplicado === undefined && !data.descripcion) {
+      throw new ValidationError('precio_aplicado es requerido');
+    }
 
     const orden = await prisma.ordenMedica.create({
       data: {
         pacienteId: data.paciente_id,
         citaId: data.cita_id || null,
         admisionId: data.admision_id || null,
-        examenProcedimientoId: data.examen_procedimiento_id,
+        examenProcedimientoId: data.examen_procedimiento_id || null,
         doctorId: data.doctor_id,
         estado: data.estado || 'Pendiente',
         prioridad: data.prioridad || 'Normal',
-        observaciones: data.observaciones || null,
-        precioAplicado: parseFloat(data.precio_aplicado),
+        observaciones: data.observaciones || data.descripcion || null,
+        precioAplicado: parseFloat(data.precio_aplicado || 0),
         fechaOrden: data.fecha_orden ? new Date(data.fecha_orden) : new Date(),
       },
       include: {
