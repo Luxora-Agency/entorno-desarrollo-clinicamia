@@ -503,6 +503,7 @@ model CategoriaExamen {
 
 model ExamenProcedimiento {
   id                  String           @id @default(uuid()) @db.Uuid
+  codigoCUPS          String?          @map("codigo_cups") @db.VarChar(20) // Código CUPS Colombia
   tipo                String           @db.VarChar(50)
   nombre              String           @db.VarChar(255)
   descripcion         String?
@@ -10293,6 +10294,7 @@ model PlantillaDoctor {
   contenido   String   @db.Text
   doctorId    String   @map("doctor_id") @db.Uuid
   activo      Boolean  @default(true)
+  esFavorito  Boolean  @default(false) @map("es_favorito")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

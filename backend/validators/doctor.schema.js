@@ -1,5 +1,25 @@
 const { z } = require('zod');
 
+// Schema para un slot de horario (ej: { start: "08:00", end: "12:00" })
+const slotSchema = z.object({
+  start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato de hora inválido (HH:MM)'),
+  end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato de hora inválido (HH:MM)'),
+}).refine(data => data.start < data.end, {
+  message: 'La hora de inicio debe ser menor que la hora de fin',
+});
+
+// Schema para un día de horario (ej: { enabled: true, slots: [...] })
+const dayScheduleSchema = z.object({
+  enabled: z.boolean().default(false),
+  slots: z.array(slotSchema).default([]),
+}).optional();
+
+// Schema para horarios completos (objeto con claves "0"-"6" para cada día de la semana)
+const horariosSchema = z.record(
+  z.string().regex(/^[0-6]$/, 'Clave de día inválida (debe ser 0-6)'),
+  dayScheduleSchema
+).optional().nullable();
+
 const doctorSchema = z.object({
   nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
   apellido: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
@@ -22,7 +42,7 @@ const doctorSchema = z.object({
 
   // Arrays/Objects
   especialidades_ids: z.array(z.string().uuid('ID de especialidad inválido')).optional(),
-  horarios: z.any().optional(), // Using z.any() for compatibility
+  horarios: horariosSchema,
 
   activo: z.boolean().optional(),
 });
@@ -48,7 +68,7 @@ const updateDoctorSchema = z.object({
   password: z.string().min(6).optional(),
 
   especialidades_ids: z.array(z.string().uuid()).optional(),
-  horarios: z.any().optional(),
+  horarios: horariosSchema,
 
   activo: z.boolean().optional(),
 });

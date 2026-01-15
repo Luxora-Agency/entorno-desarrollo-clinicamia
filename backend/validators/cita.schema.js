@@ -20,7 +20,7 @@ const baseCitaSchema = z.object({
   notas: z.string().optional().nullable(),
 
   estado: z.enum([
-    'PorAgendar', 'Programada', 'Confirmada', 'EnEspera',
+    'PorAgendar', 'PendientePago', 'Programada', 'Confirmada', 'EnEspera',
     'Atendiendo', 'Completada', 'Cancelada', 'NoAsistio'
   ]).default('Programada'),
 
@@ -66,7 +66,7 @@ const updateCitaSchema = baseCitaSchema.partial();
 
 const estadoCitaSchema = z.object({
   estado: z.enum([
-    'PorAgendar', 'Programada', 'Confirmada', 'EnEspera',
+    'PorAgendar', 'PendientePago', 'Programada', 'Confirmada', 'EnEspera',
     'Atendiendo', 'Completada', 'Cancelada', 'NoAsistio'
   ])
 });

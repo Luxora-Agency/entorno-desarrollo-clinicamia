@@ -471,67 +471,99 @@ consultasRouter.post('/finalizar', async (c) => {
 
       // 6. Guardar Prescripciones (si las hay)
       if (prescripciones && prescripciones.medicamentos && prescripciones.medicamentos.length > 0) {
-        // Crear una Prescripción (receta médica)
-        const prescripcion = await tx.prescripcion.create({
-          data: {
-            pacienteId,
-            citaId,
-            medicoId: doctorId,
-            diagnostico: prescripciones.diagnostico || '',
-            estado: 'Activa',
-            medicamentos: {
-              create: prescripciones.medicamentos.map((med) => ({
-                productoId: med.productoId,
-                dosis: med.dosis,
-                via: med.via || 'Oral',
-                frecuencia: med.frecuencia || 'Cada8Horas',
-                frecuenciaDetalle: `${med.dosis} - Vía ${med.via || 'Oral'} - ${med.frecuencia || 'Cada 8 horas'}`,
-                duracionDias: med.duracionDias ? parseInt(med.duracionDias) : null,
-                instrucciones: med.instrucciones || '',
-              })),
-            },
-          },
-          include: {
-            medicamentos: {
-              include: {
-                producto: true,
-              },
-            },
-          },
+        // Validar que todos los productoId sean UUIDs válidos
+        const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        const medicamentosValidos = prescripciones.medicamentos.filter(med => {
+          if (!med.productoId || !uuidRegex.test(med.productoId)) {
+            console.warn(`Medicamento omitido: productoId inválido (${med.productoId}) para ${med.nombre || 'sin nombre'}`);
+            return false;
+          }
+          return true;
         });
 
-        // Crear OrdenMedicamento para que farmacia pueda despachar
-        const totalOrden = prescripciones.medicamentos.reduce((sum, med) => sum + parseFloat(med.precio || 0), 0);
-        
-        const ordenMedicamento = await tx.ordenMedicamento.create({
-          data: {
-            pacienteId,
-            citaId,
-            doctorId,
-            estado: 'Pendiente',
-            observaciones: prescripciones.diagnostico || 'Orden generada desde consulta',
-            total: totalOrden,
-            items: {
-              create: prescripciones.medicamentos.map((med) => ({
-                productoId: med.productoId,
-                cantidad: 1, // Por defecto 1 unidad
-                precioUnitario: parseFloat(med.precio || 0),
-                subtotal: parseFloat(med.precio || 0),
-                indicaciones: `${med.dosis} - ${med.via || 'Oral'} - ${med.frecuencia || 'Cada 8 horas'}${med.duracionDias ? ` por ${med.duracionDias} días` : ''}`,
-              })),
-            },
-          },
-          include: {
-            items: {
-              include: {
-                producto: true,
-              },
-            },
-          },
-        });
+        if (medicamentosValidos.length === 0) {
+          console.warn('No hay medicamentos válidos para crear prescripción');
+        } else {
+          // Verificar que los productos existan en la base de datos
+          const productosIds = medicamentosValidos.map(med => med.productoId);
+          const productosExistentes = await tx.producto.findMany({
+            where: { id: { in: productosIds } },
+            select: { id: true }
+          });
+          const idsExistentes = new Set(productosExistentes.map(p => p.id));
 
-        resultados.prescripcion = prescripcion;
-        resultados.ordenMedicamento = ordenMedicamento;
+          const medicamentosConProductoValido = medicamentosValidos.filter(med => {
+            if (!idsExistentes.has(med.productoId)) {
+              console.warn(`Medicamento omitido: producto no existe (${med.productoId}) para ${med.nombre || 'sin nombre'}`);
+              return false;
+            }
+            return true;
+          });
+
+          if (medicamentosConProductoValido.length > 0) {
+            // Crear una Prescripción (receta médica)
+            const prescripcion = await tx.prescripcion.create({
+              data: {
+                pacienteId,
+                citaId,
+                medicoId: doctorId,
+                diagnostico: prescripciones.diagnostico || '',
+                estado: 'Activa',
+                medicamentos: {
+                  create: medicamentosConProductoValido.map((med) => ({
+                    productoId: med.productoId,
+                    dosis: med.dosis,
+                    via: med.via || 'Oral',
+                    frecuencia: med.frecuencia || 'Cada8Horas',
+                    frecuenciaDetalle: `${med.dosis} - Vía ${med.via || 'Oral'} - ${med.frecuencia || 'Cada 8 horas'}`,
+                    duracionDias: med.duracionDias ? parseInt(med.duracionDias) : null,
+                    instrucciones: med.instrucciones || '',
+                  })),
+                },
+              },
+              include: {
+                medicamentos: {
+                  include: {
+                    producto: true,
+                  },
+                },
+              },
+            });
+
+            // Crear OrdenMedicamento para que farmacia pueda despachar
+            const totalOrden = medicamentosConProductoValido.reduce((sum, med) => sum + parseFloat(med.precio || 0), 0);
+
+            const ordenMedicamento = await tx.ordenMedicamento.create({
+              data: {
+                pacienteId,
+                citaId,
+                doctorId,
+                estado: 'Pendiente',
+                observaciones: prescripciones.diagnostico || 'Orden generada desde consulta',
+                total: totalOrden,
+                items: {
+                  create: medicamentosConProductoValido.map((med) => ({
+                    productoId: med.productoId,
+                    cantidad: 1, // Por defecto 1 unidad
+                    precioUnitario: parseFloat(med.precio || 0),
+                    subtotal: parseFloat(med.precio || 0),
+                    indicaciones: `${med.dosis} - ${med.via || 'Oral'} - ${med.frecuencia || 'Cada 8 horas'}${med.duracionDias ? ` por ${med.duracionDias} días` : ''}`,
+                  })),
+                },
+              },
+              include: {
+                items: {
+                  include: {
+                    producto: true,
+                  },
+                },
+              },
+            });
+
+            resultados.prescripcion = prescripcion;
+            resultados.ordenMedicamento = ordenMedicamento;
+          }
+        }
       }
 
       // 7. Cambiar estado de la cita a "Completada"

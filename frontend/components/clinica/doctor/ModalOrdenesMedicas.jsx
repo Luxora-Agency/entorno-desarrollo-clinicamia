@@ -174,8 +174,8 @@ export default function ModalOrdenesMedicas({
     setLoading(true);
     try {
       const response = await apiPost('/ordenes-medicas', {
-        paciente_id: admision.paciente.id,
-        admision_id: admision.id,
+        paciente_id: admision?.paciente?.id,
+        admision_id: admision?.id,
         tipo: nuevaOrden.tipo,
         examen_procedimiento_id: nuevaOrden.examenProcedimientoId || null,
         descripcion: nuevaOrden.descripcion,
@@ -216,8 +216,8 @@ export default function ModalOrdenesMedicas({
     try {
       for (const orden of paquete.ordenes) {
         await apiPost('/ordenes-medicas', {
-          paciente_id: admision.paciente.id,
-          admision_id: admision.id,
+          paciente_id: admision?.paciente?.id,
+          admision_id: admision?.id,
           tipo: orden.tipo,
           descripcion: orden.descripcion,
           prioridad: orden.prioridad,
@@ -300,7 +300,7 @@ export default function ModalOrdenesMedicas({
 
   if (!admision) return null;
 
-  const paciente = admision.paciente;
+  const paciente = admision?.paciente;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

@@ -189,6 +189,8 @@ doctores.get('/mi-agenda', async (c) => {
 doctores.patch('/mi-agenda/horarios', async (c) => {
   try {
     const user = c.get('user');
+    console.log('[PATCH /mi-agenda/horarios] Usuario:', { id: user.id, rol: user.rol });
+
     if (user.rol !== 'DOCTOR') {
       return c.json(error('Solo doctores pueden acceder a esta ruta'), 403);
     }
@@ -196,14 +198,19 @@ doctores.patch('/mi-agenda/horarios', async (c) => {
     // Obtener el doctor asociado al usuario
     const doctorResult = await doctorService.listar({ usuarioId: user.id, limit: 1 });
     if (!doctorResult.doctores || doctorResult.doctores.length === 0) {
+      console.log('[PATCH /mi-agenda/horarios] Doctor no encontrado para usuario:', user.id);
       return c.json(error('Perfil de doctor no encontrado'), 404);
     }
 
     const doctorId = doctorResult.doctores[0].id;
     const { horarios } = await c.req.json();
+    console.log('[PATCH /mi-agenda/horarios] Guardando horarios:', { doctorId, horariosKeys: Object.keys(horarios || {}) });
+
     const result = await doctorService.actualizarHorarios(doctorId, horarios);
+    console.log('[PATCH /mi-agenda/horarios] Horarios guardados exitosamente');
     return c.json(success(result, 'Horarios actualizados exitosamente'));
   } catch (err) {
+    console.error('[PATCH /mi-agenda/horarios] Error:', err.message);
     return c.json(error(err.message), err.statusCode || 500);
   }
 });

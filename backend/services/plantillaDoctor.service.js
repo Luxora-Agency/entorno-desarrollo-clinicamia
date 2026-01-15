@@ -3,22 +3,33 @@ const prisma = require('../db/prisma');
 class PlantillaDoctorService {
   async create(data) {
     return await prisma.plantillaDoctor.create({
-      data
+      data: {
+        nombre: data.nombre,
+        descripcion: data.descripcion,
+        tipoCampo: data.tipoCampo,
+        contenido: data.contenido,
+        doctorId: data.doctorId,
+        esFavorito: data.esFavorito || false,
+      }
     });
   }
 
   async getAll(doctorId, filters = {}) {
-    const where = { 
-        activo: true,
-        doctorId: doctorId 
+    const where = {
+      activo: true,
+      doctorId: doctorId
     };
-    
+
     if (filters.tipoCampo) where.tipoCampo = filters.tipoCampo;
     if (filters.nombre) where.nombre = { contains: filters.nombre, mode: 'insensitive' };
+    if (filters.esFavorito !== undefined) where.esFavorito = filters.esFavorito;
 
     return await prisma.plantillaDoctor.findMany({
       where,
-      orderBy: { nombre: 'asc' }
+      orderBy: [
+        { esFavorito: 'desc' },
+        { createdAt: 'desc' }
+      ]
     });
   }
 
@@ -29,17 +40,34 @@ class PlantillaDoctorService {
   }
 
   async update(id, data) {
+    const updateData = {};
+    if (data.nombre !== undefined) updateData.nombre = data.nombre;
+    if (data.descripcion !== undefined) updateData.descripcion = data.descripcion;
+    if (data.tipoCampo !== undefined) updateData.tipoCampo = data.tipoCampo;
+    if (data.contenido !== undefined) updateData.contenido = data.contenido;
+    if (data.esFavorito !== undefined) updateData.esFavorito = data.esFavorito;
+
     return await prisma.plantillaDoctor.update({
       where: { id },
-      data
+      data: updateData
     });
   }
-  
+
   async delete(id) {
-      return await prisma.plantillaDoctor.update({
-          where: { id },
-          data: { activo: false }
-      });
+    return await prisma.plantillaDoctor.update({
+      where: { id },
+      data: { activo: false }
+    });
+  }
+
+  async toggleFavorite(id) {
+    const plantilla = await this.getById(id);
+    if (!plantilla) return null;
+
+    return await prisma.plantillaDoctor.update({
+      where: { id },
+      data: { esFavorito: !plantilla.esFavorito }
+    });
   }
 }
 
