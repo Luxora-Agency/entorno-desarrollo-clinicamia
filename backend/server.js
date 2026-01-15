@@ -122,6 +122,8 @@ const payments = require('./routes/payments');
 const documentosLegales = require('./routes/documentos-legales');
 // Solicitudes de Historia Clínica (admin)
 const solicitudesHC = require('./routes/solicitudes-hc');
+// Tipos de Usuario y Convenios (configuración)
+const tipoUsuarioConvenio = require('./routes/tipoUsuarioConvenio');
 // API v1 para frontend usuario (Front_Usuario_ClinicaMia)
 const apiV1 = require('./routes/api-v1');
 // Sistema de Reservas Temporales de Horarios
@@ -385,6 +387,8 @@ app.route('/activos-fijos', activosFijos);
 app.route('/dashboard-financiero', dashboardFinanciero);
 // Solicitudes de Historia Clínica (gestión admin)
 app.route('/solicitudes-hc', solicitudesHC);
+// Tipos de Usuario y Convenios (configuración)
+app.route('/tipos-usuario-convenio', tipoUsuarioConvenio);
 
 app.notFound((c) => {
   console.log(`[404] Not Found: ${c.req.method} ${c.req.url}`);

@@ -639,15 +639,14 @@ export default function ClinicalWorkspace({
       return;
     }
 
-    // SOAP es opcional para todas las consultas
-    // Si es control y no tiene SOAP, mostrar advertencia pero permitir continuar
+    // SOAP es obligatorio para consultas de control
     if (tipoConsulta === 'control' && !stepsValid.soap) {
       toast({
-        variant: 'default',
-        title: 'SOAP incompleto',
-        description: 'La nota SOAP no está completa. Puede continuar sin ella si lo desea.'
+        variant: 'destructive',
+        title: 'SOAP obligatorio',
+        description: 'Debe completar la nota SOAP (Subjetivo, Objetivo, Análisis y Plan) para finalizar la consulta de control.'
       });
-      // No retornamos, permitimos continuar
+      return;
     }
 
     // Mostrar diálogo de confirmación
@@ -1263,6 +1262,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                                 data={consultaData.prescripciones}
                                 diagnosticoConsulta={consultaData.diagnostico}
                                 pacienteId={cita.pacienteId}
+                                planManejoData={consultaData.planManejo}
                                 onChange={handlePrescripcionesChange}
                             />
                         </div>
@@ -1344,27 +1344,33 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
       </div>
       
       {/* 4. Footer Navigation */}
-      <div className="bg-white border-t p-4 flex justify-between items-center z-10">
+      <div className="bg-white border-t p-4 flex justify-between items-center z-20 relative">
         <Button
             variant="outline"
             onClick={handleBack}
             disabled={activeStep === steps[0].id}
+            className="min-w-[120px]"
         >
             <ChevronLeft className="h-4 w-4 mr-2" />
             Anterior
         </Button>
 
-        {activeStep !== steps[steps.length - 1].id ? (
-            <Button onClick={handleNext} className="bg-blue-600">
-                Siguiente
-                <ChevronRight className="h-4 w-4 ml-2" />
-            </Button>
-        ) : (
-            <Button onClick={handleFinish} className="bg-green-600 hover:bg-green-700">
-                Finalizar Consulta
-                <CheckCircle className="h-4 w-4 ml-2" />
-            </Button>
-        )}
+        {/* Spacer para evitar que el botón de IA tape los botones */}
+        <div className="flex-1" />
+
+        <div className="flex items-center gap-3 mr-20">
+          {activeStep !== steps[steps.length - 1].id ? (
+              <Button onClick={handleNext} className="bg-blue-600 min-w-[120px]">
+                  Siguiente
+                  <ChevronRight className="h-4 w-4 ml-2" />
+              </Button>
+          ) : (
+              <Button onClick={handleFinish} className="bg-green-600 hover:bg-green-700 min-w-[160px]">
+                  Finalizar Consulta
+                  <CheckCircle className="h-4 w-4 ml-2" />
+              </Button>
+          )}
+        </div>
       </div>
 
       {/* 5. AI Assistant Button */}
@@ -1421,18 +1427,20 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
             <AlertDialogTitle className="text-center text-xl">
               Finalizar y Firmar Consulta
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-center space-y-3">
-              <p>
-                Está a punto de finalizar la consulta médica de <span className="font-semibold text-gray-900">{cita?.paciente?.nombre} {cita?.paciente?.apellido}</span>
-              </p>
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
-                <div className="flex items-center gap-2 mb-1">
-                  <PenLine className="h-4 w-4" />
-                  <span className="font-medium">Firma Digital</span>
-                </div>
-                <p className="text-xs">
-                  Se generará una firma digital y la consulta quedará registrada permanentemente. Esta acción no se puede deshacer.
+            <AlertDialogDescription asChild>
+              <div className="text-center space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Está a punto de finalizar la consulta médica de <span className="font-semibold text-gray-900">{cita?.paciente?.nombre} {cita?.paciente?.apellido}</span>
                 </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <PenLine className="h-4 w-4" />
+                    <span className="font-medium">Firma Digital</span>
+                  </div>
+                  <p className="text-xs">
+                    Se generará una firma digital y la consulta quedará registrada permanentemente. Esta acción no se puede deshacer.
+                  </p>
+                </div>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>

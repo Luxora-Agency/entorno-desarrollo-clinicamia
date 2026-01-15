@@ -231,7 +231,7 @@ export function AIAssistantButton({ onClick, hasAlerts = false }) {
   return (
     <Button
       onClick={onClick}
-      className="fixed bottom-6 right-6 h-14 w-14 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-lg z-30"
+      className="fixed bottom-20 right-6 h-14 w-14 rounded-full bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 shadow-lg z-30"
     >
       <div className="relative">
         <Sparkles className="h-6 w-6 text-white" />

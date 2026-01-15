@@ -60,7 +60,7 @@ class FacturaPDFService {
       .font('Helvetica')
       .fillColor('#374151')
       .text('NIT: 901497975-7', 50, 80)
-      .text('Dirección: Cra. 5 #28-85, Ibagué, Tolima', 50, 92)
+      .text('Dirección: Avenida Ferrocarril 41-23, Ibagué, Tolima', 50, 92)
       .text('Teléfono: (608) 324 333 8555 | Cel: 3107839998', 50, 104)
       .text('Email: infoclinicamia@gmail.com', 50, 116);
 

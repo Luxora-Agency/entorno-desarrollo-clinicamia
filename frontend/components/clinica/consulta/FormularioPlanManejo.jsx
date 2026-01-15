@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { apiPost } from '@/services/api';
+import { apiPost, apiGet } from '@/services/api';
 
 import FormularioIncapacidad from './FormularioIncapacidad';
 import FormularioCertificado from './FormularioCertificado';
@@ -106,11 +106,26 @@ export default function FormularioPlanManejo({
     setShowPreview(true);
   };
 
-  // Confirma y crea la orden de enfermería
+  // Buscar producto por código CUM
+  const buscarProductoPorCUM = async (codigoCum) => {
+    try {
+      const productos = await apiGet('/productos', { search: codigoCum, activo: true, limit: 10 });
+      // Buscar coincidencia exacta de CUM
+      if (Array.isArray(productos)) {
+        return productos.find(p => p.cum === codigoCum) || productos[0] || null;
+      }
+      return null;
+    } catch (error) {
+      console.error(`Error buscando producto CUM ${codigoCum}:`, error);
+      return null;
+    }
+  };
+
+  // Confirma y crea las órdenes médicas y prescripciones para los kits
   const confirmarAplicacion = async () => {
     setCreandoOrden(true);
     try {
-      // Preparar los datos para el backend con estructura mejorada
+      // Preparar los datos de medicamentos para registro
       const medicamentosOrden = kitsSeleccionados.flatMap(kit =>
         kit.medicamentos.map(med => ({
           nombre: med.nombre,
@@ -121,39 +136,111 @@ export default function FormularioPlanManejo({
           cantidad: med.cantidad,
           via: med.via,
           precio: med.precio,
-          observaciones: `Kit: ${kit.codigo} - ${kit.nombre}`
         }))
       );
 
-      // Intentar crear la orden de enfermería en el backend
-      try {
-        await apiPost('/ordenes-enfermeria', {
-          pacienteId: paciente?.id,
-          citaId: citaId,
-          doctorId: doctorId,
-          tipoOrden: 'aplicacion_medicamentos',
-          medicamentos: medicamentosOrden,
-          kits: kitsSeleccionados.map(k => ({
-            id: k.id,
-            codigo: k.codigo,
-            nombre: k.nombre,
-            categoria: k.categoria,
-            precio: calcularPrecioKit(k)
-          })),
-          totalOrden: totalOrden,
-          estado: 'pendiente'
-        });
-      } catch (apiError) {
-        console.log('Endpoint ordenes-enfermeria no disponible, guardando localmente');
-        // Si el endpoint no existe, al menos guardamos en el estado local
+      // Crear una orden médica para cada kit seleccionado
+      const ordenesCreadas = [];
+      let erroresCreacion = 0;
+      let prescripcionCreada = null;
+
+      for (const kit of kitsSeleccionados) {
+        // Preparar descripción detallada del kit y sus medicamentos
+        const medicamentosDescripcion = kit.medicamentos
+          .map(med => `• ${med.nombre} (${med.codigoCum}) x${med.cantidad} - ${med.via}`)
+          .join('\n');
+
+        const descripcionOrden = `APLICACIÓN DE KIT: ${kit.nombre} (${kit.codigo})
+Categoría: ${kit.categoria}
+Descripción: ${kit.descripcion}
+
+Medicamentos incluidos:
+${medicamentosDescripcion}
+
+Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO')}`;
+
+        try {
+          // Crear orden médica de tipo Procedimiento (aplicación de medicamentos)
+          const precioKit = calcularPrecioKit(kit);
+          const response = await apiPost('/ordenes-medicas', {
+            paciente_id: paciente?.id,
+            cita_id: citaId,
+            doctor_id: doctorId,
+            descripcion: descripcionOrden,
+            prioridad: 'Normal',
+            estado: 'Pendiente',
+            precio_aplicado: precioKit
+          });
+
+          if (response?.data?.orden) {
+            ordenesCreadas.push(response.data.orden);
+          }
+        } catch (apiError) {
+          console.error(`Error creando orden para kit ${kit.codigo}:`, apiError);
+          erroresCreacion++;
+        }
       }
 
-      toast({
-        title: "Orden de Aplicación Creada",
-        description: `Se ha generado orden para ${kitsSeleccionados.length} kits (${medicamentosOrden.length} medicamentos).`,
-      });
+      // Crear prescripción con todos los medicamentos de los kits
+      try {
+        const medicamentosPrescripcion = [];
 
-      // Agregar los kits aplicados al estado
+        for (const med of medicamentosOrden) {
+          // Buscar el producto por código CUM
+          const producto = await buscarProductoPorCUM(med.codigoCum);
+
+          if (producto) {
+            medicamentosPrescripcion.push({
+              productoId: producto.id,
+              dosis: `${med.concentracion} x${med.cantidad}`,
+              frecuencia: 'Unica',
+              frecuenciaDetalle: 'Aplicación inmediata',
+              via: med.via,
+              duracionDias: 1,
+              cantidadTotal: med.cantidad,
+              instrucciones: `Kit: ${med.kitOrigen} (${med.kitCodigo})`
+            });
+          } else {
+            // Si no se encuentra el producto, agregar sin ID (el backend manejará el error)
+            console.warn(`Producto no encontrado para CUM: ${med.codigoCum}`);
+          }
+        }
+
+        // Solo crear prescripción si hay medicamentos encontrados
+        if (medicamentosPrescripcion.length > 0) {
+          const prescripcionResponse = await apiPost('/prescripciones', {
+            pacienteId: paciente?.id,
+            citaId: citaId,
+            medicamentos: medicamentosPrescripcion,
+            observaciones: `Prescripción generada automáticamente por aplicación de kits: ${kitsSeleccionados.map(k => k.nombre).join(', ')}`
+          });
+
+          if (prescripcionResponse?.data) {
+            prescripcionCreada = prescripcionResponse.data;
+          }
+        }
+      } catch (prescError) {
+        console.error('Error creando prescripción:', prescError);
+        // No bloquear si falla la prescripción, las órdenes ya se crearon
+      }
+
+      // Mostrar resultado
+      if (ordenesCreadas.length > 0) {
+        const prescMsg = prescripcionCreada ? ' y prescripción médica' : '';
+        toast({
+          title: "Aplicación de Medicamentos Registrada",
+          description: `Se crearon ${ordenesCreadas.length} orden(es) médica(s)${prescMsg} para ${medicamentosOrden.length} medicamentos.${erroresCreacion > 0 ? ` (${erroresCreacion} error(es))` : ''}`,
+        });
+      } else if (erroresCreacion > 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: `No se pudieron crear las órdenes médicas. Intente nuevamente.`
+        });
+        return;
+      }
+
+      // Agregar los kits aplicados al estado local
       const nuevasAplicaciones = [...itemsCreados.aplicaciones, ...kitsSeleccionados];
       setItemsCreados(prev => ({ ...prev, aplicaciones: nuevasAplicaciones }));
 
@@ -163,18 +250,20 @@ export default function FormularioPlanManejo({
           certificadosItems: itemsCreados.certificados,
           seguimientosItems: itemsCreados.seguimientos,
           aplicacionesItems: nuevasAplicaciones,
-          kitsAplicados: [] // Limpiar selección actual
+          kitsAplicados: [], // Limpiar selección actual
+          ordenesKitsCreadas: ordenesCreadas, // Pasar las órdenes creadas al padre
+          prescripcionKits: prescripcionCreada // Pasar la prescripción creada
         });
       }
 
       setKitsSeleccionados([]);
       setShowPreview(false);
     } catch (error) {
-      console.error('Error creando orden:', error);
+      console.error('Error creando órdenes:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudo crear la orden de aplicación.'
+        description: 'No se pudieron crear las órdenes de aplicación.'
       });
     } finally {
       setCreandoOrden(false);

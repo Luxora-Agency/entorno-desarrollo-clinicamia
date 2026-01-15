@@ -10,7 +10,7 @@ const { ValidationError, NotFoundError } = require('../utils/errors');
 const CLINICA_INFO = {
   nombre: 'CLINICA MIA MEDICINA INTEGRAL SAS',
   nit: '901497975-7',
-  direccion: 'Cra. 5 #28-85, Ibagué, Tolima',
+  direccion: 'Avenida Ferrocarril 41-23, Ibagué, Tolima',
   telefono: '(608) 324 333 8555',
   celular: '3107839998',
   email: 'infoclinicamia@gmail.com',

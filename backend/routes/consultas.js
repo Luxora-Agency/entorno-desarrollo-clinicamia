@@ -145,6 +145,10 @@ consultasRouter.post('/finalizar', async (c) => {
       planManejo, // Nuevo: para kits de medicamentos
     } = body;
 
+    // DEBUG: Log procedimientos recibidos
+    console.log('[CONSULTAS/FINALIZAR] Procedimientos recibidos:', JSON.stringify(procedimientos, null, 2));
+    console.log('[CONSULTAS/FINALIZAR] Total procedimientos:', procedimientos?.length || 0);
+
     // SOAP es opcional - si viene, validar que los campos no estén vacíos
     const isValidSoapField = (field) => typeof field === 'string' && field.trim().length > 0;
     const hasSoapData = soap && (isValidSoapField(soap.subjetivo) || isValidSoapField(soap.objetivo) ||
@@ -432,21 +436,34 @@ consultasRouter.post('/finalizar', async (c) => {
              const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
              const servicioIdValido = orden.servicioId && uuidRegex.test(orden.servicioId);
 
-             if (servicioIdValido) {
-               const ordenMedica = await tx.ordenMedica.create({
-                 data: {
-                   pacienteId,
-                   citaId,
-                   examenProcedimientoId: orden.servicioId,
-                   doctorId,
-                   precioAplicado: parseFloat(orden.costo) || 0,
-                   observaciones: orden.observaciones || '',
-                   estado: 'Pendiente',
-                 },
-               });
-               ordenesCreadas.push(ordenMedica);
+             // Crear OrdenMedica - con o sin examenProcedimientoId
+             // Si servicioId no es UUID (e.g., de plantillas CUPS), crear orden con descripción en observaciones
+             const ordenMedicaData = {
+               pacienteId,
+               citaId,
+               doctorId,
+               precioAplicado: parseFloat(orden.costo) || 0,
+               estado: 'Pendiente',
+             };
 
-               // Crear Cita con estado PorAgendar
+             if (servicioIdValido) {
+               ordenMedicaData.examenProcedimientoId = orden.servicioId;
+               ordenMedicaData.observaciones = orden.observaciones || '';
+             } else {
+               // Sin examenProcedimientoId, guardar descripción del servicio en observaciones
+               const descripcionBase = orden.servicioNombre || orden.descripcion || 'Orden médica';
+               ordenMedicaData.observaciones = orden.observaciones
+                 ? `${descripcionBase}\n\n${orden.observaciones}`
+                 : descripcionBase;
+             }
+
+             const ordenMedica = await tx.ordenMedica.create({
+               data: ordenMedicaData,
+             });
+             ordenesCreadas.push(ordenMedica);
+
+             // Crear Cita con estado PorAgendar (solo si hay servicioId válido)
+             if (servicioIdValido) {
                const citaPorAgendar = await tx.cita.create({
                  data: {
                    pacienteId,
@@ -459,7 +476,17 @@ consultasRouter.post('/finalizar', async (c) => {
                });
                citasCreadas.push(citaPorAgendar);
              } else {
-               console.warn(`Orden médica omitida: servicioId inválido (${orden.servicioId}) para ${orden.servicioNombre}`);
+               // Crear cita sin examenProcedimientoId para órdenes de plantillas CUPS
+               const citaPorAgendar = await tx.cita.create({
+                 data: {
+                   pacienteId,
+                   tipoCita: orden.tipo || 'Examen',
+                   costo: parseFloat(orden.costo) || 0,
+                   motivo: orden.servicioNombre || 'Orden médica',
+                   estado: 'PorAgendar',
+                 },
+               });
+               citasCreadas.push(citaPorAgendar);
              }
           }
         }
@@ -467,6 +494,10 @@ consultasRouter.post('/finalizar', async (c) => {
         resultados.ordenesMedicas = ordenesCreadas;
         resultados.citasPorAgendar = citasCreadas;
         resultados.interconsultas = interconsultasCreadas;
+
+        // DEBUG: Log órdenes médicas creadas
+        console.log('[CONSULTAS/FINALIZAR] Órdenes médicas creadas:', ordenesCreadas.length);
+        console.log('[CONSULTAS/FINALIZAR] Citas por agendar creadas:', citasCreadas.length);
       }
 
       // 6. Guardar Prescripciones (si las hay)

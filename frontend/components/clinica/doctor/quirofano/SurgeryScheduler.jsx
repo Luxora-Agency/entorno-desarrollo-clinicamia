@@ -77,7 +77,8 @@ export default function SurgeryScheduler({ open, onOpenChange, onSuccess, user }
     try {
       const res = await quirofanoService.getAll({ estado: 'Activo' });
       if (res.success) {
-        setQuirofanos(res.data || []);
+        // El API devuelve { quirofanos, total, limit, offset }
+        setQuirofanos(res.data?.quirofanos || res.data || []);
       }
     } catch (error) {
       console.error('Error loading quirofanos:', error);

@@ -73,6 +73,7 @@ import BancosModule from './contabilidad/BancosModule';
 import ComprasModule from './compras/ComprasModule';
 import SiigoConfigModule from './admin/SiigoConfigModule';
 import SolicitudesHCModule from './admin/SolicitudesHCModule';
+import TiposUsuarioConvenioModule from './TiposUsuarioConvenioModule';
 
 export default function Dashboard({ user, onLogout }) {
   const router = useRouter();
@@ -160,9 +161,29 @@ export default function Dashboard({ user, onLogout }) {
   };
 
   // Finalizar consulta y volver al dashboard
-  const handleFinishConsulta = () => {
-    setConsultaCita(null);
-    router.push('/?module=mis-citas', { scroll: false });
+  const handleFinishConsulta = async (consultaData) => {
+    try {
+      // Actualizar estado de la cita a Completada
+      const citaId = consultaData?.citaId || consultaCita?.id;
+      if (citaId) {
+        const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+        await fetch(`${apiUrl}/citas/${citaId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ estado: 'Completada' }),
+        });
+      }
+    } catch (error) {
+      console.error('Error actualizando estado de cita:', error);
+    } finally {
+      setConsultaCita(null);
+      router.push('/?module=mis-citas', { scroll: false });
+    }
   };
 
   // Función para cambiar de módulo y actualizar URL
@@ -417,6 +438,9 @@ export default function Dashboard({ user, onLogout }) {
       // Solicitudes de Historia Clínica
       case 'solicitudes-hc':
         return <SolicitudesHCModule user={user} />;
+      // Tipos de Usuario y Convenios
+      case 'tipos-usuario-convenio':
+        return <TiposUsuarioConvenioModule user={user} />;
       // Publicaciones
       case 'publicaciones':
       case 'categorias-publicaciones':

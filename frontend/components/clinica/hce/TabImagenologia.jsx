@@ -1,18 +1,21 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Eye, Scan, Image as ImageIcon, Clock, CheckCircle, AlertTriangle, XCircle, Download } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Eye, Scan, Image as ImageIcon, Clock, CheckCircle, AlertTriangle, XCircle, Download, Search, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 
 export default function TabImagenologia({ pacienteId }) {
   const [estudios, setEstudios] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedEstudio, setSelectedEstudio] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [downloadingPDF, setDownloadingPDF] = useState(false);
@@ -51,10 +54,14 @@ export default function TabImagenologia({ pacienteId }) {
     }
   };
 
-  const fetchEstudios = useCallback(async () => {
+  const fetchEstudios = useCallback(async (isRefresh = false) => {
     if (!pacienteId) return;
 
-    setLoading(true);
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -76,12 +83,29 @@ export default function TabImagenologia({ pacienteId }) {
       console.error('Error fetching estudios:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [pacienteId]);
 
   useEffect(() => {
     fetchEstudios();
   }, [fetchEstudios]);
+
+  // Filtrar estudios por búsqueda
+  const filteredEstudios = useMemo(() => {
+    if (!searchTerm) return estudios;
+    const search = searchTerm.toLowerCase();
+    return estudios.filter(estudio => {
+      const tipo = estudio.tipoEstudio || '';
+      const zona = estudio.zonaCuerpo || '';
+      const medico = `${estudio.medicoSolicitante?.nombre || ''} ${estudio.medicoSolicitante?.apellido || ''}`;
+      const codigo = estudio.codigo || '';
+      return tipo.toLowerCase().includes(search) ||
+        zona.toLowerCase().includes(search) ||
+        medico.toLowerCase().includes(search) ||
+        codigo.toLowerCase().includes(search);
+    });
+  }, [estudios, searchTerm]);
 
   const getEstadoBadge = (estado) => {
     const styles = {
@@ -121,14 +145,53 @@ export default function TabImagenologia({ pacienteId }) {
 
   // Stats
   const stats = {
-    total: estudios.length,
-    pendientes: estudios.filter((e) => e.estado === 'Pendiente').length,
-    completados: estudios.filter((e) => e.estado === 'Completado').length,
-    enProceso: estudios.filter((e) => e.estado === 'EnProceso').length,
+    total: filteredEstudios.length,
+    pendientes: filteredEstudios.filter((e) => e.estado === 'Pendiente').length,
+    completados: filteredEstudios.filter((e) => e.estado === 'Completado').length,
+    enProceso: filteredEstudios.filter((e) => e.estado === 'EnProceso').length,
   };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
+      <Card className="border-2 border-cyan-200 bg-gradient-to-r from-cyan-50 to-white">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-cyan-600 rounded-lg">
+                <Scan className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl">Estudios de Imagenología</CardTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Radiografías, TAC, Resonancias y otros estudios del paciente
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchEstudios(true)}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Actualizar
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
+
+      {/* Buscador */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <Input
+          placeholder="Buscar por tipo de estudio, zona, código o médico..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
+      </div>
+
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="border-l-4 border-l-cyan-500">
@@ -212,14 +275,21 @@ export default function TabImagenologia({ pacienteId }) {
                     </div>
                   </TableCell>
                 </TableRow>
-              ) : estudios.length === 0 ? (
+              ) : filteredEstudios.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8 text-gray-500">
-                    No hay estudios de imagenología registrados
+                    {searchTerm ? (
+                      <div className="flex flex-col items-center">
+                        <Search className="w-8 h-8 text-gray-300 mb-2" />
+                        No se encontraron resultados para "{searchTerm}"
+                      </div>
+                    ) : (
+                      'No hay estudios de imagenología registrados'
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
-                estudios.map((estudio) => (
+                filteredEstudios.map((estudio) => (
                   <TableRow key={estudio.id}>
                     <TableCell className="font-mono text-xs">
                       {estudio.codigo || estudio.id.substring(0, 8)}

@@ -23,41 +23,56 @@ const contactoEmergenciaSchema = z.object({
   parentesco: z.string().optional().transform(emptyStringToNull),
 });
 
+const acompananteSchema = z.object({
+  nombre: z.string().min(1, 'El nombre del acompañante es requerido'),
+  telefono: z.string().min(1, 'El teléfono del acompañante es requerido'),
+});
+
+const responsableSchema = z.object({
+  nombre: z.string().min(1, 'El nombre del responsable es requerido'),
+  telefono: z.string().min(1, 'El teléfono del responsable es requerido'),
+  parentesco: z.string().min(1, 'El parentesco del responsable es requerido'),
+});
+
 const createPacienteSchema = z.object({
   // Datos Personales (requeridos)
   nombre: z.string().min(1, 'El nombre es requerido'),
   apellido: z.string().min(1, 'El apellido es requerido'),
   tipo_documento: z.string().min(1, 'El tipo de documento es requerido'),
   cedula: z.string().min(3, 'El número de documento debe tener al menos 3 caracteres'),
+  lugar_expedicion: z.string().min(1, 'El lugar de expedición es requerido'),
 
-  // Datos Personales (opcionales)
-  fecha_nacimiento: z.string().optional().or(z.null()).transform(parseDate),
-  genero: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  estado_civil: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  // Datos Personales (requeridos)
+  fecha_nacimiento: z.string().min(1, 'La fecha de nacimiento es requerida').transform(parseDate),
+  genero: z.string().min(1, 'El género biológico es requerido'),
+  identidad_genero: z.string().min(1, 'La identidad de género es requerida'),
+  etnia: z.string().min(1, 'La etnia es requerida'),
+  preferencia_llamado: z.string().min(1, 'La preferencia de llamado es requerida'),
+  estado_civil: z.string().min(1, 'El estado civil es requerido'),
 
-  // Ubicación
+  // Ubicación (requeridos)
   pais_nacimiento: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  departamento: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  municipio: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  barrio: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  direccion: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  departamento: z.string().min(1, 'El departamento es requerido'),
+  municipio: z.string().min(1, 'El municipio es requerido'),
+  barrio: z.string().min(1, 'El barrio es requerido'),
+  direccion: z.string().min(1, 'La dirección es requerida'),
+  zona: z.string().optional().or(z.null()).transform(emptyStringToNull),
 
-  // Contacto
-  telefono: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  email: z.string().optional().or(z.null()).transform((val) => {
-    if (!val || val === '') return null;
-    // Validar email solo si hay valor
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(val) ? val : null;
-  }),
+  // Contacto (requeridos)
+  telefono: z.string().min(1, 'El teléfono es requerido'),
+  email: z.string().min(1, 'El correo es requerido').email('Email inválido'),
 
   // Contactos de Emergencia
   contactos_emergencia: z.array(contactoEmergenciaSchema).optional().or(z.null()),
 
-  // Aseguramiento
-  eps: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  regimen: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  tipo_afiliacion: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  // Acompañante y Responsable (requeridos)
+  acompanante: acompananteSchema,
+  responsable: responsableSchema,
+
+  // Aseguramiento (requeridos)
+  eps: z.string().min(1, 'La EPS es requerida'),
+  regimen: z.string().min(1, 'El régimen es requerido'),
+  tipo_afiliacion: z.string().min(1, 'El tipo de afiliación es requerido'),
   nivel_sisben: z.string().optional().or(z.null()).transform(emptyStringToNull),
   numero_autorizacion: z.string().optional().or(z.null()).transform(emptyStringToNull),
   fecha_afiliacion: z.string().optional().or(z.null()).transform(parseDate),
@@ -67,7 +82,7 @@ const createPacienteSchema = z.object({
 
   // Información Demográfica y Laboral
   ocupacion: z.string().optional().or(z.null()).transform(emptyStringToNull),
-  nivel_educacion: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  nivel_educacion: z.string().min(1, 'El nivel de educación es requerido'),
   empleador_actual: z.string().optional().or(z.null()).transform(emptyStringToNull),
   tipo_usuario: z.string().optional().or(z.null()).transform(emptyStringToNull),
 

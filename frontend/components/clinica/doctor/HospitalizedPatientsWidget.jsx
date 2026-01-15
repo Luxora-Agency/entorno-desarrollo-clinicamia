@@ -52,7 +52,7 @@ export default function HospitalizedPatientsWidget({
 
       try {
         const token = localStorage.getItem('token');
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
         const response = await fetch(
           `${apiUrl}/admisiones/doctor/${doctorId}?estado=Activa&limit=${maxItems + 1}`,

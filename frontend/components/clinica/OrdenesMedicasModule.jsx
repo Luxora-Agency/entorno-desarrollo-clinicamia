@@ -930,11 +930,16 @@ export default function OrdenesMedicasModule({ user }) {
                       </TableCell>
                       <TableCell>
                         <p className="font-medium text-gray-900 max-w-xs truncate">
-                          {orden.examenProcedimiento?.nombre || orden.descripcion || 'N/A'}
+                          {orden.examenProcedimiento?.nombre || orden.observaciones?.split('\n')[0] || 'N/A'}
                         </p>
-                        {orden.observaciones && (
+                        {orden.examenProcedimiento && orden.observaciones && (
                           <p className="text-xs text-gray-500 truncate max-w-xs">
                             {orden.observaciones}
+                          </p>
+                        )}
+                        {!orden.examenProcedimiento && orden.observaciones?.includes('\n') && (
+                          <p className="text-xs text-gray-500 truncate max-w-xs">
+                            {orden.observaciones.split('\n').slice(1).join('\n').trim()}
                           </p>
                         )}
                       </TableCell>
@@ -1091,7 +1096,7 @@ export default function OrdenesMedicasModule({ user }) {
 
                   {/* Descripción */}
                   <p className="text-sm text-gray-900 font-medium mb-3 line-clamp-2">
-                    {orden.examenProcedimiento?.nombre || orden.descripcion || 'Sin descripción'}
+                    {orden.examenProcedimiento?.nombre || orden.observaciones?.split('\n')[0] || 'Sin descripción'}
                   </p>
 
                   {/* Badges */}
@@ -1511,7 +1516,7 @@ export default function OrdenesMedicasModule({ user }) {
               <div className="p-4 border rounded-lg">
                 <Label className="text-xs text-gray-500">Examen / Procedimiento</Label>
                 <p className="font-semibold text-lg">
-                  {selectedOrden.examenProcedimiento?.nombre || selectedOrden.descripcion || 'N/A'}
+                  {selectedOrden.examenProcedimiento?.nombre || selectedOrden.observaciones?.split('\n')[0] || 'N/A'}
                 </p>
                 {selectedOrden.examenProcedimiento?.codigo && (
                   <p className="text-sm text-gray-500">

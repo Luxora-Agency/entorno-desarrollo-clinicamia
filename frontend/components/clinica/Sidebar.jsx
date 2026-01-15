@@ -1738,6 +1738,24 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                       <span>Solicitudes HC</span>
                     </button>
                   )}
+
+                  {/* Tipos de Usuario y Convenios - Admin/Superadmin */}
+                  {(userRole === 'superadmin' || userRole === 'admin') && (
+                    <button
+                      onClick={() => {
+                        setActiveModule('tipos-usuario-convenio');
+                        setIsOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                        activeModule === 'tipos-usuario-convenio'
+                          ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md'
+                          : 'text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>Tipos Usuario</span>
+                    </button>
+                  )}
                 </div>
               )}
 

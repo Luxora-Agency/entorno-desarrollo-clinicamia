@@ -65,7 +65,7 @@ class ResumenAtencionPdfService {
       nombre: 'CLINICA MIA MEDICINA INTEGRAL SAS',
       nit: '901497975-7',
       codigoHabilitacion: '7300103424',
-      direccion: 'Cra. 5 #28-85',
+      direccion: 'Avenida Ferrocarril 41-23',
       ciudad: 'Ibagué',
       departamento: 'Tolima',
       telefono: '(608) 324 333 8555',

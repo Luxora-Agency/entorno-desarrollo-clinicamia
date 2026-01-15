@@ -428,7 +428,7 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
                     {sistema.titulo}
                     {tieneAlteracion && (
                       <span className="ml-auto text-xs bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded">
-                        Alterado
+                        Con hallazgos
                       </span>
                     )}
                   </Label>

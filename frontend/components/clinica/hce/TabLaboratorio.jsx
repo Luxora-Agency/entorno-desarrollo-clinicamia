@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 import {
   TestTubes,
   Clock,
@@ -23,12 +24,16 @@ import {
   Activity,
   TrendingUp,
   TrendingDown,
-  Minus
+  Minus,
+  Search,
+  RefreshCw
 } from 'lucide-react';
 
 export default function TabLaboratorio({ pacienteId, admisionId, user }) {
   const [ordenes, setOrdenes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedOrden, setSelectedOrden] = useState(null);
   const [showResultsModal, setShowResultsModal] = useState(false);
 
@@ -38,9 +43,13 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
     }
   }, [pacienteId]);
 
-  const loadOrdenes = async () => {
+  const loadOrdenes = async (isRefresh = false) => {
     try {
-      setLoading(true);
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
@@ -64,8 +73,23 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
       console.error('Error cargando órdenes de laboratorio:', error);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
+
+  // Filtrar órdenes por búsqueda
+  const filteredOrdenes = useMemo(() => {
+    if (!searchTerm) return ordenes;
+    const search = searchTerm.toLowerCase();
+    return ordenes.filter(orden => {
+      const nombre = orden.examenProcedimiento?.nombre || orden.observaciones || '';
+      const descripcion = orden.examenProcedimiento?.descripcion || '';
+      const doctor = `${orden.doctor?.nombre || ''} ${orden.doctor?.apellido || ''}`;
+      return nombre.toLowerCase().includes(search) ||
+        descripcion.toLowerCase().includes(search) ||
+        doctor.toLowerCase().includes(search);
+    });
+  }, [ordenes, searchTerm]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -146,10 +170,10 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
   };
 
   const stats = {
-    total: ordenes.length,
-    pendientes: ordenes.filter(o => o.estado === 'Pendiente').length,
-    enProceso: ordenes.filter(o => o.estado === 'EnProceso').length,
-    completadas: ordenes.filter(o => o.estado === 'Completada').length,
+    total: filteredOrdenes.length,
+    pendientes: filteredOrdenes.filter(o => o.estado === 'Pendiente').length,
+    enProceso: filteredOrdenes.filter(o => o.estado === 'EnProceso').length,
+    completadas: filteredOrdenes.filter(o => o.estado === 'Completada').length,
   };
 
   return (
@@ -157,19 +181,41 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
       {/* Header */}
       <Card className="border-2 border-teal-200 bg-gradient-to-r from-teal-50 to-white">
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-teal-600 rounded-lg">
-              <TestTubes className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-teal-600 rounded-lg">
+                <TestTubes className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <CardTitle className="text-2xl">Resultados de Laboratorio</CardTitle>
+                <p className="text-sm text-gray-600 mt-1">
+                  Historial de exámenes y resultados de laboratorio del paciente
+                </p>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-2xl">Resultados de Laboratorio</CardTitle>
-              <p className="text-sm text-gray-600 mt-1">
-                Historial de exámenes y resultados de laboratorio del paciente
-              </p>
-            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => loadOrdenes(true)}
+              disabled={refreshing}
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Actualizar
+            </Button>
           </div>
         </CardHeader>
       </Card>
+
+      {/* Buscador */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+        <Input
+          placeholder="Buscar por nombre del examen, descripción o médico..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-10"
+        />
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -232,15 +278,24 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
             </div>
           </CardContent>
         </Card>
-      ) : ordenes.length === 0 ? (
+      ) : filteredOrdenes.length === 0 ? (
         <Card>
           <CardContent className="p-6">
             <div className="text-center py-12">
-              <TestTubes className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-600 mb-2">No hay exámenes de laboratorio registrados</p>
-              <p className="text-sm text-gray-500">
-                Los exámenes de laboratorio se ordenan durante las consultas médicas
-              </p>
+              {searchTerm ? (
+                <>
+                  <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2">No se encontraron resultados para "{searchTerm}"</p>
+                </>
+              ) : (
+                <>
+                  <TestTubes className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2">No hay exámenes de laboratorio registrados</p>
+                  <p className="text-sm text-gray-500">
+                    Los exámenes de laboratorio se ordenan durante las consultas médicas
+                  </p>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -260,7 +315,7 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {ordenes.map((orden) => (
+                {filteredOrdenes.map((orden) => (
                   <TableRow key={orden.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div className="flex items-start gap-3">

@@ -15,7 +15,7 @@ import epsData from '@/data/eps.json';
 import regimenesData from '@/data/regimenes.json';
 import colombiaData from '@/data/colombia.json';
 import paisesData from '@/data/paises.json';
-import { ESTADO_CIVIL, NIVEL_EDUCACION, TIPO_USUARIO, ARL_COLOMBIA } from '@/constants/pacientes';
+import { ESTADO_CIVIL, NIVEL_EDUCACION, ARL_COLOMBIA } from '@/constants/pacientes';
 import SuccessModal from './SuccessModal';
 import { pacienteFormSchema } from '@/schemas/paciente.schema';
 
@@ -28,6 +28,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   const [documentos, setDocumentos] = useState([]);
   const [uploadingDocuments, setUploadingDocuments] = useState(false);
   const [municipios, setMunicipios] = useState([]);
+  const [tiposUsuarioConvenio, setTiposUsuarioConvenio] = useState([]);
   
   // Estado para inputs de tags
   const [inputValues, setInputValues] = useState({
@@ -44,8 +45,14 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
       apellido: '',
       tipoDocumento: '',
       cedula: '',
+      lugarExpedicion: '',
       fechaNacimiento: '',
+      edad: null,
       genero: '',
+      identidadGenero: '',
+      otraIdentidadGenero: '',
+      etnia: '',
+      preferenciaLlamado: '',
       otroGenero: '',
       estadoCivil: '',
       ocupacion: '',
@@ -54,9 +61,12 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
       municipio: '',
       barrio: '',
       direccion: '',
+      zona: '',
       telefono: '',
       email: '',
       contactosEmergencia: [{ nombre: '', telefono: '', parentesco: '' }],
+      acompanante: { nombre: '', telefono: '' },
+      responsable: { nombre: '', telefono: '', parentesco: '' },
       nivelEducacion: '',
       empleadorActual: '',
       eps: '',
@@ -95,6 +105,24 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   const peso = watch('peso');
   const altura = watch('altura');
   const genero = watch('genero');
+  const identidadGenero = watch('identidadGenero');
+  const fechaNacimiento = watch('fechaNacimiento');
+
+  // Calcular edad cuando cambia la fecha de nacimiento
+  useEffect(() => {
+    if (fechaNacimiento) {
+      const hoy = new Date();
+      const nacimiento = new Date(fechaNacimiento);
+      let edad = hoy.getFullYear() - nacimiento.getFullYear();
+      const mes = hoy.getMonth() - nacimiento.getMonth();
+      if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
+        edad--;
+      }
+      setValue('edad', edad >= 0 ? edad : null);
+    } else {
+      setValue('edad', null);
+    }
+  }, [fechaNacimiento, setValue]);
 
   // Cargar municipios cuando cambia departamento
   useEffect(() => {
@@ -105,6 +133,37 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
       setMunicipios([]);
     }
   }, [departamento]);
+
+  // Cargar tipos de usuario y convenios desde la API
+  useEffect(() => {
+    const loadTiposUsuario = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const response = await fetch(`${apiUrl}/tipos-usuario-convenio`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (data.success && data.data) {
+          setTiposUsuarioConvenio(data.data);
+        }
+      } catch (error) {
+        console.error('Error loading tipos usuario:', error);
+      }
+    };
+    loadTiposUsuario();
+  }, []);
+
+  // Auto-rellenar convenio cuando cambia el tipo de usuario
+  const tipoUsuarioSeleccionado = watch('tipoUsuario');
+  useEffect(() => {
+    if (tipoUsuarioSeleccionado && tiposUsuarioConvenio.length > 0) {
+      const tipoEncontrado = tiposUsuarioConvenio.find(t => t.nombre === tipoUsuarioSeleccionado);
+      if (tipoEncontrado) {
+        setValue('convenio', tipoEncontrado.codigoConvenio);
+      }
+    }
+  }, [tipoUsuarioSeleccionado, tiposUsuarioConvenio, setValue]);
 
   // Cargar datos al editar
   useEffect(() => {
@@ -201,9 +260,9 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   }, [editingPaciente]); // Removido 'form' de las dependencias para evitar re-renders infinitos
 
   const steps = [
-    { number: 1, title: 'Información Básica', icon: User, fields: ['nombre', 'apellido', 'tipoDocumento', 'cedula', 'fechaNacimiento', 'departamento', 'municipio', 'barrio', 'direccion'] },
-    { number: 2, title: 'Contacto y Emergencias', icon: Phone, fields: ['telefono', 'email', 'contactosEmergencia'] },
-    { number: 3, title: 'Aseguramiento en Salud', icon: Shield, fields: [] }, // Optional mostly
+    { number: 1, title: 'Información Básica', icon: User, fields: ['nombre', 'apellido', 'tipoDocumento', 'cedula', 'lugarExpedicion', 'fechaNacimiento', 'genero', 'identidadGenero', 'etnia', 'preferenciaLlamado', 'estadoCivil', 'departamento', 'municipio', 'barrio', 'direccion'] },
+    { number: 2, title: 'Contacto y Emergencias', icon: Phone, fields: ['telefono', 'email', 'contactosEmergencia', 'acompanante', 'responsable', 'nivelEducacion'] },
+    { number: 3, title: 'Aseguramiento en Salud', icon: Shield, fields: ['eps', 'regimen', 'tipoAfiliacion'] },
     { number: 4, title: 'Información Médica', icon: Activity, fields: ['tipoSangre'] },
     { number: 5, title: 'Documentos', icon: FileText, fields: [] },
   ];
@@ -325,8 +384,12 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         apellido: data.apellido,
         tipo_documento: data.tipoDocumento,
         cedula: data.cedula,
+        lugar_expedicion: data.lugarExpedicion,
         fecha_nacimiento: data.fechaNacimiento || null,
         genero: data.genero === 'Otro' ? data.otroGenero : data.genero,
+        identidad_genero: data.identidadGenero === 'Otro' ? data.otraIdentidadGenero : data.identidadGenero,
+        etnia: data.etnia,
+        preferencia_llamado: data.preferenciaLlamado,
         estado_civil: data.estadoCivil || null,
         ocupacion: data.ocupacion || null,
         pais_nacimiento: data.paisNacimiento || null,
@@ -334,9 +397,12 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         municipio: data.municipio || null,
         barrio: data.barrio || null,
         direccion: data.direccion || null,
+        zona: data.zona || null,
         telefono: data.telefono || null,
         email: data.email || null,
         contactos_emergencia: data.contactosEmergencia?.filter(c => c.nombre && c.telefono) || null,
+        acompanante: data.acompanante,
+        responsable: data.responsable,
         nivel_educacion: data.nivelEducacion || null,
         empleador_actual: data.empleadorActual || null,
         eps: data.eps || null,
@@ -531,8 +597,29 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                       </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Número de Documento *</Label>
-                        <Input {...register('cedula')} className={`h-11 mt-2 ${errors.cedula ? 'border-red-500' : ''}`} placeholder="1234567890" />
+                        <Input
+                          {...register('cedula')}
+                          className={`h-11 mt-2 ${errors.cedula ? 'border-red-500' : ''}`}
+                          placeholder="1234567890"
+                          inputMode="numeric"
+                          onKeyDown={(e) => {
+                            if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+                              e.preventDefault();
+                            }
+                          }}
+                          onPaste={(e) => {
+                            const pastedData = e.clipboardData.getData('text');
+                            if (!/^\d+$/.test(pastedData)) {
+                              e.preventDefault();
+                            }
+                          }}
+                        />
                         {errors.cedula && <p className="text-xs text-red-500 mt-1">{errors.cedula.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Lugar de Expedición *</Label>
+                        <Input {...register('lugarExpedicion')} className={`h-11 mt-2 ${errors.lugarExpedicion ? 'border-red-500' : ''}`} placeholder="Ciudad donde se expidió el documento" />
+                        {errors.lugarExpedicion && <p className="text-xs text-red-500 mt-1">{errors.lugarExpedicion.message}</p>}
                       </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Fecha de Nacimiento *</Label>
@@ -540,13 +627,22 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         {errors.fechaNacimiento && <p className="text-xs text-red-500 mt-1">{errors.fechaNacimiento.message}</p>}
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Género Biológico</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Edad</Label>
+                        <Input
+                          value={watch('edad') !== null ? `${watch('edad')} años` : ''}
+                          readOnly
+                          className="h-11 mt-2 bg-gray-100 cursor-not-allowed"
+                          placeholder="Se calcula automáticamente"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Género Biológico *</Label>
                         <Controller
                           name="genero"
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="h-11 mt-2">
+                              <SelectTrigger className={`h-11 mt-2 ${errors.genero ? 'border-red-500' : ''}`}>
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -557,6 +653,68 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                             </Select>
                           )}
                         />
+                        {errors.genero && <p className="text-xs text-red-500 mt-1">{errors.genero.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Identidad de Género *</Label>
+                        <Controller
+                          name="identidadGenero"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className={`h-11 mt-2 ${errors.identidadGenero ? 'border-red-500' : ''}`}>
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Cisgénero">Cisgénero</SelectItem>
+                                <SelectItem value="Transgénero">Transgénero</SelectItem>
+                                <SelectItem value="No binario">No binario</SelectItem>
+                                <SelectItem value="Género fluido">Género fluido</SelectItem>
+                                <SelectItem value="Prefiero no decir">Prefiero no decir</SelectItem>
+                                <SelectItem value="Otro">Otro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.identidadGenero && <p className="text-xs text-red-500 mt-1">{errors.identidadGenero.message}</p>}
+                      </div>
+                      {identidadGenero === 'Otro' && (
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-700">Especifique Identidad *</Label>
+                          <Input {...register('otraIdentidadGenero')} className={`h-11 mt-2 ${errors.otraIdentidadGenero ? 'border-red-500' : ''}`} placeholder="Especifique su identidad de género" />
+                          {errors.otraIdentidadGenero && <p className="text-xs text-red-500 mt-1">{errors.otraIdentidadGenero.message}</p>}
+                        </div>
+                      )}
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Etnia *</Label>
+                        <Controller
+                          name="etnia"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className={`h-11 mt-2 ${errors.etnia ? 'border-red-500' : ''}`}>
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Mestizo">Mestizo</SelectItem>
+                                <SelectItem value="Blanco">Blanco</SelectItem>
+                                <SelectItem value="Afrocolombiano">Afrocolombiano</SelectItem>
+                                <SelectItem value="Indígena">Indígena</SelectItem>
+                                <SelectItem value="Raizal">Raizal</SelectItem>
+                                <SelectItem value="Palenquero">Palenquero</SelectItem>
+                                <SelectItem value="Rom/Gitano">Rom/Gitano</SelectItem>
+                                <SelectItem value="Otro">Otro</SelectItem>
+                                <SelectItem value="Prefiero no decir">Prefiero no decir</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.etnia && <p className="text-xs text-red-500 mt-1">{errors.etnia.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Preferencia de Llamado *</Label>
+                        <Input {...register('preferenciaLlamado')} className={`h-11 mt-2 ${errors.preferenciaLlamado ? 'border-red-500' : ''}`} placeholder="¿Cómo prefiere que lo llamen?" />
+                        {errors.preferenciaLlamado && <p className="text-xs text-red-500 mt-1">{errors.preferenciaLlamado.message}</p>}
                       </div>
                       {genero === 'Otro' && (
                         <div className="md:col-span-2">
@@ -566,13 +724,13 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         </div>
                       )}
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Estado Civil</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Estado Civil *</Label>
                         <Controller
                           name="estadoCivil"
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="h-11 mt-2">
+                              <SelectTrigger className={`h-11 mt-2 ${errors.estadoCivil ? 'border-red-500' : ''}`}>
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -583,6 +741,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                             </Select>
                           )}
                         />
+                        {errors.estadoCivil && <p className="text-xs text-red-500 mt-1">{errors.estadoCivil.message}</p>}
                       </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Ocupación</Label>
@@ -696,10 +855,28 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         <Input {...register('barrio')} className={`h-11 mt-2 ${errors.barrio ? 'border-red-500' : ''}`} placeholder="Nombre del barrio" />
                         {errors.barrio && <p className="text-xs text-red-500 mt-1">{errors.barrio.message}</p>}
                       </div>
-                      <div className="md:col-span-2">
+                      <div>
                         <Label className="text-sm font-semibold text-gray-700">Dirección Completa *</Label>
                         <Input {...register('direccion')} className={`h-11 mt-2 ${errors.direccion ? 'border-red-500' : ''}`} placeholder="Calle 123 #45-67" />
                         {errors.direccion && <p className="text-xs text-red-500 mt-1">{errors.direccion.message}</p>}
+                      </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Zona</Label>
+                        <Controller
+                          name="zona"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className="h-11 mt-2">
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Urbana">Urbana</SelectItem>
+                                <SelectItem value="Rural">Rural</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
                       </div>
                     </div>
                   </div>
@@ -721,7 +898,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         {errors.telefono && <p className="text-xs text-red-500 mt-1">{errors.telefono.message}</p>}
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Correo Electrónico</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Correo Electrónico *</Label>
                         <Input type="email" {...register('email')} className={`h-11 mt-2 ${errors.email ? 'border-red-500' : ''}`} placeholder="correo@ejemplo.com" />
                         {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email.message}</p>}
                       </div>
@@ -793,17 +970,90 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                     )}
                   </div>
 
+                  {/* Acompañante */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <User className="w-5 h-5 text-blue-600" />
+                      <h3 className="text-xl font-bold text-gray-900">Acompañante *</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">Persona que acompaña al paciente a sus citas.</p>
+
+                    <div className="border-2 border-blue-200 rounded-xl p-4 bg-blue-50">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-xs font-semibold text-gray-700">Nombre *</Label>
+                          <Input
+                            {...register('acompanante.nombre')}
+                            className={`h-10 mt-1 bg-white ${errors.acompanante?.nombre ? 'border-red-500' : ''}`}
+                            placeholder="Nombre completo"
+                          />
+                          {errors.acompanante?.nombre && <p className="text-xs text-red-500 mt-1">{errors.acompanante.nombre.message}</p>}
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-gray-700">Teléfono *</Label>
+                          <Input
+                            {...register('acompanante.telefono')}
+                            className={`h-10 mt-1 bg-white ${errors.acompanante?.telefono ? 'border-red-500' : ''}`}
+                            placeholder="+57 300..."
+                          />
+                          {errors.acompanante?.telefono && <p className="text-xs text-red-500 mt-1">{errors.acompanante.telefono.message}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Responsable */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Shield className="w-5 h-5 text-purple-600" />
+                      <h3 className="text-xl font-bold text-gray-900">Responsable *</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">Persona responsable del paciente (puede ser el mismo acompañante).</p>
+
+                    <div className="border-2 border-purple-200 rounded-xl p-4 bg-purple-50">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <Label className="text-xs font-semibold text-gray-700">Nombre *</Label>
+                          <Input
+                            {...register('responsable.nombre')}
+                            className={`h-10 mt-1 bg-white ${errors.responsable?.nombre ? 'border-red-500' : ''}`}
+                            placeholder="Nombre completo"
+                          />
+                          {errors.responsable?.nombre && <p className="text-xs text-red-500 mt-1">{errors.responsable.nombre.message}</p>}
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-gray-700">Teléfono *</Label>
+                          <Input
+                            {...register('responsable.telefono')}
+                            className={`h-10 mt-1 bg-white ${errors.responsable?.telefono ? 'border-red-500' : ''}`}
+                            placeholder="+57 300..."
+                          />
+                          {errors.responsable?.telefono && <p className="text-xs text-red-500 mt-1">{errors.responsable.telefono.message}</p>}
+                        </div>
+                        <div>
+                          <Label className="text-xs font-semibold text-gray-700">Parentesco *</Label>
+                          <Input
+                            {...register('responsable.parentesco')}
+                            className={`h-10 mt-1 bg-white ${errors.responsable?.parentesco ? 'border-red-500' : ''}`}
+                            placeholder="Ej: Padre/Madre, Tutor"
+                          />
+                          {errors.responsable?.parentesco && <p className="text-xs text-red-500 mt-1">{errors.responsable.parentesco.message}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div>
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Información Adicional</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Nivel de Educación</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Nivel de Educación *</Label>
                         <Controller
                           name="nivelEducacion"
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="h-11 mt-2">
+                              <SelectTrigger className={`h-11 mt-2 ${errors.nivelEducacion ? 'border-red-500' : ''}`}>
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -814,6 +1064,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                             </Select>
                           )}
                         />
+                        {errors.nivelEducacion && <p className="text-xs text-red-500 mt-1">{errors.nivelEducacion.message}</p>}
                       </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Empleador Actual</Label>
@@ -831,32 +1082,35 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Aseguramiento en Salud</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">EPS Aseguradora</Label>
+                        <Label className="text-sm font-semibold text-gray-700">EPS Aseguradora *</Label>
                         <Controller
                           name="eps"
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="h-11 mt-2">
+                              <SelectTrigger className={`h-11 mt-2 ${errors.eps ? 'border-red-500' : ''}`}>
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {epsData.map(eps => (
-                                  <SelectItem key={eps} value={eps}>{eps}</SelectItem>
+                                {epsData.filter(eps => eps.codigo && eps.nombre_entidad).map(eps => (
+                                  <SelectItem key={eps.codigo} value={`${eps.codigo} - ${eps.nombre_entidad}`}>
+                                    {eps.codigo} - {eps.nombre_entidad}
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
                           )}
                         />
+                        {errors.eps && <p className="text-xs text-red-500 mt-1">{errors.eps.message}</p>}
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Régimen de Afiliación</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Régimen de Afiliación *</Label>
                         <Controller
                           name="regimen"
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="h-11 mt-2">
+                              <SelectTrigger className={`h-11 mt-2 ${errors.regimen ? 'border-red-500' : ''}`}>
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -867,15 +1121,16 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                             </Select>
                           )}
                         />
+                        {errors.regimen && <p className="text-xs text-red-500 mt-1">{errors.regimen.message}</p>}
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Tipo de Afiliación</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Tipo de Afiliación *</Label>
                         <Controller
                           name="tipoAfiliacion"
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="h-11 mt-2">
+                              <SelectTrigger className={`h-11 mt-2 ${errors.tipoAfiliacion ? 'border-red-500' : ''}`}>
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -885,6 +1140,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                             </Select>
                           )}
                         />
+                        {errors.tipoAfiliacion && <p className="text-xs text-red-500 mt-1">{errors.tipoAfiliacion.message}</p>}
                       </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Nivel SISBEN IV</Label>
@@ -915,17 +1171,26 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
-                                {TIPO_USUARIO.map(tipo => (
-                                  <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
-                                ))}
+                                {tiposUsuarioConvenio.length > 0 ? (
+                                  tiposUsuarioConvenio.map(tipo => (
+                                    <SelectItem key={tipo.id} value={tipo.nombre}>{tipo.nombre}</SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="" disabled>No hay tipos configurados</SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                           )}
                         />
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Convenio</Label>
-                        <Input {...register('convenio')} className="h-11 mt-2" />
+                        <Label className="text-sm font-semibold text-gray-700">Código de Convenio</Label>
+                        <Input
+                          {...register('convenio')}
+                          className="h-11 mt-2 bg-gray-50"
+                          readOnly
+                          placeholder="Se auto-completa al seleccionar tipo de usuario"
+                        />
                       </div>
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">ARL</Label>

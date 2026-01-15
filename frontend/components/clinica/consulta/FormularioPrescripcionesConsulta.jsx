@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
@@ -13,13 +13,67 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { apiGet } from '@/services/api';
 
-export default function FormularioPrescripcionesConsulta({ onChange, data, diagnosticoConsulta, pacienteId }) {
+export default function FormularioPrescripcionesConsulta({ onChange, data, diagnosticoConsulta, pacienteId, planManejoData }) {
   const { toast } = useToast();
   const [quiereAgregar, setQuiereAgregar] = useState(data !== null && data !== undefined);
   const [formData, setFormData] = useState(data || {
     diagnostico: '',
     medicamentos: [],
   });
+
+  // Track the count of processed kits to detect new additions
+  const lastKitCountRef = useRef(0);
+
+  // Sync kit medications from planManejoData when new kits are added
+  useEffect(() => {
+    const aplicaciones = planManejoData?.aplicacionesItems || [];
+    const currentCount = aplicaciones.length;
+    const previousCount = lastKitCountRef.current;
+
+    // Only process if new kits were added (count increased)
+    if (currentCount <= previousCount) {
+      lastKitCountRef.current = currentCount;
+      return;
+    }
+
+    // Get only the newly added kits (slice from previous count)
+    const newKits = aplicaciones.slice(previousCount);
+    lastKitCountRef.current = currentCount;
+
+    if (newKits.length === 0) return;
+
+    // Create medications from new kits only
+    const kitMedicamentos = newKits.flatMap(kit =>
+      kit.medicamentos?.map(med => ({
+        nombre: med.nombre,
+        dosis: med.concentracion,
+        frecuencia: 'Unica',
+        via: med.via,
+        cantidad: med.cantidad,
+        duracion: '1 día',
+        instrucciones: `Aplicación de Kit: ${kit.nombre} (${kit.codigo})`,
+        esDeKit: true,
+        kitOrigen: kit.codigo
+      })) || []
+    );
+
+    if (kitMedicamentos.length === 0) return;
+
+    // Update form data with new medications
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        medicamentos: [...prev.medicamentos, ...kitMedicamentos]
+      };
+      // Notify parent after state update via setTimeout
+      setTimeout(() => onChange(newData, true), 0);
+      return newData;
+    });
+
+    // Auto-expand form
+    setQuiereAgregar(true);
+
+  }, [planManejoData?.aplicacionesItems?.length]);
 
   // Auto-fill diagnosis from consultation when available
   useEffect(() => {
@@ -348,17 +402,21 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
           <div className="space-y-2">
             <Label>Medicamentos Prescritos ({formData.medicamentos.length})</Label>
             {formData.medicamentos.map((med, index) => (
-              <div key={index} className="bg-teal-50 border border-teal-200 rounded-md p-3 flex items-start justify-between">
+              <div key={index} className={`${med.esDeKit ? 'bg-orange-50 border-orange-200' : 'bg-teal-50 border-teal-200'} border rounded-md p-3 flex items-start justify-between`}>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <Badge className="bg-teal-600">Medicamento</Badge>
-                    <p className="font-semibold text-teal-900">{med.nombre}</p>
+                    <Badge className={med.esDeKit ? 'bg-orange-600' : 'bg-teal-600'}>
+                      {med.esDeKit ? 'Kit' : 'Medicamento'}
+                    </Badge>
+                    <p className={`font-semibold ${med.esDeKit ? 'text-orange-900' : 'text-teal-900'}`}>{med.nombre}</p>
                   </div>
                   <p className="text-sm text-gray-600">
                     Dosis: {med.dosis} | Vía: {med.via} | {med.frecuencia}
                   </p>
                   {med.duracionDias && <p className="text-sm text-gray-600">Duración: {med.duracionDias} días</p>}
+                  {med.duracion && !med.duracionDias && <p className="text-sm text-gray-600">Duración: {med.duracion}</p>}
                   {med.instrucciones && <p className="text-xs text-gray-500 mt-1">{med.instrucciones}</p>}
+                  {med.esDeKit && <p className="text-xs text-orange-600 mt-1">Aplicado desde: {med.kitOrigen}</p>}
                 </div>
                 <Button
                   variant="ghost"

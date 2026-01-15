@@ -222,16 +222,23 @@ model Paciente {
   apellido                     String
   tipoDocumento                String?                     @map("tipo_documento")
   cedula                       String                      @unique
+  lugarExpedicion              String?                     @map("lugar_expedicion")
   fechaNacimiento              DateTime?                   @map("fecha_nacimiento") @db.Date
   genero                       String?
+  identidadGenero              String?                     @map("identidad_genero")
+  etnia                        String?
+  preferenciaLlamado           String?                     @map("preferencia_llamado")
   paisNacimiento               String?                     @map("pais_nacimiento")
   departamento                 String?
   municipio                    String?
   barrio                       String?
   direccion                    String?
+  zona                         String?
   telefono                     String?
   email                        String?
   contactosEmergencia          Json?                       @map("contactos_emergencia")
+  acompanante                  Json?
+  responsable                  Json?
   eps                          String?
   regimen                      String?
   tipoAfiliacion               String?                     @map("tipo_afiliacion")
@@ -769,30 +776,30 @@ model PaqueteHospitalizacion {
 }
 
 model OrdenMedica {
-  id                    String              @id @default(uuid())
-  pacienteId            String              @map("paciente_id")
-  citaId                String?             @map("cita_id")
-  admisionId            String?             @map("admision_id")
-  examenProcedimientoId String              @map("examen_procedimiento_id") @db.Uuid
-  doctorId              String              @map("doctor_id") @db.Uuid
-  estado                EstadoOrdenMedica   @default(Pendiente)
-  prioridad             PrioridadOrden      @default(Normal)
+  id                    String               @id @default(uuid())
+  pacienteId            String               @map("paciente_id")
+  citaId                String?              @map("cita_id")
+  admisionId            String?              @map("admision_id")
+  examenProcedimientoId String?              @map("examen_procedimiento_id") @db.Uuid
+  doctorId              String               @map("doctor_id") @db.Uuid
+  estado                EstadoOrdenMedica    @default(Pendiente)
+  prioridad             PrioridadOrden       @default(Normal)
   observaciones         String?
   resultados            String?
-  archivoResultado      String?             @map("archivo_resultado")
-  precioAplicado        Decimal             @map("precio_aplicado") @db.Decimal(10, 2)
-  fechaOrden            DateTime            @default(now()) @map("fecha_orden")
-  fechaEjecucion        DateTime?           @map("fecha_ejecucion")
-  ejecutadoPor          String?             @map("ejecutado_por") @db.Uuid
-  createdAt             DateTime            @default(now()) @map("created_at")
-  updatedAt             DateTime            @updatedAt @map("updated_at")
+  archivoResultado      String?              @map("archivo_resultado")
+  precioAplicado        Decimal              @map("precio_aplicado") @db.Decimal(10, 2)
+  fechaOrden            DateTime             @default(now()) @map("fecha_orden")
+  fechaEjecucion        DateTime?            @map("fecha_ejecucion")
+  ejecutadoPor          String?              @map("ejecutado_por") @db.Uuid
+  createdAt             DateTime             @default(now()) @map("created_at")
+  updatedAt             DateTime             @updatedAt @map("updated_at")
   itemsFactura          FacturaItem[]
-  admision              Admision?           @relation(fields: [admisionId], references: [id])
-  cita                  Cita?               @relation(fields: [citaId], references: [id])
-  doctor                Usuario             @relation("OrdenMedicaDoctor", fields: [doctorId], references: [id])
-  ejecutador            Usuario?            @relation("OrdenMedicaEjecutor", fields: [ejecutadoPor], references: [id])
-  examenProcedimiento   ExamenProcedimiento @relation(fields: [examenProcedimientoId], references: [id])
-  paciente              Paciente            @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
+  admision              Admision?            @relation(fields: [admisionId], references: [id])
+  cita                  Cita?                @relation(fields: [citaId], references: [id])
+  doctor                Usuario              @relation("OrdenMedicaDoctor", fields: [doctorId], references: [id])
+  ejecutador            Usuario?             @relation("OrdenMedicaEjecutor", fields: [ejecutadoPor], references: [id])
+  examenProcedimiento   ExamenProcedimiento? @relation(fields: [examenProcedimientoId], references: [id])
+  paciente              Paciente             @relation(fields: [pacienteId], references: [id], onDelete: Cascade)
 
   @@map("ordenes_medicas")
 }
@@ -11460,8 +11467,25 @@ model MiaPassCorte {
   totalComisiones   Decimal  @db.Decimal(12, 2) @map("total_comisiones")
   estado            String   @default("ABIERTO") // ABIERTO, CERRADO
   elaboradoPor      String   @db.Uuid
-  
+
   comisiones        MiaPassComision[]
 
   @@map("mia_cortes")
+}
+
+// =====================
+// TIPOS DE USUARIO Y CONVENIOS
+// =====================
+
+model TipoUsuarioConvenio {
+  id              String   @id @default(uuid())
+  nombre          String   @unique
+  codigoConvenio  String   @map("codigo_convenio")
+  descripcion     String?
+  activo          Boolean  @default(true)
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@map("tipos_usuario_convenio")
 }

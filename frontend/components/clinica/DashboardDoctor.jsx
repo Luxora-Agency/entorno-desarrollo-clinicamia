@@ -384,6 +384,10 @@ export default function DashboardDoctor({ user, onChangeAttentionType, onNavigat
 
   const handleFinishConsulta = async (data) => {
     try {
+        // DEBUG: Log datos enviados al finalizar
+        console.log('[handleFinishConsulta] Datos recibidos:', data);
+        console.log('[handleFinishConsulta] Procedimientos:', data?.procedimientos);
+
         const token = localStorage.getItem('token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
 
