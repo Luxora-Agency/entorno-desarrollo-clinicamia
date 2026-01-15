@@ -99,24 +99,33 @@ class PacienteService {
         apellido: data.apellido,
         tipoDocumento: data.tipo_documento,
         cedula: data.cedula,
+        lugarExpedicion: data.lugar_expedicion,
         fechaNacimiento: data.fecha_nacimiento,
         genero: data.genero,
+        identidadGenero: data.identidad_genero,
+        etnia: data.etnia,
+        preferenciaLlamado: data.preferencia_llamado,
         estadoCivil: data.estado_civil,
-        
+
         // Ubicación
         paisNacimiento: data.pais_nacimiento,
         departamento: data.departamento,
         municipio: data.municipio,
         barrio: data.barrio,
         direccion: data.direccion,
-        
+        zona: data.zona,
+
         // Contacto
         telefono: data.telefono,
         email: data.email,
-        
+
         // Contactos de Emergencia (JSON)
         contactosEmergencia: data.contactos_emergencia,
-        
+
+        // Acompañante y Responsable (JSON)
+        acompanante: data.acompanante,
+        responsable: data.responsable,
+
         // Aseguramiento
         eps: data.eps,
         regimen: data.regimen,
@@ -127,19 +136,23 @@ class PacienteService {
         convenio: data.convenio,
         carnetPoliza: data.carnet_poliza,
         arl: data.arl,
-        
+
         // Información Demográfica y Laboral
         ocupacion: data.ocupacion,
         nivelEducacion: data.nivel_educacion,
         empleadorActual: data.empleador_actual,
         tipoUsuario: data.tipo_usuario,
-        
+
         // Información de Referencia
         referidoPor: data.referido_por,
         nombreRefiere: data.nombre_refiere,
         tipoPaciente: data.tipo_paciente,
         categoria: data.categoria,
-        
+
+        // Discapacidad
+        discapacidad: data.discapacidad,
+        tipoDiscapacidad: data.tipo_discapacidad,
+
         // Información Médica
         tipoSangre: data.tipo_sangre,
         peso: data.peso,
@@ -168,28 +181,37 @@ class PacienteService {
 
     // Mapear campos de snake_case (schema) a camelCase (prisma)
     const updateData = {};
-    
+
     // Datos Personales
     if (data.nombre !== undefined) updateData.nombre = data.nombre;
     if (data.apellido !== undefined) updateData.apellido = data.apellido;
     if (data.tipo_documento !== undefined) updateData.tipoDocumento = data.tipo_documento;
     if (data.cedula !== undefined) updateData.cedula = data.cedula;
+    if (data.lugar_expedicion !== undefined) updateData.lugarExpedicion = data.lugar_expedicion;
     if (data.fecha_nacimiento !== undefined) updateData.fechaNacimiento = data.fecha_nacimiento;
     if (data.genero !== undefined) updateData.genero = data.genero;
+    if (data.identidad_genero !== undefined) updateData.identidadGenero = data.identidad_genero;
+    if (data.etnia !== undefined) updateData.etnia = data.etnia;
+    if (data.preferencia_llamado !== undefined) updateData.preferenciaLlamado = data.preferencia_llamado;
     if (data.estado_civil !== undefined) updateData.estadoCivil = data.estado_civil;
-    
+
     // Ubicación
     if (data.pais_nacimiento !== undefined) updateData.paisNacimiento = data.pais_nacimiento;
     if (data.departamento !== undefined) updateData.departamento = data.departamento;
     if (data.municipio !== undefined) updateData.municipio = data.municipio;
     if (data.barrio !== undefined) updateData.barrio = data.barrio;
     if (data.direccion !== undefined) updateData.direccion = data.direccion;
-    
+    if (data.zona !== undefined) updateData.zona = data.zona;
+
     // Contacto
     if (data.telefono !== undefined) updateData.telefono = data.telefono;
     if (data.email !== undefined) updateData.email = data.email;
     if (data.contactos_emergencia !== undefined) updateData.contactosEmergencia = data.contactos_emergencia;
-    
+
+    // Acompañante y Responsable
+    if (data.acompanante !== undefined) updateData.acompanante = data.acompanante;
+    if (data.responsable !== undefined) updateData.responsable = data.responsable;
+
     // Aseguramiento
     if (data.eps !== undefined) updateData.eps = data.eps;
     if (data.regimen !== undefined) updateData.regimen = data.regimen;
@@ -200,19 +222,23 @@ class PacienteService {
     if (data.convenio !== undefined) updateData.convenio = data.convenio;
     if (data.carnet_poliza !== undefined) updateData.carnetPoliza = data.carnet_poliza;
     if (data.arl !== undefined) updateData.arl = data.arl;
-    
+
     // Información Demográfica y Laboral
     if (data.ocupacion !== undefined) updateData.ocupacion = data.ocupacion;
     if (data.nivel_educacion !== undefined) updateData.nivelEducacion = data.nivel_educacion;
     if (data.empleador_actual !== undefined) updateData.empleadorActual = data.empleador_actual;
     if (data.tipo_usuario !== undefined) updateData.tipoUsuario = data.tipo_usuario;
-    
+
     // Información de Referencia
     if (data.referido_por !== undefined) updateData.referidoPor = data.referido_por;
     if (data.nombre_refiere !== undefined) updateData.nombreRefiere = data.nombre_refiere;
     if (data.tipo_paciente !== undefined) updateData.tipoPaciente = data.tipo_paciente;
     if (data.categoria !== undefined) updateData.categoria = data.categoria;
-    
+
+    // Discapacidad
+    if (data.discapacidad !== undefined) updateData.discapacidad = data.discapacidad;
+    if (data.tipo_discapacidad !== undefined) updateData.tipoDiscapacidad = data.tipo_discapacidad;
+
     // Información Médica
     if (data.tipo_sangre !== undefined) updateData.tipoSangre = data.tipo_sangre;
     if (data.peso !== undefined) updateData.peso = data.peso;

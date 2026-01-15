@@ -241,14 +241,44 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         }
       }
 
-      // Preparar datos del formulario
+      // Parsear acompañante y responsable
+      let acompanante = { nombre: '', telefono: '' };
+      if (editingPaciente.acompanante) {
+        try {
+          const parsed = typeof editingPaciente.acompanante === 'string'
+            ? JSON.parse(editingPaciente.acompanante)
+            : editingPaciente.acompanante;
+          acompanante = parsed || acompanante;
+        } catch (e) {
+          console.error('Error parsing acompanante', e);
+        }
+      }
+
+      let responsable = { nombre: '', telefono: '', parentesco: '' };
+      if (editingPaciente.responsable) {
+        try {
+          const parsed = typeof editingPaciente.responsable === 'string'
+            ? JSON.parse(editingPaciente.responsable)
+            : editingPaciente.responsable;
+          responsable = parsed || responsable;
+        } catch (e) {
+          console.error('Error parsing responsable', e);
+        }
+      }
+
+      // Preparar datos del formulario - TODOS los campos
       const formValues = {
         nombre: editingPaciente.nombre || '',
         apellido: editingPaciente.apellido || '',
         tipoDocumento: editingPaciente.tipoDocumento || '',
         cedula: editingPaciente.cedula || '',
+        lugarExpedicion: editingPaciente.lugarExpedicion || '',
         fechaNacimiento: editingPaciente.fechaNacimiento ? editingPaciente.fechaNacimiento.split('T')[0] : '',
         genero: editingPaciente.genero || '',
+        identidadGenero: editingPaciente.identidadGenero || '',
+        otraIdentidadGenero: '',
+        etnia: editingPaciente.etnia || '',
+        preferenciaLlamado: editingPaciente.preferenciaLlamado || '',
         otroGenero: '',
         estadoCivil: editingPaciente.estadoCivil || '',
         ocupacion: editingPaciente.ocupacion || '',
@@ -257,9 +287,12 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         municipio: editingPaciente.municipio || '',
         barrio: editingPaciente.barrio || '',
         direccion: editingPaciente.direccion || '',
+        zona: editingPaciente.zona || '',
         telefono: editingPaciente.telefono || '',
         email: editingPaciente.email || '',
         contactosEmergencia: contactos,
+        acompanante: acompanante,
+        responsable: responsable,
         nivelEducacion: editingPaciente.nivelEducacion || '',
         empleadorActual: editingPaciente.empleadorActual || '',
         eps: editingPaciente.eps || '',
@@ -860,7 +893,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                     <h3 className="text-xl font-bold text-gray-900 mb-4">Ubicación y Residencia</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">País de Nacimiento</Label>
+                        <Label className="text-sm font-semibold text-gray-700">País</Label>
                         <Controller
                           name="paisNacimiento"
                           control={control}

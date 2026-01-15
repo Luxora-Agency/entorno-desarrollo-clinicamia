@@ -369,14 +369,19 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
                 <Label>Perím. Abdominal</Label>
                 <Input type="number" value={formData.perimetroAbdominal} onChange={(e) => handleChange('perimetroAbdominal', e.target.value)} placeholder="cm" />
              </div>
-             <div>
-                <Label>Perím. Cefálico</Label>
-                <Input type="number" step="0.1" value={formData.perimetroCefalico} onChange={(e) => handleChange('perimetroCefalico', e.target.value)} placeholder="cm" />
-             </div>
-             <div>
-                <Label>Perím. Braquial</Label>
-                <Input type="number" step="0.1" value={formData.perimetroBraquial} onChange={(e) => handleChange('perimetroBraquial', e.target.value)} placeholder="cm" />
-             </div>
+             {/* Perímetro Cefálico y Braquial solo para menores de 18 años */}
+             {pacienteEdad !== undefined && pacienteEdad < 18 && (
+               <>
+                 <div>
+                    <Label>Perím. Cefálico</Label>
+                    <Input type="number" step="0.1" value={formData.perimetroCefalico} onChange={(e) => handleChange('perimetroCefalico', e.target.value)} placeholder="cm" />
+                 </div>
+                 <div>
+                    <Label>Perím. Braquial</Label>
+                    <Input type="number" step="0.1" value={formData.perimetroBraquial} onChange={(e) => handleChange('perimetroBraquial', e.target.value)} placeholder="cm" />
+                 </div>
+               </>
+             )}
              <div className="md:col-span-1">
                 <Label>IMC</Label>
                 {imcData ? (

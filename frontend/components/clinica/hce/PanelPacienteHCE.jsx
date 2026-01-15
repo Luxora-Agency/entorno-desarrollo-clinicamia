@@ -36,22 +36,37 @@ export default function PanelPacienteHCE({ paciente }) {
     if (!fechaNacimiento) return 'N/A';
     const hoy = new Date();
     const nacimiento = new Date(fechaNacimiento);
-    let edad = hoy.getFullYear() - nacimiento.getFullYear();
-    const mes = hoy.getMonth() - nacimiento.getMonth();
-    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-      edad--;
+
+    let anios = hoy.getFullYear() - nacimiento.getFullYear();
+    let meses = hoy.getMonth() - nacimiento.getMonth();
+    let dias = hoy.getDate() - nacimiento.getDate();
+
+    if (dias < 0) {
+      meses--;
+      const ultimoDiaMesAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0).getDate();
+      dias += ultimoDiaMesAnterior;
     }
 
-    // Para menores de 2 años, mostrar meses
-    if (edad < 2) {
-      const meses = (hoy.getFullYear() - nacimiento.getFullYear()) * 12 + (hoy.getMonth() - nacimiento.getMonth());
-      if (meses < 1) {
-        const dias = Math.floor((hoy - nacimiento) / (1000 * 60 * 60 * 24));
-        return `${dias} días`;
-      }
-      return `${meses} meses`;
+    if (meses < 0) {
+      anios--;
+      meses += 12;
     }
-    return `${edad} años`;
+
+    // Para menores de 1 año, mostrar meses y días
+    if (anios < 1) {
+      if (meses === 0) {
+        return `${dias} día${dias !== 1 ? 's' : ''}`;
+      }
+      return `${meses} mes${meses !== 1 ? 'es' : ''}, ${dias} día${dias !== 1 ? 's' : ''}`;
+    }
+
+    // Para menores de 5 años, mostrar años y meses
+    if (anios < 5) {
+      return `${anios} año${anios !== 1 ? 's' : ''}, ${meses} mes${meses !== 1 ? 'es' : ''}`;
+    }
+
+    // Para mayores, mostrar años, meses y días
+    return `${anios} año${anios !== 1 ? 's' : ''}, ${meses} mes${meses !== 1 ? 'es' : ''}, ${dias} día${dias !== 1 ? 's' : ''}`;
   };
 
   const calcularIMC = (peso, altura) => {
@@ -278,8 +293,49 @@ export default function PanelPacienteHCE({ paciente }) {
 
         {/* Información expandida */}
         {expandido && (
-          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {/* Columna 1: Datos de contacto */}
+          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Columna 1: Datos personales */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                <User className="w-3.5 h-3.5" />
+                Datos Personales
+              </h4>
+
+              <div className="space-y-2 text-sm">
+                {paciente.pais && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">País:</span>
+                    <span className="text-gray-900">{paciente.pais}</span>
+                  </div>
+                )}
+                {paciente.estadoCivil && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Estado Civil:</span>
+                    <span className="text-gray-900">{paciente.estadoCivil}</span>
+                  </div>
+                )}
+                {paciente.ocupacion && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Ocupación:</span>
+                    <span className="text-gray-900">{paciente.ocupacion}</span>
+                  </div>
+                )}
+                {paciente.escolaridad && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Escolaridad:</span>
+                    <span className="text-gray-900">{paciente.escolaridad}</span>
+                  </div>
+                )}
+                {paciente.etnia && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Etnia:</span>
+                    <span className="text-gray-900">{paciente.etnia}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Columna 2: Ubicación y Contacto */}
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
                 <MapPin className="w-3.5 h-3.5" />
@@ -289,7 +345,7 @@ export default function PanelPacienteHCE({ paciente }) {
               <div className="space-y-2 text-sm">
                 {paciente.direccion && (
                   <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 text-gray-400 mt-0.5" />
+                    <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="text-gray-900">{paciente.direccion}</p>
                       <p className="text-gray-500 text-xs">
@@ -303,21 +359,21 @@ export default function PanelPacienteHCE({ paciente }) {
 
                 {paciente.email && (
                   <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-gray-400" />
-                    <p className="text-gray-900">{paciente.email}</p>
+                    <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <p className="text-gray-900 truncate">{paciente.email}</p>
                   </div>
                 )}
 
                 {paciente.celular && paciente.celular !== paciente.telefono && (
                   <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-gray-400" />
+                    <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
                     <p className="text-gray-900">{paciente.celular} (Celular)</p>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Columna 2: Datos del aseguramiento */}
+            {/* Columna 3: Aseguramiento */}
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
                 <Building2 className="w-3.5 h-3.5" />
@@ -325,10 +381,6 @@ export default function PanelPacienteHCE({ paciente }) {
               </h4>
 
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">EPS:</span>
-                  <span className="text-gray-900 font-medium">{paciente.eps || 'N/A'}</span>
-                </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Régimen:</span>
                   <span className="text-gray-900">{paciente.regimen || 'N/A'}</span>
@@ -354,7 +406,7 @@ export default function PanelPacienteHCE({ paciente }) {
               </div>
             </div>
 
-            {/* Columna 3: Datos clínicos */}
+            {/* Columna 4: Datos Clínicos */}
             <div className="space-y-3">
               <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
                 <Heart className="w-3.5 h-3.5" />
@@ -374,49 +426,100 @@ export default function PanelPacienteHCE({ paciente }) {
                   )}
                 </div>
 
-                {(paciente.peso || paciente.altura) && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Peso:</span>
-                      <span className="text-gray-900">{paciente.peso ? `${paciente.peso} kg` : 'N/A'}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Talla:</span>
-                      <span className="text-gray-900">
-                        {paciente.altura ? `${paciente.altura > 3 ? paciente.altura : (paciente.altura * 100).toFixed(0)} cm` : 'N/A'}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                {paciente.estadoCivil && (
+                {paciente.peso && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Estado Civil:</span>
-                    <span className="text-gray-900">{paciente.estadoCivil}</span>
+                    <span className="text-gray-500">Peso:</span>
+                    <span className="text-gray-900">{paciente.peso} kg</span>
                   </div>
                 )}
-
-                {paciente.ocupacion && (
+                {paciente.altura && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Ocupación:</span>
-                    <span className="text-gray-900">{paciente.ocupacion}</span>
+                    <span className="text-gray-500">Talla:</span>
+                    <span className="text-gray-900">
+                      {paciente.altura > 3 ? paciente.altura : (paciente.altura * 100).toFixed(0)} cm
+                    </span>
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Fila completa: Contacto de emergencia */}
-            {paciente.contactosEmergencia && Array.isArray(paciente.contactosEmergencia) && paciente.contactosEmergencia.length > 0 && (
-              <div className="md:col-span-2 lg:col-span-3 pt-3 border-t border-gray-100">
+            {/* Fila completa: Discapacidad */}
+            {paciente.discapacidad && paciente.discapacidad !== 'No aplica' && (
+              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  Condición de Discapacidad
+                </h4>
+                <div className="flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-lg px-4 py-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <AlertCircle className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-purple-900">Paciente con Discapacidad</p>
+                    <p className="text-sm text-purple-700">
+                      Tipo: {paciente.tipoDiscapacidad || 'No especificado'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fila completa: Responsable */}
+            {paciente.responsable && (paciente.responsable.nombre || paciente.responsable?.nombre) && (
+              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
                   <UserCheck className="w-3.5 h-3.5" />
-                  Contacto de Emergencia
+                  Responsable del Paciente
+                </h4>
+                <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 rounded-lg px-4 py-3">
+                  <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                    <User className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-orange-900">{paciente.responsable.nombre}</p>
+                    <p className="text-sm text-orange-700">
+                      {paciente.responsable.parentesco && `${paciente.responsable.parentesco} • `}
+                      {paciente.responsable.telefono && `Tel: ${paciente.responsable.telefono}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fila completa: Acompañante */}
+            {paciente.acompanante && (paciente.acompanante.nombre || paciente.acompanante?.nombre) && (
+              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
+                  <User className="w-3.5 h-3.5" />
+                  Acompañante
+                </h4>
+                <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                    <User className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-blue-900">{paciente.acompanante.nombre}</p>
+                    <p className="text-sm text-blue-700">
+                      {paciente.acompanante.parentesco && `${paciente.acompanante.parentesco} • `}
+                      {paciente.acompanante.telefono && `Tel: ${paciente.acompanante.telefono}`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Fila completa: Contacto de emergencia */}
+            {paciente.contactosEmergencia && Array.isArray(paciente.contactosEmergencia) && paciente.contactosEmergencia.length > 0 && (
+              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
+                  <Phone className="w-3.5 h-3.5" />
+                  Contactos de Emergencia
                 </h4>
                 <div className="flex flex-wrap gap-4">
-                  {paciente.contactosEmergencia.slice(0, 2).map((contacto, idx) => (
+                  {paciente.contactosEmergencia.slice(0, 3).map((contacto, idx) => (
                     <div key={idx} className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg">
-                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
-                        <User className="w-4 h-4 text-orange-600" />
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                        <User className="w-4 h-4 text-gray-600" />
                       </div>
                       <div className="text-sm">
                         <p className="font-medium text-gray-900">{contacto.nombre}</p>
@@ -432,7 +535,7 @@ export default function PanelPacienteHCE({ paciente }) {
 
             {/* Antecedentes importantes */}
             {(paciente.enfermedadesCronicas || paciente.antecedentesQuirurgicos) && (
-              <div className="md:col-span-2 lg:col-span-3 pt-3 border-t border-gray-100">
+              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
                   <Info className="w-3.5 h-3.5" />
                   Antecedentes Relevantes

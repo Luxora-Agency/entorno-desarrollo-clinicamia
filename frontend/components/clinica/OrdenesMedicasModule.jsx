@@ -595,12 +595,23 @@ export default function OrdenesMedicasModule({ user }) {
         description: 'Por favor espere mientras se genera el documento.',
       });
 
+      console.log('[PDF] Descargando orden:', orden.id);
+
       const response = await fetch(`${apiUrl}/ordenes-medicas/${orden.id}/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
-        throw new Error('Error al generar el PDF');
+        // Intentar obtener el mensaje de error del servidor
+        let errorMessage = 'Error al generar el PDF';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+          console.error('[PDF] Error del servidor:', errorData);
+        } catch (e) {
+          console.error('[PDF] Error response:', response.status, response.statusText);
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
@@ -617,12 +628,12 @@ export default function OrdenesMedicasModule({ user }) {
         title: 'PDF descargado',
         description: 'La orden médica se ha descargado correctamente.',
       });
-    } catch (error) {
-      console.error('Error descargando PDF:', error);
+    } catch (err) {
+      console.error('[PDF] Error descargando:', err);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudo descargar el PDF de la orden.',
+        description: err.message || 'No se pudo descargar el PDF de la orden.',
       });
     }
   };
@@ -642,12 +653,22 @@ export default function OrdenesMedicasModule({ user }) {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+      console.log('[PDF] Imprimiendo orden:', orden.id);
+
       const response = await fetch(`${apiUrl}/ordenes-medicas/${orden.id}/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
-        throw new Error('Error al generar el PDF');
+        let errorMessage = 'Error al generar el PDF';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+          console.error('[PDF] Error del servidor:', errorData);
+        } catch (e) {
+          console.error('[PDF] Error response:', response.status, response.statusText);
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
@@ -660,12 +681,12 @@ export default function OrdenesMedicasModule({ user }) {
           printWindow.print();
         };
       }
-    } catch (error) {
-      console.error('Error imprimiendo orden:', error);
+    } catch (err) {
+      console.error('[PDF] Error imprimiendo:', err);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'No se pudo imprimir la orden.',
+        description: err.message || 'No se pudo imprimir la orden.',
       });
     }
   };

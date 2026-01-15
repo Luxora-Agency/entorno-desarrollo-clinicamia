@@ -144,7 +144,16 @@ ordenesMedicas.get('/', async (c) => {
 ordenesMedicas.get('/:id/pdf', async (c) => {
   try {
     const { id } = c.req.param();
+    console.log('[PDF] Generando PDF para orden:', id);
+
     const pdfBuffer = await ordenMedicaPdfService.generarOrdenPdf(id);
+
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      console.error('[PDF] Buffer vacío para orden:', id);
+      return c.json(error('No se pudo generar el PDF'), 500);
+    }
+
+    console.log('[PDF] PDF generado exitosamente, tamaño:', pdfBuffer.length);
 
     return new Response(pdfBuffer, {
       headers: {
@@ -154,7 +163,8 @@ ordenesMedicas.get('/:id/pdf', async (c) => {
       },
     });
   } catch (err) {
-    return c.json(error(err.message), err.statusCode || 500);
+    console.error('[PDF] Error generando PDF:', err.message, err.stack);
+    return c.json(error(err.message || 'Error al generar el PDF'), err.statusCode || 500);
   }
 });
 

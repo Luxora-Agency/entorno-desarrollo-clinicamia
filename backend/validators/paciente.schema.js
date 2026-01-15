@@ -64,10 +64,10 @@ const createPacienteSchema = z.object({
   telefono: z.string().min(1, 'El teléfono es requerido'),
   email: z.string().min(1, 'El correo es requerido').email('Email inválido'),
 
-  // Contactos de Emergencia
-  contactos_emergencia: z.array(contactoEmergenciaSchema).optional().or(z.null()),
+  // Contactos de Emergencia (requerido al menos uno)
+  contactos_emergencia: z.array(contactoEmergenciaSchema).min(1, 'Debe agregar al menos un contacto de emergencia'),
 
-  // Acompañante y Responsable (opcionales para mayores, requeridos para menores)
+  // Acompañante y Responsable (opcionales para mayores, requeridos para menores - validado en servicio)
   acompanante: acompananteSchema,
   responsable: responsableSchema,
 
@@ -83,7 +83,7 @@ const createPacienteSchema = z.object({
   arl: z.string().optional().or(z.null()).transform(emptyStringToNull),
 
   // Información Demográfica y Laboral
-  ocupacion: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  ocupacion: z.string().min(1, 'La ocupación es requerida'),
   nivel_educacion: z.string().min(1, 'El nivel de educación es requerido'),
   empleador_actual: z.string().optional().or(z.null()).transform(emptyStringToNull),
   tipo_usuario: z.string().optional().or(z.null()).transform(emptyStringToNull),
@@ -94,12 +94,12 @@ const createPacienteSchema = z.object({
   tipo_paciente: z.string().optional().or(z.null()).transform(emptyStringToNull),
   categoria: z.string().optional().or(z.null()).transform(emptyStringToNull),
 
-  // Discapacidad
-  discapacidad: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  // Discapacidad (requerido indicar si aplica o no)
+  discapacidad: z.string().min(1, 'Debe indicar si tiene discapacidad'),
   tipo_discapacidad: z.string().optional().or(z.null()).transform(emptyStringToNull),
 
-  // Información Médica
-  tipo_sangre: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  // Información Médica (requeridos)
+  tipo_sangre: z.string().min(1, 'El tipo de sangre es requerido'),
   peso: z.any().optional().transform(parseNumber),
   altura: z.any().optional().transform(parseNumber),
   alergias: z.string().optional().or(z.null()).transform(emptyStringToNull),

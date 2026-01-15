@@ -27,8 +27,10 @@ export default function FormularioMotivoConsulta({ data, onChange }) {
       enfermedad: enfermedadActual.length
     });
 
-    // Validar: motivo de consulta es obligatorio (mínimo 10 caracteres)
-    const isValid = motivoConsulta.trim().length >= 10;
+    // Validar: AMBOS campos son obligatorios (mínimo 10 caracteres cada uno)
+    const motivoValido = motivoConsulta.trim().length >= 10;
+    const enfermedadValida = enfermedadActual.trim().length >= 10;
+    const isValid = motivoValido && enfermedadValida;
 
     // Notificar cambios al padre
     onChange({
@@ -122,20 +124,35 @@ export default function FormularioMotivoConsulta({ data, onChange }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <FileText className="h-4 w-4 text-gray-600" />
-            Enfermedad Actual (Historia de la enfermedad actual)
-          </CardTitle>
-          <CardDescription className="text-sm">
-            Opcional: Desarrolle la evolución cronológica de la enfermedad o condición actual
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileText className="h-4 w-4 text-blue-600" />
+                Enfermedad Actual (Historia de la enfermedad actual)
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Desarrolle la evolución cronológica de la enfermedad o condición actual
+              </CardDescription>
+            </div>
+            {enfermedadActual.trim().length >= 10 ? (
+              <Badge variant="success" className="bg-green-100 text-green-700">
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Completo
+              </Badge>
+            ) : (
+              <Badge variant="destructive">
+                <AlertCircle className="h-3 w-3 mr-1" />
+                Obligatorio
+              </Badge>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Label htmlFor="enfermedadActual" className="text-sm font-medium">
-                  Descripción detallada de la evolución
+                  Descripción detallada de la evolución <span className="text-red-500">*</span>
                 </Label>
                 <TemplateSelector 
                   category="GENERICO" 
@@ -155,9 +172,20 @@ export default function FormularioMotivoConsulta({ data, onChange }) {
               onChange={(e) => setEnfermedadActual(e.target.value)}
               className="min-h-[150px] resize-y"
             />
-            <div className="flex items-center justify-end text-xs text-gray-500">
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>
+                {caracteres.enfermedad < 10 ? (
+                  <span className="text-red-500">
+                    Mínimo 10 caracteres requeridos ({10 - caracteres.enfermedad} restantes)
+                  </span>
+                ) : (
+                  <span className="text-green-600">
+                    ✓ Longitud adecuada
+                  </span>
+                )}
+              </span>
               <span className={caracteres.enfermedad >= 1000 ? 'text-amber-600 font-medium' : ''}>
-                {caracteres.enfermedad} caracteres
+                {caracteres.enfermedad} / {caracteres.enfermedad >= 1000 ? '1000+ caracteres (extenso)' : 'recomendado 100-500'}
               </span>
             </div>
           </div>

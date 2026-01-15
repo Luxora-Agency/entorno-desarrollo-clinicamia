@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import {
   Stethoscope, Activity, ClipboardList, Pill,
   CheckCircle, ChevronRight, ChevronLeft, Save,
-  X, AlertTriangle, MessageSquare, FileText, ClipboardCheck,
+  X, AlertTriangle, AlertCircle, MessageSquare, FileText, ClipboardCheck,
   Sparkles, RefreshCw, Brain, History, Copy, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -167,7 +167,7 @@ export default function ClinicalWorkspace({
     anamnesis: true, // Opcional
     revisionSistemas: true, // Opcional
     vitales: true,   // Opcional (pero recomendado)
-    analisis: true, // Opcional
+    analisis: false, // Obligatorio - mínimo 10 caracteres
     diagnostico: true, // Opcional
     prescripciones: true,
     procedimientos: true,
@@ -244,7 +244,11 @@ export default function ClinicalWorkspace({
   }, []);
 
   const handleAnalisisChange = useCallback((e) => {
-    setConsultaData(prev => ({ ...prev, analisis: e.target.value }));
+    const valor = e.target.value;
+    setConsultaData(prev => ({ ...prev, analisis: valor }));
+    // Validar: mínimo 10 caracteres
+    const isValid = valor.trim().length >= 10;
+    setStepsValid(prev => ({ ...prev, analisis: isValid }));
   }, []);
   // ============ Fin de callbacks memoizados ============
 
@@ -639,6 +643,16 @@ export default function ClinicalWorkspace({
       return;
     }
 
+    // Análisis médico es obligatorio
+    if (!stepsValid.analisis) {
+      toast({
+        variant: 'destructive',
+        title: 'Análisis Médico obligatorio',
+        description: 'Debe completar el Análisis Médico (mínimo 10 caracteres) antes de finalizar.'
+      });
+      return;
+    }
+
     // SOAP es obligatorio para consultas de control
     if (tipoConsulta === 'control' && !stepsValid.soap) {
       toast({
@@ -841,7 +855,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                 <Button
                     className="bg-green-600 hover:bg-green-700 text-white"
                     onClick={handleFinish}
-                    disabled={loading || !stepsValid.motivo}
+                    disabled={loading || !stepsValid.motivo || !stepsValid.analisis}
                 >
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Finalizar Consulta
@@ -1028,6 +1042,9 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                     {/* Indicadores de estado */}
                     <div className="flex items-center gap-1">
                       {step.id === 'motivo' && !stepsValid.motivo && (
+                        <span className="text-red-500 text-xs font-medium">Requerido</span>
+                      )}
+                      {step.id === 'analisis' && !stepsValid.analisis && (
                         <span className="text-red-500 text-xs font-medium">Requerido</span>
                       )}
                       {isActive && (
@@ -1224,10 +1241,24 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                     <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                         <Card>
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <Brain className="h-5 w-5 text-blue-600" />
-                                    Análisis Médico
-                                </CardTitle>
+                                <div className="flex items-center justify-between">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Brain className="h-5 w-5 text-blue-600" />
+                                        Análisis Médico
+                                        <span className="text-red-500 text-sm">*</span>
+                                    </CardTitle>
+                                    {stepsValid.analisis ? (
+                                        <span className="flex items-center gap-1 text-green-600 text-sm bg-green-100 px-2 py-1 rounded">
+                                            <CheckCircle className="h-3 w-3" />
+                                            Completo
+                                        </span>
+                                    ) : (
+                                        <span className="flex items-center gap-1 text-red-600 text-sm bg-red-100 px-2 py-1 rounded">
+                                            <AlertCircle className="h-3 w-3" />
+                                            Obligatorio
+                                        </span>
+                                    )}
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <p className="text-sm text-gray-500 mb-2">
@@ -1235,10 +1266,22 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                                 </p>
                                 <Textarea
                                     placeholder="Escriba su análisis clínico aquí..."
-                                    className="min-h-[200px] text-base"
+                                    className={`min-h-[200px] text-base ${!stepsValid.analisis && consultaData.analisis?.length > 0 ? 'border-red-300' : ''}`}
                                     value={consultaData.analisis || ''}
                                     onChange={handleAnalisisChange}
                                 />
+                                <div className="flex items-center justify-between text-xs text-gray-500 mt-2">
+                                    <span>
+                                        {(consultaData.analisis?.length || 0) < 10 ? (
+                                            <span className="text-red-500">
+                                                Mínimo 10 caracteres requeridos ({10 - (consultaData.analisis?.length || 0)} restantes)
+                                            </span>
+                                        ) : (
+                                            <span className="text-green-600">✓ Longitud adecuada</span>
+                                        )}
+                                    </span>
+                                    <span>{consultaData.analisis?.length || 0} caracteres</span>
+                                </div>
                             </CardContent>
                         </Card>
                     </div>

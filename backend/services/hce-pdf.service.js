@@ -228,6 +228,53 @@ class HCEPdfService {
   }
 
   /**
+   * Formatear estado civil para mostrar de forma legible
+   */
+  formatearEstadoCivil(valor) {
+    if (!valor) return 'N/A';
+    const mapeo = {
+      'soltero': 'Soltero(a)',
+      'casado': 'Casado(a)',
+      'union_libre': 'Unión Libre',
+      'divorciado': 'Divorciado(a)',
+      'viudo': 'Viudo(a)',
+      'separado': 'Separado(a)',
+    };
+    return mapeo[valor.toLowerCase()] || valor.charAt(0).toUpperCase() + valor.slice(1).replace(/_/g, ' ');
+  }
+
+  /**
+   * Formatear nivel de educación para mostrar de forma legible
+   */
+  formatearNivelEducacion(valor) {
+    if (!valor) return 'N/A';
+    const mapeo = {
+      'ninguno': 'Ninguno',
+      'preescolar': 'Preescolar',
+      'primaria': 'Primaria',
+      'secundaria': 'Secundaria',
+      'bachillerato': 'Bachillerato',
+      'tecnico': 'Técnico',
+      'tecnologico': 'Tecnológico',
+      'universitario': 'Universitario',
+      'profesional': 'Profesional',
+      'especializacion': 'Especialización',
+      'maestria': 'Maestría',
+      'doctorado': 'Doctorado',
+    };
+    return mapeo[valor.toLowerCase()] || valor.charAt(0).toUpperCase() + valor.slice(1).replace(/_/g, ' ');
+  }
+
+  /**
+   * Formatear valor genérico - capitaliza y reemplaza guiones bajos
+   */
+  formatearValor(valor) {
+    if (!valor || valor === 'null' || valor === 'undefined') return 'N/A';
+    if (typeof valor !== 'string') return String(valor);
+    return valor.charAt(0).toUpperCase() + valor.slice(1).toLowerCase().replace(/_/g, ' ');
+  }
+
+  /**
    * Generar PDF completo de la Historia Clínica Electrónica
    * @param {string} pacienteId - ID del paciente
    * @param {Object} opciones - Opciones de generación
@@ -559,20 +606,15 @@ class HCEPdfService {
   async generarContenido(doc, datos) {
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
-    // === PÁGINA 1: PORTADA ===
-    this.generarPortada(doc, datos);
+    // === PÁGINA 1: PORTADA CON IDENTIFICACIÓN DEL PACIENTE ===
+    let y = this.generarPortada(doc, datos);
 
-    // === PÁGINA 2: ÍNDICE ===
-    doc.addPage();
-    this.generarIndiceCompacto(doc, datos);
-
-    // === PÁGINA 3: IDENTIFICACIÓN DEL PACIENTE ===
-    doc.addPage();
-    let y = this.generarIdentificacionInline(doc, datos.paciente, 60);
+    // Verificar si necesitamos nueva página para el contenido clínico
+    y = this.verificarEspacio(doc, y, 100);
 
     // === DIAGNÓSTICOS Y ALERTAS (en misma página si caben) ===
     if (datos.alertas.length > 0 || datos.diagnosticos.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarTituloSeccion(doc, 'DIAGNÓSTICOS Y ALERTAS CLÍNICAS', y);
 
       if (datos.alertas.length > 0) {
@@ -585,96 +627,96 @@ class HCEPdfService {
 
     // === EVOLUCIONES MÉDICAS (SOAP) ===
     if (datos.evoluciones.length > 0) {
-      y = this.verificarEspacio(doc, y, 300);
+      y = this.verificarEspacio(doc, y, 200);
       y = this.generarEvolucionesInline(doc, datos.evoluciones, y);
     }
 
     // === SIGNOS VITALES ===
     if (datos.signosVitales.length > 0) {
-      y = this.verificarEspacio(doc, y, 200);
+      y = this.verificarEspacio(doc, y, 120);
       y = this.generarSignosVitalesInline(doc, datos.signosVitales, y);
     }
 
     // === ANTECEDENTES ESTRUCTURADOS ===
     if (datos.antecedentes) {
-      y = this.verificarEspacio(doc, y, 200);
+      y = this.verificarEspacio(doc, y, 120);
       y = this.generarAntecedentesEstructurados(doc, datos.antecedentes, datos.paciente, y);
     }
 
     // === PARACLÍNICOS (Resultados de laboratorio) ===
     if (datos.paraclinicos && datos.paraclinicos.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarParaclinicosInline(doc, datos.paraclinicos, y);
     }
 
     // === FORMULACIÓN (Prescripciones detalladas) ===
     if (datos.prescripciones.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarFormulacionInline(doc, datos.prescripciones, y);
     }
 
     // === EXÁMENES ORDENADOS ===
     if (datos.examenesOrdenados && datos.examenesOrdenados.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarExamenesOrdenadosInline(doc, datos.examenesOrdenados, y);
     }
 
     // === ÓRDENES MÉDICAS ===
     if (datos.ordenesMedicas.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarOrdenesMedicasInline(doc, datos.ordenesMedicas, y);
     }
 
     // === PROCEDIMIENTOS ===
     if (datos.procedimientos.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarProcedimientosInline(doc, datos.procedimientos, y);
     }
 
     // === CIRUGÍAS ===
     if (datos.cirugias && datos.cirugias.length > 0) {
-      y = this.verificarEspacio(doc, y, 200);
+      y = this.verificarEspacio(doc, y, 120);
       y = this.generarCirugiasInline(doc, datos.cirugias, y);
     }
 
     // === INTERCONSULTAS ===
     if (datos.interconsultas.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarInterconsultasInline(doc, datos.interconsultas, y);
     }
 
     // === NOTAS DE ENFERMERÍA ===
     if (datos.notasEnfermeria.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarNotasEnfermeriaInline(doc, datos.notasEnfermeria, y);
     }
 
     // === LABORATORIOS ===
     if (datos.laboratorios.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarLaboratoriosInline(doc, datos.laboratorios, y);
     }
 
     // === IMAGENOLOGÍA ===
     if (datos.imagenologia.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarImagenologiaInline(doc, datos.imagenologia, y);
     }
 
     // === URGENCIAS ===
     if (datos.urgencias.length > 0) {
-      y = this.verificarEspacio(doc, y, 150);
+      y = this.verificarEspacio(doc, y, 100);
       y = this.generarUrgenciasInline(doc, datos.urgencias, y);
     }
 
     // === HOSPITALIZACIONES ===
     if (datos.hospitalizaciones.length > 0) {
-      y = this.verificarEspacio(doc, y, 200);
+      y = this.verificarEspacio(doc, y, 120);
       y = this.generarHospitalizacionesInline(doc, datos.hospitalizaciones, y);
     }
 
-    // === RESUMEN Y CONSTANCIA FINAL ===
-    y = this.verificarEspacio(doc, y, 280);
+    // === CONSTANCIA DE AUTENTICIDAD ===
+    y = this.verificarEspacio(doc, y, 130);
     this.generarResumenFinal(doc, datos, y);
 
     // PDF generado exitosamente
@@ -704,18 +746,18 @@ class HCEPdfService {
   }
 
   /**
-   * Generar título de sección inline
+   * Generar título de sección inline - COMPACTO
    */
   generarTituloSeccion(doc, titulo, y) {
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
-    doc.rect(this.margins.left, y, pageWidth, 22)
+    doc.rect(this.margins.left, y, pageWidth, 18)
        .fill(this.colors.primary);
 
-    doc.fontSize(10).font('Helvetica-Bold').fillColor('#ffffff')
-       .text(titulo, this.margins.left + 10, y + 6);
+    doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
+       .text(titulo, this.margins.left + 10, y + 4);
 
-    return y + 28;
+    return y + 22;
   }
 
   /**
@@ -775,157 +817,286 @@ class HCEPdfService {
   }
 
   /**
-   * Identificación del paciente inline
+   * Identificación del paciente inline - COMPLETA CON TODOS LOS CAMPOS
    */
   generarIdentificacionInline(doc, paciente, startY) {
     let y = startY;
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+    const col2Width = pageWidth / 2;
+    const col3Width = pageWidth / 3;
+    const col4Width = pageWidth / 4;
 
     // Título
     y = this.generarTituloSeccion(doc, 'IDENTIFICACIÓN DEL PACIENTE (Art. 10 Res. 1995/1999)', y);
 
-    // Tarjeta de paciente
-    doc.rect(this.margins.left, y, pageWidth, 75)
+    // === TARJETA PRINCIPAL DEL PACIENTE ===
+    doc.rect(this.margins.left, y, pageWidth, 55)
        .lineWidth(1)
        .fillAndStroke(this.colors.headerBg, this.colors.primary);
 
     // Foto del paciente
-    const fotoX = this.margins.left + 10;
-    const fotoY = y + 8;
-    const fotoSize = 58;
+    const fotoX = this.margins.left + 6;
+    const fotoY = y + 5;
+    const fotoSize = 44;
     let fotoMostrada = false;
 
     if (paciente.fotoUrl) {
       try {
         if (paciente.fotoUrl.startsWith('data:image')) {
-          // Foto en base64
           const base64Data = paciente.fotoUrl.replace(/^data:image\/\w+;base64,/, '');
           const fotoBuffer = Buffer.from(base64Data, 'base64');
           doc.image(fotoBuffer, fotoX, fotoY, { width: fotoSize, height: fotoSize, fit: [fotoSize, fotoSize] });
           fotoMostrada = true;
         } else if (paciente.fotoUrl.startsWith('/uploads/') || paciente.fotoUrl.startsWith('uploads/')) {
-          // Foto en archivo local - agregar 'public' a la ruta
           const fotoPath = path.join(__dirname, '..', 'public', paciente.fotoUrl);
           if (fs.existsSync(fotoPath)) {
             doc.image(fotoPath, fotoX, fotoY, { width: fotoSize, height: fotoSize, fit: [fotoSize, fotoSize] });
             fotoMostrada = true;
-            console.log(`[PDF] Foto cargada: ${paciente.fotoUrl}`);
-          } else {
-            console.log(`[PDF] Archivo de foto no encontrado: ${fotoPath}`);
           }
         }
-      } catch (e) {
-        console.log('Error cargando foto del paciente:', e.message);
-      }
+      } catch (e) { /* ignorar */ }
     }
-
     if (!fotoMostrada) {
       this.dibujarFotoPlaceholder(doc, fotoX, fotoY, fotoSize);
     }
 
-    // Datos principales
-    const dataX = fotoX + fotoSize + 15;
+    // Datos principales al lado de la foto
+    const dataX = fotoX + fotoSize + 10;
     const nombreCompleto = `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim().toUpperCase();
 
-    doc.fontSize(13).font('Helvetica-Bold').fillColor(this.colors.primary)
-       .text(nombreCompleto || 'NOMBRE NO REGISTRADO', dataX, y + 8, { width: pageWidth - fotoSize - 40 });
-
-    doc.fontSize(10).font('Helvetica').fillColor(this.colors.text)
-       .text(`${paciente.tipoDocumento || 'CC'}: ${paciente.cedula || 'N/A'}`, dataX, y + 28);
-
-    doc.fontSize(9).fillColor(this.colors.textLight)
-       .text(`Edad: ${this.calcularEdad(paciente.fechaNacimiento, true)} | Sexo: ${paciente.genero || 'N/A'} | Sangre: ${paciente.tipoSangre || 'N/A'}`, dataX, y + 43);
-
-    doc.text(`EPS: ${paciente.eps || 'N/A'} | Régimen: ${paciente.regimen || 'N/A'} | Estado Civil: ${paciente.estadoCivil || 'N/A'}`, dataX, y + 56);
-
-    y += 82;
-
-    // Datos adicionales requeridos por Res. 1995/1999
-    doc.rect(this.margins.left, y, pageWidth, 28)
-       .fill('#f0f9ff');
+    doc.fontSize(11).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text(nombreCompleto || 'NOMBRE NO REGISTRADO', dataX, y + 5, { width: pageWidth - fotoSize - 30 });
 
     doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-       .text(`Ocupación: ${paciente.ocupacion || 'N/A'} | Nivel Educación: ${paciente.nivelEducacion || 'N/A'} | Tipo Usuario: ${paciente.tipoUsuario || 'N/A'}`,
-             this.margins.left + 10, y + 5);
+       .text(`${paciente.tipoDocumento || 'CC'}: ${paciente.cedula || 'N/A'} | Exp: ${paciente.lugarExpedicion || 'N/A'} | Sangre: ${paciente.tipoSangre || 'N/A'}`, dataX, y + 19);
 
-    // Contacto de emergencia
-    let contactoEmergencia = 'No registrado';
+    doc.fontSize(7).fillColor(this.colors.textLight)
+       .text(`Edad: ${this.calcularEdad(paciente.fechaNacimiento, true)} | Sexo: ${this.formatearValor(paciente.genero)} | Id. Género: ${this.formatearValor(paciente.identidadGenero)} | Nac: ${this.formatearFecha(paciente.fechaNacimiento)}`, dataX, y + 31)
+       .text(`EPS: ${paciente.eps || 'N/A'} | Régimen: ${this.formatearValor(paciente.regimen)} | Afiliación: ${this.formatearValor(paciente.tipoAfiliacion)}`, dataX, y + 42);
+
+    y += 58;
+
+    // === DATOS PERSONALES ===
+    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.primary);
+    doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('DATOS PERSONALES Y DEMOGRÁFICOS', this.margins.left + 6, y + 4);
+    y += 16;
+
+    // Fila 1: País, Estado Civil, Ocupación, Escolaridad
+    doc.rect(this.margins.left, y, pageWidth, 13).fill('#f8fafc');
+    const r1c1 = this.margins.left + 4;
+    const r1c2 = this.margins.left + col4Width;
+    const r1c3 = this.margins.left + col4Width * 2;
+    const r1c4 = this.margins.left + col4Width * 3;
+
+    doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
+    doc.text('País:', r1c1, y + 3);
+    doc.text('Estado Civil:', r1c2, y + 3);
+    doc.text('Ocupación:', r1c3, y + 3);
+    doc.text('Escolaridad:', r1c4, y + 3);
+
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text);
+    doc.text(paciente.paisNacimiento || 'N/A', r1c1 + 22, y + 3);
+    doc.text(this.formatearEstadoCivil(paciente.estadoCivil), r1c2 + 48, y + 3);
+    doc.text((paciente.ocupacion || 'N/A').substring(0, 18), r1c3 + 45, y + 3);
+    doc.text(this.formatearNivelEducacion(paciente.nivelEducacion).substring(0, 15), r1c4 + 45, y + 3);
+    y += 14;
+
+    // Fila 2: Etnia, Pref. Llamado, Tipo Usuario, Empleador
+    doc.rect(this.margins.left, y, pageWidth, 13).fill('#ffffff');
+    doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
+    doc.text('Etnia:', r1c1, y + 3);
+    doc.text('Pref. Llamado:', r1c2, y + 3);
+    doc.text('Tipo Usuario:', r1c3, y + 3);
+    doc.text('Empleador:', r1c4, y + 3);
+
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text);
+    doc.text(paciente.etnia || 'N/A', r1c1 + 25, y + 3);
+    doc.text(paciente.preferenciaLlamado || 'N/A', r1c2 + 55, y + 3);
+    doc.text(paciente.tipoUsuario || 'N/A', r1c3 + 48, y + 3);
+    doc.text((paciente.empleadorActual || 'N/A').substring(0, 15), r1c4 + 42, y + 3);
+    y += 14;
+
+    // Fila 3: Discapacidad (siempre mostrar el estado)
+    const tieneDiscapacidad = paciente.discapacidad === 'Aplica';
+    const bgDiscapacidad = tieneDiscapacidad ? '#fae8ff' : '#f8fafc';
+    const colorDiscapacidad = tieneDiscapacidad ? '#9333ea' : this.colors.text;
+    doc.rect(this.margins.left, y, pageWidth, 13).fill(bgDiscapacidad);
+    doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
+    doc.text('Discapacidad:', r1c1, y + 3);
+    doc.text('Tipo Discapacidad:', this.margins.left + col2Width, y + 3);
+
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(colorDiscapacidad);
+    doc.text(paciente.discapacidad || 'No aplica', r1c1 + 50, y + 3);
+    doc.text(tieneDiscapacidad ? (paciente.tipoDiscapacidad || 'No especificado') : 'N/A', this.margins.left + col2Width + 70, y + 3);
+    y += 15;
+
+    // === UBICACIÓN Y CONTACTO ===
+    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.secondary);
+    doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('UBICACIÓN Y CONTACTO', this.margins.left + 6, y + 4);
+    y += 16;
+
+    // Dirección completa
+    doc.rect(this.margins.left, y, pageWidth, 13).fill('#f0f9ff');
+    doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted).text('Dirección:', this.margins.left + 4, y + 3);
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text)
+       .text(`${paciente.direccion || 'N/A'}, ${paciente.barrio || ''} - ${paciente.municipio || ''}, ${paciente.departamento || ''} | Zona: ${paciente.zona || 'N/A'}`, this.margins.left + 40, y + 3);
+    y += 14;
+
+    // Teléfono y email
+    doc.rect(this.margins.left, y, pageWidth, 13).fill('#ffffff');
+    doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
+    doc.text('Teléfono:', this.margins.left + 4, y + 3);
+    doc.text('Email:', this.margins.left + col2Width, y + 3);
+
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text);
+    doc.text(paciente.telefono || 'N/A', this.margins.left + 40, y + 3);
+    doc.text(paciente.email || 'N/A', this.margins.left + col2Width + 25, y + 3, { width: col2Width - 30 });
+    y += 15;
+
+    // === RESPONSABLE (si existe) ===
+    if (paciente.responsable && paciente.responsable.nombre) {
+      doc.rect(this.margins.left, y, pageWidth, 16)
+         .fillAndStroke('#fff7ed', '#f59e0b');
+      doc.fontSize(6).font('Helvetica-Bold').fillColor('#b45309')
+         .text('RESPONSABLE:', this.margins.left + 6, y + 5);
+      doc.font('Helvetica').fontSize(7).fillColor(this.colors.text)
+         .text(`${paciente.responsable.nombre} | ${paciente.responsable.parentesco || ''} | Tel: ${paciente.responsable.telefono || 'N/A'}`, this.margins.left + 65, y + 5);
+      y += 18;
+    }
+
+    // === ACOMPAÑANTE (si existe) ===
+    if (paciente.acompanante && paciente.acompanante.nombre) {
+      doc.rect(this.margins.left, y, pageWidth, 16)
+         .fillAndStroke('#eff6ff', '#3b82f6');
+      doc.fontSize(6).font('Helvetica-Bold').fillColor('#1d4ed8')
+         .text('ACOMPAÑANTE:', this.margins.left + 6, y + 5);
+      doc.font('Helvetica').fontSize(7).fillColor(this.colors.text)
+         .text(`${paciente.acompanante.nombre} | ${paciente.acompanante.parentesco || ''} | Tel: ${paciente.acompanante.telefono || 'N/A'}`, this.margins.left + 65, y + 5);
+      y += 18;
+    }
+
+    // === CONTACTOS DE EMERGENCIA ===
+    let contactosEmergencia = [];
     if (paciente.contactosEmergencia) {
       try {
         const contactos = typeof paciente.contactosEmergencia === 'string'
           ? JSON.parse(paciente.contactosEmergencia)
           : paciente.contactosEmergencia;
-        if (Array.isArray(contactos) && contactos.length > 0) {
-          const c = contactos[0];
-          contactoEmergencia = `${c.nombre || ''} (${c.parentesco || ''}) - Tel: ${c.telefono || ''}`;
+        if (Array.isArray(contactos)) {
+          contactosEmergencia = contactos;
         } else if (contactos.nombre) {
-          contactoEmergencia = `${contactos.nombre} (${contactos.parentesco || ''}) - Tel: ${contactos.telefono || ''}`;
+          contactosEmergencia = [contactos];
         }
-      } catch (e) { /* ignorar errores de parseo */ }
+      } catch (e) { /* ignorar */ }
     }
-    doc.text(`Contacto Emergencia: ${contactoEmergencia}`, this.margins.left + 10, y + 16);
 
-    y += 32;
+    if (contactosEmergencia.length > 0) {
+      doc.rect(this.margins.left, y, pageWidth, 16)
+         .fillAndStroke('#fef2f2', '#dc2626');
+      doc.fontSize(6).font('Helvetica-Bold').fillColor('#dc2626')
+         .text('EMERGENCIA:', this.margins.left + 6, y + 5);
+      const contactoTexto = contactosEmergencia.slice(0, 2).map(c => `${c.nombre || ''} (${c.parentesco || ''}) ${c.telefono || ''}`).join(' | ');
+      doc.font('Helvetica').fontSize(7).fillColor(this.colors.text)
+         .text(contactoTexto, this.margins.left + 55, y + 5, { width: pageWidth - 65 });
+      y += 18;
+    }
 
-    // Última atención y modalidad - Res. 866/2021
-    doc.rect(this.margins.left, y, pageWidth, 22)
-       .fill(this.colors.primary);
+    // === ASEGURAMIENTO EN SALUD ===
+    doc.rect(this.margins.left, y, pageWidth, 14).fill('#7c3aed');
+    doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('ASEGURAMIENTO EN SALUD', this.margins.left + 6, y + 4);
+    y += 16;
 
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#ffffff')
-       .text('DATOS DE ATENCIÓN EN SALUD (Res. 866/2021)', this.margins.left + 10, y + 6);
+    // Fila 1: ARL, SISBEN, Convenio, Carnet
+    doc.rect(this.margins.left, y, pageWidth, 13).fill('#f5f3ff');
+    doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
+    doc.text('ARL:', r1c1, y + 3);
+    doc.text('SISBEN:', r1c2, y + 3);
+    doc.text('Convenio:', r1c3, y + 3);
+    doc.text('Carnet/Póliza:', r1c4, y + 3);
 
-    y += 24;
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text);
+    doc.text((paciente.arl || 'N/A').substring(0, 18), r1c1 + 18, y + 3);
+    doc.text(paciente.nivelSisben || 'N/A', r1c2 + 32, y + 3);
+    doc.text((paciente.convenio || 'N/A').substring(0, 15), r1c3 + 38, y + 3);
+    doc.text((paciente.carnetPoliza || 'N/A').substring(0, 12), r1c4 + 52, y + 3);
+    y += 14;
 
-    doc.rect(this.margins.left, y, pageWidth, 22)
-       .fill('#fff7ed');
+    // Fila 2: No. Autorización, Fecha Afiliación, Categoría, Tipo Paciente
+    doc.rect(this.margins.left, y, pageWidth, 13).fill('#ffffff');
+    doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
+    doc.text('No. Autoriz:', r1c1, y + 3);
+    doc.text('F. Afiliación:', r1c2, y + 3);
+    doc.text('Categoría:', r1c3, y + 3);
+    doc.text('Tipo Paciente:', r1c4, y + 3);
 
-    const ultimaAtencion = paciente.ultimaConsulta ? this.formatearFecha(paciente.ultimaConsulta) : 'Sin registros';
-    const modalidad = paciente.tipoPaciente || 'Consulta Externa';
+    doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text);
+    doc.text((paciente.numeroAutorizacion || 'N/A').substring(0, 15), r1c1 + 45, y + 3);
+    doc.text(this.formatearFechaCorta(paciente.fechaAfiliacion) || 'N/A', r1c2 + 48, y + 3);
+    doc.text((paciente.categoria || 'N/A').substring(0, 12), r1c3 + 40, y + 3);
+    doc.text((paciente.tipoPaciente || 'N/A').substring(0, 12), r1c4 + 52, y + 3);
+    y += 15;
 
-    doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-       .text(`Última Atención: ${ultimaAtencion} | Modalidad: ${modalidad} | Tipo Afiliación: ${paciente.tipoAfiliacion || 'N/A'}`,
-             this.margins.left + 10, y + 6);
+    // === REFERENCIA ===
+    if (paciente.referidoPor || paciente.nombreRefiere) {
+      doc.rect(this.margins.left, y, pageWidth, 14).fill('#fef3c7');
+      doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
+      doc.text('Referido por:', this.margins.left + 4, y + 4);
+      doc.text('Nombre quien refiere:', this.margins.left + col2Width, y + 4);
 
-    y += 26;
+      doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text);
+      doc.text(paciente.referidoPor || 'N/A', this.margins.left + 50, y + 4);
+      doc.text(paciente.nombreRefiere || 'N/A', this.margins.left + col2Width + 80, y + 4);
+      y += 16;
+    }
 
-    // Contacto
-    doc.rect(this.margins.left, y, pageWidth, 35)
-       .fill('#f8fafc');
+    // === DATOS ANTROPOMÉTRICOS ===
+    if (paciente.peso || paciente.altura) {
+      doc.rect(this.margins.left, y, pageWidth, 14).fill('#ecfdf5');
+      doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
+      doc.text('Peso:', this.margins.left + 4, y + 4);
+      doc.text('Altura:', this.margins.left + col3Width, y + 4);
+      doc.text('IMC:', this.margins.left + col3Width * 2, y + 4);
 
-    doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
-       .text('CONTACTO', this.margins.left + 10, y + 5);
+      doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text);
+      doc.text(paciente.peso ? `${paciente.peso} kg` : 'N/A', this.margins.left + 25, y + 4);
+      const alturaDisplay = paciente.altura ? (paciente.altura > 3 ? `${paciente.altura} cm` : `${(paciente.altura * 100).toFixed(0)} cm`) : 'N/A';
+      doc.text(alturaDisplay, this.margins.left + col3Width + 28, y + 4);
+      if (paciente.peso && paciente.altura) {
+        const alturaM = paciente.altura > 3 ? paciente.altura / 100 : paciente.altura;
+        const imc = (paciente.peso / (alturaM * alturaM)).toFixed(1);
+        doc.text(imc, this.margins.left + col3Width * 2 + 18, y + 4);
+      } else {
+        doc.text('N/A', this.margins.left + col3Width * 2 + 18, y + 4);
+      }
+      y += 16;
+    }
 
-    doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-       .text(`Tel: ${paciente.telefono || 'N/A'} | Email: ${paciente.email || 'N/A'}`, this.margins.left + 10, y + 16)
-       .text(`Dir: ${paciente.direccion || 'N/A'}, ${paciente.municipio || ''} ${paciente.departamento || ''}`, this.margins.left + 10, y + 26);
-
-    y += 40;
-
-    // Antecedentes
-    doc.rect(this.margins.left, y, pageWidth, 18)
-       .fill(this.colors.primary);
-
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#ffffff')
-       .text('ANTECEDENTES CLÍNICOS', this.margins.left + 10, y + 4);
-
-    y += 22;
+    // === ANTECEDENTES CLÍNICOS ===
+    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.danger);
+    doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
+       .text('ANTECEDENTES CLÍNICOS', this.margins.left + 6, y + 4);
+    y += 16;
 
     const antecedentes = [
-      ['Alergias', paciente.alergias || 'Ninguna conocida'],
-      ['Enf. Crónicas', paciente.enfermedadesCronicas || 'Ninguna reportada'],
-      ['Medicamentos', paciente.medicamentosActuales || 'Ninguno actual'],
-      ['Quirúrgicos', paciente.antecedentesQuirurgicos || 'Sin antecedentes'],
+      ['Alergias', paciente.alergias || 'Ninguna conocida', '#fef2f2'],
+      ['Enf. Crónicas', paciente.enfermedadesCronicas || 'Ninguna reportada', '#fffbeb'],
+      ['Medicamentos', paciente.medicamentosActuales || 'Ninguno actual', '#eff6ff'],
+      ['Quirúrgicos', paciente.antecedentesQuirurgicos || 'Sin antecedentes', '#f0fdf4'],
     ];
 
-    for (const [label, value] of antecedentes) {
-      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.textMuted)
-         .text(label + ':', this.margins.left + 10, y);
-      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-         .text((value || '').substring(0, 70), this.margins.left + 85, y, { width: pageWidth - 95 });
-      y += 14;
+    for (const [label, value, bgColor] of antecedentes) {
+      doc.rect(this.margins.left, y, pageWidth, 12).fill(bgColor);
+      doc.fontSize(6).font('Helvetica-Bold').fillColor(this.colors.textMuted)
+         .text(label + ':', this.margins.left + 6, y + 3);
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.text)
+         .text((value || '').substring(0, 90), this.margins.left + 65, y + 3, { width: pageWidth - 75 });
+      y += 13;
     }
 
-    return y + 15;
+    return y + 6;
   }
 
   /**
@@ -1951,75 +2122,39 @@ class HCEPdfService {
   }
 
   /**
-   * Resumen y constancia final
+   * Constancia de autenticidad final (sin resumen estadístico)
    */
   generarResumenFinal(doc, datos, startY) {
     let y = startY;
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
-    // Resumen estadístico
-    doc.rect(this.margins.left, y, pageWidth, 130)
-       .fill(this.colors.headerBg);
+    // Constancia de autenticidad y cumplimiento normativo
+    doc.rect(this.margins.left, y, pageWidth, 120)
+       .lineWidth(2)
+       .fillAndStroke(this.colors.headerBg, this.colors.primary);
 
     y += 10;
-    doc.fontSize(11).font('Helvetica-Bold').fillColor(this.colors.primary)
-       .text('RESUMEN ESTADÍSTICO DE LA HISTORIA CLÍNICA', this.margins.left + 15, y);
-
-    y += 22;
-
-    const col1X = this.margins.left + 20;
-    const col2X = this.margins.left + pageWidth / 2 + 10;
-
-    const stats = [
-      [`Evoluciones: ${datos.evoluciones.length}`, `Prescripciones: ${datos.prescripciones.length}`],
-      [`Signos Vitales: ${datos.signosVitales.length}`, `Procedimientos: ${datos.procedimientos.length}`],
-      [`Diagnósticos: ${datos.diagnosticos.length}`, `Interconsultas: ${datos.interconsultas.length}`],
-      [`Alertas: ${datos.alertas.length}`, `Hospitalizaciones: ${datos.hospitalizaciones.length}`],
-    ];
-
-    doc.fontSize(9).font('Helvetica').fillColor(this.colors.text);
-
-    for (const [stat1, stat2] of stats) {
-      doc.text(`• ${stat1}`, col1X, y);
-      doc.text(`• ${stat2}`, col2X, y);
-      y += 16;
-    }
-
-    y += 20;
-
-    // Constancia de autenticidad y cumplimiento normativo
-    doc.rect(this.margins.left, y, pageWidth, 140)
-       .lineWidth(2)
-       .stroke(this.colors.primary);
-
-    y += 12;
     doc.fontSize(10).font('Helvetica-Bold').fillColor(this.colors.primary)
        .text('CONSTANCIA DE AUTENTICIDAD Y CUMPLIMIENTO NORMATIVO', this.margins.left + 15, y);
 
-    y += 18;
+    y += 16;
     doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
        .text('Este documento es una copia fiel de la Historia Clínica Electrónica almacenada en el sistema de información de ' +
              `${datos.institucion.nombre}. El contenido cumple con la normatividad colombiana vigente:`,
              this.margins.left + 15, y, { width: pageWidth - 30 });
 
-    y += 28;
+    y += 24;
     doc.fontSize(7).fillColor(this.colors.textMuted)
-       .text('• Resolución 1995 de 1999 - Manejo de la Historia Clínica', this.margins.left + 20, y)
-       .text('• Ley 2015 de 2020 - Interoperabilidad de la HCE', this.margins.left + 20, y + 10)
-       .text('• Resolución 866 de 2021 - Elementos de Datos Clínicos Relevantes', this.margins.left + 20, y + 20)
-       .text('• Ley 1581 de 2012 - Protección de Datos Personales (Habeas Data)', this.margins.left + 20, y + 30);
+       .text('• Res. 1995/1999 - Historia Clínica | • Ley 2015/2020 - Interoperabilidad HCE | • Res. 866/2021 - Datos Clínicos | • Ley 1581/2012 - Habeas Data',
+             this.margins.left + 15, y, { width: pageWidth - 30 });
 
-    y += 45;
+    y += 18;
     doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.text)
-       .text(`Generado: ${this.formatearFechaHoraCompleta(datos.fechaGeneracion)}`, this.margins.left + 15, y);
+       .text(`Generado: ${this.formatearFechaHoraCompleta(datos.fechaGeneracion)} | Hash: ${this.generarHashSimple(datos.paciente.id)}`, this.margins.left + 15, y);
 
-    doc.text(`Hash de integridad: ${this.generarHashSimple(datos.paciente.id)}`, this.margins.left + 15, y + 10);
-    doc.font('Helvetica').text(`Período: Desde el inicio del registro hasta ${this.formatearFecha(datos.fechaGeneracion)}`, this.margins.left + 15, y + 20);
-
-    y += 35;
+    y += 12;
     doc.fontSize(6).font('Helvetica-Oblique').fillColor(this.colors.textMuted)
-       .text('ADVERTENCIA: La divulgación no autorizada de esta información está penada por la Ley 1581 de 2012. ' +
-             'Este documento tiene carácter de reservado conforme al Art. 1 de la Resolución 1995 de 1999.',
+       .text('ADVERTENCIA: La divulgación no autorizada de esta información está penada por la Ley 1581 de 2012.',
              this.margins.left + 15, y, { width: pageWidth - 30, align: 'center' });
   }
 
@@ -2524,26 +2659,22 @@ class HCEPdfService {
     const { paciente, fechaGeneracion, institucion } = datos;
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
     const centerX = this.margins.left;
-    const pageHeight = doc.page.height;
 
-    // === BARRA SUPERIOR DECORATIVA - Color de marca ===
-    doc.rect(0, 0, doc.page.width, 8).fill(this.colors.primary);
-    doc.rect(0, 8, doc.page.width, 3).fill(this.colors.accent);
+    // === BARRA SUPERIOR DECORATIVA ===
+    doc.rect(0, 0, doc.page.width, 6).fill(this.colors.primary);
+    doc.rect(0, 6, doc.page.width, 2).fill(this.colors.accent);
 
-    // === ENCABEZADO INSTITUCIONAL ===
-    const headerY = 30;
-    const headerHeight = 100;
+    // === ENCABEZADO INSTITUCIONAL COMPACTO ===
+    const headerY = 15;
+    const headerHeight = 55;
 
-    // Fondo con gradiente simulado (dos rectángulos)
     doc.rect(this.margins.left, headerY, pageWidth, headerHeight)
        .fill(this.colors.primary);
-    doc.rect(this.margins.left, headerY + headerHeight - 5, pageWidth, 5)
-       .fill(this.colors.primaryDark);
 
-    // Logo de Clínica MÍA
-    const logoX = this.margins.left + 15;
-    const logoY = headerY + 10;
-    const logoSize = 80;
+    // Logo compacto
+    const logoX = this.margins.left + 8;
+    const logoY = headerY + 5;
+    const logoSize = 45;
     let logoMostrado = false;
 
     try {
@@ -2559,206 +2690,62 @@ class HCEPdfService {
       console.log('Error cargando logo:', e.message);
     }
 
-    // Si no se pudo cargar el logo, mostrar placeholder con iniciales
     if (!logoMostrado) {
-      doc.circle(logoX + logoSize/2, logoY + logoSize/2, 35).fill('#ffffff');
-      doc.fontSize(28)
-         .font('Helvetica-Bold')
-         .fillColor(this.colors.primary)
-         .text('CM', logoX + 12, logoY + 25);
+      doc.circle(logoX + logoSize/2, logoY + logoSize/2, 20).fill('#ffffff');
+      doc.fontSize(16).font('Helvetica-Bold').fillColor(this.colors.primary)
+         .text('CM', logoX + 8, logoY + 12);
     }
 
-    // Nombre institucional - a la derecha del logo
-    const textStartX = logoX + logoSize + 20;
-    doc.fillColor('#ffffff')
-       .fontSize(18)
-       .font('Helvetica-Bold')
-       .text(institucion.nombre, textStartX, headerY + 15, {
-         width: pageWidth - logoSize - 50,
-       });
+    // Info institucional compacta
+    const textStartX = logoX + logoSize + 10;
+    doc.fillColor('#ffffff').fontSize(13).font('Helvetica-Bold')
+       .text(institucion.nombre, textStartX, headerY + 6, { width: pageWidth - logoSize - 30 });
 
-    doc.fontSize(9)
-       .font('Helvetica')
-       .fillColor(this.colors.accent)
-       .text(institucion.tipoEntidad || 'IPS - Institución Prestadora de Servicios de Salud', textStartX, headerY + 38);
+    doc.fontSize(7).font('Helvetica').fillColor(this.colors.accent)
+       .text(`NIT: ${institucion.nit} | Hab: ${institucion.codigoHabilitacion} | ${institucion.tipoEntidad || 'IPS'}`, textStartX, headerY + 22);
 
-    doc.fontSize(9)
-       .fillColor('#e0f2f1')
-       .text(`NIT: ${institucion.nit} | Cód. Habilitación: ${institucion.codigoHabilitacion}`, textStartX, headerY + 55);
+    doc.fillColor('#e0f2f1').fontSize(7)
+       .text(`${institucion.direccion}, ${institucion.ciudad} | Tel: ${institucion.telefono} | ${institucion.celular}`, textStartX, headerY + 32)
+       .text(`${institucion.email} | ${institucion.web}`, textStartX, headerY + 42);
 
-    doc.text(`${institucion.direccion}, ${institucion.ciudad} | Tel: ${institucion.telefono}`, textStartX, headerY + 68);
+    // === TÍTULO Y FECHA ===
+    let y = headerY + headerHeight + 5;
 
-    doc.text(`Cel: ${institucion.celular} | ${institucion.email}`, textStartX, headerY + 81);
+    // Fila con título y fecha de generación
+    doc.rect(this.margins.left, y, pageWidth, 20).fill(this.colors.headerBg);
 
-    // === TÍTULO PRINCIPAL - CENTRADO EN LA PÁGINA ===
-    let y = 160;
+    doc.fillColor(this.colors.primary).fontSize(12).font('Helvetica-Bold')
+       .text('HISTORIA CLÍNICA ELECTRÓNICA', this.margins.left + 8, y + 5);
 
-    doc.fillColor(this.colors.primary)
-       .fontSize(32)
-       .font('Helvetica-Bold')
-       .text('HISTORIA CLÍNICA', centerX, y, {
-         width: pageWidth,
-         align: 'center',
-       });
-
-    doc.fontSize(14)
-       .font('Helvetica')
-       .fillColor(this.colors.secondary)
-       .text('ELECTRÓNICA INTEGRAL', centerX, y + 38, {
-         width: pageWidth,
-         align: 'center',
-       });
-
-    // Indicador de rango de fechas si aplica
+    // Rango de fechas si aplica
     if (datos.rangoFechas) {
       const desde = datos.rangoFechas.desde.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
       const hasta = datos.rangoFechas.hasta.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-
-      // Badge de período
-      const periodoText = `PERÍODO: ${desde} - ${hasta}`;
-      const badgeWidth = 220;
-      const badgeX = centerX + (pageWidth - badgeWidth) / 2;
-
-      doc.rect(badgeX, y + 56, badgeWidth, 22)
-         .fill(this.colors.warning);
-
-      doc.fontSize(9)
-         .font('Helvetica-Bold')
-         .fillColor('#ffffff')
-         .text(periodoText, badgeX, y + 62, {
-           width: badgeWidth,
-           align: 'center',
-         });
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.warning)
+         .text(`Período: ${desde} - ${hasta}`, this.margins.left + 200, y + 6);
     }
 
-    // Líneas decorativas
-    const lineY = datos.rangoFechas ? y + 85 : y + 60;
-    doc.moveTo(this.margins.left + 120, lineY)
-       .lineTo(this.margins.left + pageWidth - 120, lineY)
+    doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
+       .text(`Generado: ${this.formatearFechaHoraCompleta(fechaGeneracion)}`, this.margins.left + pageWidth - 140, y + 6, { width: 130, align: 'right' });
+
+    y += 22;
+
+    // === IDENTIFICACIÓN DEL PACIENTE ===
+    y = this.generarIdentificacionInline(doc, paciente, y);
+
+    // === ADVERTENCIA CONFIDENCIAL (compacta) ===
+    doc.rect(this.margins.left, y, pageWidth, 22)
        .lineWidth(1)
-       .stroke(this.colors.secondary);
-
-    doc.fontSize(8)
-       .fillColor(this.colors.textMuted)
-       .text('Conforme a Ley 2015 de 2020 - Interoperabilidad HCE', centerX, lineY + 8, {
-         width: pageWidth,
-         align: 'center',
-       });
-
-    // === INFORMACIÓN DEL PACIENTE ===
-    const boxY = 250;
-    const boxHeight = 160;
-
-    // Box principal con sombra sutil
-    doc.rect(this.margins.left + 32, boxY + 2, pageWidth - 60, boxHeight)
-       .fill('#e8e8e8');
-    doc.rect(this.margins.left + 30, boxY, pageWidth - 60, boxHeight)
-       .lineWidth(1)
-       .fillAndStroke('#ffffff', this.colors.primary);
-
-    // Encabezado del box
-    doc.rect(this.margins.left + 30, boxY, pageWidth - 60, 28)
-       .fill(this.colors.primary);
-
-    doc.fillColor('#ffffff')
-       .fontSize(11)
-       .font('Helvetica-Bold')
-       .text('DATOS DEL PACIENTE', this.margins.left + 45, boxY + 8);
-
-    doc.fontSize(9)
-       .font('Helvetica')
-       .text(`HC: ${paciente.id?.substring(0, 8).toUpperCase() || 'N/A'}`,
-              this.margins.left + pageWidth - 130, boxY + 9);
-
-    // Datos del paciente
-    const datosY = boxY + 38;
-    const col1X = this.margins.left + 50;
-    const col2X = this.margins.left + pageWidth / 2;
-
-    const nombreCompleto = `${paciente.nombre || ''} ${paciente.apellido || ''}`.trim().toUpperCase();
-
-    // Nombre destacado
-    doc.fontSize(14)
-       .font('Helvetica-Bold')
-       .fillColor(this.colors.primary)
-       .text(nombreCompleto || 'NOMBRE NO REGISTRADO', col1X, datosY, { width: pageWidth - 100 });
-
-    const dataStartY = datosY + 25;
-    const lineHeight = 22;
-
-    // Grid de datos
-    this.escribirCampoPortadaSimple(doc, 'Documento:', `${paciente.tipoDocumento || 'CC'} ${paciente.cedula || 'N/A'}`, col1X, dataStartY);
-    this.escribirCampoPortadaSimple(doc, 'Fecha Nac.:', this.formatearFecha(paciente.fechaNacimiento), col1X, dataStartY + lineHeight);
-    this.escribirCampoPortadaSimple(doc, 'Sexo:', paciente.genero || 'N/A', col1X, dataStartY + lineHeight * 2);
-    this.escribirCampoPortadaSimple(doc, 'EPS:', paciente.eps || 'N/A', col1X, dataStartY + lineHeight * 3);
-
-    this.escribirCampoPortadaSimple(doc, 'Edad:', this.calcularEdad(paciente.fechaNacimiento), col2X, dataStartY);
-    this.escribirCampoPortadaSimple(doc, 'Estado Civil:', paciente.estadoCivil || 'N/A', col2X, dataStartY + lineHeight);
-    this.escribirCampoPortadaSimple(doc, 'Tipo Sangre:', paciente.tipoSangre || 'N/A', col2X, dataStartY + lineHeight * 2);
-    this.escribirCampoPortadaSimple(doc, 'Régimen:', paciente.regimen || 'N/A', col2X, dataStartY + lineHeight * 3);
-
-    // === FECHA DE GENERACIÓN ===
-    y = boxY + boxHeight + 20;
-
-    doc.rect(this.margins.left + 80, y, pageWidth - 160, 35)
-       .fill(this.colors.headerBg);
-
-    doc.fontSize(8)
-       .fillColor(this.colors.textLight)
-       .font('Helvetica')
-       .text('Documento generado:', centerX, y + 6, { width: pageWidth, align: 'center' });
-
-    doc.fontSize(10)
-       .font('Helvetica-Bold')
-       .fillColor(this.colors.primary)
-       .text(this.formatearFechaHoraCompleta(fechaGeneracion), centerX, y + 18, { width: pageWidth, align: 'center' });
-
-    // === ADVERTENCIA DOCUMENTO CONFIDENCIAL ===
-    y = y + 50;
-
-    doc.rect(this.margins.left + 30, y, pageWidth - 60, 55)
-       .lineWidth(1.5)
        .fillAndStroke(this.colors.dangerBg, this.colors.danger);
 
-    // Texto de advertencia (sin ícono problemático)
-    doc.fillColor(this.colors.danger)
-       .fontSize(11)
-       .font('Helvetica-Bold')
-       .text('⚠ DOCUMENTO CONFIDENCIAL', centerX, y + 10, {
-         width: pageWidth,
-         align: 'center'
-       });
+    doc.fillColor(this.colors.danger).fontSize(7).font('Helvetica-Bold')
+       .text('⚠ DOCUMENTO CONFIDENCIAL', this.margins.left + 8, y + 4);
 
-    doc.fontSize(8)
-       .font('Helvetica')
-       .fillColor(this.colors.text)
-       .text(
-         'Información médica protegida por Ley 1581/2012 (Habeas Data), Ley 23/1981 (Ética Médica) ' +
-         'y Ley 2015/2020 (HCE Interoperable). Divulgación no autorizada constituye delito penal.',
-         this.margins.left + 50, y + 28, { width: pageWidth - 100, align: 'center' }
-       );
+    doc.fontSize(6).font('Helvetica').fillColor(this.colors.text)
+       .text('Información protegida por Ley 1581/2012 (Habeas Data), Ley 23/1981 (Ética Médica) y Ley 2015/2020. Conforme a Res. 1995/1999, 839/2017, 3100/2019, 866/2021.',
+             this.margins.left + 8, y + 13, { width: pageWidth - 16 });
 
-    // === PIE DE PÁGINA ===
-    y = y + 70;
-
-    doc.fontSize(7)
-       .fillColor(this.colors.textMuted)
-       .font('Helvetica-Oblique')
-       .text(
-         'Generado conforme a: Res. 1995/1999, Res. 839/2017, Res. 3100/2019, Res. 866/2021',
-         centerX, y, { width: pageWidth, align: 'center' }
-       );
-
-    doc.moveTo(this.margins.left + 150, y + 15)
-       .lineTo(this.margins.left + pageWidth - 150, y + 15)
-       .lineWidth(0.5)
-       .stroke(this.colors.border);
-
-    doc.fontSize(8)
-       .font('Helvetica')
-       .fillColor(this.colors.textMuted)
-       .text(`${institucion.email} | ${institucion.web}`,
-              centerX, y + 22, { width: pageWidth, align: 'center' });
+    return y + 25; // Retorna posición Y para continuar contenido
   }
 
   /**
