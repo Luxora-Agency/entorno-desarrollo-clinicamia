@@ -23,7 +23,10 @@ export function useHospitalizedPatients(doctorId, options = {}) {
   const fetchPatients = useCallback(async (fetchOptions = {}) => {
     const { silent = false } = fetchOptions;
 
+    console.log('[useHospitalizedPatients] Iniciando fetch con doctorId:', doctorId);
+
     if (!doctorId) {
+      console.log('[useHospitalizedPatients] No hay doctorId, abortando');
       setLoading(false);
       return;
     }
@@ -34,14 +37,17 @@ export function useHospitalizedPatients(doctorId, options = {}) {
     setError(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      // Usar el mismo patrón de token que api.js
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
       const params = new URLSearchParams({
         page: String(page),
         limit: String(limit),
         ...(estado && { estado }),
       });
+
+      console.log('[useHospitalizedPatients] URL:', `${apiUrl}/admisiones/doctor/${doctorId}?${params}`);
 
       const response = await fetch(
         `${apiUrl}/admisiones/doctor/${doctorId}?${params}`,
@@ -55,9 +61,22 @@ export function useHospitalizedPatients(doctorId, options = {}) {
       }
 
       const result = await response.json();
+      const admisiones = result.data?.data || [];
+
+      console.log('[useHospitalizedPatients] API response:', {
+        success: result.success,
+        dataLength: admisiones.length,
+        pagination: result.data?.pagination,
+        pacientes: admisiones.map(a => ({
+          nombre: a.paciente?.nombre,
+          apellido: a.paciente?.apellido,
+          alergias: a.paciente?.alergias,
+          cronicas: a.paciente?.enfermedadesCronicas
+        }))
+      });
 
       if (result.success) {
-        setPatients(result.data?.data || []);
+        setPatients(admisiones);
         setPagination(result.data?.pagination || {
           page: 1,
           limit: 20,
@@ -121,8 +140,8 @@ export function useDoctorStats(doctorId) {
     setError(null);
 
     try {
-      const token = localStorage.getItem('token');
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
       const response = await fetch(
         `${apiUrl}/admisiones/doctor/${doctorId}/stats`,

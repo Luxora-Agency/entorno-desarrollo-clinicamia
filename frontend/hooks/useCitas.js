@@ -84,9 +84,17 @@ export const useCitas = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('[useCitas] Consultando disponibilidad:', { doctorId, fecha });
       const response = await apiGet(`/disponibilidad/${doctorId}`, { fecha });
+      console.log('[useCitas] Respuesta disponibilidad:', {
+        horarios_configurados: response.data?.horarios_configurados,
+        bloques_del_dia: response.data?.bloques_del_dia,
+        bloqueado: response.data?.bloqueado,
+        slots_disponibles: response.data?.slots_disponibles?.length || 0
+      });
       return { success: true, data: response.data };
     } catch (err) {
+      console.error('[useCitas] Error disponibilidad:', err.message);
       setError(err.message);
       return { success: false, error: err.message };
     } finally {

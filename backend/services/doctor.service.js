@@ -1,9 +1,25 @@
 const prisma = require('../db/prisma');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { ValidationError, NotFoundError, AppError } = require('../utils/errors');
 const { uploadImage, deleteImage, getPublicIdFromUrl, isConfigured: isCloudinaryConfigured } = require('../utils/cloudinary');
 const { saveBase64Image, deleteFile, resizeBase64Image } = require('../utils/upload');
 const emailService = require('./email.service');
+
+/**
+ * Genera una contraseña segura aleatoria
+ * @param {number} length - Longitud de la contraseña (mínimo 12)
+ * @returns {string} - Contraseña segura
+ */
+function generateSecurePassword(length = 12) {
+  const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%&*';
+  const bytes = crypto.randomBytes(length);
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += charset[bytes[i] % charset.length];
+  }
+  return password;
+}
 
 class DoctorService {
   async crear(data) {
@@ -83,7 +99,8 @@ class DoctorService {
       }
 
       // Determinar la contraseña a usar (para guardar y para el correo)
-      const passwordOriginal = customPassword && customPassword.length >= 6 ? customPassword : cedula;
+      // SEGURIDAD: Generar contraseña aleatoria segura si no se proporciona una personalizada
+      const passwordOriginal = customPassword && customPassword.length >= 6 ? customPassword : generateSecurePassword(12);
 
       // Uso de transacción para asegurar consistencia
       const result = await prisma.$transaction(async (tx) => {

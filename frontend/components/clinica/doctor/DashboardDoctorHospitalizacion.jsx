@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import {
   BedDouble, Clock, User, Activity, FileText,
   ClipboardList, Eye, RefreshCw, Stethoscope, ArrowLeft,
-  CalendarDays, AlertCircle, History, MoreVertical, Pill
+  CalendarDays, AlertCircle, History, MoreVertical, Pill, CheckCircle
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +55,9 @@ export default function DashboardDoctorHospitalizacion({ user, onChangeAttention
   const [showOrdenesModal, setShowOrdenesModal] = useState(false);
   const [showHistorialPanel, setShowHistorialPanel] = useState(false);
 
+  // Debug: log user info
+  console.log('[MisHospitalizados] User prop:', { id: user?.id, nombre: user?.nombre, rol: user?.rol });
+
   const {
     patients: admisiones,
     loading,
@@ -62,6 +65,14 @@ export default function DashboardDoctorHospitalizacion({ user, onChangeAttention
     pagination,
     refresh
   } = useHospitalizedPatients(user?.id);
+
+  // Debug: log data received
+  console.log('[MisHospitalizados] Hook data:', {
+    loading,
+    error,
+    admisionesCount: admisiones?.length,
+    pagination
+  });
 
   // Calcular estadísticas
   const stats = {
@@ -156,86 +167,286 @@ export default function DashboardDoctorHospitalizacion({ user, onChangeAttention
 
   // Vista Principal Dashboard
   return (
-    <div className="p-6 lg:p-8 bg-gray-50 min-h-screen font-sans">
-      {/* Header */}
-      <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-2 bg-emerald-600 rounded-lg text-white">
-              <BedDouble className="h-6 w-6" />
+    <div className="p-4 lg:p-6 space-y-5 bg-gradient-to-br from-slate-50 via-purple-50/40 to-violet-50/30 min-h-screen">
+      {/* Header Mejorado */}
+      <div className="relative overflow-hidden bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div className="absolute inset-0 bg-gradient-to-r from-purple-600/5 via-violet-600/5 to-indigo-600/5" />
+        <div className="relative p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl blur-lg opacity-40" />
+              <div className="relative p-3.5 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl shadow-lg">
+                <BedDouble className="h-7 w-7 text-white" />
+              </div>
             </div>
-            Hospitalización
-          </h1>
-          <p className="text-gray-500 mt-1">
-            Pacientes internados a cargo de Dr(a). {user?.nombre} {user?.apellido}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={refresh} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Actualizar
-          </Button>
-          <Button variant="outline" onClick={handleCambiarTipoAtencion}>
-            <Stethoscope className="h-4 w-4 mr-2" />
-            Consulta Externa
-          </Button>
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Mis Hospitalizados
+              </h1>
+              <p className="text-gray-500 mt-1 text-sm">
+                Pacientes internados a cargo de Dr(a). {user?.nombre} {user?.apellido}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refresh}
+              disabled={loading}
+              className="gap-2 rounded-xl hover:bg-gray-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              Actualizar
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleCambiarTipoAtencion}
+              className="gap-2 rounded-xl hover:bg-purple-50 text-purple-700 border-purple-200"
+            >
+              <Stethoscope className="h-4 w-4" />
+              Consulta Externa
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card className="shadow-sm border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Pacientes a Cargo</p>
-                <h3 className="text-3xl font-bold text-gray-900 mt-2">{stats.total}</h3>
+      {/* Stats Cards con diseño moderno */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Pacientes a Cargo */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-500 to-violet-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity" />
+          <div className="relative bg-white rounded-2xl p-5 border border-gray-100 hover:border-purple-200 transition-all hover:shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-gradient-to-br from-purple-500 to-violet-600 rounded-xl">
+                <User className="h-5 w-5 text-white" />
               </div>
-              <div className="p-2 bg-emerald-50 rounded-full">
-                <User className="h-5 w-5 text-emerald-600" />
-              </div>
+              <span className="text-3xl font-bold text-gray-900">{stats.total}</span>
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-sm font-medium text-gray-500">Pacientes a Cargo</p>
+          </div>
+        </div>
 
-        <Card className="shadow-sm border-l-4 border-l-yellow-500 hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Pendientes Ronda</p>
-                <h3 className="text-3xl font-bold text-yellow-600 mt-2">{stats.pendientesRonda}</h3>
+        {/* Pendientes Ronda */}
+        <div className="relative group">
+          <div className={`absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-500 rounded-2xl blur ${stats.pendientesRonda > 0 ? 'opacity-30 animate-pulse' : 'opacity-20'} group-hover:opacity-40 transition-opacity`} />
+          <div className={`relative bg-white rounded-2xl p-5 border ${stats.pendientesRonda > 0 ? 'border-amber-300 ring-2 ring-amber-200' : 'border-gray-100'} hover:border-amber-300 transition-all hover:shadow-lg`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl">
+                <AlertCircle className={`h-5 w-5 text-white ${stats.pendientesRonda > 0 ? 'animate-pulse' : ''}`} />
               </div>
-              <div className="p-2 bg-yellow-50 rounded-full">
-                <AlertCircle className="h-5 w-5 text-yellow-600" />
-              </div>
+              <span className="text-3xl font-bold text-amber-600">{stats.pendientesRonda}</span>
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-sm font-medium text-gray-500">Pendientes Ronda</p>
+            {stats.pendientesRonda > 0 && (
+              <Button
+                size="sm"
+                className="w-full mt-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
+                onClick={handleIniciarRonda}
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Iniciar Ronda
+              </Button>
+            )}
+          </div>
+        </div>
 
-        <Card className="shadow-sm border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-sm font-medium text-gray-500">Estancia Promedio</p>
-                <h3 className="text-3xl font-bold text-gray-900 mt-2">{stats.estanciaPromedio} días</h3>
+        {/* Estancia Promedio */}
+        <div className="relative group">
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition-opacity" />
+          <div className="relative bg-white rounded-2xl p-5 border border-gray-100 hover:border-blue-200 transition-all hover:shadow-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div className="p-2.5 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
+                <CalendarDays className="h-5 w-5 text-white" />
               </div>
-              <div className="p-2 bg-blue-50 rounded-full">
-                <CalendarDays className="h-5 w-5 text-blue-600" />
+              <div className="text-right">
+                <span className="text-3xl font-bold text-gray-900">{stats.estanciaPromedio}</span>
+                <span className="text-lg font-medium text-gray-500 ml-1">días</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+            <p className="text-sm font-medium text-gray-500">Estancia Promedio</p>
+          </div>
+        </div>
       </div>
+
+      {/* Banner de Alertas Prominente */}
+      {(() => {
+        const alertas = [];
+        console.log('[MisHospitalizados] Generando alertas para', admisiones.length, 'admisiones');
+        admisiones.forEach(admision => {
+          const paciente = admision.paciente;
+          const diasEstancia = calcularDiasEstancia(admision.fechaIngreso);
+          console.log('[MisHospitalizados] Paciente:', paciente?.nombre, '- Alergias:', paciente?.alergias, '- Crónicas:', paciente?.enfermedadesCronicas, '- Días:', diasEstancia);
+
+          if (paciente?.alergias) {
+            alertas.push({
+              tipo: 'alergias',
+              icono: '🚨',
+              paciente: `${paciente.nombre} ${paciente.apellido}`,
+              mensaje: paciente.alergias,
+              titulo: 'Alergias',
+              color: 'red',
+              admision
+            });
+          }
+
+          if (paciente?.enfermedadesCronicas) {
+            alertas.push({
+              tipo: 'cronicas',
+              icono: '⚠️',
+              paciente: `${paciente.nombre} ${paciente.apellido}`,
+              mensaje: paciente.enfermedadesCronicas,
+              titulo: 'Enf. Crónicas',
+              color: 'orange',
+              admision
+            });
+          }
+
+          if (diasEstancia > 7) {
+            alertas.push({
+              tipo: 'estancia',
+              icono: '📅',
+              paciente: `${paciente?.nombre} ${paciente?.apellido}`,
+              mensaje: `${diasEstancia} días de estancia`,
+              titulo: 'Estancia Prolongada',
+              color: 'amber',
+              admision
+            });
+          }
+        });
+
+        console.log('[MisHospitalizados] Total alertas generadas:', alertas.length, alertas.map(a => `${a.paciente} - ${a.titulo}`));
+
+        // Mostrar estado vacío si no hay alertas
+        if (alertas.length === 0) {
+          return (
+            <div className="relative overflow-hidden bg-white rounded-2xl border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gradient-to-r from-gray-50 to-slate-50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gray-100 rounded-xl">
+                    <AlertCircle className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-700">Alertas de Pacientes</h3>
+                    <p className="text-xs text-gray-500">Información importante a tener en cuenta</p>
+                  </div>
+                </div>
+                <Badge className="bg-gray-100 text-gray-500 font-medium text-sm px-3 py-1">
+                  0 alertas
+                </Badge>
+              </div>
+              <div className="p-8 text-center">
+                <div className="w-14 h-14 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <CheckCircle className="h-7 w-7 text-green-500" />
+                </div>
+                <p className="text-gray-600 font-medium">Sin alertas pendientes</p>
+                <p className="text-sm text-gray-400 mt-1">Tus pacientes no tienen alergias ni condiciones crónicas registradas</p>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <div className="relative overflow-hidden bg-white rounded-2xl border border-red-200 shadow-lg">
+            <div className="absolute inset-0 bg-gradient-to-r from-red-500/5 via-orange-500/5 to-amber-500/5" />
+            <div className="relative">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-red-100 bg-gradient-to-r from-red-50 to-orange-50">
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl blur opacity-40 animate-pulse" />
+                    <div className="relative p-2 bg-gradient-to-br from-red-500 to-orange-500 rounded-xl">
+                      <AlertCircle className="h-5 w-5 text-white" />
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-gray-900">Alertas de Pacientes</h3>
+                    <p className="text-xs text-gray-500">Información importante a tener en cuenta</p>
+                  </div>
+                </div>
+                <Badge className="bg-red-100 text-red-700 font-bold text-sm px-3 py-1">
+                  {alertas.length} {alertas.length === 1 ? 'alerta' : 'alertas'}
+                </Badge>
+              </div>
+
+              {/* Alertas Grid */}
+              <div className="p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {alertas.map((alerta, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleVerHCE(alerta.admision)}
+                      className={`group text-left p-4 rounded-xl border-2 transition-all hover:shadow-lg hover:scale-[1.02] ${
+                        alerta.color === 'red'
+                          ? 'bg-gradient-to-br from-red-50 to-rose-50 border-red-200 hover:border-red-400'
+                          : alerta.color === 'orange'
+                          ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-200 hover:border-orange-400'
+                          : 'bg-gradient-to-br from-amber-50 to-yellow-50 border-amber-200 hover:border-amber-400'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg ${
+                          alerta.color === 'red' ? 'bg-red-100'
+                          : alerta.color === 'orange' ? 'bg-orange-100'
+                          : 'bg-amber-100'
+                        }`}>
+                          <AlertCircle className={`h-5 w-5 ${
+                            alerta.color === 'red' ? 'text-red-600'
+                            : alerta.color === 'orange' ? 'text-orange-600'
+                            : 'text-amber-600'
+                          }`} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-bold uppercase tracking-wide ${
+                              alerta.color === 'red' ? 'text-red-600'
+                              : alerta.color === 'orange' ? 'text-orange-600'
+                              : 'text-amber-600'
+                            }`}>
+                              {alerta.titulo}
+                            </span>
+                          </div>
+                          <p className={`font-bold text-sm truncate ${
+                            alerta.color === 'red' ? 'text-red-900'
+                            : alerta.color === 'orange' ? 'text-orange-900'
+                            : 'text-amber-900'
+                          }`}>
+                            {alerta.paciente}
+                          </p>
+                          <p className={`text-xs mt-1 line-clamp-2 ${
+                            alerta.color === 'red' ? 'text-red-700'
+                            : alerta.color === 'orange' ? 'text-orange-700'
+                            : 'text-amber-700'
+                          }`}>
+                            {alerta.mensaje}
+                          </p>
+                        </div>
+                        <Eye className={`h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity ${
+                          alerta.color === 'red' ? 'text-red-400'
+                          : alerta.color === 'orange' ? 'text-orange-400'
+                          : 'text-amber-400'
+                        }`} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Patient List */}
         <div className="lg:col-span-2">
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="h-5 w-5 text-emerald-600" />
+          <Card className="shadow-sm border-0 rounded-2xl overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-purple-50 to-violet-50 border-b border-purple-100">
+              <CardTitle className="flex items-center gap-2 text-gray-800">
+                <div className="p-1.5 bg-gradient-to-br from-purple-500 to-violet-600 rounded-lg">
+                  <ClipboardList className="h-4 w-4 text-white" />
+                </div>
                 Pacientes Hospitalizados
               </CardTitle>
               <CardDescription>
@@ -245,7 +456,7 @@ export default function DashboardDoctorHospitalizacion({ user, onChangeAttention
             <CardContent className="p-0">
               {loading ? (
                 <div className="p-8 text-center text-gray-500">
-                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-gray-400" />
+                  <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-2 text-purple-400" />
                   Cargando pacientes...
                 </div>
               ) : error ? (
@@ -255,8 +466,11 @@ export default function DashboardDoctorHospitalizacion({ user, onChangeAttention
                 </div>
               ) : admisiones.length === 0 ? (
                 <div className="p-12 text-center">
-                  <BedDouble className="h-12 w-12 mx-auto text-gray-300 mb-3" />
-                  <p className="text-gray-500">No tiene pacientes hospitalizados a su cargo.</p>
+                  <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <BedDouble className="h-8 w-8 text-purple-400" />
+                  </div>
+                  <p className="text-gray-600 font-medium">No tiene pacientes hospitalizados</p>
+                  <p className="text-gray-400 text-sm mt-1">Los pacientes aparecerán aquí cuando estén a su cargo</p>
                 </div>
               ) : (
                 <Table>
@@ -377,29 +591,30 @@ export default function DashboardDoctorHospitalizacion({ user, onChangeAttention
         </div>
 
         {/* Sidebar */}
-        <div className="space-y-6">
-          {/* Quick Actions */}
-          <Card className="bg-gradient-to-br from-emerald-900 to-slate-900 text-white border-none shadow-lg">
-            <CardContent className="p-6">
-              <h3 className="font-bold text-lg mb-4">Acciones Rápidas</h3>
-              <div className="space-y-3">
+        <div className="space-y-5">
+          {/* Quick Actions - Mejorado contraste */}
+          <Card className="border-0 shadow-lg rounded-2xl overflow-hidden">
+            <div className="bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-700 p-5">
+              <h3 className="font-bold text-lg text-white mb-4 flex items-center gap-2">
+                <Stethoscope className="h-5 w-5" />
+                Acciones Rápidas
+              </h3>
+              <div className="space-y-2.5">
                 <Button
-                  variant="secondary"
-                  className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-none"
+                  className="w-full justify-start bg-white hover:bg-gray-100 text-purple-700 font-semibold border-none rounded-xl h-11 shadow-md"
                   onClick={handleIniciarRonda}
                   disabled={stats.pendientesRonda === 0}
                 >
-                  <Activity className="h-4 w-4 mr-2" />
+                  <Activity className="h-4 w-4 mr-2 text-purple-600" />
                   Iniciar Ronda Médica
                   {stats.pendientesRonda > 0 && (
-                    <Badge className="ml-auto bg-yellow-500 text-yellow-900">
+                    <Badge className="ml-auto bg-amber-500 text-white font-bold">
                       {stats.pendientesRonda}
                     </Badge>
                   )}
                 </Button>
                 <Button
-                  variant="secondary"
-                  className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-none"
+                  className="w-full justify-start bg-white/90 hover:bg-white text-purple-700 font-semibold border-none rounded-xl h-11 shadow-md"
                   onClick={() => {
                     if (admisiones.length > 0) {
                       handleVerOrdenes(admisiones[0]);
@@ -407,12 +622,11 @@ export default function DashboardDoctorHospitalizacion({ user, onChangeAttention
                   }}
                   disabled={admisiones.length === 0}
                 >
-                  <ClipboardList className="h-4 w-4 mr-2" />
+                  <ClipboardList className="h-4 w-4 mr-2 text-purple-600" />
                   Ver Órdenes Médicas
                 </Button>
                 <Button
-                  variant="secondary"
-                  className="w-full justify-start bg-white/10 hover:bg-white/20 text-white border-none"
+                  className="w-full justify-start bg-white/90 hover:bg-white text-purple-700 font-semibold border-none rounded-xl h-11 shadow-md"
                   onClick={() => {
                     if (admisiones.length > 0) {
                       handleEpicrisis(admisiones[0]);
@@ -420,62 +634,194 @@ export default function DashboardDoctorHospitalizacion({ user, onChangeAttention
                   }}
                   disabled={admisiones.length === 0}
                 >
-                  <FileText className="h-4 w-4 mr-2" />
+                  <FileText className="h-4 w-4 mr-2 text-purple-600" />
                   Generar Epicrisis
                 </Button>
               </div>
-            </CardContent>
+            </div>
           </Card>
 
           {/* Pending Rounds Alert */}
           {stats.pendientesRonda > 0 && (
-            <Card className="border-yellow-300 bg-yellow-50">
-              <CardContent className="p-6">
+            <div className="relative overflow-hidden bg-white rounded-2xl border-2 border-amber-300 shadow-lg shadow-amber-100/50">
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-yellow-500/10" />
+              <div className="relative p-5">
                 <div className="flex items-start gap-3">
-                  <AlertCircle className="h-5 w-5 text-yellow-600 mt-0.5" />
-                  <div>
-                    <h4 className="font-semibold text-yellow-800">Rondas Pendientes</h4>
-                    <p className="text-sm text-yellow-700 mt-1">
+                  <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl">
+                    <AlertCircle className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="font-bold text-amber-800">Rondas Pendientes</h4>
+                    <p className="text-sm text-amber-700 mt-1">
                       Tiene {stats.pendientesRonda} {stats.pendientesRonda === 1 ? 'paciente' : 'pacientes'} sin evolución del día de hoy.
                     </p>
                     <Button
                       size="sm"
-                      variant="outline"
-                      className="mt-3 border-yellow-600 text-yellow-700 hover:bg-yellow-100"
+                      className="mt-3 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white shadow-lg shadow-amber-200"
                       onClick={handleIniciarRonda}
                     >
+                      <Activity className="h-4 w-4 mr-2" />
                       Iniciar Ronda
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           )}
 
           {/* Summary Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-medium text-gray-500">
+          <Card className="border-0 shadow-sm rounded-2xl">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                <div className="p-1 bg-purple-100 rounded-lg">
+                  <BedDouble className="h-3.5 w-3.5 text-purple-600" />
+                </div>
                 Resumen del Servicio
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center p-2.5 bg-purple-50 rounded-xl">
                   <span className="text-sm text-gray-600">Total Pacientes</span>
-                  <span className="font-semibold">{stats.total}</span>
+                  <span className="font-bold text-purple-700">{stats.total}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center p-2.5 bg-amber-50 rounded-xl">
                   <span className="text-sm text-gray-600">Pendientes Ronda</span>
-                  <span className="font-semibold text-yellow-600">{stats.pendientesRonda}</span>
+                  <span className="font-bold text-amber-600">{stats.pendientesRonda}</span>
                 </div>
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center p-2.5 bg-blue-50 rounded-xl">
                   <span className="text-sm text-gray-600">Estancia Promedio</span>
-                  <span className="font-semibold">{stats.estanciaPromedio} días</span>
+                  <span className="font-bold text-blue-600">{stats.estanciaPromedio} días</span>
                 </div>
               </div>
             </CardContent>
           </Card>
+
+          {/* Card de Alertas en Sidebar */}
+          {(() => {
+            const alertasSidebar = [];
+            admisiones.forEach(admision => {
+              const paciente = admision.paciente;
+              const diasEstancia = calcularDiasEstancia(admision.fechaIngreso);
+
+              if (paciente?.alergias) {
+                alertasSidebar.push({
+                  tipo: 'alergias',
+                  paciente: `${paciente.nombre} ${paciente.apellido}`,
+                  detalle: paciente.alergias,
+                  color: 'red',
+                  admision
+                });
+              }
+              if (paciente?.enfermedadesCronicas) {
+                alertasSidebar.push({
+                  tipo: 'cronicas',
+                  paciente: `${paciente.nombre} ${paciente.apellido}`,
+                  detalle: paciente.enfermedadesCronicas,
+                  color: 'orange',
+                  admision
+                });
+              }
+              if (diasEstancia > 7) {
+                alertasSidebar.push({
+                  tipo: 'estancia',
+                  paciente: `${paciente?.nombre} ${paciente?.apellido}`,
+                  detalle: `${diasEstancia} días hospitalizado`,
+                  color: 'amber',
+                  admision
+                });
+              }
+            });
+
+            // Mostrar estado vacío si no hay alertas
+            if (alertasSidebar.length === 0) {
+              return (
+                <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
+                  <CardHeader className="pb-2 bg-gradient-to-r from-gray-50 to-slate-50 border-b border-gray-100">
+                    <CardTitle className="text-sm font-semibold text-gray-600 flex items-center gap-2">
+                      <div className="p-1.5 bg-gray-200 rounded-lg">
+                        <AlertCircle className="h-3.5 w-3.5 text-gray-400" />
+                      </div>
+                      Alertas Clínicas
+                      <Badge className="ml-auto bg-gray-100 text-gray-500 text-xs">0</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="text-center py-2">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <CheckCircle className="h-5 w-5 text-green-500" />
+                      </div>
+                      <p className="text-sm text-gray-500">Sin alertas</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+
+            return (
+              <Card className="border-0 shadow-sm rounded-2xl overflow-hidden">
+                <CardHeader className="pb-2 bg-gradient-to-r from-red-50 to-orange-50 border-b border-red-100">
+                  <CardTitle className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <div className="p-1.5 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg">
+                      <AlertCircle className="h-3.5 w-3.5 text-white" />
+                    </div>
+                    Alertas Clínicas
+                    <Badge className="ml-auto bg-red-100 text-red-700 text-xs">{alertasSidebar.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-3">
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {alertasSidebar.map((alerta, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleVerHCE(alerta.admision)}
+                        className={`w-full text-left p-2.5 rounded-xl border transition-all hover:shadow-md ${
+                          alerta.color === 'red'
+                            ? 'bg-red-50 border-red-200 hover:border-red-300'
+                            : alerta.color === 'orange'
+                            ? 'bg-orange-50 border-orange-200 hover:border-orange-300'
+                            : 'bg-amber-50 border-amber-200 hover:border-amber-300'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className={`h-4 w-4 mt-0.5 flex-shrink-0 ${
+                            alerta.color === 'red' ? 'text-red-500'
+                            : alerta.color === 'orange' ? 'text-orange-500'
+                            : 'text-amber-500'
+                          }`} />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className={`text-xs font-bold truncate ${
+                                alerta.color === 'red' ? 'text-red-800'
+                                : alerta.color === 'orange' ? 'text-orange-800'
+                                : 'text-amber-800'
+                              }`}>
+                                {alerta.paciente}
+                              </p>
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${
+                                alerta.color === 'red' ? 'bg-red-200 text-red-700'
+                                : alerta.color === 'orange' ? 'bg-orange-200 text-orange-700'
+                                : 'bg-amber-200 text-amber-700'
+                              }`}>
+                                {alerta.tipo === 'alergias' ? 'Alergia' : alerta.tipo === 'cronicas' ? 'Crónica' : 'Estancia'}
+                              </span>
+                            </div>
+                            <p className={`text-xs truncate mt-0.5 ${
+                              alerta.color === 'red' ? 'text-red-600'
+                              : alerta.color === 'orange' ? 'text-orange-600'
+                              : 'text-amber-600'
+                            }`}>
+                              {alerta.detalle}
+                            </p>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </div>
       </div>
 
