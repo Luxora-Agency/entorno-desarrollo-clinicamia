@@ -343,10 +343,12 @@ export default function FormularioCita({
           const data = await res.json();
 
           // Verificar si el día está completamente bloqueado
-          if (data.success && data.data && data.data.bloqueado) {
+          // La estructura es: data.data.bloques.bloqueado (el endpoint envuelve en { bloques: resultado })
+          const bloquesData = data.data?.bloques;
+          if (data.success && bloquesData && bloquesData.bloqueado) {
             setDiaBloqueado({
-              tipo: data.data.bloqueoTipo,
-              motivo: data.data.bloqueoMotivo || data.data.mensaje
+              tipo: bloquesData.bloqueoTipo,
+              motivo: bloquesData.bloqueoMotivo || bloquesData.mensaje
             });
             setBloquesDisponibles([]);
             setLoadingBloques(false);

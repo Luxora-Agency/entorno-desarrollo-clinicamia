@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Plus, Search, Edit, Trash2, UserCog, Phone, Mail, Clock, Eye, GraduationCap, Award, Calendar, MapPin, Power, CalendarClock } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Plus, Search, Edit, Trash2, UserCog, Phone, Mail, Clock, Eye, GraduationCap, Award, Calendar, MapPin, Power, CalendarClock, Ban } from 'lucide-react';
 import DoctorScheduleManager from './DoctorScheduleManager';
+import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
 import { useToast } from '@/hooks/use-toast';
 
 export default function DoctoresModule({ user, onEdit, onAdd }) {
@@ -19,6 +21,9 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
   const [editingHorarios, setEditingHorarios] = useState(null);
   const [horarios, setHorarios] = useState({});
   const [viewingDoctor, setViewingDoctor] = useState(null);
+  const [bloqueos, setBloqueos] = useState([]);
+  const [activeTab, setActiveTab] = useState('horarios');
+  const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
 
   useEffect(() => {
     loadDoctores();
@@ -140,18 +145,87 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
   };
 
   const handleOpenHorarios = (doctor) => {
+    console.log('[DoctoresModule] handleOpenHorarios:', {
+      doctorId: doctor.id,
+      doctorNombre: doctor.nombre,
+      horariosRecibidos: JSON.stringify(doctor.horarios || {})
+    });
     setHorarios(doctor.horarios || {});
     setEditingHorarios(doctor);
+    setActiveTab('horarios');
+    // Cargar bloqueos del doctor
+    loadBloqueos(doctor.usuarioId);
+  };
+
+  const loadBloqueos = async (doctorUsuarioId) => {
+    if (!doctorUsuarioId) {
+      console.log('[DoctoresModule] loadBloqueos: No doctorUsuarioId provided');
+      return;
+    }
+    console.log('[DoctoresModule] loadBloqueos: Cargando bloqueos para doctor:', doctorUsuarioId);
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/bloqueos/doctor/${doctorUsuarioId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      console.log('[DoctoresModule] loadBloqueos: Respuesta:', {
+        success: data.success,
+        totalBloqueos: data.data?.length || 0
+      });
+      if (data.success) {
+        const bloqueosActivos = (data.data || []).filter(b => b.activo);
+        console.log('[DoctoresModule] loadBloqueos: Bloqueos activos:', bloqueosActivos.length, bloqueosActivos.map(b => ({
+          id: b.id,
+          fechaInicio: b.fechaInicio,
+          motivo: b.motivo
+        })));
+        setBloqueos(bloqueosActivos);
+      }
+    } catch (error) {
+      console.error('[DoctoresModule] loadBloqueos: Error:', error);
+    }
   };
 
   const handleScheduleChange = (newHorarios) => {
+    console.log('[DoctoresModule] handleScheduleChange llamado:', {
+      keys: Object.keys(newHorarios),
+      data: JSON.stringify(newHorarios).substring(0, 300)
+    });
     setHorarios(newHorarios);
   };
 
   const handleSaveHorarios = async () => {
+    console.log('[DoctoresModule] handleSaveHorarios llamado:', {
+      doctorId: editingHorarios?.id,
+      horariosKeys: Object.keys(horarios),
+      horarios: JSON.stringify(horarios).substring(0, 300)
+    });
+
+    if (!editingHorarios?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se ha seleccionado un doctor'
+      });
+      return;
+    }
+
+    if (Object.keys(horarios).length === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Sin horarios',
+        description: 'No hay horarios para guardar. Primero selecciona franjas en el calendario y haz clic en "Guardar bloques".'
+      });
+      return;
+    }
+
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      console.log('[DoctoresModule] Enviando a:', `${apiUrl}/doctores/${editingHorarios.id}/horarios`);
+
       const response = await fetch(`${apiUrl}/doctores/${editingHorarios.id}/horarios`, {
         method: 'PATCH',
         headers: {
@@ -161,7 +235,10 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
         body: JSON.stringify({ horarios })
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      console.log('[DoctoresModule] Respuesta:', data);
+
+      if (response.ok && data.success) {
         toast({
           title: 'Horarios actualizados',
           description: 'Los horarios del doctor se han guardado correctamente.'
@@ -169,7 +246,6 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
         setEditingHorarios(null);
         loadDoctores();
       } else {
-        const data = await response.json();
         toast({
           variant: 'destructive',
           title: 'Error',
@@ -177,7 +253,7 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
         });
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('[DoctoresModule] Error:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
@@ -390,26 +466,70 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
         </CardContent>
       </Card>
 
-      {/* Modal Editar Horarios */}
+      {/* Modal Editar Horarios y Bloqueos */}
       <Dialog open={!!editingHorarios} onOpenChange={() => setEditingHorarios(null)}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden p-0">
-          <DialogHeader className="p-6 pb-0">
+        <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0">
+          <DialogHeader className="p-6 pb-2 flex-shrink-0">
             <DialogTitle className="text-xl flex items-center gap-2">
               <CalendarClock className="w-5 h-5 text-emerald-600" />
-              Horarios de Atención - Dr. {editingHorarios?.nombre} {editingHorarios?.apellido}
+              Agenda - Dr. {editingHorarios?.nombre} {editingHorarios?.apellido}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="p-6 pt-4">
-            <div className="h-[600px]">
+          {/* Tabs para Horarios y Bloqueos */}
+          <Tabs
+            value={activeTab}
+            onValueChange={(tab) => {
+              setActiveTab(tab);
+              // Recargar bloqueos y forzar re-render al volver a la pestaña de horarios
+              if (tab === 'horarios' && editingHorarios?.usuarioId) {
+                loadBloqueos(editingHorarios.usuarioId);
+                // Forzar re-render del calendario después de un breve delay para que el tab sea visible
+                setTimeout(() => {
+                  setScheduleRefreshKey(prev => prev + 1);
+                }, 100);
+              }
+            }}
+            className="flex-1 flex flex-col overflow-hidden px-6"
+          >
+            <TabsList className="grid w-full max-w-md grid-cols-2 mb-4 flex-shrink-0">
+              <TabsTrigger value="horarios" className="gap-2">
+                <Clock className="h-4 w-4" />
+                Horarios de Atención
+              </TabsTrigger>
+              <TabsTrigger value="bloqueos" className="gap-2">
+                <Ban className="h-4 w-4" />
+                Bloqueos
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="horarios" className="flex-1 overflow-hidden mt-0" forceMount style={{ display: activeTab === 'horarios' ? 'block' : 'none' }}>
               <DoctorScheduleManager
+                key={`schedule-${editingHorarios?.id}-${scheduleRefreshKey}`}
                 doctorId={editingHorarios?.id}
                 initialHorarios={horarios}
                 onChange={handleScheduleChange}
+                bloqueos={bloqueos}
               />
-            </div>
+            </TabsContent>
 
-            <div className="flex gap-3 pt-4 mt-4 border-t">
+            <TabsContent value="bloqueos" className="flex-1 overflow-auto mt-0" forceMount style={{ display: activeTab === 'bloqueos' ? 'block' : 'none' }}>
+              <BloqueoAgendaManager
+                doctorId={editingHorarios?.usuarioId}
+                doctorNombre={`${editingHorarios?.nombre} ${editingHorarios?.apellido}`}
+                selfManaged={false}
+                onBloqueosChange={async () => {
+                  await loadBloqueos(editingHorarios?.usuarioId);
+                  // Forzar re-render del calendario para mostrar nuevos bloqueos
+                  setScheduleRefreshKey(prev => prev + 1);
+                }}
+              />
+            </TabsContent>
+          </Tabs>
+
+          {/* Botones siempre visibles en la parte inferior (solo para horarios) */}
+          {activeTab === 'horarios' && (
+            <div className="flex gap-3 p-6 pt-4 border-t bg-white flex-shrink-0">
               <Button
                 onClick={() => setEditingHorarios(null)}
                 variant="outline"
@@ -419,12 +539,12 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
               </Button>
               <Button
                 onClick={handleSaveHorarios}
-                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600"
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white"
               >
                 Guardar Horarios
               </Button>
             </div>
-          </div>
+          )}
         </DialogContent>
       </Dialog>
 

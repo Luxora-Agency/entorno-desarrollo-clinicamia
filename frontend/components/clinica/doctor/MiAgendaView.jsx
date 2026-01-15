@@ -23,6 +23,8 @@ export default function MiAgendaView({ user }) {
   const [horariosModificados, setHorariosModificados] = useState(false);
   const [lastSaved, setLastSaved] = useState(null);
   const [bloqueos, setBloqueos] = useState([]);
+  const [activeTab, setActiveTab] = useState('horarios');
+  const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -33,14 +35,17 @@ export default function MiAgendaView({ user }) {
     try {
       const token = localStorage.getItem('token');
       // Usar el endpoint correcto: /bloqueos/doctor/:doctorId
+      console.log('[MiAgendaView] Cargando bloqueos para doctor:', user.id);
       const response = await fetch(`${apiUrl}/bloqueos/doctor/${user.id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       const data = await response.json();
+      console.log('[MiAgendaView] Bloqueos recibidos:', data.data?.length || 0);
       if (data.success) {
         // Filtrar solo bloqueos activos
         const bloqueosActivos = (data.data || []).filter(b => b.activo);
+        console.log('[MiAgendaView] Bloqueos activos:', bloqueosActivos.length);
         setBloqueos(bloqueosActivos);
       }
     } catch (error) {
@@ -97,6 +102,10 @@ export default function MiAgendaView({ user }) {
 
   // Manejar cambios en el schedule manager
   const handleHorariosChange = useCallback((nuevosHorarios) => {
+    console.log('[MiAgendaView] Recibido cambio de horarios:', {
+      keys: Object.keys(nuevosHorarios),
+      total: JSON.stringify(nuevosHorarios)
+    });
     setHorarios(nuevosHorarios);
     setHorariosModificados(true);
   }, []);
@@ -104,6 +113,12 @@ export default function MiAgendaView({ user }) {
   // Guardar horarios en el backend
   const guardarHorarios = async () => {
     if (!doctorProfile?.id) return;
+
+    console.log('[MiAgendaView] Guardando horarios en backend:', {
+      doctorId: doctorProfile.id,
+      horariosKeys: Object.keys(horarios),
+      horarios: JSON.stringify(horarios)
+    });
 
     setSaving(true);
     try {
@@ -119,8 +134,14 @@ export default function MiAgendaView({ user }) {
       });
 
       const data = await response.json();
+      console.log('[MiAgendaView] Respuesta del backend:', data);
 
       if (data.success) {
+        // Actualizar horarios con la respuesta del backend para sincronizar
+        if (data.data?.horarios) {
+          console.log('[MiAgendaView] Sincronizando horarios desde respuesta:', Object.keys(data.data.horarios));
+          setHorarios(data.data.horarios);
+        }
         toast({
           title: 'Horarios guardados',
           description: 'Tu disponibilidad ha sido actualizada correctamente',
@@ -209,7 +230,8 @@ export default function MiAgendaView({ user }) {
           <Button
             onClick={guardarHorarios}
             disabled={saving || !horariosModificados}
-            className="bg-cyan-600 hover:bg-cyan-700"
+            className={horariosModificados ? "bg-cyan-600 hover:bg-cyan-700" : "bg-gray-400"}
+            title={!horariosModificados ? "Primero crea bloques en el calendario y haz clic en 'Guardar bloques'" : "Guardar cambios en el servidor"}
           >
             {saving ? (
               <>
@@ -247,9 +269,9 @@ export default function MiAgendaView({ user }) {
               </div>
             </div>
             <div className="text-right">
-              <p className="text-sm text-gray-500">Plantilla semanal</p>
+              <p className="text-sm text-gray-500">Fechas configuradas</p>
               <p className="text-2xl font-bold text-cyan-600">
-                {Object.keys(horarios).filter(k => !k.includes('-') && horarios[k]?.length > 0).length} días
+                {Object.keys(horarios).filter(k => horarios[k]?.length > 0).length}
               </p>
             </div>
           </div>
@@ -257,7 +279,21 @@ export default function MiAgendaView({ user }) {
       </Card>
 
       {/* Tabs de Horarios y Bloqueos */}
-      <Tabs defaultValue="horarios" className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(tab) => {
+          setActiveTab(tab);
+          // Recargar bloqueos al volver a la pestaña de horarios para sincronizar
+          if (tab === 'horarios') {
+            cargarBloqueos();
+            // Forzar re-render del calendario después de un breve delay para que el tab sea visible
+            setTimeout(() => {
+              setScheduleRefreshKey(prev => prev + 1);
+            }, 100);
+          }
+        }}
+        className="space-y-4"
+      >
         <TabsList className="grid w-full max-w-md grid-cols-2">
           <TabsTrigger value="horarios" className="gap-2">
             <Clock className="h-4 w-4" />
@@ -269,100 +305,60 @@ export default function MiAgendaView({ user }) {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="horarios" className="space-y-4">
+        <TabsContent value="horarios" className="space-y-4" forceMount style={{ display: activeTab === 'horarios' ? 'block' : 'none' }}>
           {/* Instrucciones */}
           <Alert className="bg-blue-50 border-blue-200">
             <Info className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-800">
               <strong>Instrucciones:</strong> Arrastra el mouse sobre el calendario para crear bloques de disponibilidad.
-              Al soltar, podrás elegir si el horario aplica a <strong>todas las semanas</strong> (plantilla semanal - verde)
-              o <strong>solo a esa fecha específica</strong> (azul). Las fechas específicas tienen prioridad sobre la plantilla.
+              Los bloques amarillos son pendientes de confirmar. Haz clic en "Agregar" y luego "Guardar Horarios" para confirmar.
             </AlertDescription>
           </Alert>
 
           {/* Schedule Manager */}
           <DoctorScheduleManager
+            key={`schedule-${doctorProfile.id}-${scheduleRefreshKey}`}
             doctorId={doctorProfile.id}
             initialHorarios={horarios}
             onChange={handleHorariosChange}
             bloqueos={bloqueos}
           />
 
-          {/* Resumen de Horarios */}
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Resumen de Plantilla Semanal</CardTitle>
-              <CardDescription>Horarios que se repiten cada semana (verde). Las fechas específicas (azul) se configuran directamente en el calendario.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-7 gap-2">
-                {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((dia, index) => {
-                  // Solo mostrar horarios de plantilla semanal (keys 0-6)
-                  const bloquesDelDia = horarios[index] || horarios[String(index)] || [];
-                  const tieneHorarios = Array.isArray(bloquesDelDia) && bloquesDelDia.length > 0;
+          {/* Resumen de Fechas Programadas */}
+          {(() => {
+            const fechasProgramadas = Object.entries(horarios)
+              .filter(([key, bloques]) => key.includes('-') && Array.isArray(bloques) && bloques.length > 0)
+              .sort(([a], [b]) => a.localeCompare(b));
 
-                  return (
-                    <div
-                      key={dia}
-                      className={`p-3 rounded-lg text-center ${
-                        tieneHorarios
-                          ? 'bg-emerald-50 border border-emerald-200'
-                          : 'bg-gray-50 border border-gray-200'
-                      }`}
-                    >
-                      <p className={`text-sm font-medium ${
-                        tieneHorarios ? 'text-emerald-700' : 'text-gray-500'
-                      }`}>
-                        {dia}
-                      </p>
-                      {tieneHorarios ? (
-                        <div className="mt-1 space-y-0.5">
-                          {bloquesDelDia.map((bloque, i) => (
-                            <p key={i} className="text-xs text-emerald-600">
-                              {bloque.inicio} - {bloque.fin}
-                            </p>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-xs text-gray-400 mt-1">Sin horario</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+            if (fechasProgramadas.length === 0) return null;
 
-              {/* Mostrar fechas específicas si existen */}
-              {(() => {
-                const fechasEspecificas = Object.entries(horarios)
-                  .filter(([key]) => key.includes('-'))
-                  .sort(([a], [b]) => a.localeCompare(b));
-
-                if (fechasEspecificas.length === 0) return null;
-
-                return (
-                  <div className="mt-4 pt-4 border-t">
-                    <p className="text-sm font-medium text-blue-700 mb-2">Fechas con horario especial:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {fechasEspecificas.slice(0, 10).map(([fecha, bloques]) => (
-                        <div key={fecha} className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs">
-                          <span className="font-medium text-blue-800">{fecha}</span>
-                          <span className="text-blue-600 ml-1">
-                            ({bloques.length} {bloques.length === 1 ? 'bloque' : 'bloques'})
-                          </span>
-                        </div>
-                      ))}
-                      {fechasEspecificas.length > 10 && (
-                        <span className="text-xs text-gray-500">+{fechasEspecificas.length - 10} más</span>
-                      )}
-                    </div>
+            return (
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base">Fechas con Disponibilidad</CardTitle>
+                  <CardDescription>Fechas donde tienes horarios configurados.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {fechasProgramadas.slice(0, 15).map(([fecha, bloques]) => (
+                      <div key={fecha} className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs">
+                        <span className="font-medium text-blue-800">{fecha}</span>
+                        <span className="text-blue-600 ml-1">
+                          ({bloques.length} {bloques.length === 1 ? 'bloque' : 'bloques'})
+                        </span>
+                      </div>
+                    ))}
+                    {fechasProgramadas.length > 15 && (
+                      <span className="text-xs text-gray-500 py-1">+{fechasProgramadas.length - 15} más</span>
+                    )}
                   </div>
-                );
-              })()}
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
+            );
+          })()}
         </TabsContent>
 
-        <TabsContent value="bloqueos">
+        <TabsContent value="bloqueos" forceMount style={{ display: activeTab === 'bloqueos' ? 'block' : 'none' }}>
           {/* Instrucciones de Bloqueos */}
           <Alert className="bg-amber-50 border-amber-200 mb-4">
             <Info className="h-4 w-4 text-amber-600" />
@@ -378,7 +374,11 @@ export default function MiAgendaView({ user }) {
             doctorId={user?.id}
             doctorNombre={`${user?.nombre} ${user?.apellido}`}
             selfManaged={true}
-            onBloqueosChange={cargarBloqueos}
+            onBloqueosChange={async () => {
+              await cargarBloqueos();
+              // Forzar re-render del calendario para mostrar nuevos bloqueos
+              setScheduleRefreshKey(prev => prev + 1);
+            }}
           />
         </TabsContent>
       </Tabs>
