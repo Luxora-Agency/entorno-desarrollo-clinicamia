@@ -363,18 +363,38 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   const calcularIMC = () => {
     if (peso && altura) {
       const p = parseFloat(peso);
-      const a = parseFloat(altura);
+      let a = parseFloat(altura);
       if (p > 0 && a > 0) {
+        // Si la altura es mayor a 3, asumimos que está en centímetros y convertimos a metros
+        if (a > 3) {
+          a = a / 100;
+        }
         const imc = p / (a ** 2);
         const imcValue = imc.toFixed(1);
-        
+
         let categoria = '';
-        if (imc < 18.5) categoria = 'Bajo Peso';
-        else if (imc >= 18.5 && imc < 25) categoria = 'Normal';
-        else if (imc >= 25 && imc < 30) categoria = 'Sobrepeso';
-        else if (imc >= 30) categoria = 'Obesidad';
-        
-        return `${imcValue} - ${categoria}`;
+        let colorClase = '';
+        if (imc < 18.5) {
+          categoria = 'Bajo Peso';
+          colorClase = 'text-yellow-600';
+        } else if (imc >= 18.5 && imc < 25) {
+          categoria = 'Normal';
+          colorClase = 'text-emerald-600';
+        } else if (imc >= 25 && imc < 30) {
+          categoria = 'Sobrepeso';
+          colorClase = 'text-orange-600';
+        } else if (imc >= 30 && imc < 35) {
+          categoria = 'Obesidad Grado I';
+          colorClase = 'text-red-500';
+        } else if (imc >= 35 && imc < 40) {
+          categoria = 'Obesidad Grado II';
+          colorClase = 'text-red-600';
+        } else {
+          categoria = 'Obesidad Grado III';
+          colorClase = 'text-red-700';
+        }
+
+        return { valor: imcValue, categoria, colorClase };
       }
     }
     return null;
@@ -1426,17 +1446,23 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                       <div>
                         <Label className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                           <Activity className="w-4 h-4 text-green-500" />
-                          Altura (m)
+                          Altura (m o cm)
                         </Label>
-                        <Input type="number" step="0.01" {...register('altura')} className="h-12" placeholder="1.70" />
+                        <Input type="number" step="0.01" {...register('altura')} className="h-12" placeholder="1.70 o 170" />
                       </div>
                     </div>
 
                     {calcularIMC() && (
-                      <div className="mt-6 p-4 bg-emerald-50 border-2 border-emerald-200 rounded-xl">
+                      <div className="mt-6 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm font-semibold text-gray-700">IMC Calculado</span>
-                          <span className="text-lg font-bold text-emerald-600">{calcularIMC()}</span>
+                          <div>
+                            <span className="text-sm font-semibold text-gray-700">IMC Calculado</span>
+                            <p className="text-xs text-gray-500 mt-1">Índice de Masa Corporal</p>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-2xl font-bold ${calcularIMC().colorClase}`}>{calcularIMC().valor}</span>
+                            <p className={`text-sm font-medium ${calcularIMC().colorClase}`}>{calcularIMC().categoria}</p>
+                          </div>
                         </div>
                       </div>
                     )}
