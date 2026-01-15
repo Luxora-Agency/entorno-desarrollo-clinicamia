@@ -191,9 +191,16 @@ export default function OrdenesMedicasModule({ user }) {
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
 
   // Rol del usuario para determinar si filtrar solo por doctor
-  const userRole = user?.rol?.toLowerCase() || user?.role?.toLowerCase() || '';
-  const isDoctor = userRole === 'doctor' || userRole === 'medico';
+  // Soportar múltiples formatos de rol: rol, role, nombre del rol
+  const userRole = (user?.rol || user?.role || user?.rolNombre || '').toLowerCase();
+  const isDoctor = ['doctor', 'medico', 'médico'].includes(userRole);
+  const isAdmin = ['admin', 'administrador', 'super_admin', 'superadmin'].includes(userRole);
   const doctorUserId = user?.id;
+
+  // Debug: Log user info en desarrollo
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[OrdenesMedicasModule] User:', { id: user?.id, rol: user?.rol, role: user?.role, isDoctor, isAdmin });
+  }
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
@@ -249,10 +256,19 @@ export default function OrdenesMedicasModule({ user }) {
         limit: limit.toString(),
       });
 
-      // Si el usuario es doctor, filtrar sus órdenes y las de sus pacientes
-      if (isDoctor && doctorUserId) {
+      // Filtrado basado en rol del usuario
+      // - Doctores: solo sus órdenes y las de sus pacientes
+      // - Admins: pueden ver todo (no se aplica filtro)
+      // - Otros roles: solo órdenes donde participan
+      if (!isAdmin && doctorUserId) {
         params.append('doctor_id', doctorUserId);
-        params.append('mis_ordenes', 'true'); // Incluir órdenes de pacientes que ha atendido
+        if (isDoctor) {
+          params.append('mis_ordenes', 'true'); // Incluir órdenes de pacientes que ha atendido
+        }
+        // Debug
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[OrdenesMedicasModule] Filtros aplicados:', { doctor_id: doctorUserId, mis_ordenes: isDoctor });
+        }
       }
 
       if (filterEstado !== 'todas') params.append('estado', filterEstado);
@@ -279,7 +295,7 @@ export default function OrdenesMedicasModule({ user }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, filterEstado, filterTipo, filterPrioridad, filterFecha, searchTerm, toast, isDoctor, doctorUserId]);
+  }, [page, filterEstado, filterTipo, filterPrioridad, filterFecha, searchTerm, toast, isDoctor, isAdmin, doctorUserId]);
 
   // Cargar datos auxiliares
   const loadAuxiliaryData = useCallback(async () => {
@@ -559,86 +575,99 @@ export default function OrdenesMedicasModule({ user }) {
     setShowNuevaOrdenModal(true);
   };
 
-  // Imprimir orden
-  const handleImprimirOrden = (orden) => {
-    // Crear contenido para imprimir
-    const printContent = `
-      <html>
-        <head>
-          <title>Orden Médica - ${orden.id?.substring(0, 8)}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-            .info-row { display: flex; margin-bottom: 8px; }
-            .label { font-weight: bold; width: 150px; }
-            .section { margin-top: 20px; }
-            .section-title { font-weight: bold; font-size: 14px; border-bottom: 1px solid #ccc; padding-bottom: 5px; margin-bottom: 10px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h2>CLÍNICA MÍA</h2>
-            <h3>Orden Médica</h3>
-          </div>
+  // Descargar PDF de orden médica
+  const handleDescargarPdf = async (orden) => {
+    if (!orden?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo identificar la orden para descargar.',
+      });
+      return;
+    }
 
-          <div class="section">
-            <div class="section-title">Información del Paciente</div>
-            <div class="info-row">
-              <span class="label">Paciente:</span>
-              <span>${orden.paciente?.nombre || ''} ${orden.paciente?.apellido || ''}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Documento:</span>
-              <span>${orden.paciente?.tipoDocumento || 'CC'} ${orden.paciente?.cedula || ''}</span>
-            </div>
-          </div>
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-          <div class="section">
-            <div class="section-title">Detalles de la Orden</div>
-            <div class="info-row">
-              <span class="label">Tipo:</span>
-              <span>${orden.tipo || 'N/A'}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Examen/Procedimiento:</span>
-              <span>${orden.examenProcedimiento?.nombre || orden.descripcion || 'N/A'}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Prioridad:</span>
-              <span>${orden.prioridad || 'Normal'}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Estado:</span>
-              <span>${orden.estado || 'Pendiente'}</span>
-            </div>
-            <div class="info-row">
-              <span class="label">Fecha de Orden:</span>
-              <span>${orden.fechaOrden ? new Date(orden.fechaOrden).toLocaleDateString('es-CO') : new Date(orden.createdAt).toLocaleDateString('es-CO')}</span>
-            </div>
-          </div>
+      toast({
+        title: 'Generando PDF...',
+        description: 'Por favor espere mientras se genera el documento.',
+      });
 
-          ${orden.observaciones ? `
-          <div class="section">
-            <div class="section-title">Observaciones</div>
-            <p>${orden.observaciones}</p>
-          </div>
-          ` : ''}
+      const response = await fetch(`${apiUrl}/ordenes-medicas/${orden.id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-          <div class="section" style="margin-top: 50px;">
-            <div style="text-align: center;">
-              <div style="width: 200px; border-top: 1px solid #333; margin: 0 auto; padding-top: 5px;">
-                Firma del Médico
-              </div>
-            </div>
-          </div>
-        </body>
-      </html>
-    `;
+      if (!response.ok) {
+        throw new Error('Error al generar el PDF');
+      }
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
-    printWindow.print();
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `orden-medica-${orden.id.substring(0, 8)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: 'PDF descargado',
+        description: 'La orden médica se ha descargado correctamente.',
+      });
+    } catch (error) {
+      console.error('Error descargando PDF:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo descargar el PDF de la orden.',
+      });
+    }
+  };
+
+  // Imprimir orden (abre PDF en nueva pestaña para imprimir)
+  const handleImprimirOrden = async (orden) => {
+    if (!orden?.id) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo identificar la orden para imprimir.',
+      });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+      const response = await fetch(`${apiUrl}/ordenes-medicas/${orden.id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al generar el PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Abrir en nueva pestaña para imprimir
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      }
+    } catch (error) {
+      console.error('Error imprimiendo orden:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo imprimir la orden.',
+      });
+    }
   };
 
   // Ver detalle
@@ -950,6 +979,10 @@ export default function OrdenesMedicasModule({ user }) {
                               <Eye className="w-4 h-4 mr-2" />
                               Ver Detalle
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDescargarPdf(orden)}>
+                              <Download className="w-4 h-4 mr-2" />
+                              Descargar PDF
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleImprimirOrden(orden)}>
                               <Printer className="w-4 h-4 mr-2" />
                               Imprimir
@@ -1027,6 +1060,10 @@ export default function OrdenesMedicasModule({ user }) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDescargarPdf(orden); }}>
+                          <Download className="w-4 h-4 mr-2" />
+                          Descargar PDF
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleImprimirOrden(orden); }}>
                           <Printer className="w-4 h-4 mr-2" />
                           Imprimir
@@ -1523,6 +1560,10 @@ export default function OrdenesMedicasModule({ user }) {
           <DialogFooter className="mt-6">
             <Button variant="outline" onClick={() => setShowDetalleModal(false)}>
               Cerrar
+            </Button>
+            <Button variant="outline" onClick={() => handleDescargarPdf(selectedOrden)}>
+              <Download className="w-4 h-4 mr-2" />
+              Descargar PDF
             </Button>
             <Button variant="outline" onClick={() => handleImprimirOrden(selectedOrden)}>
               <Printer className="w-4 h-4 mr-2" />

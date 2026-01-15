@@ -3,6 +3,7 @@
  */
 const { Hono } = require('hono');
 const ordenMedicaService = require('../services/ordenMedica.service');
+const ordenMedicaPdfService = require('../services/ordenMedica.pdf.service');
 const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 
@@ -106,6 +107,52 @@ ordenesMedicas.get('/', async (c) => {
     const query = c.req.query();
     const result = await ordenMedicaService.getAll(query);
     return c.json(paginated(result.ordenes, result.pagination));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * @swagger
+ * /ordenes-medicas/{id}/pdf:
+ *   get:
+ *     summary: Descargar PDF de una orden médica
+ *     tags: [OrdenesMedicas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *         description: ID de la orden médica
+ *     responses:
+ *       200:
+ *         description: PDF de la orden médica
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Orden médica no encontrada
+ *       500:
+ *         description: Error del servidor
+ */
+ordenesMedicas.get('/:id/pdf', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const pdfBuffer = await ordenMedicaPdfService.generarOrdenPdf(id);
+
+    return new Response(pdfBuffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="orden-medica-${id.substring(0, 8)}.pdf"`,
+        'Content-Length': pdfBuffer.length.toString(),
+      },
+    });
   } catch (err) {
     return c.json(error(err.message), err.statusCode || 500);
   }
