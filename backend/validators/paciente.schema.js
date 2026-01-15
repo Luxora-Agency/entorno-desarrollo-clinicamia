@@ -23,16 +23,18 @@ const contactoEmergenciaSchema = z.object({
   parentesco: z.string().optional().transform(emptyStringToNull),
 });
 
+// Acompañante es opcional para mayores de edad, obligatorio para menores (validado en servicio)
 const acompananteSchema = z.object({
-  nombre: z.string().min(1, 'El nombre del acompañante es requerido'),
-  telefono: z.string().min(1, 'El teléfono del acompañante es requerido'),
-});
+  nombre: z.string().optional().default(''),
+  telefono: z.string().optional().default(''),
+}).optional().or(z.null());
 
+// Responsable es opcional para mayores de edad, obligatorio para menores (validado en servicio)
 const responsableSchema = z.object({
-  nombre: z.string().min(1, 'El nombre del responsable es requerido'),
-  telefono: z.string().min(1, 'El teléfono del responsable es requerido'),
-  parentesco: z.string().min(1, 'El parentesco del responsable es requerido'),
-});
+  nombre: z.string().optional().default(''),
+  telefono: z.string().optional().default(''),
+  parentesco: z.string().optional().default(''),
+}).optional().or(z.null());
 
 const createPacienteSchema = z.object({
   // Datos Personales (requeridos)
@@ -56,7 +58,7 @@ const createPacienteSchema = z.object({
   municipio: z.string().min(1, 'El municipio es requerido'),
   barrio: z.string().min(1, 'El barrio es requerido'),
   direccion: z.string().min(1, 'La dirección es requerida'),
-  zona: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  zona: z.string().min(1, 'La zona es requerida'),
 
   // Contacto (requeridos)
   telefono: z.string().min(1, 'El teléfono es requerido'),
@@ -65,7 +67,7 @@ const createPacienteSchema = z.object({
   // Contactos de Emergencia
   contactos_emergencia: z.array(contactoEmergenciaSchema).optional().or(z.null()),
 
-  // Acompañante y Responsable (requeridos)
+  // Acompañante y Responsable (opcionales para mayores, requeridos para menores)
   acompanante: acompananteSchema,
   responsable: responsableSchema,
 
@@ -91,6 +93,10 @@ const createPacienteSchema = z.object({
   nombre_refiere: z.string().optional().or(z.null()).transform(emptyStringToNull),
   tipo_paciente: z.string().optional().or(z.null()).transform(emptyStringToNull),
   categoria: z.string().optional().or(z.null()).transform(emptyStringToNull),
+
+  // Discapacidad
+  discapacidad: z.string().optional().or(z.null()).transform(emptyStringToNull),
+  tipo_discapacidad: z.string().optional().or(z.null()).transform(emptyStringToNull),
 
   // Información Médica
   tipo_sangre: z.string().optional().or(z.null()).transform(emptyStringToNull),

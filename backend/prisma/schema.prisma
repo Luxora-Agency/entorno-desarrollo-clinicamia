@@ -270,6 +270,8 @@ model Paciente {
   referidoPor                  String?                     @map("referido_por")
   tipoPaciente                 String?                     @map("tipo_paciente")
   tipoUsuario                  String?                     @map("tipo_usuario")
+  discapacidad                 String?
+  tipoDiscapacidad             String?                     @map("tipo_discapacidad")
   administracionesMedicamentos AdministracionMedicamento[]
   admisiones                   Admision[]
   alertasClinicas              AlertaClinica[]

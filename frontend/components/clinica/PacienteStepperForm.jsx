@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, User, Phone, Shield, Activity, AlertCircle, Plus, X, Droplet, Scale, FileText, Trash2, Upload } from 'lucide-react';
+import { ArrowLeft, Check, User, Phone, Shield, Activity, AlertCircle, Plus, X, Droplet, Scale, FileText, Trash2, Upload, Search } from 'lucide-react';
 import epsData from '@/data/eps.json';
 import regimenesData from '@/data/regimenes.json';
 import colombiaData from '@/data/colombia.json';
@@ -29,7 +29,9 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   const [uploadingDocuments, setUploadingDocuments] = useState(false);
   const [municipios, setMunicipios] = useState([]);
   const [tiposUsuarioConvenio, setTiposUsuarioConvenio] = useState([]);
-  
+  const [epsSearch, setEpsSearch] = useState('');
+  const [edadDetallada, setEdadDetallada] = useState('');
+
   // Estado para inputs de tags
   const [inputValues, setInputValues] = useState({
     alergia: '',
@@ -79,6 +81,8 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
       arl: '',
       carnetPoliza: '',
       tipoUsuario: '',
+      discapacidad: 'No aplica',
+      tipoDiscapacidad: '',
       referidoPor: '',
       nombreRefiere: '',
       tipoPaciente: '',
@@ -107,20 +111,51 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   const genero = watch('genero');
   const identidadGenero = watch('identidadGenero');
   const fechaNacimiento = watch('fechaNacimiento');
+  const edadPaciente = watch('edad');
+  const discapacidad = watch('discapacidad');
+  const esMenorDeEdad = edadPaciente !== null && edadPaciente < 18;
+  const tieneDiscapacidad = discapacidad === 'Aplica';
+  const requiereAcompanante = esMenorDeEdad || tieneDiscapacidad;
 
   // Calcular edad cuando cambia la fecha de nacimiento
   useEffect(() => {
     if (fechaNacimiento) {
       const hoy = new Date();
       const nacimiento = new Date(fechaNacimiento);
-      let edad = hoy.getFullYear() - nacimiento.getFullYear();
-      const mes = hoy.getMonth() - nacimiento.getMonth();
-      if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-        edad--;
+
+      let años = hoy.getFullYear() - nacimiento.getFullYear();
+      let meses = hoy.getMonth() - nacimiento.getMonth();
+      let dias = hoy.getDate() - nacimiento.getDate();
+
+      // Ajustar días negativos
+      if (dias < 0) {
+        meses--;
+        // Obtener días del mes anterior
+        const mesAnterior = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+        dias += mesAnterior.getDate();
       }
-      setValue('edad', edad >= 0 ? edad : null);
+
+      // Ajustar meses negativos
+      if (meses < 0) {
+        años--;
+        meses += 12;
+      }
+
+      setValue('edad', años >= 0 ? años : null);
+
+      // Construir string de edad detallada
+      if (años >= 0) {
+        const partes = [];
+        if (años > 0) partes.push(`${años} ${años === 1 ? 'año' : 'años'}`);
+        if (meses > 0) partes.push(`${meses} ${meses === 1 ? 'mes' : 'meses'}`);
+        if (dias > 0) partes.push(`${dias} ${dias === 1 ? 'día' : 'días'}`);
+        setEdadDetallada(partes.length > 0 ? partes.join(', ') : '0 días');
+      } else {
+        setEdadDetallada('');
+      }
     } else {
       setValue('edad', null);
+      setEdadDetallada('');
     }
   }, [fechaNacimiento, setValue]);
 
@@ -237,6 +272,8 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         arl: editingPaciente.arl || '',
         carnetPoliza: editingPaciente.carnetPoliza || '',
         tipoUsuario: editingPaciente.tipoUsuario || '',
+        discapacidad: editingPaciente.discapacidad || 'No aplica',
+        tipoDiscapacidad: editingPaciente.tipoDiscapacidad || '',
         referidoPor: editingPaciente.referidoPor || '',
         nombreRefiere: editingPaciente.nombreRefiere || '',
         tipoPaciente: editingPaciente.tipoPaciente || '',
@@ -260,7 +297,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
   }, [editingPaciente]); // Removido 'form' de las dependencias para evitar re-renders infinitos
 
   const steps = [
-    { number: 1, title: 'Información Básica', icon: User, fields: ['nombre', 'apellido', 'tipoDocumento', 'cedula', 'lugarExpedicion', 'fechaNacimiento', 'genero', 'identidadGenero', 'etnia', 'preferenciaLlamado', 'estadoCivil', 'departamento', 'municipio', 'barrio', 'direccion'] },
+    { number: 1, title: 'Información Básica', icon: User, fields: ['nombre', 'apellido', 'tipoDocumento', 'cedula', 'lugarExpedicion', 'fechaNacimiento', 'genero', 'identidadGenero', 'etnia', 'preferenciaLlamado', 'estadoCivil', 'departamento', 'municipio', 'barrio', 'direccion', 'zona'] },
     { number: 2, title: 'Contacto y Emergencias', icon: Phone, fields: ['telefono', 'email', 'contactosEmergencia', 'acompanante', 'responsable', 'nivelEducacion'] },
     { number: 3, title: 'Aseguramiento en Salud', icon: Shield, fields: ['eps', 'regimen', 'tipoAfiliacion'] },
     { number: 4, title: 'Información Médica', icon: Activity, fields: ['tipoSangre'] },
@@ -415,6 +452,8 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         arl: data.arl || null,
         carnet_poliza: data.carnetPoliza || null,
         tipo_usuario: data.tipoUsuario || null,
+        discapacidad: data.discapacidad || null,
+        tipo_discapacidad: data.tipoDiscapacidad || null,
         referido_por: data.referidoPor || null,
         nombre_refiere: data.nombreRefiere || null,
         tipo_paciente: data.tipoPaciente || null,
@@ -629,7 +668,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                       <div>
                         <Label className="text-sm font-semibold text-gray-700">Edad</Label>
                         <Input
-                          value={watch('edad') !== null ? `${watch('edad')} años` : ''}
+                          value={edadDetallada}
                           readOnly
                           className="h-11 mt-2 bg-gray-100 cursor-not-allowed"
                           placeholder="Se calcula automáticamente"
@@ -747,6 +786,53 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         <Label className="text-sm font-semibold text-gray-700">Ocupación</Label>
                         <Input {...register('ocupacion')} className="h-11 mt-2" placeholder="Ej: Médico, Ingeniero" />
                       </div>
+                      <div>
+                        <Label className="text-sm font-semibold text-gray-700">Discapacidad</Label>
+                        <Controller
+                          name="discapacidad"
+                          control={control}
+                          render={({ field }) => (
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <SelectTrigger className={`h-11 mt-2 ${errors.discapacidad ? 'border-red-500' : ''}`}>
+                                <SelectValue placeholder="Seleccionar..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="No aplica">No aplica</SelectItem>
+                                <SelectItem value="Aplica">Aplica</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          )}
+                        />
+                        {errors.discapacidad && <p className="text-xs text-red-500 mt-1">{errors.discapacidad.message}</p>}
+                      </div>
+                      {tieneDiscapacidad && (
+                        <div>
+                          <Label className="text-sm font-semibold text-gray-700">Tipo de Discapacidad *</Label>
+                          <Controller
+                            name="tipoDiscapacidad"
+                            control={control}
+                            render={({ field }) => (
+                              <Select onValueChange={field.onChange} value={field.value}>
+                                <SelectTrigger className={`h-11 mt-2 ${errors.tipoDiscapacidad ? 'border-red-500' : ''}`}>
+                                  <SelectValue placeholder="Seleccionar tipo..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Auditiva">Auditiva (sordera, hipoacusia)</SelectItem>
+                                  <SelectItem value="Visual">Visual (ceguera, baja visión)</SelectItem>
+                                  <SelectItem value="Física">Física o Motora</SelectItem>
+                                  <SelectItem value="Intelectual">Intelectual o Cognitiva</SelectItem>
+                                  <SelectItem value="Psicosocial">Psicosocial (mental)</SelectItem>
+                                  <SelectItem value="Sordoceguera">Sordoceguera</SelectItem>
+                                  <SelectItem value="Múltiple">Múltiple (más de una)</SelectItem>
+                                  <SelectItem value="Visceral">Visceral (órganos internos)</SelectItem>
+                                  <SelectItem value="Otra">Otra</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                          {errors.tipoDiscapacidad && <p className="text-xs text-red-500 mt-1">{errors.tipoDiscapacidad.message}</p>}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -861,13 +947,13 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         {errors.direccion && <p className="text-xs text-red-500 mt-1">{errors.direccion.message}</p>}
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Zona</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Zona *</Label>
                         <Controller
                           name="zona"
                           control={control}
                           render={({ field }) => (
                             <Select onValueChange={field.onChange} value={field.value}>
-                              <SelectTrigger className="h-11 mt-2">
+                              <SelectTrigger className={`h-11 mt-2 ${errors.zona ? 'border-red-500' : ''}`}>
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
@@ -877,6 +963,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                             </Select>
                           )}
                         />
+                        {errors.zona && <p className="text-xs text-red-500 mt-1">{errors.zona.message}</p>}
                       </div>
                     </div>
                   </div>
@@ -973,15 +1060,24 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                   {/* Acompañante */}
                   <div>
                     <div className="flex items-center gap-2 mb-4">
-                      <User className="w-5 h-5 text-blue-600" />
-                      <h3 className="text-xl font-bold text-gray-900">Acompañante *</h3>
+                      <User className={`w-5 h-5 ${requiereAcompanante ? 'text-orange-600' : 'text-blue-600'}`} />
+                      <h3 className="text-xl font-bold text-gray-900">Acompañante {requiereAcompanante && '*'}</h3>
+                      {requiereAcompanante && (
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                          {esMenorDeEdad && tieneDiscapacidad ? 'Obligatorio (menor con discapacidad)' :
+                           esMenorDeEdad ? 'Obligatorio (menor de edad)' : 'Obligatorio (discapacidad)'}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">Persona que acompaña al paciente a sus citas.</p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Persona que acompaña al paciente a sus citas
+                      {requiereAcompanante ? ' (obligatorio para menores de edad o personas con discapacidad)' : ' (opcional)'}.
+                    </p>
 
-                    <div className="border-2 border-blue-200 rounded-xl p-4 bg-blue-50">
+                    <div className={`border-2 rounded-xl p-4 ${requiereAcompanante ? 'border-orange-200 bg-orange-50' : 'border-blue-200 bg-blue-50'}`}>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <Label className="text-xs font-semibold text-gray-700">Nombre *</Label>
+                          <Label className="text-xs font-semibold text-gray-700">Nombre {requiereAcompanante && '*'}</Label>
                           <Input
                             {...register('acompanante.nombre')}
                             className={`h-10 mt-1 bg-white ${errors.acompanante?.nombre ? 'border-red-500' : ''}`}
@@ -990,7 +1086,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                           {errors.acompanante?.nombre && <p className="text-xs text-red-500 mt-1">{errors.acompanante.nombre.message}</p>}
                         </div>
                         <div>
-                          <Label className="text-xs font-semibold text-gray-700">Teléfono *</Label>
+                          <Label className="text-xs font-semibold text-gray-700">Teléfono {requiereAcompanante && '*'}</Label>
                           <Input
                             {...register('acompanante.telefono')}
                             className={`h-10 mt-1 bg-white ${errors.acompanante?.telefono ? 'border-red-500' : ''}`}
@@ -1000,20 +1096,32 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         </div>
                       </div>
                     </div>
+                    {errors.acompanante && typeof errors.acompanante.message === 'string' && (
+                      <p className="text-xs text-red-500 mt-2">{errors.acompanante.message}</p>
+                    )}
                   </div>
 
                   {/* Responsable */}
                   <div>
                     <div className="flex items-center gap-2 mb-4">
-                      <Shield className="w-5 h-5 text-purple-600" />
-                      <h3 className="text-xl font-bold text-gray-900">Responsable *</h3>
+                      <Shield className={`w-5 h-5 ${requiereAcompanante ? 'text-orange-600' : 'text-purple-600'}`} />
+                      <h3 className="text-xl font-bold text-gray-900">Responsable {requiereAcompanante && '*'}</h3>
+                      {requiereAcompanante && (
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                          {esMenorDeEdad && tieneDiscapacidad ? 'Obligatorio (menor con discapacidad)' :
+                           esMenorDeEdad ? 'Obligatorio (menor de edad)' : 'Obligatorio (discapacidad)'}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">Persona responsable del paciente (puede ser el mismo acompañante).</p>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Persona responsable del paciente
+                      {requiereAcompanante ? ' (obligatorio para menores de edad o personas con discapacidad)' : ' (opcional)'}.
+                    </p>
 
-                    <div className="border-2 border-purple-200 rounded-xl p-4 bg-purple-50">
+                    <div className={`border-2 rounded-xl p-4 ${requiereAcompanante ? 'border-orange-200 bg-orange-50' : 'border-purple-200 bg-purple-50'}`}>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
-                          <Label className="text-xs font-semibold text-gray-700">Nombre *</Label>
+                          <Label className="text-xs font-semibold text-gray-700">Nombre {requiereAcompanante && '*'}</Label>
                           <Input
                             {...register('responsable.nombre')}
                             className={`h-10 mt-1 bg-white ${errors.responsable?.nombre ? 'border-red-500' : ''}`}
@@ -1022,7 +1130,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                           {errors.responsable?.nombre && <p className="text-xs text-red-500 mt-1">{errors.responsable.nombre.message}</p>}
                         </div>
                         <div>
-                          <Label className="text-xs font-semibold text-gray-700">Teléfono *</Label>
+                          <Label className="text-xs font-semibold text-gray-700">Teléfono {requiereAcompanante && '*'}</Label>
                           <Input
                             {...register('responsable.telefono')}
                             className={`h-10 mt-1 bg-white ${errors.responsable?.telefono ? 'border-red-500' : ''}`}
@@ -1031,7 +1139,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                           {errors.responsable?.telefono && <p className="text-xs text-red-500 mt-1">{errors.responsable.telefono.message}</p>}
                         </div>
                         <div>
-                          <Label className="text-xs font-semibold text-gray-700">Parentesco *</Label>
+                          <Label className="text-xs font-semibold text-gray-700">Parentesco {requiereAcompanante && '*'}</Label>
                           <Input
                             {...register('responsable.parentesco')}
                             className={`h-10 mt-1 bg-white ${errors.responsable?.parentesco ? 'border-red-500' : ''}`}
@@ -1041,6 +1149,9 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         </div>
                       </div>
                     </div>
+                    {errors.responsable && typeof errors.responsable.message === 'string' && (
+                      <p className="text-sm text-red-500 mt-2">{errors.responsable.message}</p>
+                    )}
                   </div>
 
                   <div>
@@ -1087,16 +1198,46 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                           name="eps"
                           control={control}
                           render={({ field }) => (
-                            <Select onValueChange={field.onChange} value={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value} onOpenChange={(open) => !open && setEpsSearch('')}>
                               <SelectTrigger className={`h-11 mt-2 ${errors.eps ? 'border-red-500' : ''}`}>
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
-                              <SelectContent>
-                                {epsData.filter(eps => eps.codigo && eps.nombre_entidad).map(eps => (
-                                  <SelectItem key={eps.codigo} value={`${eps.codigo} - ${eps.nombre_entidad}`}>
-                                    {eps.codigo} - {eps.nombre_entidad}
-                                  </SelectItem>
-                                ))}
+                              <SelectContent className="max-h-[300px]">
+                                <div className="sticky top-0 bg-white p-2 border-b">
+                                  <div className="relative">
+                                    <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Buscar EPS..."
+                                      value={epsSearch}
+                                      onChange={(e) => setEpsSearch(e.target.value)}
+                                      className="w-full pl-8 pr-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                      onClick={(e) => e.stopPropagation()}
+                                      onKeyDown={(e) => e.stopPropagation()}
+                                    />
+                                  </div>
+                                </div>
+                                {epsData
+                                  .filter(eps => eps.codigo && eps.nombre_entidad)
+                                  .filter(eps =>
+                                    epsSearch === '' ||
+                                    eps.codigo.toLowerCase().includes(epsSearch.toLowerCase()) ||
+                                    eps.nombre_entidad.toLowerCase().includes(epsSearch.toLowerCase())
+                                  )
+                                  .map(eps => (
+                                    <SelectItem key={eps.codigo} value={`${eps.codigo} - ${eps.nombre_entidad}`}>
+                                      {eps.codigo} - {eps.nombre_entidad}
+                                    </SelectItem>
+                                  ))}
+                                {epsData
+                                  .filter(eps => eps.codigo && eps.nombre_entidad)
+                                  .filter(eps =>
+                                    epsSearch === '' ||
+                                    eps.codigo.toLowerCase().includes(epsSearch.toLowerCase()) ||
+                                    eps.nombre_entidad.toLowerCase().includes(epsSearch.toLowerCase())
+                                  ).length === 0 && (
+                                    <div className="p-2 text-sm text-gray-500 text-center">No se encontraron resultados</div>
+                                  )}
                               </SelectContent>
                             </Select>
                           )}
@@ -1176,7 +1317,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                                     <SelectItem key={tipo.id} value={tipo.nombre}>{tipo.nombre}</SelectItem>
                                   ))
                                 ) : (
-                                  <SelectItem value="" disabled>No hay tipos configurados</SelectItem>
+                                  <SelectItem value="sin-configurar" disabled>No hay tipos configurados</SelectItem>
                                 )}
                               </SelectContent>
                             </Select>

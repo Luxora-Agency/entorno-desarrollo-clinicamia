@@ -19,15 +19,17 @@ const contactoEmergenciaSchema = z.object({
   parentesco: z.string().min(1, 'El parentesco es requerido'),
 });
 
+// Acompañante es opcional para mayores de edad, obligatorio para menores
 const acompananteSchema = z.object({
-  nombre: z.string().min(1, 'El nombre del acompañante es requerido'),
-  telefono: z.string().min(1, 'El teléfono del acompañante es requerido'),
+  nombre: z.string().optional().default(''),
+  telefono: z.string().optional().default(''),
 });
 
+// Responsable es opcional para mayores de edad, obligatorio para menores
 const responsableSchema = z.object({
-  nombre: z.string().min(1, 'El nombre del responsable es requerido'),
-  telefono: z.string().min(1, 'El teléfono del responsable es requerido'),
-  parentesco: z.string().min(1, 'El parentesco del responsable es requerido'),
+  nombre: z.string().optional().default(''),
+  telefono: z.string().optional().default(''),
+  parentesco: z.string().optional().default(''),
 });
 
 export const pacienteFormSchema = z.object({
@@ -56,7 +58,7 @@ export const pacienteFormSchema = z.object({
   municipio: z.string().min(1, 'El municipio es requerido'),
   barrio: z.string().min(1, 'El barrio es requerido'),
   direccion: z.string().min(1, 'La dirección es requerida'),
-  zona: z.string().optional(),
+  zona: z.string().min(1, 'La zona es requerida'),
 
   // Paso 2
   telefono: z.string().min(1, 'El teléfono es requerido'),
@@ -78,6 +80,10 @@ export const pacienteFormSchema = z.object({
   carnetPoliza: z.string().optional(),
   arl: z.string().optional(),
   tipoUsuario: z.string().optional(),
+
+  // Discapacidad
+  discapacidad: z.string().optional().default('No aplica'),
+  tipoDiscapacidad: z.string().optional(),
 
   // Paso 4 (Médica)
   referidoPor: z.string().optional(),
@@ -110,7 +116,7 @@ export const pacienteFormSchema = z.object({
   message: "Especifique la identidad de género",
   path: ["otraIdentidadGenero"],
 }).refine((data) => {
-  // Para menores de edad, el acompañante (contacto de emergencia) es obligatorio
+  // Para menores de edad, el contacto de emergencia es obligatorio
   const edad = calcularEdad(data.fechaNacimiento);
   if (edad !== null && edad < 18) {
     // Verificar que tenga al menos un contacto de emergencia completo
@@ -121,6 +127,39 @@ export const pacienteFormSchema = z.object({
   }
   return true;
 }, {
-  message: "Para pacientes menores de edad, debe registrar un acompañante (contacto de emergencia completo con nombre, teléfono y parentesco)",
+  message: "Para pacientes menores de edad, debe registrar un contacto de emergencia completo",
   path: ["contactosEmergencia"],
+}).refine((data) => {
+  // Para menores de edad o con discapacidad, el acompañante es obligatorio
+  const edad = calcularEdad(data.fechaNacimiento);
+  const esMenor = edad !== null && edad < 18;
+  const tieneDiscapacidad = data.discapacidad === 'Aplica';
+  if (esMenor || tieneDiscapacidad) {
+    return data.acompanante?.nombre && data.acompanante?.telefono;
+  }
+  return true;
+}, {
+  message: "Para pacientes menores de edad o con discapacidad, el acompañante es obligatorio",
+  path: ["acompanante"],
+}).refine((data) => {
+  // Para menores de edad o con discapacidad, el responsable es obligatorio
+  const edad = calcularEdad(data.fechaNacimiento);
+  const esMenor = edad !== null && edad < 18;
+  const tieneDiscapacidad = data.discapacidad === 'Aplica';
+  if (esMenor || tieneDiscapacidad) {
+    return data.responsable?.nombre && data.responsable?.telefono && data.responsable?.parentesco;
+  }
+  return true;
+}, {
+  message: "Para pacientes menores de edad o con discapacidad, el responsable es obligatorio",
+  path: ["responsable"],
+}).refine((data) => {
+  // Si tiene discapacidad, debe especificar el tipo
+  if (data.discapacidad === 'Aplica' && !data.tipoDiscapacidad) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Debe especificar el tipo de discapacidad",
+  path: ["tipoDiscapacidad"],
 });
