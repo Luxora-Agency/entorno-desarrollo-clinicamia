@@ -42,7 +42,6 @@ import {
   ArrowRight,
   CalendarRange,
   Package,
-  Pill,
   AlertTriangle,
   History,
   PanelRightClose,
@@ -89,12 +88,12 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/services/api';
 
-// Tipos de órdenes principales con iconos y colores
+// Tipos principales de órdenes médicas (sin prescripciones)
 const TIPOS_ORDEN = [
-  { value: 'Prescripcion', label: 'Prescripción', icon: Pill, color: 'teal', bgColor: 'bg-teal-100', textColor: 'text-teal-700', borderColor: 'border-teal-300' },
+  // Tipos principales
   { value: 'ExamenesProcedimientos', label: 'Exámenes/Procedimientos', icon: FlaskConical, color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700', borderColor: 'border-blue-300' },
   { value: 'Interconsulta', label: 'Interconsulta', icon: Stethoscope, color: 'amber', bgColor: 'bg-amber-100', textColor: 'text-amber-700', borderColor: 'border-amber-300' },
-  // Subtipos para items dentro de órdenes agrupadas
+  // Categorías de exámenes/procedimientos
   { value: 'Laboratorio', label: 'Laboratorio', icon: FlaskConical, color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700', borderColor: 'border-blue-300' },
   { value: 'Imagenologia', label: 'Imagenología', icon: ScanLine, color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-700', borderColor: 'border-purple-300' },
   { value: 'Procedimiento', label: 'Procedimiento', icon: Stethoscope, color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-700', borderColor: 'border-green-300' },
@@ -378,16 +377,26 @@ export default function OrdenesMedicasModule({ user }) {
     loadAuxiliaryData();
   }, [loadAuxiliaryData]);
 
-  // Estadísticas calculadas de todas las órdenes
-  const stats = useMemo(() => {
-    const pendientes = ordenes.filter(o => o.estado === 'Pendiente').length;
-    const enProceso = ordenes.filter(o => o.estado === 'EnProceso').length;
-    const completadas = ordenes.filter(o => o.estado === 'Completada').length;
-    const urgentes = ordenes.filter(o => o.prioridad === 'Urgente' && o.estado !== 'Completada' && o.estado !== 'Cancelada').length;
-    const misOrdenes = ordenes.filter(o => o.doctorId === doctorUserId).length;
+  // Filtrar órdenes válidas: exámenes/procedimientos e interconsultas (excluir SOLO prescripciones)
+  const ordenesValidas = useMemo(() => {
+    return ordenes.filter(orden => {
+      const obs = orden.observaciones || '';
+      const esPrescripcion = obs.includes('APLICACIÓN DE KIT') || obs.includes('Kit ') || obs.includes('Medicamentos incluidos');
+      return !esPrescripcion; // Excluir solo prescripciones
+    });
+  }, [ordenes]);
 
-    return { total: ordenes.length, pendientes, enProceso, completadas, urgentes, misOrdenes };
-  }, [ordenes, doctorUserId]);
+  // Estadísticas calculadas de las órdenes (exámenes/procedimientos + interconsultas)
+  const stats = useMemo(() => {
+    const pendientes = ordenesValidas.filter(o => o.estado === 'Pendiente').length;
+    const enProceso = ordenesValidas.filter(o => o.estado === 'EnProceso').length;
+    const completadas = ordenesValidas.filter(o => o.estado === 'Completada').length;
+    const urgentes = ordenesValidas.filter(o => o.prioridad === 'Urgente' && o.estado !== 'Completada' && o.estado !== 'Cancelada').length;
+    const misOrdenes = ordenesValidas.filter(o => o.doctorId === doctorUserId).length;
+    const interconsultas = ordenesValidas.filter(o => o.tipo === 'Interconsulta' || (o.observaciones || '').includes('INTERCONSULTA')).length;
+
+    return { total: ordenesValidas.length, pendientes, enProceso, completadas, urgentes, misOrdenes, interconsultas };
+  }, [ordenesValidas, doctorUserId]);
 
   // Filtrar pacientes para búsqueda
   const pacientesFiltrados = useMemo(() => {
@@ -426,10 +435,15 @@ export default function OrdenesMedicasModule({ user }) {
     return PRIORIDADES.find(p => p.value === prioridad) || PRIORIDADES[0];
   };
 
-  // Detectar si es prescripción desde observaciones
+  // Detectar si es prescripción (para filtrar)
   const esPrescripcion = (orden) => {
     const obs = orden.observaciones || '';
     return obs.includes('APLICACIÓN DE KIT') || obs.includes('Kit ') || obs.includes('Medicamentos incluidos');
+  };
+
+  // Detectar si es interconsulta (para filtrar)
+  const esInterconsulta = (orden) => {
+    return orden.tipo === 'Interconsulta' || (orden.observaciones || '').includes('INTERCONSULTA');
   };
 
   // Detectar si es orden agrupada de exámenes/procedimientos
@@ -438,19 +452,36 @@ export default function OrdenesMedicasModule({ user }) {
     return obs.includes('ORDEN DE EXAMEN') || obs.includes('ORDEN DE PROCEDIMIENTO') || obs.includes('Items solicitados');
   };
 
-  // Detectar si es interconsulta
-  const esInterconsulta = (orden) => {
-    return orden.tipo === 'Interconsulta' || (orden.observaciones || '').includes('INTERCONSULTA');
+  // Determinar si es una orden de exámenes/procedimientos válida (no prescripción ni interconsulta)
+  const esOrdenExamenProcedimiento = (orden) => {
+    return !esPrescripcion(orden) && !esInterconsulta(orden);
   };
 
-  // Obtener el tipo principal de la orden (Prescripción, Exámenes/Procedimientos, Interconsulta)
+  // Obtener el tipo principal de la orden (ExamenesProcedimientos o Interconsulta)
   const getTipoPrincipal = (orden) => {
-    if (esPrescripcion(orden)) return 'Prescripcion';
     if (esInterconsulta(orden)) return 'Interconsulta';
-    if (esOrdenAgrupada(orden)) return 'ExamenesProcedimientos';
-    // Si tiene examenProcedimiento asociado, es orden de examen/procedimiento individual
-    if (orden.examenProcedimientoId || orden.examenProcedimiento) return 'ExamenesProcedimientos';
-    return 'ExamenesProcedimientos'; // Por defecto
+    return 'ExamenesProcedimientos';
+  };
+
+  // Obtener la categoría de la orden (Laboratorio, Imagenología, Procedimiento, etc.)
+  const getCategoriaOrden = (orden) => {
+    // Si está en observaciones con formato agrupado
+    const obs = orden.observaciones || '';
+    if (obs.includes('[Laboratorio]')) return 'Laboratorio';
+    if (obs.includes('[Imagenología]') || obs.includes('[Imagenologia]')) return 'Imagenologia';
+    if (obs.includes('[Procedimiento]')) return 'Procedimiento';
+    if (obs.includes('[Examen]')) return 'Examen';
+    // Si tiene tipo definido
+    if (orden.tipo && TIPOS_ORDEN.find(t => t.value === orden.tipo)) return orden.tipo;
+    // Por el examen/procedimiento asociado
+    if (orden.examenProcedimiento?.categoria) return orden.examenProcedimiento.categoria;
+    return 'Examen'; // Por defecto
+  };
+
+  // Contar items en una orden agrupada
+  const contarItemsOrden = (orden) => {
+    const items = parseOrdenAgrupada(orden.observaciones);
+    return items ? items.length : (orden.examenProcedimiento ? 1 : 0);
   };
 
   // Parsear items de orden agrupada
@@ -754,12 +785,12 @@ export default function OrdenesMedicasModule({ user }) {
         <div className="bg-white border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
+              <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl">
                 <ClipboardList className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">Órdenes Médicas</h1>
-                <p className="text-sm text-gray-500">Gestión de exámenes y procedimientos</p>
+                <p className="text-sm text-gray-500">Exámenes, procedimientos e interconsultas</p>
               </div>
             </div>
 
@@ -875,7 +906,6 @@ export default function OrdenesMedicasModule({ user }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos los tipos</SelectItem>
-                <SelectItem value="Prescripcion">Prescripción</SelectItem>
                 <SelectItem value="ExamenesProcedimientos">Exám/Procedimientos</SelectItem>
                 <SelectItem value="Interconsulta">Interconsulta</SelectItem>
               </SelectContent>
@@ -912,11 +942,11 @@ export default function OrdenesMedicasModule({ user }) {
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
             </div>
-          ) : ordenes.length === 0 ? (
+          ) : ordenesValidas.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20">
               <ClipboardList className="w-16 h-16 text-gray-300 mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No hay órdenes médicas</h3>
-              <p className="text-gray-500 mb-4">Crea una nueva orden para comenzar</p>
+              <p className="text-gray-500 mb-4">Crea una nueva orden de exámenes, procedimientos o interconsulta</p>
               <Button onClick={() => setShowNuevaOrdenModal(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Nueva Orden
@@ -924,7 +954,7 @@ export default function OrdenesMedicasModule({ user }) {
             </div>
           ) : (
             <div className="space-y-2">
-              {ordenes.map((orden) => {
+              {ordenesValidas.map((orden) => {
                 const tipoPrincipal = getTipoPrincipal(orden);
                 const tipoInfo = getTipoInfo(tipoPrincipal);
                 const estadoInfo = getEstadoInfo(orden.estado);
@@ -932,6 +962,7 @@ export default function OrdenesMedicasModule({ user }) {
                 const TipoIcon = tipoInfo.icon;
                 const isSelected = selectedOrden?.id === orden.id;
                 const isUrgent = orden.prioridad === 'Urgente' && orden.estado !== 'Completada' && orden.estado !== 'Cancelada';
+                const numItems = contarItemsOrden(orden);
 
                 return (
                   <div
@@ -943,13 +974,13 @@ export default function OrdenesMedicasModule({ user }) {
                       ${isUrgent ? 'bg-red-50 border-red-200' : ''}
                     `}
                   >
-                    {/* Tipo de orden */}
-                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${tipoInfo.bgColor} flex-shrink-0 min-w-[160px]`}>
+                    {/* Tipo de orden con cantidad de items */}
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${tipoInfo.bgColor} flex-shrink-0 min-w-[180px]`}>
                       <TipoIcon className={`w-4 h-4 ${tipoInfo.textColor}`} />
                       <span className={`text-xs font-semibold ${tipoInfo.textColor}`}>
-                        {tipoPrincipal === 'Prescripcion' && 'Prescripción'}
-                        {tipoPrincipal === 'ExamenesProcedimientos' && (esOrdenAgrupada(orden) ? `Exám/Proc (${parseOrdenAgrupada(orden.observaciones)?.length || 0})` : 'Exám/Procedimiento')}
-                        {tipoPrincipal === 'Interconsulta' && 'Interconsulta'}
+                        {tipoPrincipal === 'Interconsulta' ? 'Interconsulta' : (
+                          numItems > 1 ? `Exám/Proc (${numItems})` : 'Exám/Procedimiento'
+                        )}
                       </span>
                     </div>
 
@@ -964,12 +995,7 @@ export default function OrdenesMedicasModule({ user }) {
                         </span>
                       </div>
                       <p className="text-sm text-gray-600 truncate">
-                        {tipoPrincipal === 'Prescripcion' ? (
-                          <span className="flex items-center gap-1">
-                            <Pill className="w-3 h-3" />
-                            {orden.observaciones?.split('\n')[0]?.replace('APLICACIÓN DE KIT:', '').trim() || 'Prescripción médica'}
-                          </span>
-                        ) : tipoPrincipal === 'Interconsulta' ? (
+                        {tipoPrincipal === 'Interconsulta' ? (
                           <span className="flex items-center gap-1">
                             <Stethoscope className="w-3 h-3" />
                             {orden.especialidadDestino || orden.descripcion || orden.observaciones?.split('\n')[0] || 'Interconsulta médica'}
@@ -977,7 +1003,7 @@ export default function OrdenesMedicasModule({ user }) {
                         ) : esOrdenAgrupada(orden) ? (
                           <span className="flex items-center gap-1">
                             <ClipboardList className="w-3 h-3" />
-                            {parseOrdenAgrupada(orden.observaciones)?.length || 0} items: {parseOrdenAgrupada(orden.observaciones)?.slice(0, 2).map(i => i.nombre).join(', ')}
+                            {parseOrdenAgrupada(orden.observaciones)?.slice(0, 2).map(i => i.nombre).join(', ')}
                             {(parseOrdenAgrupada(orden.observaciones)?.length || 0) > 2 && '...'}
                           </span>
                         ) : (
@@ -1068,7 +1094,7 @@ export default function OrdenesMedicasModule({ user }) {
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-6 pt-4 border-t">
               <p className="text-sm text-gray-600">
-                Mostrando {ordenes.length} de {total} órdenes
+                Mostrando {ordenesValidas.length} de {total} órdenes
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -1119,10 +1145,10 @@ export default function OrdenesMedicasModule({ user }) {
                   <h3 className="font-semibold text-gray-900">
                     {(() => {
                       const tipoPrincipal = getTipoPrincipal(selectedOrden);
-                      if (tipoPrincipal === 'Prescripcion') return 'Prescripción Médica';
                       if (tipoPrincipal === 'Interconsulta') return 'Interconsulta';
-                      if (esOrdenAgrupada(selectedOrden)) {
-                        return `Exámenes/Procedimientos (${parseOrdenAgrupada(selectedOrden.observaciones)?.length || 0})`;
+                      const numItems = contarItemsOrden(selectedOrden);
+                      if (numItems > 1) {
+                        return `Exámenes/Procedimientos (${numItems})`;
                       }
                       return 'Examen/Procedimiento';
                     })()}
@@ -1188,30 +1214,6 @@ export default function OrdenesMedicasModule({ user }) {
               {/* Contenido según tipo de orden */}
               {(() => {
                 const tipoPrincipal = getTipoPrincipal(selectedOrden);
-
-                // PRESCRIPCIÓN
-                if (tipoPrincipal === 'Prescripcion') {
-                  return (
-                    <>
-                      <div>
-                        <Label className="text-xs text-gray-500 uppercase tracking-wide">Prescripción</Label>
-                        <div className="mt-2 p-3 bg-teal-50 rounded-lg border border-teal-100">
-                          <p className="font-semibold text-teal-900">
-                            {selectedOrden.observaciones?.split('\n')[0]?.replace('APLICACIÓN DE KIT:', '').trim()}
-                          </p>
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs text-gray-500 uppercase tracking-wide">Detalle de Medicamentos</Label>
-                        <div className="mt-2 p-3 bg-teal-50 rounded-lg border border-teal-100">
-                          <pre className="text-xs text-teal-900 whitespace-pre-wrap font-mono">
-                            {selectedOrden.observaciones}
-                          </pre>
-                        </div>
-                      </div>
-                    </>
-                  );
-                }
 
                 // INTERCONSULTA
                 if (tipoPrincipal === 'Interconsulta') {
