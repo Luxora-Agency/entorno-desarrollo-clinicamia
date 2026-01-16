@@ -422,14 +422,15 @@ export default function PublicacionList({ user }) {
                   <TableHead>Título</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Autor</TableHead>
-                  <TableHead>Fecha</TableHead>
+                  <TableHead>Fecha Creación</TableHead>
+                  <TableHead>Fecha Publicación</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {publicaciones.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
                       No hay publicaciones encontradas
                     </TableCell>
                   </TableRow>
@@ -453,9 +454,18 @@ export default function PublicacionList({ user }) {
                         )}
                       </TableCell>
                       <TableCell>
-                        {pub.fechaPublicacion
-                          ? new Date(pub.fechaPublicacion).toLocaleDateString()
+                        {pub.createdAt
+                          ? new Date(pub.createdAt).toLocaleDateString()
                           : '-'}
+                      </TableCell>
+                      <TableCell>
+                        {pub.fechaPublicacion ? (
+                          <span className="text-green-600 font-medium">
+                            {new Date(pub.fechaPublicacion).toLocaleDateString()}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
