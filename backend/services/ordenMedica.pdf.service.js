@@ -131,24 +131,39 @@ class OrdenMedicaPdfService {
         const formaMatch = nombreCompleto.match(/(ampolla|tableta|cápsula|capsula|jarabe|suspensión|suspension|crema|gel|solución|solucion|inyectable|comprimido|sobre|parche|gotas|spray|óvulo|ovulo|supositorio)/i);
         const forma = formaMatch ? formaMatch[1].trim() : '';
 
-        // Extraer frecuencia - soportar múltiples formatos:
-        // [Cada8Horas], [c/8h], cada 8 horas, c/8h
+        // Extraer todos los corchetes de la línea
+        const corchetes = linea.match(/\[([^\]]+)\]/g) || [];
+
+        // Extraer frecuencia - primer corchete que NO empiece con "por"
         let frecuencia = '';
-        const freqBracketMatch = linea.match(/\[([^\]]*(?:cada|c\/|hora|Hora|Unica|PRN|SOS)[^\]]*)\]/i);
-        if (freqBracketMatch) {
-          frecuencia = freqBracketMatch[1].trim();
-        } else {
+        for (const corchete of corchetes) {
+          const contenido = corchete.replace(/[\[\]]/g, '').trim();
+          if (!contenido.toLowerCase().startsWith('por ')) {
+            frecuencia = contenido;
+            break;
+          }
+        }
+        // Si no hay corchete, buscar formato c/8h o cada 8 horas
+        if (!frecuencia) {
           const freqMatch = linea.match(/(?:c\/|cada\s*)(\d+)\s*(?:h|hrs?|horas?)/i);
           if (freqMatch) frecuencia = `c/${freqMatch[1]}h`;
         }
 
-        // Extraer duración - soportar múltiples formatos:
-        // [por 5 días], por 5 días, x5d, 5 días
+        // Extraer duración - corchete que empiece con "por" o contenga "días/dosis"
         let duracion = '';
-        const durBracketMatch = linea.match(/\[por\s+([^\]]+)\]/i);
-        if (durBracketMatch) {
-          duracion = durBracketMatch[1].trim();
-        } else {
+        for (const corchete of corchetes) {
+          const contenido = corchete.replace(/[\[\]]/g, '').trim();
+          if (contenido.toLowerCase().startsWith('por ')) {
+            duracion = contenido.replace(/^por\s+/i, '').trim();
+            break;
+          }
+          if (/\d+\s*(?:días?|dias?|dosis)/i.test(contenido) && contenido !== frecuencia) {
+            duracion = contenido;
+            break;
+          }
+        }
+        // Si no hay corchete, buscar formato "por X días"
+        if (!duracion) {
           const durMatch = linea.match(/(?:por|x)\s*(\d+)\s*(?:d|días?|dias?)/i);
           if (durMatch) duracion = `${durMatch[1]} días`;
         }
