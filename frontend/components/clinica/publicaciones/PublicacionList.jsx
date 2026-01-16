@@ -417,14 +417,14 @@ export default function PublicacionList({ user }) {
               <div>
                 <Label htmlFor="categoria">Categoría</Label>
                 <Select
-                  value={formData.categoriaId}
-                  onValueChange={(v) => setFormData({ ...formData, categoriaId: v })}
+                  value={formData.categoriaId || 'none'}
+                  onValueChange={(v) => setFormData({ ...formData, categoriaId: v === 'none' ? '' : v })}
                 >
                   <SelectTrigger className="mt-1">
                     <SelectValue placeholder="Seleccionar categoría" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin categoría</SelectItem>
+                    <SelectItem value="none">Sin categoría</SelectItem>
                     {categorias.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.nombre}
