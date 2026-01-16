@@ -2,31 +2,45 @@ const prisma = require('../db/prisma');
 const { startOfMonth, endOfMonth, subMonths, format } = require('date-fns');
 
 class ReportesService {
-  async getGeneralStats(query) {
+  async getGeneralStats(query, doctorId = null) {
     const { periodo } = query; // dia, semana, mes, trimestre, ano
-    
+
     let startDate = startOfMonth(new Date());
     let endDate = endOfMonth(new Date());
-    
+
     // Logic to adjust startDate/endDate based on 'periodo' could be added here
     // For now defaulting to current month logic as requested
 
-    // 1. Total Pacientes
-    const totalPacientes = await prisma.paciente.count();
+    // Filtro base por doctor si aplica
+    const doctorFilter = doctorId ? { doctorId } : {};
+
+    // 1. Total Pacientes (del doctor o todos)
+    const totalPacientes = doctorId
+      ? await prisma.cita.groupBy({
+          by: ['pacienteId'],
+          where: { doctorId }
+        }).then(r => r.length)
+      : await prisma.paciente.count();
 
     // 2. Pacientes Nuevos (this month)
-    const pacientesNuevos = await prisma.paciente.count({
-      where: {
-        createdAt: {
-          gte: startDate,
-          lte: endDate,
-        },
-      },
-    });
+    const pacientesNuevos = doctorId
+      ? await prisma.cita.groupBy({
+          by: ['pacienteId'],
+          where: {
+            doctorId,
+            createdAt: { gte: startDate, lte: endDate }
+          }
+        }).then(r => r.length)
+      : await prisma.paciente.count({
+          where: {
+            createdAt: { gte: startDate, lte: endDate },
+          },
+        });
 
     // 3. Consultas Realizadas
     const consultasRealizadas = await prisma.cita.count({
       where: {
+        ...doctorFilter,
         estado: 'Completada',
         fecha: {
           gte: startDate,
@@ -38,6 +52,7 @@ class ReportesService {
     // 3.1 Evoluciones (HCE)
     const evolucionesRealizadas = await prisma.evolucionClinica.count({
       where: {
+        ...(doctorId ? { doctorId } : {}),
         fechaEvolucion: {
           gte: startDate,
           lte: endDate,
@@ -294,9 +309,12 @@ class ReportesService {
     return data;
   }
 
-  async getServicesStats() {
+  async getServicesStats(doctorId = null) {
+    const whereFilter = doctorId ? { doctorId } : {};
+
     const topServices = await prisma.ordenMedica.groupBy({
       by: ['examenProcedimientoId'],
+      where: whereFilter,
       _count: { id: true },
       orderBy: {
         _count: { id: 'desc' }
@@ -318,11 +336,11 @@ class ReportesService {
     const data = topServices.map(s => {
       const exam = examenes.find(e => e.id === s.examenProcedimientoId);
       return {
-        servicio: exam ? exam.nombre : 'Desconocido',
+        servicio: exam ? exam.nombre : 'Otros',
         cantidad: s._count.id,
-        variacion: '+0%' 
+        variacion: '+0%'
       };
-    });
+    }).filter(d => d.servicio !== 'Otros' || d.cantidad > 0);
 
     return data;
   }

@@ -12,7 +12,10 @@ reportes.use('*', authMiddleware);
 reportes.get('/general', async (c) => {
   try {
     const query = c.req.query();
-    const data = await reportesService.getGeneralStats(query);
+    const user = c.get('user');
+    // Si es doctor, filtrar solo sus estadísticas
+    const doctorId = user?.rol === 'DOCTOR' ? user.id : null;
+    const data = await reportesService.getGeneralStats(query, doctorId);
     return c.json(success(data));
   } catch (err) {
     return c.json(error(err.message), 500);
@@ -62,7 +65,9 @@ reportes.get('/demographics', async (c) => {
 // Services Stats
 reportes.get('/services', async (c) => {
   try {
-    const data = await reportesService.getServicesStats();
+    const user = c.get('user');
+    const doctorId = user?.rol === 'DOCTOR' ? user.id : null;
+    const data = await reportesService.getServicesStats(doctorId);
     return c.json(success(data));
   } catch (err) {
     return c.json(error(err.message), 500);
