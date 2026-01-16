@@ -39,6 +39,15 @@ import {
   ArrowUpRight,
   MoreVertical,
   X,
+  ChevronLeft,
+  ArrowRight,
+  CalendarRange,
+  Package,
+  Pill,
+  AlertTriangle,
+  History,
+  PanelRightClose,
+  PanelRightOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -77,17 +86,22 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/services/api';
 
-// Tipos de órdenes con iconos y colores
+// Tipos de órdenes principales con iconos y colores
 const TIPOS_ORDEN = [
-  { value: 'Laboratorio', label: 'Laboratorio', icon: FlaskConical, color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
-  { value: 'Imagenologia', label: 'Imagenología', icon: ScanLine, color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-700' },
-  { value: 'Procedimiento', label: 'Procedimiento', icon: Stethoscope, color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-700' },
-  { value: 'Interconsulta', label: 'Interconsulta', icon: Microscope, color: 'amber', bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
-  { value: 'Dieta', label: 'Dieta', icon: Utensils, color: 'orange', bgColor: 'bg-orange-100', textColor: 'text-orange-700' },
-  { value: 'Otro', label: 'Otro', icon: FileText, color: 'gray', bgColor: 'bg-gray-100', textColor: 'text-gray-700' },
+  { value: 'Prescripcion', label: 'Prescripción', icon: Pill, color: 'teal', bgColor: 'bg-teal-100', textColor: 'text-teal-700', borderColor: 'border-teal-300' },
+  { value: 'ExamenesProcedimientos', label: 'Exámenes/Procedimientos', icon: FlaskConical, color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700', borderColor: 'border-blue-300' },
+  { value: 'Interconsulta', label: 'Interconsulta', icon: Stethoscope, color: 'amber', bgColor: 'bg-amber-100', textColor: 'text-amber-700', borderColor: 'border-amber-300' },
+  // Subtipos para items dentro de órdenes agrupadas
+  { value: 'Laboratorio', label: 'Laboratorio', icon: FlaskConical, color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700', borderColor: 'border-blue-300' },
+  { value: 'Imagenologia', label: 'Imagenología', icon: ScanLine, color: 'purple', bgColor: 'bg-purple-100', textColor: 'text-purple-700', borderColor: 'border-purple-300' },
+  { value: 'Procedimiento', label: 'Procedimiento', icon: Stethoscope, color: 'green', bgColor: 'bg-green-100', textColor: 'text-green-700', borderColor: 'border-green-300' },
+  { value: 'Examen', label: 'Examen', icon: Microscope, color: 'indigo', bgColor: 'bg-indigo-100', textColor: 'text-indigo-700', borderColor: 'border-indigo-300' },
+  { value: 'Otro', label: 'Otro', icon: FileText, color: 'gray', bgColor: 'bg-gray-100', textColor: 'text-gray-700', borderColor: 'border-gray-300' },
 ];
 
 // Estados de la orden
@@ -104,6 +118,15 @@ const PRIORIDADES = [
   { value: 'Media', label: 'Media', color: 'blue', bgColor: 'bg-blue-100', textColor: 'text-blue-700' },
   { value: 'Alta', label: 'Alta', color: 'amber', bgColor: 'bg-amber-100', textColor: 'text-amber-700' },
   { value: 'Urgente', label: 'Urgente', color: 'red', bgColor: 'bg-red-100', textColor: 'text-red-700', pulse: true },
+];
+
+// Filtros de fecha rápidos
+const FILTROS_FECHA = [
+  { value: 'hoy', label: 'Hoy' },
+  { value: 'ayer', label: 'Ayer' },
+  { value: 'semana', label: 'Esta semana' },
+  { value: 'mes', label: 'Este mes' },
+  { value: 'todos', label: 'Todos' },
 ];
 
 // Paquetes predefinidos
@@ -188,36 +211,34 @@ export default function OrdenesMedicasModule({ user }) {
   const [ordenes, setOrdenes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'cards'
 
-  // Rol del usuario para determinar si filtrar solo por doctor
-  // Soportar múltiples formatos de rol: rol, role, nombre del rol
+  // Panel de detalle
+  const [selectedOrden, setSelectedOrden] = useState(null);
+  const [showDetailPanel, setShowDetailPanel] = useState(true);
+
+  // Rol del usuario
   const userRole = (user?.rol || user?.role || user?.rolNombre || '').toLowerCase();
   const isDoctor = ['doctor', 'medico', 'médico'].includes(userRole);
   const isAdmin = ['admin', 'administrador', 'super_admin', 'superadmin'].includes(userRole);
   const doctorUserId = user?.id;
 
-  // Debug: Log user info en desarrollo
-  if (process.env.NODE_ENV === 'development') {
-    console.log('[OrdenesMedicasModule] User:', { id: user?.id, rol: user?.rol, role: user?.role, isDoctor, isAdmin });
-  }
+  // Tab activo (clasificación)
+  const [activeTab, setActiveTab] = useState('todas');
 
   // Filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [filterEstado, setFilterEstado] = useState('todas');
   const [filterTipo, setFilterTipo] = useState('todos');
   const [filterPrioridad, setFilterPrioridad] = useState('todas');
-  const [filterFecha, setFilterFecha] = useState('');
+  const [filterFechaRapido, setFilterFechaRapido] = useState('todos');
 
   // Paginación
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
-  const limit = 20;
+  const limit = 25;
 
   // Modales
-  const [selectedOrden, setSelectedOrden] = useState(null);
-  const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [showNuevaOrdenModal, setShowNuevaOrdenModal] = useState(false);
   const [showResultadosModal, setShowResultadosModal] = useState(false);
 
@@ -226,7 +247,7 @@ export default function OrdenesMedicasModule({ user }) {
   const [pacientes, setPacientes] = useState([]);
   const [doctores, setDoctores] = useState([]);
 
-  // Formulario nueva orden - ahora incluye doctor_id del usuario logueado
+  // Formulario nueva orden
   const [nuevaOrden, setNuevaOrden] = useState({
     paciente_id: '',
     tipo: 'Laboratorio',
@@ -245,7 +266,30 @@ export default function OrdenesMedicasModule({ user }) {
     observaciones: '',
   });
 
-  // Cargar órdenes - filtradas por doctor si el usuario es doctor
+  // Calcular fechas para filtros
+  const getFechaFiltro = useCallback((tipo) => {
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    switch (tipo) {
+      case 'hoy':
+        return hoy.toISOString().split('T')[0];
+      case 'ayer':
+        const ayer = new Date(hoy);
+        ayer.setDate(ayer.getDate() - 1);
+        return ayer.toISOString().split('T')[0];
+      case 'semana':
+        const inicioSemana = new Date(hoy);
+        inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
+        return inicioSemana.toISOString().split('T')[0];
+      case 'mes':
+        return new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+      default:
+        return null;
+    }
+  }, []);
+
+  // Cargar órdenes
   const loadOrdenes = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     else setLoading(true);
@@ -256,25 +300,33 @@ export default function OrdenesMedicasModule({ user }) {
         limit: limit.toString(),
       });
 
-      // Filtrado basado en rol del usuario
-      // - Doctores: solo sus órdenes y las de sus pacientes
-      // - Admins: pueden ver todo (no se aplica filtro)
-      // - Otros roles: solo órdenes donde participan
+      // Filtrado basado en rol
       if (!isAdmin && doctorUserId) {
         params.append('doctor_id', doctorUserId);
         if (isDoctor) {
-          params.append('mis_ordenes', 'true'); // Incluir órdenes de pacientes que ha atendido
-        }
-        // Debug
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[OrdenesMedicasModule] Filtros aplicados:', { doctor_id: doctorUserId, mis_ordenes: isDoctor });
+          params.append('mis_ordenes', 'true');
         }
       }
 
+      // Tab de clasificación
+      if (activeTab === 'mis') {
+        params.set('doctor_id', doctorUserId);
+        params.delete('mis_ordenes');
+      } else if (activeTab === 'urgentes') {
+        params.append('prioridad', 'Urgente');
+        params.append('estado_not', 'Completada,Cancelada');
+      } else if (activeTab === 'pendientes') {
+        params.append('estado', 'Pendiente');
+      }
+
+      // Filtros adicionales
       if (filterEstado !== 'todas') params.append('estado', filterEstado);
       if (filterTipo !== 'todos') params.append('tipo', filterTipo);
       if (filterPrioridad !== 'todas') params.append('prioridad', filterPrioridad);
-      if (filterFecha) params.append('fecha', filterFecha);
+
+      const fechaFiltro = getFechaFiltro(filterFechaRapido);
+      if (fechaFiltro) params.append('fecha_desde', fechaFiltro);
+
       if (searchTerm) params.append('search', searchTerm);
 
       const response = await apiGet(`/ordenes-medicas?${params.toString()}`);
@@ -295,7 +347,7 @@ export default function OrdenesMedicasModule({ user }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [page, filterEstado, filterTipo, filterPrioridad, filterFecha, searchTerm, toast, isDoctor, isAdmin, doctorUserId]);
+  }, [page, activeTab, filterEstado, filterTipo, filterPrioridad, filterFechaRapido, searchTerm, toast, isDoctor, isAdmin, doctorUserId, getFechaFiltro]);
 
   // Cargar datos auxiliares
   const loadAuxiliaryData = useCallback(async () => {
@@ -328,15 +380,16 @@ export default function OrdenesMedicasModule({ user }) {
     loadAuxiliaryData();
   }, [loadAuxiliaryData]);
 
-  // Estadísticas
+  // Estadísticas calculadas de todas las órdenes
   const stats = useMemo(() => {
     const pendientes = ordenes.filter(o => o.estado === 'Pendiente').length;
     const enProceso = ordenes.filter(o => o.estado === 'EnProceso').length;
     const completadas = ordenes.filter(o => o.estado === 'Completada').length;
     const urgentes = ordenes.filter(o => o.prioridad === 'Urgente' && o.estado !== 'Completada' && o.estado !== 'Cancelada').length;
+    const misOrdenes = ordenes.filter(o => o.doctorId === doctorUserId).length;
 
-    return { total: ordenes.length, pendientes, enProceso, completadas, urgentes };
-  }, [ordenes]);
+    return { total: ordenes.length, pendientes, enProceso, completadas, urgentes, misOrdenes };
+  }, [ordenes, doctorUserId]);
 
   // Filtrar pacientes para búsqueda
   const pacientesFiltrados = useMemo(() => {
@@ -362,7 +415,7 @@ export default function OrdenesMedicasModule({ user }) {
 
   // Obtener info de tipo
   const getTipoInfo = (tipo) => {
-    return TIPOS_ORDEN.find(t => t.value === tipo) || TIPOS_ORDEN[5];
+    return TIPOS_ORDEN.find(t => t.value === tipo) || TIPOS_ORDEN[6];
   };
 
   // Obtener info de estado
@@ -375,27 +428,71 @@ export default function OrdenesMedicasModule({ user }) {
     return PRIORIDADES.find(p => p.value === prioridad) || PRIORIDADES[0];
   };
 
+  // Detectar si es prescripción desde observaciones
+  const esPrescripcion = (orden) => {
+    const obs = orden.observaciones || '';
+    return obs.includes('APLICACIÓN DE KIT') || obs.includes('Kit ') || obs.includes('Medicamentos incluidos');
+  };
+
+  // Detectar si es orden agrupada de exámenes/procedimientos
+  const esOrdenAgrupada = (orden) => {
+    const obs = orden.observaciones || '';
+    return obs.includes('ORDEN DE EXAMEN') || obs.includes('ORDEN DE PROCEDIMIENTO') || obs.includes('Items solicitados');
+  };
+
+  // Detectar si es interconsulta
+  const esInterconsulta = (orden) => {
+    return orden.tipo === 'Interconsulta' || (orden.observaciones || '').includes('INTERCONSULTA');
+  };
+
+  // Obtener el tipo principal de la orden (Prescripción, Exámenes/Procedimientos, Interconsulta)
+  const getTipoPrincipal = (orden) => {
+    if (esPrescripcion(orden)) return 'Prescripcion';
+    if (esInterconsulta(orden)) return 'Interconsulta';
+    if (esOrdenAgrupada(orden)) return 'ExamenesProcedimientos';
+    // Si tiene examenProcedimiento asociado, es orden de examen/procedimiento individual
+    if (orden.examenProcedimientoId || orden.examenProcedimiento) return 'ExamenesProcedimientos';
+    return 'ExamenesProcedimientos'; // Por defecto
+  };
+
+  // Parsear items de orden agrupada
+  const parseOrdenAgrupada = (observaciones) => {
+    if (!observaciones) return null;
+    const items = [];
+    const lineas = observaciones.split('\n');
+
+    for (const linea of lineas) {
+      const match = linea.match(/^\d+\.\s*\[([^\]]+)\]\s*(.+)/);
+      if (match) {
+        const tipo = match[1].trim();
+        let resto = match[2].trim();
+        const cupsMatch = resto.match(/\(CUPS:\s*([^)]+)\)/);
+        const codigoCups = cupsMatch ? cupsMatch[1].trim() : '';
+        if (cupsMatch) resto = resto.replace(cupsMatch[0], '').trim();
+        const partes = resto.split(' - ');
+        items.push({
+          tipo,
+          nombre: partes[0].trim(),
+          codigoCups,
+          observaciones: partes.length > 1 ? partes.slice(1).join(' - ').trim() : '',
+        });
+      }
+    }
+    return items.length > 0 ? items : null;
+  };
+
   // Crear nueva orden
   const handleCrearOrden = async () => {
     if (!nuevaOrden.paciente_id) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Debe seleccionar un paciente.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'Debe seleccionar un paciente.' });
       return;
     }
 
-    if (!nuevaOrden.examen_procedimiento_id) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Debe seleccionar el examen o procedimiento.',
-      });
+    if (!nuevaOrden.examen_procedimiento_id && !nuevaOrden.descripcion) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Debe seleccionar el examen o ingresar una descripción.' });
       return;
     }
 
-    // Obtener precio del examen seleccionado
     const examenSeleccionado = examenes.find(e => e.id === nuevaOrden.examen_procedimiento_id);
     const precioAplicado = examenSeleccionado?.costoBase || examenSeleccionado?.precio || 0;
 
@@ -403,17 +500,14 @@ export default function OrdenesMedicasModule({ user }) {
     try {
       const ordenData = {
         ...nuevaOrden,
-        doctor_id: doctorUserId, // Siempre usar el ID del doctor logueado
+        doctor_id: doctorUserId,
         precio_aplicado: precioAplicado,
       };
 
       const response = await apiPost('/ordenes-medicas', ordenData);
 
       if (response.success) {
-        toast({
-          title: 'Orden creada',
-          description: 'La orden médica ha sido creada correctamente.',
-        });
+        toast({ title: 'Orden creada', description: 'La orden médica ha sido creada correctamente.' });
         setShowNuevaOrdenModal(false);
         setNuevaOrden({
           paciente_id: '',
@@ -430,11 +524,7 @@ export default function OrdenesMedicasModule({ user }) {
       }
     } catch (error) {
       console.error('Error creating order:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message || 'No se pudo crear la orden.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: error.message || 'No se pudo crear la orden.' });
     } finally {
       setLoading(false);
     }
@@ -443,20 +533,12 @@ export default function OrdenesMedicasModule({ user }) {
   // Crear paquete de órdenes
   const handleCrearPaquete = async (paquete) => {
     if (!nuevaOrden.paciente_id) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Debe seleccionar un paciente primero.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'Debe seleccionar un paciente primero.' });
       return;
     }
 
     if (!doctorUserId) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo identificar al médico. Intente cerrar sesión y volver a ingresar.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar al médico.' });
       return;
     }
 
@@ -464,7 +546,6 @@ export default function OrdenesMedicasModule({ user }) {
     try {
       let creadas = 0;
       for (const orden of paquete.ordenes) {
-        // Buscar examen por descripción para obtener el ID y precio
         const examenMatch = examenes.find(e =>
           e.nombre?.toLowerCase().includes(orden.descripcion?.toLowerCase()) ||
           orden.descripcion?.toLowerCase().includes(e.nombre?.toLowerCase())
@@ -491,11 +572,7 @@ export default function OrdenesMedicasModule({ user }) {
       loadOrdenes(true);
     } catch (error) {
       console.error('Error creating package:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo crear el paquete de órdenes.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo crear el paquete de órdenes.' });
     } finally {
       setLoading(false);
     }
@@ -513,23 +590,14 @@ export default function OrdenesMedicasModule({ user }) {
       });
 
       if (response.success) {
-        toast({
-          title: 'Orden completada',
-          description: 'La orden ha sido marcada como completada.',
-        });
+        toast({ title: 'Orden completada', description: 'La orden ha sido marcada como completada.' });
         setShowResultadosModal(false);
-        setShowDetalleModal(false);
-        setSelectedOrden(null);
         setResultados({ resultados: '', observaciones: '' });
         loadOrdenes(true);
       }
     } catch (error) {
       console.error('Error completing order:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo completar la orden.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo completar la orden.' });
     } finally {
       setLoading(false);
     }
@@ -545,19 +613,13 @@ export default function OrdenesMedicasModule({ user }) {
       });
 
       if (response.success) {
-        toast({
-          title: 'Orden cancelada',
-          description: 'La orden ha sido cancelada.',
-        });
+        toast({ title: 'Orden cancelada', description: 'La orden ha sido cancelada.' });
+        if (selectedOrden?.id === orden.id) setSelectedOrden(null);
         loadOrdenes(true);
       }
     } catch (error) {
       console.error('Error canceling order:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo cancelar la orden.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cancelar la orden.' });
     }
   };
 
@@ -575,14 +637,10 @@ export default function OrdenesMedicasModule({ user }) {
     setShowNuevaOrdenModal(true);
   };
 
-  // Descargar PDF de orden médica
+  // Descargar PDF
   const handleDescargarPdf = async (orden) => {
     if (!orden?.id) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo identificar la orden para descargar.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar la orden.' });
       return;
     }
 
@@ -590,27 +648,18 @@ export default function OrdenesMedicasModule({ user }) {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-      toast({
-        title: 'Generando PDF...',
-        description: 'Por favor espere mientras se genera el documento.',
-      });
-
-      console.log('[PDF] Descargando orden:', orden.id);
+      toast({ title: 'Generando PDF...', description: 'Por favor espere.' });
 
       const response = await fetch(`${apiUrl}/ordenes-medicas/${orden.id}/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!response.ok) {
-        // Intentar obtener el mensaje de error del servidor
         let errorMessage = 'Error al generar el PDF';
         try {
           const errorData = await response.json();
           errorMessage = errorData.message || errorMessage;
-          console.error('[PDF] Error del servidor:', errorData);
-        } catch (e) {
-          console.error('[PDF] Error response:', response.status, response.statusText);
-        }
+        } catch (e) {}
         throw new Error(errorMessage);
       }
 
@@ -624,28 +673,17 @@ export default function OrdenesMedicasModule({ user }) {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      toast({
-        title: 'PDF descargado',
-        description: 'La orden médica se ha descargado correctamente.',
-      });
+      toast({ title: 'PDF descargado', description: 'La orden se ha descargado correctamente.' });
     } catch (err) {
-      console.error('[PDF] Error descargando:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message || 'No se pudo descargar el PDF de la orden.',
-      });
+      console.error('[PDF] Error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: err.message || 'No se pudo descargar el PDF.' });
     }
   };
 
-  // Imprimir orden (abre PDF en nueva pestaña para imprimir)
+  // Imprimir orden
   const handleImprimirOrden = async (orden) => {
     if (!orden?.id) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'No se pudo identificar la orden para imprimir.',
-      });
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar la orden.' });
       return;
     }
 
@@ -653,177 +691,165 @@ export default function OrdenesMedicasModule({ user }) {
       const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
-      console.log('[PDF] Imprimiendo orden:', orden.id);
-
       const response = await fetch(`${apiUrl}/ordenes-medicas/${orden.id}/pdf`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!response.ok) {
-        let errorMessage = 'Error al generar el PDF';
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorMessage;
-          console.error('[PDF] Error del servidor:', errorData);
-        } catch (e) {
-          console.error('[PDF] Error response:', response.status, response.statusText);
-        }
-        throw new Error(errorMessage);
-      }
+      if (!response.ok) throw new Error('Error al generar PDF');
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
-
-      // Abrir en nueva pestaña para imprimir
       const printWindow = window.open(url, '_blank');
       if (printWindow) {
-        printWindow.onload = () => {
-          printWindow.print();
-        };
+        printWindow.onload = () => printWindow.print();
       }
     } catch (err) {
-      console.error('[PDF] Error imprimiendo:', err);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: err.message || 'No se pudo imprimir la orden.',
-      });
+      console.error('[PDF] Error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo imprimir la orden.' });
     }
   };
 
-  // Ver detalle
-  const handleVerDetalle = (orden) => {
-    setSelectedOrden(orden);
-    setShowDetalleModal(true);
+  // Formatear fecha
+  const formatDate = (dateString, showTime = true) => {
+    if (!dateString) return 'N/A';
+    const options = showTime
+      ? { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }
+      : { year: 'numeric', month: 'short', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString('es-CO', options);
   };
 
-  // Formatear fecha
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
+  // Formatear fecha relativa
+  const formatRelativeDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `hace ${diffMins}m`;
+    if (diffHours < 24) return `hace ${diffHours}h`;
+    if (diffDays < 7) return `hace ${diffDays}d`;
+    return formatDate(dateString, false);
   };
 
   return (
-    <div className="p-6 space-y-6 bg-gray-50/50 min-h-screen">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-              <ClipboardList className="w-8 h-8" />
+    <div className="flex h-[calc(100vh-64px)] bg-gray-50">
+      {/* Panel Principal */}
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${showDetailPanel && selectedOrden ? 'mr-96' : ''}`}>
+        {/* Header compacto */}
+        <div className="bg-white border-b px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-2 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl">
+                <ClipboardList className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Órdenes Médicas</h1>
+                <p className="text-sm text-gray-500">Gestión de exámenes y procedimientos</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold">Órdenes Médicas</h1>
-              <p className="text-blue-100 text-sm">Gestión de exámenes, procedimientos e interconsultas</p>
+
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadOrdenes(true)}
+                disabled={refreshing}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Actualizar
+              </Button>
+              <Button onClick={() => setShowNuevaOrdenModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Orden
+              </Button>
             </div>
           </div>
 
+          {/* Stats rápidos */}
+          <div className="flex items-center gap-6 mt-4">
+            <button
+              onClick={() => setActiveTab('todas')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'todas' ? 'bg-indigo-100 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              <FileText className="w-4 h-4" />
+              <span>Todas</span>
+              <Badge variant="secondary" className="ml-1">{stats.total}</Badge>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('mis')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'mis' ? 'bg-green-100 text-green-700' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              <UserCircle className="w-4 h-4" />
+              <span>Mis Órdenes</span>
+              <Badge variant="secondary" className="ml-1 bg-green-100 text-green-700">{stats.misOrdenes}</Badge>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('pendientes')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'pendientes' ? 'bg-yellow-100 text-yellow-700' : 'text-gray-600 hover:bg-gray-100'}`}
+            >
+              <Clock className="w-4 h-4" />
+              <span>Pendientes</span>
+              <Badge variant="secondary" className="ml-1 bg-yellow-100 text-yellow-700">{stats.pendientes}</Badge>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('urgentes')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeTab === 'urgentes' ? 'bg-red-100 text-red-700' : 'text-gray-600 hover:bg-gray-100'} ${stats.urgentes > 0 ? 'animate-pulse' : ''}`}
+            >
+              <AlertTriangle className="w-4 h-4" />
+              <span>Urgentes</span>
+              <Badge variant="secondary" className={`ml-1 ${stats.urgentes > 0 ? 'bg-red-500 text-white' : 'bg-red-100 text-red-700'}`}>{stats.urgentes}</Badge>
+            </button>
+
+            <div className="h-6 w-px bg-gray-200 mx-2" />
+
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>{stats.completadas} completadas</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Filtros */}
+        <div className="bg-white border-b px-6 py-3">
           <div className="flex items-center gap-3">
-            <Button
-              variant="secondary"
-              className="bg-white/20 hover:bg-white/30 text-white border-0"
-              onClick={() => loadOrdenes(true)}
-              disabled={refreshing}
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-              Actualizar
-            </Button>
-            <Button
-              className="bg-white text-indigo-600 hover:bg-blue-50 shadow-md"
-              onClick={() => setShowNuevaOrdenModal(true)}
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Nueva Orden
-            </Button>
-          </div>
-        </div>
-
-        {/* Stats en el header */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-blue-100 text-xs">Total</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
-              </div>
-              <FileText className="w-8 h-8 text-white/50" />
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-yellow-200 text-xs">Pendientes</p>
-                <p className="text-2xl font-bold">{stats.pendientes}</p>
-              </div>
-              <Clock className="w-8 h-8 text-yellow-300/50" />
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-cyan-200 text-xs">En Proceso</p>
-                <p className="text-2xl font-bold">{stats.enProceso}</p>
-              </div>
-              <Activity className="w-8 h-8 text-cyan-300/50" />
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-green-200 text-xs">Completadas</p>
-                <p className="text-2xl font-bold">{stats.completadas}</p>
-              </div>
-              <CheckCircle className="w-8 h-8 text-green-300/50" />
-            </div>
-          </div>
-
-          <div className={`bg-white/10 backdrop-blur-sm rounded-xl p-4 ${stats.urgentes > 0 ? 'ring-2 ring-red-400 animate-pulse' : ''}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-red-200 text-xs">Urgentes</p>
-                <p className="text-2xl font-bold">{stats.urgentes}</p>
-              </div>
-              <AlertCircle className="w-8 h-8 text-red-300/50" />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filtros */}
-      <Card className="shadow-sm">
-        <CardContent className="p-4">
-          <div className="flex flex-col lg:flex-row gap-4">
             {/* Búsqueda */}
-            <div className="flex-1 relative">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
               <Input
                 type="text"
-                placeholder="Buscar por paciente, doctor, descripción..."
+                placeholder="Buscar paciente, doctor, descripción..."
                 value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(1);
-                }}
-                className="pl-10"
+                onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
+                className="pl-10 h-9"
               />
+            </div>
+
+            {/* Filtro de fecha rápido */}
+            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+              {FILTROS_FECHA.map((f) => (
+                <button
+                  key={f.value}
+                  onClick={() => { setFilterFechaRapido(f.value); setPage(1); }}
+                  className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${filterFechaRapido === f.value ? 'bg-white shadow text-indigo-600' : 'text-gray-600 hover:text-gray-900'}`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
 
             {/* Filtro Estado */}
             <Select value={filterEstado} onValueChange={(v) => { setFilterEstado(v); setPage(1); }}>
-              <SelectTrigger className="w-full lg:w-40">
+              <SelectTrigger className="w-36 h-9">
                 <SelectValue placeholder="Estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todas">Todos los estados</SelectItem>
+                <SelectItem value="todas">Todos</SelectItem>
                 {ESTADOS_ORDEN.map((e) => (
                   <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
                 ))}
@@ -832,346 +858,523 @@ export default function OrdenesMedicasModule({ user }) {
 
             {/* Filtro Tipo */}
             <Select value={filterTipo} onValueChange={(v) => { setFilterTipo(v); setPage(1); }}>
-              <SelectTrigger className="w-full lg:w-40">
+              <SelectTrigger className="w-44 h-9">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos los tipos</SelectItem>
-                {TIPOS_ORDEN.map((t) => (
-                  <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                ))}
+                <SelectItem value="Prescripcion">Prescripción</SelectItem>
+                <SelectItem value="ExamenesProcedimientos">Exám/Procedimientos</SelectItem>
+                <SelectItem value="Interconsulta">Interconsulta</SelectItem>
               </SelectContent>
             </Select>
 
             {/* Filtro Prioridad */}
             <Select value={filterPrioridad} onValueChange={(v) => { setFilterPrioridad(v); setPage(1); }}>
-              <SelectTrigger className="w-full lg:w-40">
+              <SelectTrigger className="w-36 h-9">
                 <SelectValue placeholder="Prioridad" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todas">Todas las prioridades</SelectItem>
+                <SelectItem value="todas">Todas</SelectItem>
                 {PRIORIDADES.map((p) => (
                   <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {/* Toggle Vista */}
-            <div className="flex items-center gap-1 border rounded-lg p-1">
-              <Button
-                variant={viewMode === 'table' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('table')}
-                className="h-8 px-3"
-              >
-                <List className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={viewMode === 'cards' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('cards')}
-                className="h-8 px-3"
-              >
-                <LayoutGrid className="w-4 h-4" />
+            {/* Toggle panel detalle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowDetailPanel(!showDetailPanel)}
+              className="ml-auto"
+            >
+              {showDetailPanel ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Lista de órdenes */}
+        <div className="flex-1 overflow-auto p-6">
+          {loading && !refreshing ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            </div>
+          ) : ordenes.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20">
+              <ClipboardList className="w-16 h-16 text-gray-300 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay órdenes médicas</h3>
+              <p className="text-gray-500 mb-4">Crea una nueva orden para comenzar</p>
+              <Button onClick={() => setShowNuevaOrdenModal(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Nueva Orden
               </Button>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          ) : (
+            <div className="space-y-2">
+              {ordenes.map((orden) => {
+                const tipoPrincipal = getTipoPrincipal(orden);
+                const tipoInfo = getTipoInfo(tipoPrincipal);
+                const estadoInfo = getEstadoInfo(orden.estado);
+                const prioridadInfo = getPrioridadInfo(orden.prioridad);
+                const TipoIcon = tipoInfo.icon;
+                const isSelected = selectedOrden?.id === orden.id;
+                const isUrgent = orden.prioridad === 'Urgente' && orden.estado !== 'Completada' && orden.estado !== 'Cancelada';
 
-      {/* Contenido principal */}
-      {loading && !refreshing ? (
-        <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
-        </div>
-      ) : ordenes.length === 0 ? (
-        <Card className="p-12">
-          <div className="text-center">
-            <ClipboardList className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No hay órdenes médicas</h3>
-            <p className="text-gray-500 mb-4">Crea una nueva orden para comenzar</p>
-            <Button onClick={() => setShowNuevaOrdenModal(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Nueva Orden
-            </Button>
-          </div>
-        </Card>
-      ) : viewMode === 'table' ? (
-        /* Vista de Tabla */
-        <Card className="shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead className="font-semibold">Paciente</TableHead>
-                  <TableHead className="font-semibold">Tipo</TableHead>
-                  <TableHead className="font-semibold">Descripción</TableHead>
-                  <TableHead className="font-semibold">Solicitante</TableHead>
-                  <TableHead className="font-semibold">Prioridad</TableHead>
-                  <TableHead className="font-semibold">Estado</TableHead>
-                  <TableHead className="font-semibold">Fecha</TableHead>
-                  <TableHead className="font-semibold text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {ordenes.map((orden) => {
-                  const tipoInfo = getTipoInfo(orden.tipo);
-                  const estadoInfo = getEstadoInfo(orden.estado);
-                  const prioridadInfo = getPrioridadInfo(orden.prioridad);
-                  const TipoIcon = tipoInfo.icon;
+                return (
+                  <div
+                    key={orden.id}
+                    onClick={() => setSelectedOrden(orden)}
+                    className={`
+                      group flex items-center gap-4 p-4 bg-white rounded-xl border-2 cursor-pointer transition-all
+                      ${isSelected ? 'border-indigo-500 shadow-md' : 'border-transparent hover:border-gray-200 hover:shadow-sm'}
+                      ${isUrgent ? 'bg-red-50 border-red-200' : ''}
+                    `}
+                  >
+                    {/* Tipo de orden */}
+                    <div className={`flex items-center gap-2 px-3 py-2 rounded-xl ${tipoInfo.bgColor} flex-shrink-0 min-w-[160px]`}>
+                      <TipoIcon className={`w-4 h-4 ${tipoInfo.textColor}`} />
+                      <span className={`text-xs font-semibold ${tipoInfo.textColor}`}>
+                        {tipoPrincipal === 'Prescripcion' && 'Prescripción'}
+                        {tipoPrincipal === 'ExamenesProcedimientos' && (esOrdenAgrupada(orden) ? `Exám/Proc (${parseOrdenAgrupada(orden.observaciones)?.length || 0})` : 'Exám/Procedimiento')}
+                        {tipoPrincipal === 'Interconsulta' && 'Interconsulta'}
+                      </span>
+                    </div>
 
-                  return (
-                    <TableRow
-                      key={orden.id}
-                      className={`hover:bg-gray-50 cursor-pointer ${orden.prioridad === 'Urgente' && orden.estado !== 'Completada' && orden.estado !== 'Cancelada' ? 'bg-red-50' : ''}`}
-                      onClick={() => handleVerDetalle(orden)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <User className="w-5 h-5 text-indigo-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {orden.paciente?.nombre} {orden.paciente?.apellido}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {orden.paciente?.tipoDocumento || 'CC'} {orden.paciente?.cedula}
-                            </p>
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className={`p-1.5 rounded ${tipoInfo.bgColor}`}>
-                            <TipoIcon className={`w-4 h-4 ${tipoInfo.textColor}`} />
-                          </div>
-                          <span className="text-sm">{tipoInfo.label}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <p className="font-medium text-gray-900 max-w-xs truncate">
-                          {orden.examenProcedimiento?.nombre || orden.observaciones?.split('\n')[0] || 'N/A'}
-                        </p>
-                        {orden.examenProcedimiento && orden.observaciones && (
-                          <p className="text-xs text-gray-500 truncate max-w-xs">
-                            {orden.observaciones}
-                          </p>
-                        )}
-                        {!orden.examenProcedimiento && orden.observaciones?.includes('\n') && (
-                          <p className="text-xs text-gray-500 truncate max-w-xs">
-                            {orden.observaciones.split('\n').slice(1).join('\n').trim()}
-                          </p>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {orden.doctorId === doctorUserId ? (
-                            <Badge className="bg-green-100 text-green-700 text-xs">
-                              Yo
-                            </Badge>
-                          ) : (
-                            <Badge className="bg-gray-100 text-gray-700 text-xs">
-                              Otro
-                            </Badge>
-                          )}
-                          <span className="text-xs text-gray-600">
-                            {orden.doctor?.nombre ? `Dr. ${orden.doctor.nombre}` : ''}
+                    {/* Info principal */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-gray-900 truncate">
+                          {orden.paciente?.nombre} {orden.paciente?.apellido}
+                        </span>
+                        <span className="text-xs text-gray-400">
+                          {orden.paciente?.tipoDocumento || 'CC'} {orden.paciente?.cedula}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 truncate">
+                        {tipoPrincipal === 'Prescripcion' ? (
+                          <span className="flex items-center gap-1">
+                            <Pill className="w-3 h-3" />
+                            {orden.observaciones?.split('\n')[0]?.replace('APLICACIÓN DE KIT:', '').trim() || 'Prescripción médica'}
                           </span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${prioridadInfo.bgColor} ${prioridadInfo.textColor} ${prioridadInfo.pulse ? 'animate-pulse' : ''}`}>
-                          {prioridadInfo.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge className={`${estadoInfo.bgColor} ${estadoInfo.textColor}`}>
-                          {estadoInfo.label}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-600">
-                        {formatDate(orden.fechaOrden || orden.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleVerDetalle(orden)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              Ver Detalle
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDescargarPdf(orden)}>
-                              <Download className="w-4 h-4 mr-2" />
-                              Descargar PDF
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleImprimirOrden(orden)}>
-                              <Printer className="w-4 h-4 mr-2" />
-                              Imprimir
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleDuplicarOrden(orden)}>
-                              <Copy className="w-4 h-4 mr-2" />
-                              Duplicar
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {(orden.estado === 'Pendiente' || orden.estado === 'EnProceso') && (
-                              <>
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedOrden(orden);
-                                    setShowResultadosModal(true);
-                                  }}
-                                  className="text-green-600"
-                                >
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                  Completar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => handleCancelarOrden(orden)}
-                                  className="text-red-600"
-                                >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Cancelar
-                                </DropdownMenuItem>
-                              </>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
-        </Card>
-      ) : (
-        /* Vista de Tarjetas */
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {ordenes.map((orden) => {
-            const tipoInfo = getTipoInfo(orden.tipo);
-            const estadoInfo = getEstadoInfo(orden.estado);
-            const prioridadInfo = getPrioridadInfo(orden.prioridad);
-            const TipoIcon = tipoInfo.icon;
-            const EstadoIcon = estadoInfo.icon;
+                        ) : tipoPrincipal === 'Interconsulta' ? (
+                          <span className="flex items-center gap-1">
+                            <Stethoscope className="w-3 h-3" />
+                            {orden.especialidadDestino || orden.descripcion || orden.observaciones?.split('\n')[0] || 'Interconsulta médica'}
+                          </span>
+                        ) : esOrdenAgrupada(orden) ? (
+                          <span className="flex items-center gap-1">
+                            <ClipboardList className="w-3 h-3" />
+                            {parseOrdenAgrupada(orden.observaciones)?.length || 0} items: {parseOrdenAgrupada(orden.observaciones)?.slice(0, 2).map(i => i.nombre).join(', ')}
+                            {(parseOrdenAgrupada(orden.observaciones)?.length || 0) > 2 && '...'}
+                          </span>
+                        ) : (
+                          orden.examenProcedimiento?.nombre || orden.observaciones?.split('\n')[0] || orden.descripcion || 'Sin descripción'
+                        )}
+                      </p>
+                    </div>
 
-            return (
-              <Card
-                key={orden.id}
-                className={`hover:shadow-md transition-shadow cursor-pointer ${orden.prioridad === 'Urgente' && orden.estado !== 'Completada' && orden.estado !== 'Cancelada' ? 'ring-2 ring-red-400' : ''}`}
-                onClick={() => handleVerDetalle(orden)}
-              >
-                <CardContent className="p-4">
-                  {/* Header de la tarjeta */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${tipoInfo.bgColor}`}>
-                        <TipoIcon className={`w-5 h-5 ${tipoInfo.textColor}`} />
+                    {/* Solicitante */}
+                    <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
+                      {orden.doctorId === doctorUserId ? (
+                        <Badge className="bg-green-100 text-green-700 text-xs">Mi orden</Badge>
+                      ) : (
+                        <span className="text-xs text-gray-500">
+                          Dr. {orden.doctor?.nombre?.split(' ')[0]}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Badges de estado */}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <Badge className={`${prioridadInfo.bgColor} ${prioridadInfo.textColor} text-xs ${prioridadInfo.pulse ? 'animate-pulse' : ''}`}>
+                        {prioridadInfo.label}
+                      </Badge>
+                      <Badge className={`${estadoInfo.bgColor} ${estadoInfo.textColor} text-xs`}>
+                        {estadoInfo.label}
+                      </Badge>
+                    </div>
+
+                    {/* Fecha */}
+                    <div className="text-right flex-shrink-0 w-20">
+                      <p className="text-xs text-gray-500">{formatRelativeDate(orden.fechaOrden || orden.createdAt)}</p>
+                    </div>
+
+                    {/* Acciones rápidas */}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => { e.stopPropagation(); handleDescargarPdf(orden); }}
+                        title="Descargar PDF"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={(e) => { e.stopPropagation(); handleImprimirOrden(orden); }}
+                        title="Imprimir"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                            <MoreVertical className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleDuplicarOrden(orden)}>
+                            <Copy className="w-4 h-4 mr-2" />
+                            Duplicar
+                          </DropdownMenuItem>
+                          {(orden.estado === 'Pendiente' || orden.estado === 'EnProceso') && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => { setSelectedOrden(orden); setShowResultadosModal(true); }}
+                                className="text-green-600"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Completar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleCancelarOrden(orden)}
+                                className="text-red-600"
+                              >
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Cancelar
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Paginación */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 pt-4 border-t">
+              <p className="text-sm text-gray-600">
+                Mostrando {ordenes.length} de {total} órdenes
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-1" />
+                  Anterior
+                </Button>
+                <span className="text-sm text-gray-600 px-3">
+                  {page} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                >
+                  Siguiente
+                  <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Panel de Detalle Lateral */}
+      {showDetailPanel && selectedOrden && (
+        <div className="fixed right-0 top-16 bottom-0 w-96 bg-white border-l shadow-xl overflow-hidden flex flex-col z-40">
+          {/* Header del panel */}
+          <div className="px-6 py-4 border-b bg-gray-50 flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const tipoPrincipal = getTipoPrincipal(selectedOrden);
+                  const tipoInfo = getTipoInfo(tipoPrincipal);
+                  const TipoIcon = tipoInfo.icon;
+                  return (
+                    <div className={`p-2 rounded-lg ${tipoInfo.bgColor}`}>
+                      <TipoIcon className={`w-5 h-5 ${tipoInfo.textColor}`} />
+                    </div>
+                  );
+                })()}
+                <div>
+                  <h3 className="font-semibold text-gray-900">
+                    {(() => {
+                      const tipoPrincipal = getTipoPrincipal(selectedOrden);
+                      if (tipoPrincipal === 'Prescripcion') return 'Prescripción Médica';
+                      if (tipoPrincipal === 'Interconsulta') return 'Interconsulta';
+                      if (esOrdenAgrupada(selectedOrden)) {
+                        return `Exámenes/Procedimientos (${parseOrdenAgrupada(selectedOrden.observaciones)?.length || 0})`;
+                      }
+                      return 'Examen/Procedimiento';
+                    })()}
+                  </h3>
+                  <p className="text-xs text-gray-500">#{selectedOrden.id?.substring(0, 8)}</p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedOrden(null)}>
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            {/* Badges */}
+            <div className="flex items-center gap-2 mt-3">
+              <Badge className={`${getPrioridadInfo(selectedOrden.prioridad).bgColor} ${getPrioridadInfo(selectedOrden.prioridad).textColor}`}>
+                {selectedOrden.prioridad}
+              </Badge>
+              <Badge className={`${getEstadoInfo(selectedOrden.estado).bgColor} ${getEstadoInfo(selectedOrden.estado).textColor}`}>
+                {getEstadoInfo(selectedOrden.estado).label}
+              </Badge>
+              {selectedOrden.doctorId === doctorUserId && (
+                <Badge className="bg-green-100 text-green-700">Mi orden</Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Contenido scrolleable */}
+          <ScrollArea className="flex-1">
+            <div className="p-6 space-y-6">
+              {/* Paciente */}
+              <div>
+                <Label className="text-xs text-gray-500 uppercase tracking-wide">Paciente</Label>
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                      <User className="w-5 h-5 text-indigo-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">
+                        {selectedOrden.paciente?.nombre} {selectedOrden.paciente?.apellido}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {selectedOrden.paciente?.tipoDocumento || 'CC'} {selectedOrden.paciente?.cedula}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Doctor Solicitante */}
+              <div>
+                <Label className="text-xs text-gray-500 uppercase tracking-wide">Médico Solicitante</Label>
+                <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                  <p className="font-medium text-gray-900">
+                    Dr(a). {selectedOrden.doctor?.nombre} {selectedOrden.doctor?.apellido}
+                  </p>
+                  {selectedOrden.doctor?.especialidad && (
+                    <p className="text-sm text-gray-500">{selectedOrden.doctor.especialidad}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Contenido según tipo de orden */}
+              {(() => {
+                const tipoPrincipal = getTipoPrincipal(selectedOrden);
+
+                // PRESCRIPCIÓN
+                if (tipoPrincipal === 'Prescripcion') {
+                  return (
+                    <>
+                      <div>
+                        <Label className="text-xs text-gray-500 uppercase tracking-wide">Prescripción</Label>
+                        <div className="mt-2 p-3 bg-teal-50 rounded-lg border border-teal-100">
+                          <p className="font-semibold text-teal-900">
+                            {selectedOrden.observaciones?.split('\n')[0]?.replace('APLICACIÓN DE KIT:', '').trim()}
+                          </p>
+                        </div>
                       </div>
                       <div>
-                        <p className="font-semibold text-gray-900">{tipoInfo.label}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatDate(orden.fechaOrden || orden.createdAt)}
-                        </p>
+                        <Label className="text-xs text-gray-500 uppercase tracking-wide">Detalle de Medicamentos</Label>
+                        <div className="mt-2 p-3 bg-teal-50 rounded-lg border border-teal-100">
+                          <pre className="text-xs text-teal-900 whitespace-pre-wrap font-mono">
+                            {selectedOrden.observaciones}
+                          </pre>
+                        </div>
+                      </div>
+                    </>
+                  );
+                }
+
+                // INTERCONSULTA
+                if (tipoPrincipal === 'Interconsulta') {
+                  return (
+                    <>
+                      <div>
+                        <Label className="text-xs text-gray-500 uppercase tracking-wide">Especialidad Destino</Label>
+                        <div className="mt-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                          <p className="font-semibold text-amber-900">
+                            {selectedOrden.especialidadDestino || selectedOrden.descripcion || 'Especialidad no especificada'}
+                          </p>
+                        </div>
+                      </div>
+                      {selectedOrden.observaciones && (
+                        <div>
+                          <Label className="text-xs text-gray-500 uppercase tracking-wide">Motivo de la Interconsulta</Label>
+                          <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                            <p className="text-sm text-gray-700 whitespace-pre-line">{selectedOrden.observaciones}</p>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                }
+
+                // EXÁMENES/PROCEDIMIENTOS AGRUPADOS
+                if (esOrdenAgrupada(selectedOrden)) {
+                  return (
+                    <div>
+                      <Label className="text-xs text-gray-500 uppercase tracking-wide">
+                        Items Solicitados ({parseOrdenAgrupada(selectedOrden.observaciones)?.length || 0})
+                      </Label>
+                      <div className="mt-2 space-y-2">
+                        {parseOrdenAgrupada(selectedOrden.observaciones)?.map((item, idx) => {
+                          const itemTipoInfo = getTipoInfo(item.tipo === 'Examen' ? 'Examen' : item.tipo === 'Procedimiento' ? 'Procedimiento' : item.tipo === 'Imagenología' ? 'Imagenologia' : 'Laboratorio');
+                          const ItemIcon = itemTipoInfo.icon;
+                          return (
+                            <div key={idx} className={`p-3 rounded-lg border ${itemTipoInfo.bgColor} ${itemTipoInfo.borderColor}`}>
+                              <div className="flex items-start gap-3">
+                                <div className={`p-1.5 rounded-md bg-white/60`}>
+                                  <ItemIcon className={`w-4 h-4 ${itemTipoInfo.textColor}`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className={`text-xs font-medium px-2 py-0.5 rounded ${itemTipoInfo.bgColor} ${itemTipoInfo.textColor}`}>
+                                      {item.tipo}
+                                    </span>
+                                    {item.codigoCups && (
+                                      <span className="text-xs text-gray-500 bg-white/80 px-2 py-0.5 rounded">
+                                        CUPS: {item.codigoCups}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="font-medium text-gray-900 mt-1">{item.nombre}</p>
+                                  {item.observaciones && (
+                                    <p className="text-xs text-gray-600 mt-1">{item.observaciones}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDescargarPdf(orden); }}>
-                          <Download className="w-4 h-4 mr-2" />
-                          Descargar PDF
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleImprimirOrden(orden); }}>
-                          <Printer className="w-4 h-4 mr-2" />
-                          Imprimir
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleDuplicarOrden(orden); }}>
-                          <Copy className="w-4 h-4 mr-2" />
-                          Duplicar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
+                  );
+                }
 
-                  {/* Paciente */}
-                  <div className="flex items-center gap-2 mb-3 p-2 bg-gray-50 rounded-lg">
-                    <User className="w-4 h-4 text-gray-400" />
+                // EXAMEN/PROCEDIMIENTO INDIVIDUAL
+                return (
+                  <>
                     <div>
-                      <p className="font-medium text-sm">
-                        {orden.paciente?.nombre} {orden.paciente?.apellido}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {orden.paciente?.cedula}
-                      </p>
+                      <Label className="text-xs text-gray-500 uppercase tracking-wide">Examen / Procedimiento</Label>
+                      <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="font-semibold text-blue-900">
+                          {selectedOrden.examenProcedimiento?.nombre || selectedOrden.descripcion || 'N/A'}
+                        </p>
+                        {selectedOrden.examenProcedimiento?.codigo && (
+                          <p className="text-sm text-blue-600 mt-1">
+                            Código: {selectedOrden.examenProcedimiento.codigo}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Descripción */}
-                  <p className="text-sm text-gray-900 font-medium mb-3 line-clamp-2">
-                    {orden.examenProcedimiento?.nombre || orden.observaciones?.split('\n')[0] || 'Sin descripción'}
-                  </p>
-
-                  {/* Badges */}
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Badge className={`${prioridadInfo.bgColor} ${prioridadInfo.textColor} text-xs`}>
-                      {prioridadInfo.label}
-                    </Badge>
-                    <Badge className={`${estadoInfo.bgColor} ${estadoInfo.textColor} text-xs`}>
-                      <EstadoIcon className="w-3 h-3 mr-1" />
-                      {estadoInfo.label}
-                    </Badge>
-                    {orden.doctorId === doctorUserId ? (
-                      <Badge className="bg-green-100 text-green-700 text-xs">
-                        Mi orden
-                      </Badge>
-                    ) : (
-                      <Badge className="bg-blue-100 text-blue-700 text-xs" title={orden.doctor?.nombre ? `Dr. ${orden.doctor.nombre} ${orden.doctor.apellido || ''}` : 'Otro doctor'}>
-                        Otro Dr.
-                      </Badge>
+                    {selectedOrden.observaciones && (
+                      <div>
+                        <Label className="text-xs text-gray-500 uppercase tracking-wide">Indicaciones</Label>
+                        <div className="mt-2 p-3 bg-gray-50 rounded-lg">
+                          <p className="text-sm text-gray-700 whitespace-pre-line">{selectedOrden.observaciones}</p>
+                        </div>
+                      </div>
                     )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                  </>
+                );
+              })()}
 
-      {/* Paginación */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-600">
-            Mostrando {ordenes.length} de {total} órdenes
-          </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-            >
-              Anterior
-            </Button>
-            <span className="text-sm text-gray-600">
-              Página {page} de {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-            >
-              Siguiente
-            </Button>
+              {/* Resultados (si completada) */}
+              {selectedOrden.estado === 'Completada' && selectedOrden.resultados && (
+                <div>
+                  <Label className="text-xs text-gray-500 uppercase tracking-wide">Resultados</Label>
+                  <div className="mt-2 p-3 bg-green-50 rounded-lg border border-green-200">
+                    <p className="text-sm text-green-800">
+                      {typeof selectedOrden.resultados === 'object'
+                        ? JSON.stringify(selectedOrden.resultados, null, 2)
+                        : selectedOrden.resultados
+                      }
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Fechas */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-500 uppercase tracking-wide">Fecha Orden</Label>
+                  <p className="mt-1 text-sm font-medium text-gray-900">
+                    {formatDate(selectedOrden.fechaOrden || selectedOrden.createdAt)}
+                  </p>
+                </div>
+                {selectedOrden.fechaEjecucion && (
+                  <div>
+                    <Label className="text-xs text-gray-500 uppercase tracking-wide">Fecha Ejecución</Label>
+                    <p className="mt-1 text-sm font-medium text-gray-900">
+                      {formatDate(selectedOrden.fechaEjecucion)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </ScrollArea>
+
+          {/* Acciones del panel */}
+          <div className="p-4 border-t bg-gray-50 flex-shrink-0">
+            <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">Acciones</Label>
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" size="sm" onClick={() => handleImprimirOrden(selectedOrden)} title="Vista previa">
+                <Eye className="w-4 h-4 mr-1" />
+                Ver
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleDescargarPdf(selectedOrden)} title="Descargar PDF">
+                <Download className="w-4 h-4 mr-1" />
+                PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => handleImprimirOrden(selectedOrden)} title="Imprimir">
+                <Printer className="w-4 h-4 mr-1" />
+                Imprimir
+              </Button>
+            </div>
+            {(selectedOrden.estado === 'Pendiente' || selectedOrden.estado === 'EnProceso') && (
+              <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCancelarOrden(selectedOrden)}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowResultadosModal(true)}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Completar
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -1191,8 +1394,14 @@ export default function OrdenesMedicasModule({ user }) {
 
           <Tabs defaultValue="individual" className="mt-4">
             <TabsList className="w-full">
-              <TabsTrigger value="individual" className="flex-1">Orden Individual</TabsTrigger>
-              <TabsTrigger value="paquetes" className="flex-1">Paquetes Predefinidos</TabsTrigger>
+              <TabsTrigger value="individual" className="flex-1">
+                <FileText className="w-4 h-4 mr-2" />
+                Orden Individual
+              </TabsTrigger>
+              <TabsTrigger value="paquetes" className="flex-1">
+                <Package className="w-4 h-4 mr-2" />
+                Paquetes
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="individual" className="space-y-4 mt-4">
@@ -1205,9 +1414,7 @@ export default function OrdenesMedicasModule({ user }) {
                     value={searchPaciente}
                     onChange={(e) => {
                       setSearchPaciente(e.target.value);
-                      if (!e.target.value) {
-                        setNuevaOrden(prev => ({ ...prev, paciente_id: '' }));
-                      }
+                      if (!e.target.value) setNuevaOrden(prev => ({ ...prev, paciente_id: '' }));
                     }}
                     placeholder="Buscar paciente por nombre o cédula..."
                     className="pl-10"
@@ -1236,14 +1443,7 @@ export default function OrdenesMedicasModule({ user }) {
                       <CheckCircle className="w-4 h-4 text-green-600" />
                       <span className="text-sm text-green-700">Paciente seleccionado</span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setNuevaOrden(prev => ({ ...prev, paciente_id: '' }));
-                        setSearchPaciente('');
-                      }}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => { setNuevaOrden(prev => ({ ...prev, paciente_id: '' })); setSearchPaciente(''); }}>
                       <X className="w-4 h-4" />
                     </Button>
                   </div>
@@ -1251,39 +1451,35 @@ export default function OrdenesMedicasModule({ user }) {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                {/* Tipo */}
                 <div>
                   <Label>Tipo de Orden *</Label>
-                  <Select
-                    value={nuevaOrden.tipo}
-                    onValueChange={(v) => setNuevaOrden(prev => ({ ...prev, tipo: v }))}
-                  >
+                  <Select value={nuevaOrden.tipo} onValueChange={(v) => setNuevaOrden(prev => ({ ...prev, tipo: v }))}>
                     <SelectTrigger className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {TIPOS_ORDEN.map((t) => {
-                        const Icon = t.icon;
-                        return (
-                          <SelectItem key={t.value} value={t.value}>
-                            <div className="flex items-center gap-2">
-                              <Icon className={`w-4 h-4 ${t.textColor}`} />
-                              {t.label}
-                            </div>
-                          </SelectItem>
-                        );
-                      })}
+                      <SelectItem value="Laboratorio">
+                        <div className="flex items-center gap-2">
+                          <FlaskConical className="w-4 h-4 text-blue-600" />
+                          Examen/Procedimiento
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="Interconsulta">
+                        <div className="flex items-center gap-2">
+                          <Stethoscope className="w-4 h-4 text-amber-600" />
+                          Interconsulta
+                        </div>
+                      </SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    * Las prescripciones se crean desde el módulo de consulta
+                  </p>
                 </div>
 
-                {/* Prioridad */}
                 <div>
                   <Label>Prioridad</Label>
-                  <Select
-                    value={nuevaOrden.prioridad}
-                    onValueChange={(v) => setNuevaOrden(prev => ({ ...prev, prioridad: v }))}
-                  >
+                  <Select value={nuevaOrden.prioridad} onValueChange={(v) => setNuevaOrden(prev => ({ ...prev, prioridad: v }))}>
                     <SelectTrigger className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
@@ -1298,7 +1494,6 @@ export default function OrdenesMedicasModule({ user }) {
                 </div>
               </div>
 
-              {/* Búsqueda de examen */}
               <div>
                 <Label>Examen / Procedimiento</Label>
                 <div className="relative mt-1">
@@ -1317,11 +1512,7 @@ export default function OrdenesMedicasModule({ user }) {
                         key={e.id}
                         className="p-3 hover:bg-indigo-50 cursor-pointer border-b last:border-b-0"
                         onClick={() => {
-                          setNuevaOrden(prev => ({
-                            ...prev,
-                            examen_procedimiento_id: e.id,
-                            descripcion: e.nombre,
-                          }));
+                          setNuevaOrden(prev => ({ ...prev, examen_procedimiento_id: e.id, descripcion: e.nombre }));
                           setSearchExamen('');
                         }}
                       >
@@ -1333,9 +1524,8 @@ export default function OrdenesMedicasModule({ user }) {
                 )}
               </div>
 
-              {/* Descripción */}
               <div>
-                <Label>Descripción *</Label>
+                <Label>Descripción</Label>
                 <Input
                   value={nuevaOrden.descripcion}
                   onChange={(e) => setNuevaOrden(prev => ({ ...prev, descripcion: e.target.value }))}
@@ -1344,7 +1534,6 @@ export default function OrdenesMedicasModule({ user }) {
                 />
               </div>
 
-              {/* Observaciones */}
               <div>
                 <Label>Observaciones / Indicaciones</Label>
                 <Textarea
@@ -1358,7 +1547,6 @@ export default function OrdenesMedicasModule({ user }) {
             </TabsContent>
 
             <TabsContent value="paquetes" className="mt-4">
-              {/* Selector de paciente para paquetes */}
               {!nuevaOrden.paciente_id && (
                 <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="flex items-center gap-2 text-yellow-700">
@@ -1401,20 +1589,12 @@ export default function OrdenesMedicasModule({ user }) {
                     <CheckCircle className="w-4 h-4 text-green-600" />
                     <span className="text-sm text-green-700">Paciente: {searchPaciente}</span>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setNuevaOrden(prev => ({ ...prev, paciente_id: '' }));
-                      setSearchPaciente('');
-                    }}
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => { setNuevaOrden(prev => ({ ...prev, paciente_id: '' })); setSearchPaciente(''); }}>
                     Cambiar
                   </Button>
                 </div>
               )}
 
-              {/* Lista de paquetes */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {PAQUETES_PREDEFINIDOS.map((paquete) => {
                   const Icon = paquete.icon;
@@ -1459,148 +1639,9 @@ export default function OrdenesMedicasModule({ user }) {
               Cancelar
             </Button>
             <Button onClick={handleCrearOrden} disabled={loading}>
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Plus className="w-4 h-4 mr-2" />}
               Crear Orden
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal Detalle */}
-      <Dialog open={showDetalleModal} onOpenChange={setShowDetalleModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-indigo-600" />
-              Detalle de Orden Médica
-            </DialogTitle>
-          </DialogHeader>
-
-          {selectedOrden && (
-            <div className="space-y-6">
-              {/* Encabezado con estado */}
-              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  {(() => {
-                    const tipoInfo = getTipoInfo(selectedOrden.tipo);
-                    const TipoIcon = tipoInfo.icon;
-                    return (
-                      <div className={`p-3 rounded-lg ${tipoInfo.bgColor}`}>
-                        <TipoIcon className={`w-6 h-6 ${tipoInfo.textColor}`} />
-                      </div>
-                    );
-                  })()}
-                  <div>
-                    <p className="font-semibold text-lg">{getTipoInfo(selectedOrden.tipo).label}</p>
-                    <p className="text-sm text-gray-500">
-                      ID: {selectedOrden.id?.substring(0, 8)}...
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge className={`${getPrioridadInfo(selectedOrden.prioridad).bgColor} ${getPrioridadInfo(selectedOrden.prioridad).textColor}`}>
-                    {selectedOrden.prioridad}
-                  </Badge>
-                  <Badge className={`${getEstadoInfo(selectedOrden.estado).bgColor} ${getEstadoInfo(selectedOrden.estado).textColor}`}>
-                    {getEstadoInfo(selectedOrden.estado).label}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Información del paciente */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-xs text-gray-500">Paciente</Label>
-                  <p className="font-semibold">
-                    {selectedOrden.paciente?.nombre} {selectedOrden.paciente?.apellido}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {selectedOrden.paciente?.tipoDocumento || 'CC'} {selectedOrden.paciente?.cedula}
-                  </p>
-                </div>
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-xs text-gray-500">Doctor Solicitante</Label>
-                  <p className="font-semibold">
-                    {selectedOrden.doctor?.nombre} {selectedOrden.doctor?.apellido}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {selectedOrden.doctor?.especialidad || 'Médico'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Descripción */}
-              <div className="p-4 border rounded-lg">
-                <Label className="text-xs text-gray-500">Examen / Procedimiento</Label>
-                <p className="font-semibold text-lg">
-                  {selectedOrden.examenProcedimiento?.nombre || selectedOrden.observaciones?.split('\n')[0] || 'N/A'}
-                </p>
-                {selectedOrden.examenProcedimiento?.codigo && (
-                  <p className="text-sm text-gray-500">
-                    Código: {selectedOrden.examenProcedimiento.codigo}
-                  </p>
-                )}
-              </div>
-
-              {/* Observaciones */}
-              {selectedOrden.observaciones && (
-                <div className="p-4 border rounded-lg">
-                  <Label className="text-xs text-gray-500">Observaciones</Label>
-                  <p className="text-gray-700">{selectedOrden.observaciones}</p>
-                </div>
-              )}
-
-              {/* Resultados (si está completada) */}
-              {selectedOrden.estado === 'Completada' && selectedOrden.resultados && (
-                <div className="p-4 border border-green-200 bg-green-50 rounded-lg">
-                  <Label className="text-xs text-green-600">Resultados</Label>
-                  <p className="text-gray-700">
-                    {typeof selectedOrden.resultados === 'object'
-                      ? JSON.stringify(selectedOrden.resultados, null, 2)
-                      : selectedOrden.resultados
-                    }
-                  </p>
-                </div>
-              )}
-
-              {/* Fechas */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <Label className="text-xs text-gray-500">Fecha de Orden</Label>
-                  <p>{formatDate(selectedOrden.fechaOrden || selectedOrden.createdAt)}</p>
-                </div>
-                {selectedOrden.fechaEjecucion && (
-                  <div>
-                    <Label className="text-xs text-gray-500">Fecha de Ejecución</Label>
-                    <p>{formatDate(selectedOrden.fechaEjecucion)}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="mt-6">
-            <Button variant="outline" onClick={() => setShowDetalleModal(false)}>
-              Cerrar
-            </Button>
-            <Button variant="outline" onClick={() => handleDescargarPdf(selectedOrden)}>
-              <Download className="w-4 h-4 mr-2" />
-              Descargar PDF
-            </Button>
-            <Button variant="outline" onClick={() => handleImprimirOrden(selectedOrden)}>
-              <Printer className="w-4 h-4 mr-2" />
-              Imprimir
-            </Button>
-            {selectedOrden && (selectedOrden.estado === 'Pendiente' || selectedOrden.estado === 'EnProceso') && (
-              <Button onClick={() => setShowResultadosModal(true)}>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Completar Orden
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1647,11 +1688,7 @@ export default function OrdenesMedicasModule({ user }) {
               Cancelar
             </Button>
             <Button onClick={handleCompletarOrden} disabled={loading} className="bg-green-600 hover:bg-green-700">
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <CheckCircle className="w-4 h-4 mr-2" />
-              )}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
               Completar Orden
             </Button>
           </DialogFooter>

@@ -408,96 +408,117 @@ consultasRouter.post('/finalizar', async (c) => {
       }
 
       // 5. Guardar Procedimientos/Exámenes/Interconsultas
+      // IMPORTANTE: Agrupar todos los exámenes/procedimientos de la consulta en UNA SOLA orden
       if (procedimientos && Array.isArray(procedimientos) && procedimientos.length > 0) {
         const ordenesCreadas = [];
         const citasCreadas = [];
         const interconsultasCreadas = [];
-        
-        for (const orden of procedimientos) {
-          if (orden.tipo === 'Interconsulta') {
-             // Crear Interconsulta
-             const interconsulta = await tx.interconsulta.create({
-               data: {
-                 pacienteId,
-                 citaId, // Vinculada a la cita actual
-                 // admisionId es opcional ahora, si hay admision vinculada a la cita se podria buscar, pero aqui es ambulatorio
-                 medicoSolicitanteId: doctorId,
-                 especialidadSolicitada: orden.servicioNombre, // Usamos el nombre del servicio como especialidad
-                 motivoConsulta: orden.observaciones || 'Remisión desde consulta externa',
-                 prioridad: 'Media',
-                 estado: 'Solicitada',
-                 observaciones: orden.observaciones,
-               }
-             });
-             interconsultasCreadas.push(interconsulta);
-          } else {
-             // Crear OrdenMedica y Cita (Procedimiento/Examen)
-             // Validar que servicioId sea un UUID válido
-             const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-             const servicioIdValido = orden.servicioId && uuidRegex.test(orden.servicioId);
 
-             // Crear OrdenMedica - con o sin examenProcedimientoId
-             // Si servicioId no es UUID (e.g., de plantillas CUPS), crear orden con descripción en observaciones
-             const ordenMedicaData = {
-               pacienteId,
-               citaId,
-               doctorId,
-               precioAplicado: parseFloat(orden.costo) || 0,
-               estado: 'Pendiente',
-             };
+        // Separar interconsultas de exámenes/procedimientos
+        const interconsultas = procedimientos.filter(p => p.tipo === 'Interconsulta');
+        const examenesYProcedimientos = procedimientos.filter(p => p.tipo !== 'Interconsulta');
 
-             if (servicioIdValido) {
-               ordenMedicaData.examenProcedimientoId = orden.servicioId;
-               ordenMedicaData.observaciones = orden.observaciones || '';
-             } else {
-               // Sin examenProcedimientoId, guardar descripción del servicio en observaciones
-               const descripcionBase = orden.servicioNombre || orden.descripcion || 'Orden médica';
-               ordenMedicaData.observaciones = orden.observaciones
-                 ? `${descripcionBase}\n\n${orden.observaciones}`
-                 : descripcionBase;
-             }
+        // Procesar Interconsultas (cada una es independiente)
+        for (const orden of interconsultas) {
+          const interconsulta = await tx.interconsulta.create({
+            data: {
+              pacienteId,
+              citaId,
+              medicoSolicitanteId: doctorId,
+              especialidadSolicitada: orden.especialidadNombre || orden.servicioNombre,
+              motivoConsulta: orden.motivoConsulta || orden.observaciones || 'Remisión desde consulta externa',
+              antecedentesRelevantes: orden.antecedentesRelevantes || null,
+              diagnosticoPresuntivo: orden.diagnosticoPresuntivo || null,
+              prioridad: orden.prioridad || 'Media',
+              estado: 'Solicitada',
+              observaciones: orden.observaciones || null,
+            }
+          });
+          interconsultasCreadas.push(interconsulta);
+        }
 
-             const ordenMedica = await tx.ordenMedica.create({
-               data: ordenMedicaData,
-             });
-             ordenesCreadas.push(ordenMedica);
+        // Agrupar exámenes/procedimientos en UNA SOLA orden médica
+        if (examenesYProcedimientos.length > 0) {
+          // Construir texto estructurado con todos los items
+          const itemsTexto = examenesYProcedimientos.map((item, idx) => {
+            const nombre = item.servicioNombre || item.descripcion || 'Examen/Procedimiento';
+            const tipo = item.tipo || 'Examen';
+            const codigo = item.codigoCups || '';
+            const costo = parseFloat(item.costo) || 0;
+            const obs = item.observaciones || '';
 
-             // Crear Cita con estado PorAgendar (solo si hay servicioId válido)
-             if (servicioIdValido) {
-               const citaPorAgendar = await tx.cita.create({
-                 data: {
-                   pacienteId,
-                   tipoCita: orden.tipo || 'Procedimiento',
-                   examenProcedimientoId: orden.servicioId,
-                   costo: parseFloat(orden.costo) || 0,
-                   motivo: orden.servicioNombre || 'Orden médica',
-                   estado: 'PorAgendar',
-                 },
-               });
-               citasCreadas.push(citaPorAgendar);
-             } else {
-               // Crear cita sin examenProcedimientoId para órdenes de plantillas CUPS
-               const citaPorAgendar = await tx.cita.create({
-                 data: {
-                   pacienteId,
-                   tipoCita: orden.tipo || 'Examen',
-                   costo: parseFloat(orden.costo) || 0,
-                   motivo: orden.servicioNombre || 'Orden médica',
-                   estado: 'PorAgendar',
-                 },
-               });
-               citasCreadas.push(citaPorAgendar);
-             }
+            return `${idx + 1}. [${tipo}] ${nombre}${codigo ? ` (CUPS: ${codigo})` : ''}${obs ? ` - ${obs}` : ''}`;
+          }).join('\n');
+
+          // Calcular total
+          const totalOrden = examenesYProcedimientos.reduce((sum, item) => sum + (parseFloat(item.costo) || 0), 0);
+
+          // Obtener el primer examen con servicioId válido para la relación
+          const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+          const primerExamenValido = examenesYProcedimientos.find(e => e.servicioId && uuidRegex.test(e.servicioId));
+
+          // Determinar el tipo predominante
+          const tieneExamenes = examenesYProcedimientos.some(e => e.tipo === 'Examen');
+          const tieneProcedimientos = examenesYProcedimientos.some(e => e.tipo === 'Procedimiento');
+          let tipoOrden = 'Examen';
+          if (tieneExamenes && tieneProcedimientos) {
+            tipoOrden = 'Examen/Procedimiento';
+          } else if (tieneProcedimientos) {
+            tipoOrden = 'Procedimiento';
+          }
+
+          // Crear observaciones estructuradas
+          const observacionesEstructuradas = `ORDEN DE ${tipoOrden.toUpperCase()}\nConsulta: ${citaId}\nFecha: ${new Date().toLocaleDateString('es-CO')}\n\nItems solicitados (${examenesYProcedimientos.length}):\n${itemsTexto}\n\nTotal: $${totalOrden.toLocaleString('es-CO')}`;
+
+          // Crear UNA SOLA orden médica agrupada
+          const ordenMedicaData = {
+            pacienteId,
+            citaId,
+            doctorId,
+            precioAplicado: totalOrden,
+            estado: 'Pendiente',
+            observaciones: observacionesEstructuradas,
+          };
+
+          // Si hay un examen válido, vincular (para mantener compatibilidad)
+          if (primerExamenValido) {
+            ordenMedicaData.examenProcedimientoId = primerExamenValido.servicioId;
+          }
+
+          const ordenMedica = await tx.ordenMedica.create({
+            data: ordenMedicaData,
+          });
+          ordenesCreadas.push(ordenMedica);
+
+          // Crear citas PorAgendar para cada examen/procedimiento individual
+          for (const item of examenesYProcedimientos) {
+            const servicioIdValido = item.servicioId && uuidRegex.test(item.servicioId);
+
+            const citaData = {
+              pacienteId,
+              tipoCita: item.tipo || 'Examen',
+              costo: parseFloat(item.costo) || 0,
+              motivo: item.servicioNombre || item.descripcion || 'Orden médica',
+              estado: 'PorAgendar',
+            };
+
+            if (servicioIdValido) {
+              citaData.examenProcedimientoId = item.servicioId;
+            }
+
+            const citaPorAgendar = await tx.cita.create({ data: citaData });
+            citasCreadas.push(citaPorAgendar);
           }
         }
-        
+
         resultados.ordenesMedicas = ordenesCreadas;
         resultados.citasPorAgendar = citasCreadas;
         resultados.interconsultas = interconsultasCreadas;
 
         // DEBUG: Log órdenes médicas creadas
-        console.log('[CONSULTAS/FINALIZAR] Órdenes médicas creadas:', ordenesCreadas.length);
+        console.log('[CONSULTAS/FINALIZAR] Órdenes médicas creadas:', ordenesCreadas.length, '(agrupadas)');
         console.log('[CONSULTAS/FINALIZAR] Citas por agendar creadas:', citasCreadas.length);
+        console.log('[CONSULTAS/FINALIZAR] Interconsultas/Remisiones creadas:', interconsultasCreadas.length);
       }
 
       // 6. Guardar Prescripciones (si las hay)
