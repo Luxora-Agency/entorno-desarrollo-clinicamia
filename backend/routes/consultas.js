@@ -612,8 +612,34 @@ consultasRouter.post('/finalizar', async (c) => {
               },
             });
 
+            // Crear OrdenMedica para que aparezca en el módulo de órdenes médicas
+            // Formato estructurado para el PDF de prescripción
+            const medicamentosTexto = medicamentosConProductoValido.map((med, idx) => {
+              const nombre = med.nombre || 'Medicamento';
+              const dosis = med.dosis || '-';
+              const via = med.via || 'Oral';
+              const frecuencia = med.frecuencia || 'Única';
+              const duracion = med.duracionDias ? `${med.duracionDias} días` : 'Única';
+              const instrucciones = med.instrucciones || '';
+              return `• ${nombre} (${med.productoId?.substring(0, 8) || 'N/A'}) x1 - ${via} [${frecuencia}] [por ${duracion}]${instrucciones ? ` - ${instrucciones}` : ''}`;
+            }).join('\n');
+
+            const observacionesPrescripcion = `APLICACIÓN DE KIT: Prescripción Médica (RX-${citaId.substring(0, 6)})\nCategoría: Prescripción\nDescripción: ${prescripciones.diagnostico || 'Tratamiento médico'}\nMedicamentos incluidos:\n${medicamentosTexto}\nTotal: $${totalOrden.toLocaleString('es-CO')}`;
+
+            const ordenMedicaPrescripcion = await tx.ordenMedica.create({
+              data: {
+                pacienteId,
+                citaId,
+                doctorId,
+                precioAplicado: totalOrden,
+                estado: 'Pendiente',
+                observaciones: observacionesPrescripcion,
+              },
+            });
+
             resultados.prescripcion = prescripcion;
             resultados.ordenMedicamento = ordenMedicamento;
+            resultados.ordenMedicaPrescripcion = ordenMedicaPrescripcion;
           }
         }
       }

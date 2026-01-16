@@ -117,32 +117,53 @@ class OrdenMedicaPdfService {
         info.descripcion = descMatch[1].trim();
       }
 
-      // Extraer medicamentos (formato: • Nombre (código) xCantidad - Vía [c/Xh] [por Xd] [- instrucciones])
+      // Extraer medicamentos (formato: • Nombre (código) xCantidad - Vía [Frecuencia] [por Duración] [- instrucciones])
       const medMatch = linea.match(/[•\-]\s*([^(]+)\s*\(([^)]+)\)\s*x(\d+)\s*[-–]\s*([^,\[\-]+)/i);
       if (medMatch) {
         const nombreCompleto = medMatch[1].trim();
         const viaBase = medMatch[4].trim();
 
-        // Extraer concentración (ej: "1g", "500mg", "10ml")
+        // Extraer concentración/dosis (ej: "1g", "500mg", "10ml")
         const concMatch = nombreCompleto.match(/(\d+(?:\.\d+)?\s*(?:mg|g|ml|mcg|ui|%|cc|meq))/i);
-        const concentracion = concMatch ? concMatch[1].trim() : '';
+        let concentracion = concMatch ? concMatch[1].trim() : '';
 
         // Extraer forma farmacéutica (ampolla, tableta, cápsula, jarabe, etc.)
         const formaMatch = nombreCompleto.match(/(ampolla|tableta|cápsula|capsula|jarabe|suspensión|suspension|crema|gel|solución|solucion|inyectable|comprimido|sobre|parche|gotas|spray|óvulo|ovulo|supositorio)/i);
         const forma = formaMatch ? formaMatch[1].trim() : '';
 
-        // Extraer frecuencia si existe (c/8h, cada 8 horas, etc.)
-        const freqMatch = linea.match(/(?:c\/|cada\s*)(\d+)\s*(?:h|hrs?|horas?)/i);
-        const frecuencia = freqMatch ? `c/${freqMatch[1]}h` : '';
+        // Extraer frecuencia - soportar múltiples formatos:
+        // [Cada8Horas], [c/8h], cada 8 horas, c/8h
+        let frecuencia = '';
+        const freqBracketMatch = linea.match(/\[([^\]]*(?:cada|c\/|hora|Hora|Unica|PRN|SOS)[^\]]*)\]/i);
+        if (freqBracketMatch) {
+          frecuencia = freqBracketMatch[1].trim();
+        } else {
+          const freqMatch = linea.match(/(?:c\/|cada\s*)(\d+)\s*(?:h|hrs?|horas?)/i);
+          if (freqMatch) frecuencia = `c/${freqMatch[1]}h`;
+        }
 
-        // Extraer duración si existe (por 5 días, x5d, etc.)
-        const durMatch = linea.match(/(?:por|x)\s*(\d+)\s*(?:d|días?|dias?)/i);
-        const duracion = durMatch ? `${durMatch[1]} días` : '';
+        // Extraer duración - soportar múltiples formatos:
+        // [por 5 días], por 5 días, x5d, 5 días
+        let duracion = '';
+        const durBracketMatch = linea.match(/\[por\s+([^\]]+)\]/i);
+        if (durBracketMatch) {
+          duracion = durBracketMatch[1].trim();
+        } else {
+          const durMatch = linea.match(/(?:por|x)\s*(\d+)\s*(?:d|días?|dias?)/i);
+          if (durMatch) duracion = `${durMatch[1]} días`;
+        }
 
-        // Extraer instrucciones adicionales (texto después de vía/frecuencia/duración)
-        // Buscar patrones como: "- con alimentos", "- en ayunas", "- antes de dormir", etc.
-        const instrMatch = linea.match(/[-–]\s*(?:con|en|antes|después|sin|tomar)\s+(.+?)(?:$|c\/|\|)/i);
-        const instrucciones = instrMatch ? instrMatch[1].trim() : '';
+        // Extraer instrucciones adicionales (texto después del último corchete o después de vía/frecuencia)
+        let instrucciones = '';
+        // Buscar instrucciones después del último ] seguido de -
+        const instrBracketMatch = linea.match(/\]\s*[-–]\s*([^•\n]+?)$/i);
+        if (instrBracketMatch) {
+          instrucciones = instrBracketMatch[1].trim();
+        } else {
+          // Buscar patrones como: "- con alimentos", "- en ayunas", etc.
+          const instrMatch = linea.match(/[-–]\s*(?:con|en|antes|después|sin|tomar)\s+(.+?)(?:$|c\/|\|)/i);
+          if (instrMatch) instrucciones = instrMatch[1].trim();
+        }
 
         // Nombre sin concentración ni forma
         let nombreBase = nombreCompleto
@@ -151,12 +172,25 @@ class OrdenMedicaPdfService {
           .replace(/\s+/g, ' ')
           .trim();
 
+        // Si no hay concentración pero viene dosis en otro campo, usar nombreCompleto como dosis
+        if (!concentracion && nombreCompleto.includes(' ')) {
+          // Intentar extraer la dosis del nombre completo
+          const parts = nombreCompleto.split(' ');
+          if (parts.length > 1) {
+            const lastPart = parts[parts.length - 1];
+            if (/\d/.test(lastPart)) {
+              concentracion = lastPart;
+            }
+          }
+        }
+
         info.medicamentos.push({
-          nombre: nombreBase,
+          nombre: nombreBase || nombreCompleto,
           nombreCompleto: nombreCompleto,
           codigo: medMatch[2].trim(),
           cantidad: parseInt(medMatch[3], 10),
           concentracion: concentracion,
+          dosis: concentracion, // Alias para compatibilidad
           forma: forma,
           via: viaBase,
           frecuencia: frecuencia,
@@ -573,18 +607,19 @@ class OrdenMedicaPdfService {
          .rect(tableX, y, contentW, 14).stroke();
 
       xPos = tableX + 4;
-      // Medicamento (nombre completo con concentración)
+      // Medicamento (nombre + forma + cantidad)
+      const nombreMed = `${med.nombre} ${med.forma || ''} x${med.cantidad}`.trim();
       doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.text)
-         .text(med.nombreCompleto.substring(0, 20), xPos, y + 4, { lineBreak: false });
+         .text(nombreMed.substring(0, 22), xPos, y + 4, { lineBreak: false });
       xPos += colWidths.medicamento;
-      // Dosis (cantidad + forma)
-      const dosisText = `${med.cantidad} ${med.forma || 'unid.'}`;
+      // Dosis por toma (concentración)
+      const dosisText = med.concentracion || med.dosis || '-';
       doc.font('Helvetica-Bold').fillColor(this.colors.primary)
          .text(dosisText.substring(0, 12), xPos, y + 4, { lineBreak: false });
       xPos += colWidths.dosis;
       // Vía de administración
       doc.font('Helvetica-Bold').fillColor(this.colors.secondary)
-         .text(med.via.substring(0, 12), xPos, y + 4, { lineBreak: false });
+         .text((med.via || '-').substring(0, 12), xPos, y + 4, { lineBreak: false });
       xPos += colWidths.via;
       // Frecuencia
       doc.font('Helvetica').fillColor(this.colors.text)
@@ -594,7 +629,7 @@ class OrdenMedicaPdfService {
       doc.font('Helvetica').fillColor(this.colors.text)
          .text(med.duracion || 'Única', xPos, y + 4, { lineBreak: false });
       xPos += colWidths.duracion;
-      // Instrucciones
+      // Instrucciones adicionales
       doc.font('Helvetica').fillColor(this.colors.textLight)
          .text((med.instrucciones || '-').substring(0, 18), xPos, y + 4, { lineBreak: false });
 
