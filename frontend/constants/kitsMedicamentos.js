@@ -1,6 +1,17 @@
 /**
  * Kits de Medicamentos para Aplicación Inmediata
  * Incluye códigos CUM (Código Único de Medicamento), vía de administración y precios de referencia
+ *
+ * Estructura de cada medicamento:
+ * - nombre: Nombre del medicamento con presentación
+ * - codigoCum: Código Único de Medicamento (CUM)
+ * - concentracion: Dosis/concentración (ej: "1g/2mL", "500mg")
+ * - via: Vía de administración (Oral, IM, IV, etc.)
+ * - cantidad: Cantidad de unidades
+ * - precio: Precio unitario
+ * - frecuencia: (opcional) Frecuencia de aplicación. Default: "Única"
+ * - duracion: (opcional) Duración del tratamiento. Default: "1 dosis"
+ * - instrucciones: (opcional) Instrucciones adicionales. Default: "Aplicación inmediata"
  */
 
 export const KITS_MEDICAMENTOS = [

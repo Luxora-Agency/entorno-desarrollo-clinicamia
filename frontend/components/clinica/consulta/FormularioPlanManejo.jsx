@@ -146,8 +146,14 @@ export default function FormularioPlanManejo({
 
       for (const kit of kitsSeleccionados) {
         // Preparar descripción detallada del kit y sus medicamentos
+        // Formato: • Nombre (código) xCantidad - Vía [Frecuencia] [por Duración] - instrucciones
         const medicamentosDescripcion = kit.medicamentos
-          .map(med => `• ${med.nombre} (${med.codigoCum}) x${med.cantidad} - ${med.via}`)
+          .map(med => {
+            const frecuencia = med.frecuencia || 'Única';
+            const duracion = med.duracion || '1 dosis';
+            const instrucciones = med.instrucciones || 'Aplicación inmediata';
+            return `• ${med.nombre} (${med.codigoCum}) x${med.cantidad} - ${med.via} [${frecuencia}] [por ${duracion}] - ${instrucciones}`;
+          })
           .join('\n');
 
         const descripcionOrden = `APLICACIÓN DE KIT: ${kit.nombre} (${kit.codigo})
