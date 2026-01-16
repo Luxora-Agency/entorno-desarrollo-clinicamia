@@ -20,6 +20,21 @@ export default function PublicacionList({ user }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Verificar rol del usuario
+  const userRole = (user?.rol || user?.role || user?.rolNombre || '').toLowerCase();
+  const isAdmin = ['admin', 'administrador', 'super_admin', 'superadmin'].includes(userRole);
+  const userId = user?.id;
+
+  // Verificar si el usuario puede editar/eliminar una publicación
+  const canEditDelete = (pub) => {
+    // Admin siempre puede
+    if (isAdmin) return true;
+    // Si está aprobado/publicado, nadie puede editar (excepto admin)
+    if (pub.estado === 'Publicado' || pub.estado === 'Aprobado') return false;
+    // Solo el autor puede editar si no está aprobado
+    return pub.autorId === userId || pub.autor?.id === userId;
+  };
+
   const fetchPublicaciones = async () => {
     setLoading(true);
     try {
@@ -100,12 +115,33 @@ export default function PublicacionList({ user }) {
                     <TableCell>{pub.fechaPublicacion ? new Date(pub.fechaPublicacion).toLocaleDateString() : '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon">
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="text-red-500">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        {canEditDelete(pub) ? (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toast.info("Próximamente", { description: "Edición en desarrollo" })}
+                              title="Editar publicación"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500"
+                              onClick={() => toast.info("Próximamente", { description: "Eliminación en desarrollo" })}
+                              title="Eliminar publicación"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <span className="text-xs text-gray-400 italic">
+                            {pub.estado === 'Publicado' || pub.estado === 'Aprobado'
+                              ? 'Aprobada'
+                              : 'Sin permisos'}
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
