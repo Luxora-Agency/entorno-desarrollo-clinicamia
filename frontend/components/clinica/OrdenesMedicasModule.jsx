@@ -693,6 +693,34 @@ export default function OrdenesMedicasModule({ user }) {
     }
   };
 
+  // Vista previa del PDF (sin imprimir)
+  const handleVistaPrevia = async (orden) => {
+    if (!orden?.id) {
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo identificar la orden.' });
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+      toast({ title: 'Cargando vista previa...', description: 'Por favor espere.' });
+
+      const response = await fetch(`${apiUrl}/ordenes-medicas/${orden.id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) throw new Error('Error al generar PDF');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (err) {
+      console.error('[PDF] Error:', err);
+      toast({ variant: 'destructive', title: 'Error', description: 'No se pudo cargar la vista previa.' });
+    }
+  };
+
   // Formatear fecha
   const formatDate = (dateString, showTime = true) => {
     if (!dateString) return 'N/A';
@@ -1318,7 +1346,7 @@ export default function OrdenesMedicasModule({ user }) {
           <div className="p-4 border-t bg-gray-50 flex-shrink-0">
             <Label className="text-xs text-gray-500 uppercase tracking-wide mb-2 block">Acciones</Label>
             <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleImprimirOrden(selectedOrden)} title="Vista previa">
+              <Button variant="outline" size="sm" onClick={() => handleVistaPrevia(selectedOrden)} title="Vista previa">
                 <Eye className="w-4 h-4 mr-1" />
                 Ver
               </Button>
