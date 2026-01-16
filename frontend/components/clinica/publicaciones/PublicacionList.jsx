@@ -111,7 +111,13 @@ export default function PublicacionList({ user }) {
                         {pub.estado}
                       </Badge>
                     </TableCell>
-                    <TableCell>{pub.autor?.nombre} {pub.autor?.apellido}</TableCell>
+                    <TableCell>
+                      {pub.autor ? (
+                        <span>Dr(a). {pub.autor.nombre} {pub.autor.apellido}</span>
+                      ) : (
+                        <span className="text-gray-400">Sin autor</span>
+                      )}
+                    </TableCell>
                     <TableCell>{pub.fechaPublicacion ? new Date(pub.fechaPublicacion).toLocaleDateString() : '-'}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
