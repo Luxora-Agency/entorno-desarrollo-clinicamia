@@ -372,10 +372,10 @@ class ReportesService {
       take: 10
     });
 
-    // Filtrar nulls para evitar error de Prisma
+    // Filtrar nulls/undefined para evitar error de Prisma
     const examenIds = topServices
       .map(s => s.examenProcedimientoId)
-      .filter(id => id !== null);
+      .filter(Boolean); // Filtra null, undefined, '', 0, false
 
     const examenes = examenIds.length > 0
       ? await prisma.examenProcedimiento.findMany({
