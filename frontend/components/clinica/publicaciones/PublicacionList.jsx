@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, Trash2, X, Loader2, Save, Send, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Search, Edit, Trash2, X, Loader2, Save, Send, CheckCircle, XCircle, Upload, Image } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -60,6 +60,7 @@ export default function PublicacionList({ user }) {
   const [categorias, setCategorias] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
   // Modal states
@@ -338,6 +339,53 @@ export default function PublicacionList({ user }) {
     }
   };
 
+  // Subir imagen
+  const handleUploadImage = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validar tipo
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Error", { description: "Solo se permiten imágenes (JPEG, PNG, GIF, WebP)" });
+      return;
+    }
+
+    // Validar tamaño (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Error", { description: "La imagen no puede superar 5MB" });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/publicaciones/upload`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const imageUrl = `${process.env.NEXT_PUBLIC_API_URL}${data.data.url}`;
+        setFormData(prev => ({ ...prev, imagenPortada: imageUrl }));
+        toast.success("Imagen subida", { description: "La imagen se ha subido correctamente" });
+      } else {
+        const error = await res.json();
+        toast.error("Error", { description: error.message || "No se pudo subir la imagen" });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error", { description: "Error al subir la imagen" });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const getEstadoBadge = (estado) => {
     const config = ESTADOS_PUBLICACION.find(e => e.value === estado) || ESTADOS_PUBLICACION[0];
     return <Badge className={config.color}>{config.label}</Badge>;
@@ -608,14 +656,73 @@ export default function PublicacionList({ user }) {
             </div>
 
             <div>
-              <Label htmlFor="imagenPortada">URL Imagen de Portada</Label>
-              <Input
-                id="imagenPortada"
-                value={formData.imagenPortada}
-                onChange={(e) => setFormData({ ...formData, imagenPortada: e.target.value })}
-                placeholder="https://ejemplo.com/imagen.jpg"
-                className="mt-1"
-              />
+              <Label>Imagen de Portada</Label>
+              <div className="mt-2 space-y-3">
+                {/* Preview de imagen */}
+                {formData.imagenPortada && (
+                  <div className="relative w-full h-40 bg-gray-100 rounded-lg overflow-hidden">
+                    <img
+                      src={formData.imagenPortada}
+                      alt="Portada"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-6 w-6"
+                      onClick={() => setFormData({ ...formData, imagenPortada: '' })}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                )}
+
+                {/* Botón de subir */}
+                <div className="flex gap-2">
+                  <label className="flex-1">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleUploadImage}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      disabled={uploading}
+                      asChild
+                    >
+                      <span>
+                        {uploading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        {uploading ? 'Subiendo...' : 'Subir imagen'}
+                      </span>
+                    </Button>
+                  </label>
+                </div>
+
+                {/* O ingresar URL */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-400">o ingresa URL:</span>
+                  <Input
+                    value={formData.imagenPortada}
+                    onChange={(e) => setFormData({ ...formData, imagenPortada: e.target.value })}
+                    placeholder="https://ejemplo.com/imagen.jpg"
+                    className="flex-1 h-8 text-sm"
+                  />
+                </div>
+                <p className="text-xs text-gray-500">
+                  Formatos: JPEG, PNG, GIF, WebP. Máx 5MB.
+                </p>
+              </div>
             </div>
           </div>
 

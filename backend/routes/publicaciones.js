@@ -3,9 +3,16 @@
  * Blog posts and health articles management
  */
 const { Hono } = require('hono');
+const { v4: uuidv4 } = require('uuid');
+const path = require('path');
+const fs = require('fs').promises;
 const publicacionService = require('../services/publicacion.service');
 const { authMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
+
+// Crear directorio de uploads si no existe (dentro de public para ser servido)
+const uploadsDir = path.join(__dirname, '../public/uploads/publicaciones');
+fs.mkdir(uploadsDir, { recursive: true }).catch(console.error);
 
 const publicaciones = new Hono();
 
@@ -45,6 +52,50 @@ publicaciones.post('/categorias', async (c) => {
 // ==========================================
 // PUBLICACIONES
 // ==========================================
+
+/**
+ * POST /upload - Subir imagen para publicación
+ */
+publicaciones.post('/upload', async (c) => {
+  try {
+    const body = await c.req.parseBody();
+    const file = body.file;
+
+    if (!file) {
+      return c.json(error('Archivo requerido'), 400);
+    }
+
+    // Validar tipo de archivo (solo imágenes)
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return c.json(error('Solo se permiten imágenes (JPEG, PNG, GIF, WebP)'), 400);
+    }
+
+    // Validar tamaño (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return c.json(error('La imagen excede el tamaño máximo de 5MB'), 400);
+    }
+
+    // Generar nombre único
+    const extension = path.extname(file.name) || '.jpg';
+    const nombreArchivo = `${uuidv4()}${extension}`;
+    const rutaArchivo = path.join(uploadsDir, nombreArchivo);
+
+    // Guardar archivo
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    await fs.writeFile(rutaArchivo, buffer);
+
+    // URL pública
+    const url = `/uploads/publicaciones/${nombreArchivo}`;
+
+    return c.json(success({ url, filename: nombreArchivo }, 'Imagen subida'));
+  } catch (err) {
+    console.error('Error uploading image:', err);
+    return c.json(error(err.message), 500);
+  }
+});
 
 /**
  * GET /recomendaciones - Obtener recomendaciones basadas en diagnósticos
