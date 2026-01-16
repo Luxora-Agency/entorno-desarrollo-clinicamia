@@ -4,6 +4,8 @@
 const prisma = require('../db/prisma');
 const { ValidationError, NotFoundError } = require('../utils/errors');
 const { saveBase64Image, deleteFile } = require('../utils/upload');
+const { hashPassword } = require('../utils/auth');
+const emailService = require('./email.service');
 
 // Siigo integration for customer synchronization
 let customerSiigoService = null;
@@ -169,7 +171,93 @@ class PacienteService {
       console.error(`[Paciente] Error sincronizando paciente ${paciente.id} con Siigo:`, err.message);
     });
 
+    // Crear usuario de paciente automáticamente (async, no bloqueante)
+    this.crearUsuarioPacienteAsync(paciente, data.cedula).catch(err => {
+      console.error(`[Paciente] Error creando usuario para paciente ${paciente.id}:`, err.message);
+    });
+
     return paciente;
+  }
+
+  /**
+   * Crear usuario automáticamente para un paciente nuevo
+   * Usuario: email del paciente
+   * Contraseña: número de documento (cédula)
+   */
+  async crearUsuarioPacienteAsync(paciente, passwordPlain) {
+    try {
+      // Verificar que el paciente tiene email
+      if (!paciente.email) {
+        console.log(`[Paciente] No se puede crear usuario: paciente ${paciente.id} no tiene email`);
+        return;
+      }
+
+      // Verificar que no existe usuario con este email
+      const existingUser = await prisma.usuario.findUnique({
+        where: { email: paciente.email }
+      });
+
+      if (existingUser) {
+        console.log(`[Paciente] Usuario ya existe para email ${paciente.email}`);
+        return;
+      }
+
+      // Hashear la contraseña (número de documento)
+      const hashedPassword = await hashPassword(passwordPlain);
+
+      // Crear usuario con rol PATIENT
+      const usuario = await prisma.usuario.create({
+        data: {
+          email: paciente.email,
+          password: hashedPassword,
+          nombre: paciente.nombre,
+          apellido: paciente.apellido,
+          rol: 'PATIENT',
+          telefono: paciente.telefono,
+          cedula: paciente.cedula,
+        },
+      });
+
+      console.log(`[Paciente] ✓ Usuario creado para paciente ${paciente.id}: ${usuario.email}`);
+
+      // Intentar asignar rol en la tabla de roles relacionales
+      try {
+        const role = await prisma.role.findUnique({ where: { name: 'PATIENT' } });
+        if (role) {
+          await prisma.userRole.create({
+            data: {
+              usuarioId: usuario.id,
+              roleId: role.id
+            }
+          });
+        }
+      } catch (roleErr) {
+        console.warn('[Paciente] No se pudo asignar rol relacional:', roleErr.message);
+      }
+
+      // Enviar email de bienvenida con credenciales
+      const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+      emailService.sendWelcomeEmail({
+        to: paciente.email,
+        nombre: paciente.nombre,
+        apellido: paciente.apellido,
+        password: passwordPlain, // Enviar contraseña sin hashear en el email
+        loginUrl: `${frontendUrl}/login`
+      }).then(result => {
+        if (result.success) {
+          console.log(`[Paciente] ✓ Email de bienvenida enviado a: ${paciente.email}`);
+        } else {
+          console.warn(`[Paciente] No se pudo enviar email de bienvenida: ${result.error}`);
+        }
+      }).catch(err => {
+        console.error(`[Paciente] Error enviando email de bienvenida:`, err.message);
+      });
+
+      return usuario;
+    } catch (error) {
+      console.error(`[Paciente] Error en crearUsuarioPacienteAsync:`, error.message);
+      throw error;
+    }
   }
 
   /**
