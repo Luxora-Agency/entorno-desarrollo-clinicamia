@@ -304,11 +304,16 @@ class ReportesService {
       take: 10
     });
 
-    const examenes = await prisma.examenProcedimiento.findMany({
-      where: {
-        id: { in: topServices.map(s => s.examenProcedimientoId) }
-      }
-    });
+    // Filtrar nulls para evitar error de Prisma
+    const examenIds = topServices
+      .map(s => s.examenProcedimientoId)
+      .filter(id => id !== null);
+
+    const examenes = examenIds.length > 0
+      ? await prisma.examenProcedimiento.findMany({
+          where: { id: { in: examenIds } }
+        })
+      : [];
 
     const data = topServices.map(s => {
       const exam = examenes.find(e => e.id === s.examenProcedimientoId);
