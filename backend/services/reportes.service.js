@@ -491,6 +491,205 @@ class ReportesService {
 
     return data;
   }
+
+  async getMiActividadReciente(doctorId) {
+    try {
+      const ahora = new Date();
+      const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+      // Consultas recientes del doctor
+      const consultasRecientes = await prisma.cita.findMany({
+        where: {
+          doctorId,
+          estado: 'Completada',
+          fecha: { gte: hace30Dias }
+        },
+        include: {
+          paciente: {
+            select: { id: true, nombre: true, apellido: true, documento: true }
+          },
+          especialidad: {
+            select: { titulo: true }
+          }
+        },
+        orderBy: { fecha: 'desc' },
+        take: 10
+      });
+
+      // Evoluciones recientes
+      const evolucionesRecientes = await prisma.evolucionClinica.findMany({
+        where: {
+          doctorId,
+          fechaEvolucion: { gte: hace30Dias }
+        },
+        include: {
+          paciente: {
+            select: { id: true, nombre: true, apellido: true, documento: true }
+          }
+        },
+        orderBy: { fechaEvolucion: 'desc' },
+        take: 10
+      });
+
+      // Órdenes médicas recientes
+      const ordenesRecientes = await prisma.ordenMedica.findMany({
+        where: {
+          doctorId,
+          createdAt: { gte: hace30Dias }
+        },
+        include: {
+          paciente: {
+            select: { id: true, nombre: true, apellido: true }
+          },
+          examenProcedimiento: {
+            select: { nombre: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      });
+
+      // Prescripciones recientes
+      const prescripcionesRecientes = await prisma.prescripcion.findMany({
+        where: {
+          doctorId,
+          createdAt: { gte: hace30Dias }
+        },
+        include: {
+          paciente: {
+            select: { id: true, nombre: true, apellido: true }
+          },
+          producto: {
+            select: { nombre: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10
+      });
+
+      // Formatear actividad combinada
+      const actividad = [];
+
+      consultasRecientes.forEach(c => {
+        actividad.push({
+          tipo: 'consulta',
+          fecha: c.fecha,
+          descripcion: `Consulta con ${c.paciente?.nombre} ${c.paciente?.apellido}`,
+          paciente: c.paciente ? `${c.paciente.nombre} ${c.paciente.apellido}` : 'N/A',
+          detalle: c.especialidad?.titulo || 'Consulta general',
+          icon: 'stethoscope'
+        });
+      });
+
+      evolucionesRecientes.forEach(e => {
+        actividad.push({
+          tipo: 'evolucion',
+          fecha: e.fechaEvolucion,
+          descripcion: `Evolución clínica - ${e.paciente?.nombre} ${e.paciente?.apellido}`,
+          paciente: e.paciente ? `${e.paciente.nombre} ${e.paciente.apellido}` : 'N/A',
+          detalle: e.motivoConsulta?.substring(0, 50) || 'HCE',
+          icon: 'file-text'
+        });
+      });
+
+      ordenesRecientes.forEach(o => {
+        actividad.push({
+          tipo: 'orden',
+          fecha: o.createdAt,
+          descripcion: `Orden médica - ${o.examenProcedimiento?.nombre || 'Examen'}`,
+          paciente: o.paciente ? `${o.paciente.nombre} ${o.paciente.apellido}` : 'N/A',
+          detalle: o.estado,
+          icon: 'clipboard-list'
+        });
+      });
+
+      prescripcionesRecientes.forEach(p => {
+        actividad.push({
+          tipo: 'prescripcion',
+          fecha: p.createdAt,
+          descripcion: `Prescripción - ${p.producto?.nombre || 'Medicamento'}`,
+          paciente: p.paciente ? `${p.paciente.nombre} ${p.paciente.apellido}` : 'N/A',
+          detalle: `${p.dosis || ''} - ${p.frecuencia || ''}`,
+          icon: 'pill'
+        });
+      });
+
+      // Ordenar por fecha descendente
+      actividad.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+
+      // Estadísticas rápidas
+      const stats = {
+        consultasUltimos30Dias: consultasRecientes.length,
+        evolucionesUltimos30Dias: evolucionesRecientes.length,
+        ordenesUltimos30Dias: ordenesRecientes.length,
+        prescripcionesUltimos30Dias: prescripcionesRecientes.length
+      };
+
+      return {
+        actividad: actividad.slice(0, 20),
+        stats
+      };
+    } catch (err) {
+      console.error('Error getting mi actividad reciente:', err);
+      return { actividad: [], stats: {} };
+    }
+  }
+
+  async getMisCapacitaciones(usuarioId) {
+    try {
+      // Buscar el empleado vinculado al usuario
+      const empleado = await prisma.tHEmpleado.findUnique({
+        where: { usuarioId }
+      });
+
+      if (!empleado) {
+        // Si no hay empleado, retornar lista vacía
+        return [];
+      }
+
+      // Obtener las capacitaciones asignadas al empleado
+      const capacitaciones = await prisma.tHAsistenteCapacitacion.findMany({
+        where: { empleadoId: empleado.id },
+        include: {
+          capacitacion: {
+            include: {
+              sesiones: {
+                orderBy: { fecha: 'asc' },
+                take: 1
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      // Formatear los datos para el frontend
+      return capacitaciones.map(c => ({
+        id: c.id,
+        capacitacionId: c.capacitacionId,
+        nombre: c.capacitacion?.nombre || 'Sin nombre',
+        descripcion: c.capacitacion?.descripcion || '',
+        categoria: c.capacitacion?.categoria || 'General',
+        modalidad: c.capacitacion?.modalidad || 'Presencial',
+        duracionHoras: c.capacitacion?.duracionHoras || 0,
+        fechaInicio: c.capacitacion?.fechaInicio,
+        fechaFin: c.capacitacion?.fechaFin,
+        proximaSesion: c.capacitacion?.sesiones?.[0]?.fecha || null,
+        estado: c.estado, // INSCRITO, ASISTIO, NO_ASISTIO, CANCELADO, COMPLETADO
+        asistio: c.asistio,
+        notaEvaluacion: c.notaEvaluacion,
+        certificadoUrl: c.certificadoUrl,
+        // Determinar si puede realizar la capacitación
+        puedeRealizar: ['INSCRITO', 'EN_PROGRESO'].includes(c.estado) &&
+                       c.capacitacion?.estado !== 'COMPLETADA' &&
+                       c.capacitacion?.estado !== 'CANCELADA',
+        estadoCapacitacion: c.capacitacion?.estado || 'PROGRAMADA'
+      }));
+    } catch (err) {
+      console.error('Error getting mis capacitaciones:', err);
+      return [];
+    }
+  }
 }
 
 module.exports = new ReportesService();

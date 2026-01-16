@@ -104,4 +104,32 @@ reportes.get('/audit', async (c) => {
   }
 });
 
+// Mi Actividad Reciente (para doctores)
+reportes.get('/mi-actividad', async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user?.id) {
+      return c.json(error('Usuario no autenticado'), 401);
+    }
+    const data = await reportesService.getMiActividadReciente(user.id);
+    return c.json(success(data));
+  } catch (err) {
+    return c.json(error(err.message), 500);
+  }
+});
+
+// Mis Capacitaciones (para doctores)
+reportes.get('/mis-capacitaciones', async (c) => {
+  try {
+    const user = c.get('user');
+    if (!user?.id) {
+      return c.json(error('Usuario no autenticado'), 401);
+    }
+    const data = await reportesService.getMisCapacitaciones(user.id);
+    return c.json(success(data));
+  } catch (err) {
+    return c.json(error(err.message), 500);
+  }
+});
+
 module.exports = reportes;

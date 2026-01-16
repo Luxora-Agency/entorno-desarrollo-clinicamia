@@ -14,6 +14,8 @@ export const useReportes = () => {
   const [doctorsStats, setDoctorsStats] = useState([]);
   const [qualityStats, setQualityStats] = useState([]);
   const [auditStats, setAuditStats] = useState([]);
+  const [misCapacitaciones, setMisCapacitaciones] = useState([]);
+  const [miActividad, setMiActividad] = useState({ actividad: [], stats: {} });
 
   const fetchGeneralStats = useCallback(async (periodo = 'mes') => {
     try {
@@ -104,6 +106,24 @@ export const useReportes = () => {
     }
   }, []);
 
+  const fetchMisCapacitaciones = useCallback(async () => {
+    try {
+      const { data } = await apiGet('/reportes/mis-capacitaciones');
+      setMisCapacitaciones(data || []);
+    } catch (error) {
+      console.error('Error fetching mis capacitaciones:', error);
+    }
+  }, []);
+
+  const fetchMiActividad = useCallback(async () => {
+    try {
+      const { data } = await apiGet('/reportes/mi-actividad');
+      setMiActividad(data || { actividad: [], stats: {} });
+    } catch (error) {
+      console.error('Error fetching mi actividad:', error);
+    }
+  }, []);
+
   const fetchAllStats = useCallback(async (periodo) => {
     setLoading(true);
     await Promise.all([
@@ -116,6 +136,8 @@ export const useReportes = () => {
       fetchDoctorsStats(),
       fetchQualityStats(),
       fetchAuditStats(),
+      fetchMisCapacitaciones(),
+      fetchMiActividad(),
     ]);
     setLoading(false);
   }, [
@@ -128,6 +150,8 @@ export const useReportes = () => {
     fetchDoctorsStats,
     fetchQualityStats,
     fetchAuditStats,
+    fetchMisCapacitaciones,
+    fetchMiActividad,
   ]);
 
   return {
@@ -141,8 +165,12 @@ export const useReportes = () => {
     doctorsStats,
     qualityStats,
     auditStats,
+    misCapacitaciones,
+    miActividad,
     fetchGeneralStats,
     fetchAllStats,
+    fetchMisCapacitaciones,
+    fetchMiActividad,
   };
 };
 
