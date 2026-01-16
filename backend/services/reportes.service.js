@@ -138,6 +138,56 @@ class ReportesService {
       satisfaccion = 4.5;
     }
 
+    // Si es doctor, mostrar datos de capacitación en lugar de financieros
+    if (doctorId) {
+      // Buscar capacitaciones del doctor
+      let capacitacionesPendientes = 0;
+      let capacitacionesCompletadas = 0;
+      let proximosEventos = 0;
+
+      try {
+        // Capacitaciones pendientes
+        capacitacionesPendientes = await prisma.capacitacionAsignacion.count({
+          where: {
+            usuarioId: doctorId,
+            estado: { in: ['Pendiente', 'EnProgreso'] }
+          }
+        });
+
+        // Capacitaciones completadas
+        capacitacionesCompletadas = await prisma.capacitacionAsignacion.count({
+          where: {
+            usuarioId: doctorId,
+            estado: 'Completado'
+          }
+        });
+
+        // Eventos próximos (capacitaciones con fecha futura)
+        proximosEventos = await prisma.capacitacion.count({
+          where: {
+            fechaInicio: { gte: new Date() },
+            asignaciones: {
+              some: { usuarioId: doctorId }
+            }
+          }
+        });
+      } catch (e) {
+        // Si no existe el modelo, usar valores por defecto
+        console.log('Capacitaciones model not available:', e.message);
+      }
+
+      return {
+        totalPacientes,
+        pacientesNuevos,
+        consultasRealizadas,
+        evolucionesRealizadas,
+        capacitacionesPendientes,
+        capacitacionesCompletadas,
+        proximosEventos,
+      };
+    }
+
+    // Para admin, mostrar datos financieros
     return {
       totalPacientes,
       pacientesNuevos,
