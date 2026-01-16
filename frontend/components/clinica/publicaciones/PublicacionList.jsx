@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Search, Edit, Trash2, X, Loader2, Save } from "lucide-react";
+import { Plus, Search, Edit, Trash2, X, Loader2, Save, Send, CheckCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -42,10 +42,17 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from 'sonner';
 
+// Estados de publicación
 const ESTADOS_PUBLICACION = [
   { value: 'Borrador', label: 'Borrador', color: 'bg-gray-100 text-gray-700' },
-  { value: 'Revision', label: 'En Revisión', color: 'bg-yellow-100 text-yellow-700' },
+  { value: 'Pendiente', label: 'Pendiente Aprobación', color: 'bg-yellow-100 text-yellow-700' },
+  { value: 'Rechazado', label: 'Rechazado', color: 'bg-red-100 text-red-700' },
   { value: 'Publicado', label: 'Publicado', color: 'bg-green-100 text-green-700' },
+];
+
+// Estados visibles para doctores (sin Publicado - eso solo lo hace el admin)
+const ESTADOS_DOCTOR = [
+  { value: 'Borrador', label: 'Borrador', color: 'bg-gray-100 text-gray-700' },
 ];
 
 export default function PublicacionList({ user }) {
@@ -247,6 +254,90 @@ export default function PublicacionList({ user }) {
     }
   };
 
+  // Solicitar publicación (doctor)
+  const handleSolicitarPublicacion = async (pub) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/publicaciones/${pub.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ estado: 'Pendiente' }),
+      });
+
+      if (res.ok) {
+        toast.success("Solicitud enviada", {
+          description: "Tu publicación ha sido enviada para aprobación"
+        });
+        fetchPublicaciones();
+      } else {
+        const error = await res.json();
+        toast.error("Error", { description: error.message || "No se pudo enviar la solicitud" });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error", { description: "Error al solicitar publicación" });
+    }
+  };
+
+  // Aprobar publicación (admin)
+  const handleAprobar = async (pub) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/publicaciones/${pub.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ estado: 'Publicado', fechaPublicacion: new Date().toISOString() }),
+      });
+
+      if (res.ok) {
+        toast.success("Publicación aprobada", {
+          description: "La publicación ha sido aprobada y publicada"
+        });
+        fetchPublicaciones();
+      } else {
+        const error = await res.json();
+        toast.error("Error", { description: error.message || "No se pudo aprobar" });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error", { description: "Error al aprobar publicación" });
+    }
+  };
+
+  // Rechazar publicación (admin)
+  const handleRechazar = async (pub) => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/publicaciones/${pub.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ estado: 'Rechazado' }),
+      });
+
+      if (res.ok) {
+        toast.info("Publicación rechazada", {
+          description: "La publicación ha sido rechazada"
+        });
+        fetchPublicaciones();
+      } else {
+        const error = await res.json();
+        toast.error("Error", { description: error.message || "No se pudo rechazar" });
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Error", { description: "Error al rechazar publicación" });
+    }
+  };
+
   const getEstadoBadge = (estado) => {
     const config = ESTADOS_PUBLICACION.find(e => e.value === estado) || ESTADOS_PUBLICACION[0];
     return <Badge className={config.color}>{config.label}</Badge>;
@@ -319,8 +410,33 @@ export default function PublicacionList({ user }) {
                           : '-'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          {canEditDelete(pub) ? (
+                        <div className="flex justify-end gap-1">
+                          {/* Admin: botones de aprobar/rechazar para publicaciones pendientes */}
+                          {isAdmin && pub.estado === 'Pendiente' && (
+                            <>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                                onClick={() => handleAprobar(pub)}
+                                title="Aprobar publicación"
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => handleRechazar(pub)}
+                                title="Rechazar publicación"
+                              >
+                                <XCircle className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+
+                          {/* Editar y eliminar si tiene permisos */}
+                          {canEditDelete(pub) && (
                             <>
                               <Button
                                 variant="ghost"
@@ -340,11 +456,27 @@ export default function PublicacionList({ user }) {
                                 <Trash2 className="w-4 h-4" />
                               </Button>
                             </>
-                          ) : (
+                          )}
+
+                          {/* Doctor: solicitar publicación si está en borrador */}
+                          {!isAdmin && pub.estado === 'Borrador' && canEditDelete(pub) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                              onClick={() => handleSolicitarPublicacion(pub)}
+                              title="Solicitar publicación"
+                            >
+                              <Send className="w-3 h-3 mr-1" />
+                              Solicitar
+                            </Button>
+                          )}
+
+                          {/* Mensaje si no tiene permisos */}
+                          {!canEditDelete(pub) && !isAdmin && (
                             <span className="text-xs text-gray-400 italic">
-                              {pub.estado === 'Publicado' || pub.estado === 'Aprobado'
-                                ? 'Aprobada'
-                                : 'Sin permisos'}
+                              {pub.estado === 'Publicado' ? 'Publicada' :
+                               pub.estado === 'Pendiente' ? 'En revisión' : 'Sin permisos'}
                             </span>
                           )}
                         </div>
@@ -434,30 +566,45 @@ export default function PublicacionList({ user }) {
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="estado">Estado</Label>
-                <Select
-                  value={formData.estado}
-                  onValueChange={(v) => setFormData({ ...formData, estado: v })}
-                  disabled={!isAdmin && isEditing}
-                >
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ESTADOS_PUBLICACION.map((est) => (
-                      <SelectItem key={est.value} value={est.value}>
-                        {est.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!isAdmin && (
+              {isAdmin ? (
+                <div>
+                  <Label htmlFor="estado">Estado</Label>
+                  <Select
+                    value={formData.estado}
+                    onValueChange={(v) => setFormData({ ...formData, estado: v })}
+                  >
+                    <SelectTrigger className="mt-1">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ESTADOS_PUBLICACION.map((est) => (
+                        <SelectItem key={est.value} value={est.value}>
+                          {est.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : (
+                <div>
+                  <Label>Estado</Label>
+                  <div className="mt-1 p-2 bg-gray-100 rounded-md text-sm text-gray-600">
+                    {isEditing ? (
+                      <>
+                        {formData.estado === 'Borrador' && 'Borrador'}
+                        {formData.estado === 'Pendiente' && 'Pendiente Aprobación'}
+                        {formData.estado === 'Rechazado' && 'Rechazado - Puedes editar y volver a solicitar'}
+                        {formData.estado === 'Publicado' && 'Publicado'}
+                      </>
+                    ) : (
+                      'Borrador (se guardará como borrador)'
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    Solo el administrador puede cambiar el estado
+                    Usa el botón "Solicitar" para enviar a aprobación
                   </p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             <div>
