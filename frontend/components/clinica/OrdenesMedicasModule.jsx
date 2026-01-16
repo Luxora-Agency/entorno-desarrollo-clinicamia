@@ -28,7 +28,6 @@ import {
   Activity,
   ChevronDown,
   ChevronRight,
-  Copy,
   Trash2,
   Edit,
   Send,
@@ -81,7 +80,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Label } from '@/components/ui/label';
@@ -623,20 +621,6 @@ export default function OrdenesMedicasModule({ user }) {
     }
   };
 
-  // Duplicar orden
-  const handleDuplicarOrden = async (orden) => {
-    setNuevaOrden({
-      paciente_id: orden.pacienteId,
-      tipo: orden.tipo || 'Laboratorio',
-      examen_procedimiento_id: orden.examenProcedimientoId || '',
-      descripcion: orden.descripcion || orden.examenProcedimiento?.nombre || '',
-      prioridad: orden.prioridad || 'Media',
-      observaciones: '',
-    });
-    setSearchPaciente(`${orden.paciente?.nombre || ''} ${orden.paciente?.apellido || ''}`.trim());
-    setShowNuevaOrdenModal(true);
-  };
-
   // Descargar PDF
   const handleDescargarPdf = async (orden) => {
     if (!orden?.id) {
@@ -1020,38 +1004,31 @@ export default function OrdenesMedicasModule({ user }) {
                       >
                         <Printer className="w-4 h-4" />
                       </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                            <MoreVertical className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleDuplicarOrden(orden)}>
-                            <Copy className="w-4 h-4 mr-2" />
-                            Duplicar
-                          </DropdownMenuItem>
-                          {(orden.estado === 'Pendiente' || orden.estado === 'EnProceso') && (
-                            <>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => { setSelectedOrden(orden); setShowResultadosModal(true); }}
-                                className="text-green-600"
-                              >
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Completar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleCancelarOrden(orden)}
-                                className="text-red-600"
-                              >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Cancelar
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      {(orden.estado === 'Pendiente' || orden.estado === 'EnProceso') && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                              <MoreVertical className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => { setSelectedOrden(orden); setShowResultadosModal(true); }}
+                              className="text-green-600"
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              Completar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => handleCancelarOrden(orden)}
+                              className="text-red-600"
+                            >
+                              <XCircle className="w-4 h-4 mr-2" />
+                              Cancelar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </div>
                 );
