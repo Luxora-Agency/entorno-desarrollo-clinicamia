@@ -39,16 +39,28 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
     codigoAtc: '',
     cum: '',
     registroSanitario: '',
+    // Nuevos campos farmacológicos
+    posologiaRecomendada: '',
+    indicaciones: '',
+    contraindicaciones: '',
+    efectosAdversos: '',
+    interacciones: '',
+    riesgoEmbarazo: '',
 
     // Control y Regulación
     requiereReceta: false,
     controlado: false,
     tipoControlado: '',
+    medicamentoAltoRiesgo: false,
+    medicamentoLASA: false, // Look-Alike Sound-Alike
 
     // Almacenamiento
     temperaturaAlmacenamiento: '',
     requiereCadenaFrio: false,
+    protegerLuz: false,
+    protegerHumedad: false,
     ubicacionAlmacen: '',
+    condicionesEspeciales: '',
 
     // Inventario
     cantidadTotal: '',
@@ -57,6 +69,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
     cantidadMaxAlerta: '',
     lote: '',
     fechaVencimiento: '',
+    puntoReorden: '',
 
     // Precios
     precioVenta: '',
@@ -67,62 +80,219 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
     imagenUrl: '',
   });
 
+  // ==========================================
+  // VÍAS DE ADMINISTRACIÓN - Lista completa
+  // ==========================================
   const viasAdministracion = [
+    // Vía Oral
     'Oral',
+    'Sublingual',
+    'Bucal',
+    // Vía Parenteral
+    'Intravenosa (IV)',
+    'Intramuscular (IM)',
+    'Subcutánea (SC)',
+    'Intradérmica (ID)',
+    'Intraarticular',
+    'Intratecal',
+    'Epidural',
+    'Intraósea',
+    // Vía Respiratoria
     'Inhalatoria',
-    'Subcutánea',
-    'Intramuscular',
-    'Intravenosa',
-    'Tópica',
+    'Nebulización',
+    'Nasal',
+    // Vía Tópica
+    'Tópica / Cutánea',
+    'Transdérmica',
     'Oftálmica',
     'Ótica',
+    // Vía Rectal/Vaginal
     'Rectal',
     'Vaginal',
+    // Otras vías
+    'Intravesical',
+    'Intraperitoneal',
   ];
 
+  // ==========================================
+  // CONDICIONES DE ALMACENAMIENTO
+  // ==========================================
   const temperaturasAlmacenamiento = [
-    'Temperatura ambiente (15-30°C)',
+    'Temperatura ambiente (15-25°C)',
+    'Temperatura ambiente controlada (20-25°C)',
+    'Lugar fresco (8-15°C)',
     'Refrigeración (2-8°C)',
     'Congelación (-20°C)',
+    'Ultracongelación (-70°C)',
+    'No refrigerar',
+    'Proteger de la luz',
+    'Proteger de la humedad',
     'Lugar fresco y seco',
+    'Envase hermético',
   ];
 
+  // ==========================================
+  // FORMAS FARMACÉUTICAS - Lista completa
+  // ==========================================
   const formasFarmaceuticas = [
+    // --- SÓLIDOS ORALES ---
     'Tableta',
-    'Cápsula',
+    'Tableta recubierta',
+    'Tableta de liberación prolongada',
+    'Tableta efervescente',
+    'Tableta dispersable',
+    'Tableta masticable',
+    'Tableta sublingual',
+    'Tableta bucodispersable',
+    'Cápsula dura',
+    'Cápsula blanda',
+    'Cápsula de liberación prolongada',
     'Comprimido',
+    'Gragea',
+    'Pastilla',
+    'Liofilizado oral',
+    'Polvo para suspensión oral',
+    'Granulado',
+    'Granulado efervescente',
+    'Sobre / Sachet',
+    // --- LÍQUIDOS ORALES ---
     'Jarabe',
-    'Suspensión',
-    'Solución',
-    'Inyectable',
+    'Suspensión oral',
+    'Solución oral',
+    'Elixir',
+    'Emulsión oral',
+    'Gotas orales',
+    // --- INYECTABLES ---
     'Ampolla',
+    'Vial',
+    'Solución inyectable',
+    'Suspensión inyectable',
+    'Emulsión inyectable',
+    'Polvo para reconstituir (inyectable)',
+    'Liofilizado para inyección',
+    'Jeringa prellenada',
+    'Cartucho / Carpule',
+    // --- INFUSIÓN ---
+    'Solución para infusión IV',
+    'Bolsa para infusión',
+    'Concentrado para solución',
+    // --- TÓPICOS ---
     'Crema',
+    'Crema vaginal',
     'Gel',
+    'Gel oftálmico',
     'Ungüento',
     'Pomada',
-    'Gotas',
-    'Spray',
-    'Parche',
+    'Loción',
+    'Emulsión tópica',
+    'Solución tópica',
+    'Espuma',
+    'Pasta',
+    'Polvo tópico',
+    // --- TRANSDÉRMICOS ---
+    'Parche transdérmico',
+    'Sistema transdérmico',
+    // --- OFTÁLMICOS ---
+    'Gotas oftálmicas',
+    'Colirio',
+    'Suspensión oftálmica',
+    'Solución oftálmica',
+    'Ungüento oftálmico',
+    'Implante oftálmico',
+    // --- ÓTICOS ---
+    'Gotas óticas',
+    'Solución ótica',
+    // --- NASALES ---
+    'Spray nasal',
+    'Gotas nasales',
+    'Solución nasal',
+    'Gel nasal',
+    // --- RESPIRATORIOS ---
+    'Inhalador presurizado (MDI)',
+    'Inhalador de polvo seco (DPI)',
+    'Solución para nebulización',
+    'Cápsula para inhalación',
+    'Aerosol',
+    // --- RECTALES ---
     'Supositorio',
-    'Óvulo',
-    'Polvo',
-    'Granulado',
-    'Inhalador',
+    'Enema',
+    'Espuma rectal',
+    'Solución rectal',
+    // --- VAGINALES ---
+    'Óvulo vaginal',
+    'Tableta vaginal',
+    'Anillo vaginal',
+    'Espuma vaginal',
+    // --- ESPECIALES ---
+    'Implante subcutáneo',
+    'Dispositivo intrauterino (DIU)',
+    'Película bucodispersable',
+    'Chicle medicado',
   ];
 
+  // ==========================================
+  // UNIDADES DE MEDIDA
+  // ==========================================
   const unidadesMedida = [
-    'mg', 'g', 'kg',
-    'ml', 'L',
-    'UI', 'mcg',
-    '%', 'mg/ml',
-    'Unidad', 'Tableta', 'Cápsula',
+    // Masa
+    'mcg (microgramos)',
+    'mg (miligramos)',
+    'g (gramos)',
+    'kg (kilogramos)',
+    // Volumen
+    'ml (mililitros)',
+    'L (litros)',
+    'cc (centímetros cúbicos)',
+    // Concentración
+    'mg/ml',
+    'mg/g',
+    'mcg/ml',
+    'g/L',
+    '%',
+    '% p/v',
+    '% p/p',
+    // Actividad biológica
+    'UI (Unidades Internacionales)',
+    'U (Unidades)',
+    'mUI',
+    'MUI (Millones UI)',
+    // Conteo
+    'Tableta',
+    'Cápsula',
+    'Ampolla',
+    'Sobre',
+    'Unidad',
+    'Dosis',
+    'Aplicación',
+    'Puff',
+    'Gota',
+    // Otros
+    'mEq (miliequivalentes)',
+    'mmol (milimoles)',
   ];
 
+  // ==========================================
+  // TIPO DE MEDICAMENTO CONTROLADO (Colombia)
+  // Según Resolución 1478 de 2006 y actualizaciones
+  // ==========================================
   const tiposControlado = [
-    { value: 'I', label: 'Grupo I - Alto riesgo de abuso' },
-    { value: 'II', label: 'Grupo II - Riesgo medio-alto' },
-    { value: 'III', label: 'Grupo III - Riesgo moderado' },
-    { value: 'IV', label: 'Grupo IV - Riesgo bajo' },
+    { value: 'I', label: 'Monopolio del Estado - Sin uso médico (Ej: Heroína, LSD)' },
+    { value: 'II', label: 'Receta Oficial - Alto potencial abuso (Ej: Morfina, Fentanilo, Metadona)' },
+    { value: 'III', label: 'Receta Oficial - Potencial moderado (Ej: Buprenorfina, Ketamina)' },
+    { value: 'IV', label: 'Fórmula Médica Vigilada (Ej: Benzodiacepinas, Tramadol, Zolpidem)' },
+    { value: 'V', label: 'Venta Libre Controlada - Bajo potencial (Ej: Codeína < 10mg)' },
+  ];
+
+  // ==========================================
+  // CLASIFICACIÓN RIESGO EN EMBARAZO (FDA/TGA)
+  // ==========================================
+  const riesgoEmbarazo = [
+    { value: 'A', label: 'Categoría A - Estudios controlados no muestran riesgo' },
+    { value: 'B', label: 'Categoría B - Sin evidencia de riesgo en humanos' },
+    { value: 'C', label: 'Categoría C - No puede descartarse el riesgo' },
+    { value: 'D', label: 'Categoría D - Evidencia positiva de riesgo' },
+    { value: 'X', label: 'Categoría X - Contraindicado en embarazo' },
+    { value: 'N', label: 'No clasificado' },
   ];
 
   useEffect(() => {
@@ -151,16 +321,28 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
           codigoAtc: editingProducto.codigoAtc || '',
           cum: editingProducto.cum || '',
           registroSanitario: editingProducto.registroSanitario || '',
+          // Nuevos campos farmacológicos
+          posologiaRecomendada: editingProducto.posologiaRecomendada || '',
+          indicaciones: editingProducto.indicaciones || '',
+          contraindicaciones: editingProducto.contraindicaciones || '',
+          efectosAdversos: editingProducto.efectosAdversos || '',
+          interacciones: editingProducto.interacciones || '',
+          riesgoEmbarazo: editingProducto.riesgoEmbarazo || '',
 
           // Control y Regulación
           requiereReceta: editingProducto.requiereReceta || false,
           controlado: editingProducto.controlado || false,
           tipoControlado: editingProducto.tipoControlado || '',
+          medicamentoAltoRiesgo: editingProducto.medicamentoAltoRiesgo || false,
+          medicamentoLASA: editingProducto.medicamentoLASA || false,
 
           // Almacenamiento
           temperaturaAlmacenamiento: editingProducto.temperaturaAlmacenamiento || '',
           requiereCadenaFrio: editingProducto.requiereCadenaFrio || false,
+          protegerLuz: editingProducto.protegerLuz || false,
+          protegerHumedad: editingProducto.protegerHumedad || false,
           ubicacionAlmacen: editingProducto.ubicacionAlmacen || '',
+          condicionesEspeciales: editingProducto.condicionesEspeciales || '',
 
           // Inventario
           cantidadTotal: editingProducto.cantidadTotal?.toString() || '',
@@ -169,6 +351,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
           cantidadMaxAlerta: editingProducto.cantidadMaxAlerta?.toString() || '',
           lote: editingProducto.lote || '',
           fechaVencimiento: editingProducto.fechaVencimiento ? editingProducto.fechaVencimiento.slice(0, 16) : '',
+          puntoReorden: editingProducto.puntoReorden?.toString() || '',
 
           // Precios
           precioVenta: editingProducto.precioVenta?.toString() || '',
@@ -234,16 +417,27 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
       codigoAtc: '',
       cum: '',
       registroSanitario: '',
+      posologiaRecomendada: '',
+      indicaciones: '',
+      contraindicaciones: '',
+      efectosAdversos: '',
+      interacciones: '',
+      riesgoEmbarazo: '',
 
       // Control y Regulación
       requiereReceta: false,
       controlado: false,
       tipoControlado: '',
+      medicamentoAltoRiesgo: false,
+      medicamentoLASA: false,
 
       // Almacenamiento
       temperaturaAlmacenamiento: '',
       requiereCadenaFrio: false,
+      protegerLuz: false,
+      protegerHumedad: false,
       ubicacionAlmacen: '',
+      condicionesEspeciales: '',
 
       // Inventario
       cantidadTotal: '',
@@ -252,6 +446,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
       cantidadMaxAlerta: '',
       lote: '',
       fechaVencimiento: '',
+      puntoReorden: '',
 
       // Precios
       precioVenta: '',
@@ -507,8 +702,11 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
 
           {/* SECCIÓN 2: Información Farmacológica */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Información Farmacológica</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <h3 className="text-lg font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+              Información Farmacológica
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label className="text-sm font-semibold">Principio Activo</Label>
                 <Input
@@ -533,7 +731,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Seleccionar..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60">
                     {formasFarmaceuticas.map(forma => (
                       <SelectItem key={forma} value={forma}>{forma}</SelectItem>
                     ))}
@@ -546,7 +744,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Seleccionar..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60">
                     {unidadesMedida.map(unidad => (
                       <SelectItem key={unidad} value={unidad}>{unidad}</SelectItem>
                     ))}
@@ -559,7 +757,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                   <SelectTrigger className="mt-2">
                     <SelectValue placeholder="Seleccionar..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60">
                     {viasAdministracion.map(via => (
                       <SelectItem key={via} value={via}>{via}</SelectItem>
                     ))}
@@ -585,7 +783,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                 />
               </div>
               <div>
-                <Label className="text-sm font-semibold">CUM (Código Único de Medicamento)</Label>
+                <Label className="text-sm font-semibold">CUM (Código Único)</Label>
                 <Input
                   value={formData.cum}
                   onChange={(e) => setFormData({ ...formData, cum: e.target.value })}
@@ -594,7 +792,7 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                 />
               </div>
               <div>
-                <Label className="text-sm font-semibold">Registro Sanitario</Label>
+                <Label className="text-sm font-semibold">Registro INVIMA</Label>
                 <Input
                   value={formData.registroSanitario}
                   onChange={(e) => setFormData({ ...formData, registroSanitario: e.target.value })}
@@ -602,6 +800,164 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                   placeholder="Ej: INVIMA 2024M-0001234"
                 />
               </div>
+            </div>
+          </div>
+
+          {/* SECCIÓN 3: Información Clínica */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              Información Clínica
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm font-semibold">Posología Recomendada</Label>
+                <Textarea
+                  value={formData.posologiaRecomendada}
+                  onChange={(e) => setFormData({ ...formData, posologiaRecomendada: e.target.value })}
+                  className="mt-2"
+                  rows={2}
+                  placeholder="Ej: Adultos: 500mg cada 6-8 horas. Máximo 4g/día"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Indicaciones</Label>
+                <Textarea
+                  value={formData.indicaciones}
+                  onChange={(e) => setFormData({ ...formData, indicaciones: e.target.value })}
+                  className="mt-2"
+                  rows={2}
+                  placeholder="Ej: Dolor leve a moderado, fiebre"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-amber-700">Contraindicaciones</Label>
+                <Textarea
+                  value={formData.contraindicaciones}
+                  onChange={(e) => setFormData({ ...formData, contraindicaciones: e.target.value })}
+                  className="mt-2 border-amber-200 focus:border-amber-400"
+                  rows={2}
+                  placeholder="Ej: Hipersensibilidad al principio activo, insuficiencia hepática grave"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold text-red-700">Interacciones Medicamentosas</Label>
+                <Textarea
+                  value={formData.interacciones}
+                  onChange={(e) => setFormData({ ...formData, interacciones: e.target.value })}
+                  className="mt-2 border-red-200 focus:border-red-400"
+                  rows={2}
+                  placeholder="Ej: Warfarina (aumenta efecto anticoagulante), Alcohol"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Efectos Adversos</Label>
+                <Textarea
+                  value={formData.efectosAdversos}
+                  onChange={(e) => setFormData({ ...formData, efectosAdversos: e.target.value })}
+                  className="mt-2"
+                  rows={2}
+                  placeholder="Ej: Náuseas, erupciones cutáneas, hepatotoxicidad (dosis altas)"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Riesgo en Embarazo</Label>
+                <Select value={formData.riesgoEmbarazo} onValueChange={(value) => setFormData({ ...formData, riesgoEmbarazo: value })}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Seleccionar categoría..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {riesgoEmbarazo.map(cat => (
+                      <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* SECCIÓN 4: Control y Regulación */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+              Control y Regulación
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="flex items-center space-x-2 p-3 rounded-lg border bg-gray-50">
+                <Checkbox
+                  id="requiereReceta"
+                  checked={formData.requiereReceta}
+                  onCheckedChange={(checked) => setFormData({ ...formData, requiereReceta: checked })}
+                />
+                <label htmlFor="requiereReceta" className="text-sm font-medium cursor-pointer">
+                  Requiere Receta
+                </label>
+              </div>
+              <div className="flex items-center space-x-2 p-3 rounded-lg border bg-gray-50">
+                <Checkbox
+                  id="controlado"
+                  checked={formData.controlado}
+                  onCheckedChange={(checked) => setFormData({ ...formData, controlado: checked, tipoControlado: checked ? formData.tipoControlado : '' })}
+                />
+                <label htmlFor="controlado" className="text-sm font-medium cursor-pointer">
+                  Controlado
+                </label>
+              </div>
+              <div className="flex items-center space-x-2 p-3 rounded-lg border bg-amber-50 border-amber-200">
+                <Checkbox
+                  id="medicamentoAltoRiesgo"
+                  checked={formData.medicamentoAltoRiesgo}
+                  onCheckedChange={(checked) => setFormData({ ...formData, medicamentoAltoRiesgo: checked })}
+                />
+                <label htmlFor="medicamentoAltoRiesgo" className="text-sm font-medium cursor-pointer text-amber-800">
+                  Alto Riesgo
+                </label>
+              </div>
+              <div className="flex items-center space-x-2 p-3 rounded-lg border bg-purple-50 border-purple-200">
+                <Checkbox
+                  id="medicamentoLASA"
+                  checked={formData.medicamentoLASA}
+                  onCheckedChange={(checked) => setFormData({ ...formData, medicamentoLASA: checked })}
+                />
+                <label htmlFor="medicamentoLASA" className="text-sm font-medium cursor-pointer text-purple-800">
+                  LASA
+                </label>
+              </div>
+            </div>
+            {formData.controlado && (
+              <div>
+                <Label className="text-sm font-semibold text-red-700">Tipo de Control (Resolución 1478)</Label>
+                <Select value={formData.tipoControlado} onValueChange={(value) => setFormData({ ...formData, tipoControlado: value })}>
+                  <SelectTrigger className="mt-2 border-red-200">
+                    <SelectValue placeholder="Seleccionar grupo de control..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposControlado.map(tipo => (
+                      <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {formData.medicamentoAltoRiesgo && (
+              <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                <strong>Medicamento de Alto Riesgo:</strong> Requiere doble verificación antes de administrar. Incluye: anticoagulantes, insulinas, opioides, quimioterapéuticos, electrolitos concentrados.
+              </div>
+            )}
+            {formData.medicamentoLASA && (
+              <div className="p-3 rounded-lg bg-purple-50 border border-purple-200 text-sm text-purple-800">
+                <strong>LASA (Look-Alike Sound-Alike):</strong> Medicamento con nombre o apariencia similar a otros. Requiere etiquetado diferenciado y almacenamiento separado.
+              </div>
+            )}
+          </div>
+
+          {/* SECCIÓN 5: Almacenamiento */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-cyan-500 rounded-full"></span>
+              Almacenamiento
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-semibold">Temperatura de Almacenamiento</Label>
                 <Select value={formData.temperaturaAlmacenamiento} onValueChange={(value) => setFormData({ ...formData, temperaturaAlmacenamiento: value })}>
@@ -624,59 +980,57 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                   placeholder="Ej: Estante A3, Nivel 2"
                 />
               </div>
-              <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="requiereReceta"
-                    checked={formData.requiereReceta}
-                    onCheckedChange={(checked) => setFormData({ ...formData, requiereReceta: checked })}
-                  />
-                  <label htmlFor="requiereReceta" className="text-sm font-medium cursor-pointer">
-                    Requiere Receta
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="controlado"
-                    checked={formData.controlado}
-                    onCheckedChange={(checked) => setFormData({ ...formData, controlado: checked, tipoControlado: checked ? formData.tipoControlado : '' })}
-                  />
-                  <label htmlFor="controlado" className="text-sm font-medium cursor-pointer">
-                    Controlado
-                  </label>
-                </div>
-                <div className="flex items-center space-x-2">
+              <div className="md:col-span-2">
+                <Label className="text-sm font-semibold">Condiciones Especiales</Label>
+                <Textarea
+                  value={formData.condicionesEspeciales}
+                  onChange={(e) => setFormData({ ...formData, condicionesEspeciales: e.target.value })}
+                  className="mt-2"
+                  rows={2}
+                  placeholder="Ej: Almacenar en envase original, proteger de la luz directa, mantener alejado de fuentes de calor"
+                />
+              </div>
+              <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2 p-3 rounded-lg border bg-blue-50 border-blue-200">
                   <Checkbox
                     id="requiereCadenaFrio"
                     checked={formData.requiereCadenaFrio}
                     onCheckedChange={(checked) => setFormData({ ...formData, requiereCadenaFrio: checked })}
                   />
-                  <label htmlFor="requiereCadenaFrio" className="text-sm font-medium cursor-pointer">
+                  <label htmlFor="requiereCadenaFrio" className="text-sm font-medium cursor-pointer text-blue-800">
                     Cadena de Frío
                   </label>
                 </div>
-              </div>
-              {formData.controlado && (
-                <div className="md:col-span-2">
-                  <Label className="text-sm font-semibold">Tipo de Control</Label>
-                  <Select value={formData.tipoControlado} onValueChange={(value) => setFormData({ ...formData, tipoControlado: value })}>
-                    <SelectTrigger className="mt-2">
-                      <SelectValue placeholder="Seleccionar grupo de control..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tiposControlado.map(tipo => (
-                        <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="flex items-center space-x-2 p-3 rounded-lg border bg-yellow-50 border-yellow-200">
+                  <Checkbox
+                    id="protegerLuz"
+                    checked={formData.protegerLuz}
+                    onCheckedChange={(checked) => setFormData({ ...formData, protegerLuz: checked })}
+                  />
+                  <label htmlFor="protegerLuz" className="text-sm font-medium cursor-pointer text-yellow-800">
+                    Proteger de la Luz
+                  </label>
                 </div>
-              )}
+                <div className="flex items-center space-x-2 p-3 rounded-lg border bg-teal-50 border-teal-200">
+                  <Checkbox
+                    id="protegerHumedad"
+                    checked={formData.protegerHumedad}
+                    onCheckedChange={(checked) => setFormData({ ...formData, protegerHumedad: checked })}
+                  />
+                  <label htmlFor="protegerHumedad" className="text-sm font-medium cursor-pointer text-teal-800">
+                    Proteger de Humedad
+                  </label>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* SECCIÓN 3: Inventario y Lote */}
+          {/* SECCIÓN 6: Inventario y Lote */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Inventario y Lote</h3>
+            <h3 className="text-lg font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+              Inventario y Lote
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <Label className="text-sm font-semibold">Cantidad Total *</Label>
@@ -743,9 +1097,12 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
             </div>
           </div>
 
-          {/* SECCIÓN 4: Precios */}
+          {/* SECCIÓN 7: Precios */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Precios</h3>
+            <h3 className="text-lg font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-emerald-500 rounded-full"></span>
+              Precios
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label className="text-sm font-semibold">Precio de Venta *</Label>
@@ -786,9 +1143,12 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
             </div>
           </div>
 
-          {/* SECCIÓN 5: Imagen */}
+          {/* SECCIÓN 8: Imagen */}
           <div className="space-y-4">
-            <h3 className="text-lg font-bold text-gray-900 border-b pb-2">Imagen del Producto</h3>
+            <h3 className="text-lg font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
+              <span className="w-2 h-2 bg-pink-500 rounded-full"></span>
+              Imagen del Producto
+            </h3>
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <div className="flex-1">

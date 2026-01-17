@@ -208,7 +208,7 @@ export default function FormularioMotivoConsulta({ data, onChange }) {
         <div className="flex items-start gap-3">
           <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
           <div>
-            <h4 className="text-sm font-medium text-yellow-900">Importante - Primera Consulta</h4>
+            <h4 className="text-sm font-medium text-yellow-900">Importante</h4>
             <p className="text-sm text-yellow-800 mt-1">
               Esta información es fundamental para establecer el historial clínico inicial del paciente.
               Sea lo más detallado y preciso posible, ya que servirá de referencia para consultas futuras.

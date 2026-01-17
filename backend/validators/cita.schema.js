@@ -31,6 +31,10 @@ const baseCitaSchema = z.object({
   estado_pago: z.enum(['Pendiente', 'Parcial', 'Pagado', 'Cancelado', 'Vencida']).optional(),
   cubierto_por_eps: z.boolean().optional(),
 
+  // Campos para transferencia bancaria
+  banco_destino: z.string().optional().nullable(),
+  numero_referencia: z.string().optional().nullable(),
+
   // Campos para citas de emergencia
   es_emergencia: z.boolean().default(false),
   motivo_emergencia: z.string().max(500, { message: 'El motivo de emergencia no puede exceder 500 caracteres' }).optional().nullable(),

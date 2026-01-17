@@ -24,12 +24,68 @@ export default function FormularioRemisiones({ onChange, data, diagnosticoConsul
   const [especialidades, setEspecialidades] = useState([]);
   const [loadingEspecialidades, setLoadingEspecialidades] = useState(false);
 
+  // Construir motivo inicial con diagnóstico principal
+  const buildMotivoInicial = (diagnostico) => {
+    if (!diagnostico?.principal) return '';
+    const { codigoCIE10, descripcionCIE10, descripcion } = diagnostico.principal;
+    if (codigoCIE10 && descripcionCIE10) {
+      return `${codigoCIE10} - ${descripcionCIE10}`;
+    }
+    return descripcion || descripcionCIE10 || '';
+  };
+
+  // Obtener el prefijo del diagnóstico (texto que no se puede borrar parcialmente)
+  const diagnosticoPrefijo = buildMotivoInicial(diagnosticoConsulta);
+
+  // Manejar cambios en el motivo - no permitir borrado parcial del diagnóstico
+  const handleMotivoChange = (nuevoValor) => {
+    // Si hay un diagnóstico pre-cargado
+    if (diagnosticoPrefijo) {
+      // Si el nuevo valor es más corto que el prefijo y no está vacío
+      // significa que están intentando borrar parte del diagnóstico
+      if (nuevoValor.length < diagnosticoPrefijo.length && nuevoValor.length > 0) {
+        // Si están borrando desde el principio, borrar todo el prefijo
+        if (!nuevoValor.startsWith(diagnosticoPrefijo.substring(0, nuevoValor.length))) {
+          // Borrar todo - el usuario quiere eliminar el diagnóstico
+          setRemisionActual(prev => ({ ...prev, motivoConsulta: '' }));
+          return;
+        }
+        // Están borrando del final del prefijo, borrar todo el prefijo
+        setRemisionActual(prev => ({ ...prev, motivoConsulta: '' }));
+        return;
+      }
+
+      // Si borraron todo, permitirlo
+      if (nuevoValor === '') {
+        setRemisionActual(prev => ({ ...prev, motivoConsulta: '' }));
+        return;
+      }
+
+      // Si el nuevo valor no empieza con el prefijo y no es una adición
+      // (es decir, están editando el medio del diagnóstico)
+      if (!nuevoValor.startsWith(diagnosticoPrefijo) &&
+          remisionActual.motivoConsulta.startsWith(diagnosticoPrefijo)) {
+        // Borrar todo el prefijo y dejar solo lo que agregaron después
+        const textoAdicional = remisionActual.motivoConsulta.substring(diagnosticoPrefijo.length);
+        if (nuevoValor.length <= textoAdicional.length) {
+          setRemisionActual(prev => ({ ...prev, motivoConsulta: nuevoValor }));
+        } else {
+          setRemisionActual(prev => ({ ...prev, motivoConsulta: '' }));
+        }
+        return;
+      }
+    }
+
+    // Permitir el cambio normal
+    setRemisionActual(prev => ({ ...prev, motivoConsulta: nuevoValor }));
+  };
+
   const [remisionActual, setRemisionActual] = useState({
     especialidadId: '',
     especialidadNombre: '',
-    motivoConsulta: '',
+    motivoConsulta: buildMotivoInicial(diagnosticoConsulta),
     antecedentesRelevantes: '',
-    diagnosticoPresuntivo: diagnosticoConsulta?.principal?.descripcion || '',
+    diagnosticoPresuntivo: diagnosticoConsulta?.principal?.descripcion || diagnosticoConsulta?.principal?.descripcionCIE10 || '',
     prioridad: 'Media',
     observaciones: '',
   });
@@ -39,12 +95,21 @@ export default function FormularioRemisiones({ onChange, data, diagnosticoConsul
     cargarEspecialidades();
   }, []);
 
-  // Actualizar diagnóstico presuntivo cuando cambie el diagnóstico de la consulta
+  // Actualizar motivo y diagnóstico presuntivo cuando cambie el diagnóstico de la consulta
   useEffect(() => {
-    if (diagnosticoConsulta?.principal?.descripcion && !remisionActual.diagnosticoPresuntivo) {
+    if (diagnosticoConsulta?.principal) {
+      const nuevoMotivo = buildMotivoInicial(diagnosticoConsulta);
+      const nuevoDiagnostico = diagnosticoConsulta.principal.descripcion || diagnosticoConsulta.principal.descripcionCIE10 || '';
+
       setRemisionActual(prev => ({
         ...prev,
-        diagnosticoPresuntivo: diagnosticoConsulta.principal.descripcion
+        // Solo actualizar si el campo está vacío o tiene el valor anterior del diagnóstico
+        motivoConsulta: !prev.motivoConsulta || prev.motivoConsulta.match(/^[A-Z]\d{2}/)
+          ? nuevoMotivo
+          : prev.motivoConsulta,
+        diagnosticoPresuntivo: !prev.diagnosticoPresuntivo
+          ? nuevoDiagnostico
+          : prev.diagnosticoPresuntivo,
       }));
     }
   }, [diagnosticoConsulta]);
@@ -126,13 +191,13 @@ Prioridad: ${remisionActual.prioridad}
     setRemisiones(nuevasRemisiones);
     onChange(nuevasRemisiones, true);
 
-    // Reset formulario
+    // Reset formulario con diagnóstico pre-llenado
     setRemisionActual({
       especialidadId: '',
       especialidadNombre: '',
-      motivoConsulta: '',
+      motivoConsulta: buildMotivoInicial(diagnosticoConsulta),
       antecedentesRelevantes: '',
-      diagnosticoPresuntivo: diagnosticoConsulta?.principal?.descripcion || '',
+      diagnosticoPresuntivo: diagnosticoConsulta?.principal?.descripcion || diagnosticoConsulta?.principal?.descripcionCIE10 || '',
       prioridad: 'Media',
       observaciones: '',
     });
@@ -297,15 +362,45 @@ Prioridad: ${remisionActual.prioridad}
 
               {/* Motivo de la remisión */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Motivo de la Remisión <span className="text-red-500">*</span>
-                </Label>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <Label className="text-sm font-medium">
+                    Motivo de la Remisión <span className="text-red-500">*</span>
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    {/* Botón para restaurar diagnóstico si fue borrado */}
+                    {diagnosticoPrefijo && !remisionActual.motivoConsulta.startsWith(diagnosticoPrefijo) && (
+                      <button
+                        type="button"
+                        onClick={() => setRemisionActual(prev => ({
+                          ...prev,
+                          motivoConsulta: diagnosticoPrefijo + (prev.motivoConsulta ? '\n' + prev.motivoConsulta : '')
+                        }))}
+                        className="text-xs text-purple-600 hover:text-purple-800 hover:underline flex items-center gap-1 bg-purple-50 px-2 py-1 rounded border border-purple-200"
+                        title="Click para restaurar el diagnóstico"
+                      >
+                        <Plus className="h-3 w-3" />
+                        Dx: {diagnosticoPrefijo.length > 30 ? diagnosticoPrefijo.substring(0, 30) + '...' : diagnosticoPrefijo}
+                      </button>
+                    )}
+                    {diagnosticoConsulta?.principal?.codigoCIE10 && remisionActual.motivoConsulta.startsWith(diagnosticoPrefijo) && (
+                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-300">
+                        Dx principal incluido
+                      </Badge>
+                    )}
+                  </div>
+                </div>
                 <Textarea
                   value={remisionActual.motivoConsulta}
-                  onChange={(e) => setRemisionActual({ ...remisionActual, motivoConsulta: e.target.value })}
+                  onChange={(e) => handleMotivoChange(e.target.value)}
                   placeholder="Describa el motivo por el cual remite al paciente a esta especialidad..."
                   className="bg-white min-h-[80px]"
                 />
+                <p className="text-xs text-gray-500">
+                  {diagnosticoPrefijo
+                    ? 'El diagnóstico principal se carga automáticamente. Puede agregar información adicional o borrar todo para escribir manualmente.'
+                    : 'Describa el motivo de la remisión.'
+                  }
+                </p>
               </div>
 
               {/* Diagnóstico presuntivo */}

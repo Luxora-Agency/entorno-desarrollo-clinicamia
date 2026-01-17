@@ -1,24 +1,37 @@
 'use client';
 
-import { 
-  TrendingUp, TrendingDown, DollarSign, Package, 
+import { useEffect } from 'react';
+import {
+  TrendingUp, TrendingDown, DollarSign, Package,
   ShoppingCart, AlertCircle, Calendar, ArrowUpRight,
-  ArrowDownRight, Star, RefreshCw
+  ArrowDownRight, Star, RefreshCw, Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useDrogueria } from '@/hooks/useDrogueria';
 import { formatDateLong } from '@/lib/dateUtils';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer 
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer
 } from 'recharts';
 
 export default function DashboardDrogueria({ user }) {
-  const { dashboardStats, fetchDashboardStats, loading } = useDrogueria();
+  const { dashboardStats, fetchDashboardStats, loading, cajaActiva, fetchCajaActiva } = useDrogueria();
 
-  if (!dashboardStats) return null;
+  useEffect(() => {
+    fetchDashboardStats();
+    fetchCajaActiva();
+  }, [fetchDashboardStats, fetchCajaActiva]);
+
+  if (loading || !dashboardStats) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-400">
+        <Loader2 className="w-8 h-8 animate-spin mr-3" />
+        Cargando datos del dashboard...
+      </div>
+    );
+  }
 
   // Mock trend data for UI purposes based on real today sales
   const trendData = [

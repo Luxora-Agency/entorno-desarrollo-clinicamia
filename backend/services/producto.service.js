@@ -66,6 +66,36 @@ class ProductoService {
           OFFSET $3
         `, searchPattern, parseInt(limit), skip);
 
+        // Obtener las presentaciones de los productos encontrados
+        const productoIds = medicamentos.map(p => p.id);
+        const presentaciones = productoIds.length > 0
+          ? await prisma.productoPresentacion.findMany({
+              where: { productoId: { in: productoIds } },
+              orderBy: { concentracion: 'asc' },
+              select: {
+                id: true,
+                productoId: true,
+                nombre: true,
+                concentracion: true,
+                formaFarmaceutica: true,
+                cantidadUnidades: true,
+              }
+            })
+          : [];
+
+        // Agrupar presentaciones por productoId
+        const presentacionesPorProducto = presentaciones.reduce((acc, pres) => {
+          if (!acc[pres.productoId]) acc[pres.productoId] = [];
+          acc[pres.productoId].push({
+            id: pres.id,
+            nombre: pres.nombre,
+            concentracion: pres.concentracion,
+            formaFarmaceutica: pres.formaFarmaceutica,
+            cantidadUnidades: pres.cantidadUnidades,
+          });
+          return acc;
+        }, {});
+
         // Transformar resultados al formato esperado
         return medicamentos.map(p => ({
           id: p.id,
@@ -120,6 +150,10 @@ class ProductoService {
             nombre: p.categoria_nombre,
             colorHex: p.categoria_color
           } : null,
+
+          // Presentaciones
+          presentaciones: presentacionesPorProducto[p.id] || [],
+
           createdAt: p.created_at,
           updatedAt: p.updated_at
         }));
@@ -155,6 +189,16 @@ class ProductoService {
             where: { estado: 'activo' },
             orderBy: { fechaVencimiento: 'asc' },
             take: 5
+          },
+          presentaciones: {
+            orderBy: { concentracion: 'asc' },
+            select: {
+              id: true,
+              nombre: true,
+              concentracion: true,
+              formaFarmaceutica: true,
+              cantidadUnidades: true,
+            }
           }
         }
       }),

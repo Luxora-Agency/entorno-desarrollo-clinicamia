@@ -88,13 +88,67 @@ export function useOrdenesTienda() {
         toast.success(`Estado actualizado a ${estado}`);
         fetchOrdenes();
         fetchStats();
-        return true;
+        return response.data;
       }
       throw new Error(response.message);
     } catch (error) {
       console.error('Error updating status:', error);
       toast.error(error.message || 'Error al actualizar estado');
-      return false;
+      return null;
+    }
+  };
+
+  // Marcar como en proceso (descuenta stock)
+  const marcarProcesando = async (id, comentario = '') => {
+    try {
+      const response = await apiPost(`/ordenes-tienda/${id}/procesar`, { comentario });
+      if (response.success) {
+        toast.success('Orden marcada como en proceso');
+        fetchOrdenes();
+        fetchStats();
+        return response.data;
+      }
+      throw new Error(response.message);
+    } catch (error) {
+      console.error('Error processing order:', error);
+      toast.error(error.message || 'Error al procesar orden');
+      return null;
+    }
+  };
+
+  // Marcar como enviado
+  const marcarEnviado = async (id, datosEnvio) => {
+    try {
+      const response = await apiPost(`/ordenes-tienda/${id}/enviar`, datosEnvio);
+      if (response.success) {
+        toast.success('Orden marcada como enviada');
+        fetchOrdenes();
+        fetchStats();
+        return response.data;
+      }
+      throw new Error(response.message);
+    } catch (error) {
+      console.error('Error marking as shipped:', error);
+      toast.error(error.message || 'Error al marcar como enviado');
+      return null;
+    }
+  };
+
+  // Marcar como entregado
+  const marcarEntregado = async (id, comentario = '') => {
+    try {
+      const response = await apiPost(`/ordenes-tienda/${id}/entregar`, { comentario });
+      if (response.success) {
+        toast.success('Orden marcada como entregada');
+        fetchOrdenes();
+        fetchStats();
+        return response.data;
+      }
+      throw new Error(response.message);
+    } catch (error) {
+      console.error('Error marking as delivered:', error);
+      toast.error(error.message || 'Error al marcar como entregado');
+      return null;
     }
   };
 
@@ -104,13 +158,13 @@ export function useOrdenesTienda() {
       if (response.success) {
         toast.success('Información de envío actualizada');
         fetchOrdenes();
-        return true;
+        return response.data;
       }
       throw new Error(response.message);
     } catch (error) {
       console.error('Error updating shipping:', error);
       toast.error(error.message || 'Error al actualizar envío');
-      return false;
+      return null;
     }
   };
 
@@ -119,13 +173,13 @@ export function useOrdenesTienda() {
       const response = await apiPost(`/ordenes-tienda/${id}/notas`, { nota });
       if (response.success) {
         toast.success('Nota agregada');
-        return true;
+        return response.data;
       }
       throw new Error(response.message);
     } catch (error) {
       console.error('Error adding note:', error);
       toast.error(error.message || 'Error al agregar nota');
-      return false;
+      return null;
     }
   };
 
@@ -136,13 +190,13 @@ export function useOrdenesTienda() {
         toast.success('Orden cancelada');
         fetchOrdenes();
         fetchStats();
-        return true;
+        return response.data;
       }
       throw new Error(response.message);
     } catch (error) {
       console.error('Error canceling order:', error);
       toast.error(error.message || 'Error al cancelar orden');
-      return false;
+      return null;
     }
   };
 
@@ -165,6 +219,9 @@ export function useOrdenesTienda() {
     setPage,
     getOrden,
     updateEstado,
+    marcarProcesando,
+    marcarEnviado,
+    marcarEntregado,
     updateEnvio,
     addNota,
     cancelarOrden,

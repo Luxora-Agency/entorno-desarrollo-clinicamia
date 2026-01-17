@@ -414,9 +414,17 @@ Contáctanos:
   }
 
   /**
-   * Envía email de confirmación de cita (pago aprobado)
+   * Envía email de confirmación de cita con resumen de pago
+   * @param {Object} params - Parámetros del email
+   * @param {string} params.to - Email del destinatario
+   * @param {Object} params.paciente - Datos del paciente { nombre, apellido }
+   * @param {Object} params.cita - Datos de la cita { fecha, hora, motivo }
+   * @param {Object} params.doctor - Datos del doctor { nombre, apellido } (opcional)
+   * @param {string} params.especialidad - Nombre de la especialidad
+   * @param {Object} params.factura - Datos de la factura (opcional, para compatibilidad)
+   * @param {Object} params.pago - Resumen del pago { monto, metodoPago, estadoPago, bancoDestino, numeroReferencia }
    */
-  async sendAppointmentConfirmation({ to, paciente, cita, doctor, especialidad, factura }) {
+  async sendAppointmentConfirmation({ to, paciente, cita, doctor, especialidad, factura, pago }) {
     if (!this.isEnabled()) {
       console.warn('[Email] Servicio deshabilitado. Email de confirmación no enviado a:', to);
       return { success: false, error: 'Servicio de email no configurado' };
@@ -510,10 +518,33 @@ Contáctanos:
                 <tr>
                   <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
                     <span style="color: #6b7280; font-size: 13px;">🏥 ESPECIALIDAD</span><br>
-                    <span style="color: #1f2937; font-size: 16px; font-weight: 600;">${especialidad?.titulo || 'Consulta General'}</span>
+                    <span style="color: #1f2937; font-size: 16px; font-weight: 600;">${especialidad?.titulo || especialidad || 'Consulta General'}</span>
                   </td>
                 </tr>
-                ${factura ? `
+                ${pago ? `
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px;">💰 VALOR PAGADO</span><br>
+                    <span style="color: #53B896; font-size: 18px; font-weight: 700;">$${Number(pago.monto || 0).toLocaleString('es-CO')} COP</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px;">💳 MÉTODO DE PAGO</span><br>
+                    <span style="color: #1f2937; font-size: 16px; font-weight: 600;">${pago.metodoPago || 'Efectivo'}</span>
+                    ${pago.estadoPago ? `<span style="color: ${pago.estadoPago === 'Pagado' ? '#16a34a' : '#f59e0b'}; font-size: 12px; margin-left: 10px; padding: 2px 8px; background: ${pago.estadoPago === 'Pagado' ? '#dcfce7' : '#fef3c7'}; border-radius: 12px;">${pago.estadoPago}</span>` : ''}
+                  </td>
+                </tr>
+                ${pago.metodoPago === 'Transferencia' && (pago.bancoDestino || pago.numeroReferencia) ? `
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px;">🏦 DATOS DE TRANSFERENCIA</span><br>
+                    ${pago.bancoDestino ? `<span style="color: #1f2937; font-size: 14px;">Banco: ${pago.bancoDestino}</span><br>` : ''}
+                    ${pago.numeroReferencia ? `<span style="color: #1f2937; font-size: 14px;">Ref: ${pago.numeroReferencia}</span>` : ''}
+                  </td>
+                </tr>
+                ` : ''}
+                ` : (factura ? `
                 <tr>
                   <td style="padding: 10px 0;">
                     <span style="color: #6b7280; font-size: 13px;">💳 FACTURA</span><br>
@@ -521,7 +552,7 @@ Contáctanos:
                     <span style="color: #53B896; font-size: 14px; margin-left: 10px;">$${Number(factura.total).toLocaleString('es-CO')} COP</span>
                   </td>
                 </tr>
-                ` : ''}
+                ` : '')}
               </table>
             </td>
           </tr>
@@ -574,6 +605,20 @@ Contáctanos:
 </html>
     `;
 
+    // Construir sección de pago para texto plano
+    let pagoText = '';
+    if (pago) {
+      pagoText = `
+💰 Valor Pagado: $${Number(pago.monto || 0).toLocaleString('es-CO')} COP
+💳 Método de Pago: ${pago.metodoPago || 'Efectivo'} (${pago.estadoPago || 'Pendiente'})`;
+      if (pago.metodoPago === 'Transferencia') {
+        if (pago.bancoDestino) pagoText += `\n🏦 Banco: ${pago.bancoDestino}`;
+        if (pago.numeroReferencia) pagoText += `\n📋 Referencia: ${pago.numeroReferencia}`;
+      }
+    } else if (factura) {
+      pagoText = `💳 Factura: ${factura.numero} - $${Number(factura.total).toLocaleString('es-CO')} COP`;
+    }
+
     const text = `
 ¡Cita Confirmada! - Clínica Mía
 
@@ -584,8 +629,8 @@ Tu cita médica ha sido confirmada.
 📅 Fecha: ${fechaFormateada}
 🕐 Hora: ${horaFormateada}
 👨‍⚕️ Médico: ${nombreDoctor}
-🏥 Especialidad: ${especialidad?.titulo || 'Consulta General'}
-${factura ? `💳 Factura: ${factura.numero} - $${Number(factura.total).toLocaleString('es-CO')} COP` : ''}
+🏥 Especialidad: ${especialidad?.titulo || especialidad || 'Consulta General'}
+${pagoText}
 
 Recordatorios:
 - Llega 15 minutos antes de tu cita
@@ -3145,6 +3190,235 @@ Recuerda llegar 15 minutos antes de tu cita para el proceso de admisión.
     return this.send({
       to,
       subject: `✅ Pago Confirmado | $${totalFormateado} - Clínica Mía`,
+      html,
+      text
+    });
+  }
+
+  /**
+   * Envía factura de compra de Droguería
+   * @param {Object} params
+   * @param {string} params.to - Email del cliente
+   * @param {Object} params.venta - Datos de la venta
+   * @param {Array} params.items - Items de la venta
+   * @param {Object} params.vendedor - Datos del vendedor
+   */
+  async sendDrogueriaInvoice({ to, venta, items, vendedor }) {
+    if (!to || !to.includes('@')) {
+      console.log('[Email] Factura droguería no enviada: email inválido o no proporcionado');
+      return { success: false, error: 'Email no válido' };
+    }
+
+    const fechaVenta = new Date(venta.fechaVenta).toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: TIMEZONE_BOGOTA
+    });
+
+    const formatCurrency = (val) => `$${Number(val || 0).toLocaleString('es-CO')}`;
+
+    // Determinar métodos de pago usados
+    const metodosUsados = [];
+    if (venta.montoEfectivo > 0) metodosUsados.push(`Efectivo: ${formatCurrency(venta.montoEfectivo)}`);
+    if (venta.montoTarjeta > 0) metodosUsados.push(`Tarjeta: ${formatCurrency(venta.montoTarjeta)}`);
+    if (venta.montoTransferencia > 0) {
+      let transferText = `Transferencia: ${formatCurrency(venta.montoTransferencia)}`;
+      if (venta.bancoTransferencia) transferText += ` (${venta.bancoTransferencia})`;
+      if (venta.referenciaTransferencia) transferText += ` Ref: ${venta.referenciaTransferencia}`;
+      metodosUsados.push(transferText);
+    }
+    // Fallback al método principal si no hay desglose
+    if (metodosUsados.length === 0) {
+      metodosUsados.push(venta.metodoPago);
+    }
+
+    // Generar filas de items
+    const itemsHtml = items.map(item => `
+      <tr>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151;">
+          ${item.producto?.nombre || 'Producto'}
+          ${item.producto?.producto?.formaFarmaceutica ? `<br><span style="font-size: 11px; color: #6b7280;">${item.producto.producto.formaFarmaceutica} ${item.producto.producto.concentracion || ''}</span>` : ''}
+        </td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151; text-align: center;">${item.cantidad}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151; text-align: right;">${formatCurrency(item.precioUnitario)}</td>
+        <td style="padding: 12px 8px; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #374151; text-align: right; font-weight: 600;">${formatCurrency(item.subtotal)}</td>
+      </tr>
+    `).join('');
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Factura ${venta.numeroFactura}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <!-- Header -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%); padding: 30px 20px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0 0 5px; font-size: 24px; font-weight: 700;">Droguería Clínica Mía</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 0; font-size: 14px;">Comprobante de Compra</p>
+      </td>
+    </tr>
+
+    <!-- Invoice Number Badge -->
+    <tr>
+      <td style="padding: 25px 20px 15px; text-align: center;">
+        <div style="display: inline-block; background-color: #ecfdf5; border: 2px solid #10b981; border-radius: 8px; padding: 10px 25px;">
+          <span style="color: #059669; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Factura No.</span>
+          <span style="color: #047857; font-size: 20px; font-weight: 700; display: block; margin-top: 2px;">${venta.numeroFactura}</span>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Customer & Date Info -->
+    <tr>
+      <td style="padding: 0 20px 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding: 15px; background-color: #f9fafb; border-radius: 8px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td width="50%" style="vertical-align: top;">
+                    <p style="margin: 0 0 5px; font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 600;">Cliente</p>
+                    <p style="margin: 0; font-size: 15px; color: #111827; font-weight: 600;">${venta.clienteNombre || 'Consumidor Final'}</p>
+                    ${venta.clienteDocumento ? `<p style="margin: 3px 0 0; font-size: 13px; color: #4b5563;">CC: ${venta.clienteDocumento}</p>` : ''}
+                  </td>
+                  <td width="50%" style="vertical-align: top; text-align: right;">
+                    <p style="margin: 0 0 5px; font-size: 11px; color: #6b7280; text-transform: uppercase; font-weight: 600;">Fecha</p>
+                    <p style="margin: 0; font-size: 13px; color: #111827;">${fechaVenta}</p>
+                    <p style="margin: 5px 0 0; font-size: 12px; color: #6b7280;">Atendió: ${vendedor?.nombre || 'Vendedor'} ${vendedor?.apellido || ''}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Items Table -->
+    <tr>
+      <td style="padding: 0 20px 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr style="background-color: #f3f4f6;">
+              <th style="padding: 12px 8px; text-align: left; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #e5e7eb;">Producto</th>
+              <th style="padding: 12px 8px; text-align: center; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #e5e7eb;">Cant.</th>
+              <th style="padding: 12px 8px; text-align: right; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #e5e7eb;">P. Unit.</th>
+              <th style="padding: 12px 8px; text-align: right; font-size: 11px; font-weight: 600; color: #6b7280; text-transform: uppercase; border-bottom: 2px solid #e5e7eb;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Totals -->
+    <tr>
+      <td style="padding: 0 20px 25px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td width="50%"></td>
+            <td width="50%" style="background-color: #f9fafb; border-radius: 8px; padding: 15px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 5px 0; font-size: 13px; color: #6b7280;">Subtotal</td>
+                  <td style="padding: 5px 0; font-size: 13px; color: #374151; text-align: right;">${formatCurrency(venta.subtotal)}</td>
+                </tr>
+                ${venta.impuestos > 0 ? `
+                <tr>
+                  <td style="padding: 5px 0; font-size: 13px; color: #6b7280;">IVA</td>
+                  <td style="padding: 5px 0; font-size: 13px; color: #374151; text-align: right;">${formatCurrency(venta.impuestos)}</td>
+                </tr>
+                ` : ''}
+                ${venta.descuento > 0 ? `
+                <tr>
+                  <td style="padding: 5px 0; font-size: 13px; color: #dc2626;">Descuento</td>
+                  <td style="padding: 5px 0; font-size: 13px; color: #dc2626; text-align: right;">-${formatCurrency(venta.descuento)}</td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td colspan="2" style="border-top: 2px solid #e5e7eb; padding-top: 10px; margin-top: 10px;"></td>
+                </tr>
+                <tr>
+                  <td style="padding: 5px 0; font-size: 16px; color: #111827; font-weight: 700;">TOTAL</td>
+                  <td style="padding: 5px 0; font-size: 20px; color: #059669; text-align: right; font-weight: 700;">${formatCurrency(venta.total)}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Payment Method -->
+    <tr>
+      <td style="padding: 0 20px 25px;">
+        <div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 15px; border-radius: 0 8px 8px 0;">
+          <p style="margin: 0 0 5px; font-size: 11px; color: #1e40af; text-transform: uppercase; font-weight: 600;">Forma de Pago</p>
+          ${metodosUsados.map(m => `<p style="margin: 3px 0 0; font-size: 14px; color: #1e3a8a; font-weight: 500;">${m}</p>`).join('')}
+        </div>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #f9fafb; padding: 25px 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+        <p style="color: #10b981; font-size: 14px; font-weight: 600; margin: 0 0 10px;">¡Gracias por tu compra!</p>
+        <p style="color: #6b7280; font-size: 12px; margin: 0 0 5px;">Droguería Clínica Mía</p>
+        <p style="color: #9ca3af; font-size: 11px; margin: 0;">Tel: (1) 234-5678 | info@clinicamia.com</p>
+        <p style="color: #9ca3af; font-size: 10px; margin: 15px 0 0;">Este comprobante es un documento informativo. Conserve su factura física para cualquier reclamo.</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    // Texto plano alternativo
+    const itemsText = items.map(item =>
+      `- ${item.producto?.nombre || 'Producto'} x${item.cantidad} = ${formatCurrency(item.subtotal)}`
+    ).join('\n');
+
+    const text = `
+FACTURA DE COMPRA - DROGUERÍA CLÍNICA MÍA
+==========================================
+
+Factura No: ${venta.numeroFactura}
+Fecha: ${fechaVenta}
+
+Cliente: ${venta.clienteNombre || 'Consumidor Final'}
+${venta.clienteDocumento ? `Documento: ${venta.clienteDocumento}` : ''}
+
+DETALLE DE COMPRA:
+${itemsText}
+
+------------------------------------------
+Subtotal: ${formatCurrency(venta.subtotal)}
+${venta.impuestos > 0 ? `IVA: ${formatCurrency(venta.impuestos)}` : ''}
+${venta.descuento > 0 ? `Descuento: -${formatCurrency(venta.descuento)}` : ''}
+TOTAL: ${formatCurrency(venta.total)}
+
+Forma de pago: ${metodosUsados.join(' | ')}
+
+------------------------------------------
+¡Gracias por tu compra!
+Droguería Clínica Mía
+Tel: (1) 234-5678 | info@clinicamia.com
+    `;
+
+    return this.send({
+      to,
+      subject: `🧾 Factura ${venta.numeroFactura} - Droguería Clínica Mía | ${formatCurrency(venta.total)}`,
       html,
       text
     });

@@ -1125,10 +1125,17 @@ export default function DashboardDoctor({ user, onChangeAttentionType, onNavigat
                               </div>
                             )}
 
-                            {/* Avatar con iniciales */}
+                            {/* Avatar con foto o iniciales */}
                             <Avatar className={`h-12 w-12 ${
                               isActive ? 'ring-2 ring-green-500 ring-offset-2' : ''
                             } ${isEnEspera && waitTime > 30 ? 'ring-2 ring-amber-400 ring-offset-1' : ''}`}>
+                              {cita.paciente?.fotoUrl && (
+                                <AvatarImage
+                                  src={cita.paciente.fotoUrl}
+                                  alt={`${cita.paciente?.nombre} ${cita.paciente?.apellido}`}
+                                  className="object-cover"
+                                />
+                              )}
                               <AvatarFallback className={`font-semibold ${
                                 isActive ? 'bg-green-100 text-green-700' :
                                 waitTime > 45 ? 'bg-red-100 text-red-700' :
@@ -1213,28 +1220,25 @@ export default function DashboardDoctor({ user, onChangeAttentionType, onNavigat
                                 </Button>
                               )}
 
-                              {/* Menú de más opciones */}
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                                    <MoreVertical className="h-4 w-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Ver HCE
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <Phone className="h-4 w-4 mr-2" />
-                                    Llamar paciente
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem>
-                                    <MessageSquare className="h-4 w-4 mr-2" />
-                                    Enviar mensaje
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              {/* Botón Ver HCE */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                onClick={() => {
+                                  if (cita.paciente?.id && onNavigateModule) {
+                                    toast({
+                                      title: 'Historia Clínica',
+                                      description: `Abriendo HCE de ${cita.paciente.nombre} ${cita.paciente.apellido}`,
+                                    });
+                                    onNavigateModule('hce', { pacienteId: cita.paciente.id });
+                                  }
+                                }}
+                                title="Ver Historia Clínica"
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                <span className="text-xs">HCE</span>
+                              </Button>
                             </div>
                           </div>
                         </div>

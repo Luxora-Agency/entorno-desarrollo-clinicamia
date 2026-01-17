@@ -201,8 +201,14 @@ class CitaService {
 
   /**
    * Crear factura para una cita (dentro de una transacción)
+   * @param {Object} cita - La cita para la cual crear la factura
+   * @param {string} metodoPago - Método de pago (Efectivo, Tarjeta, Transferencia, EPS)
+   * @param {string} estadoPago - Estado del pago (Pendiente, Pagado, etc.)
+   * @param {boolean} cubiertoPorEPS - Si está cubierto por EPS
+   * @param {Object} datosTransferencia - Datos adicionales para transferencia { bancoDestino, numeroReferencia }
+   * @param {Object} tx - Transacción de Prisma
    */
-  async crearFacturaCita(cita, metodoPago = 'Efectivo', estadoPago = 'Pendiente', cubiertoPorEPS = false, tx = null) {
+  async crearFacturaCita(cita, metodoPago = 'Efectivo', estadoPago = 'Pendiente', cubiertoPorEPS = false, datosTransferencia = null, tx = null) {
     const client = tx || prisma;
     
     // Generar número de factura único
@@ -250,15 +256,23 @@ class CitaService {
 
     // Si está pagado, crear registro de pago
     if (estadoPago === 'Pagado') {
-      await client.pago.create({
-        data: {
-          facturaId: factura.id,
-          monto: total,
-          metodoPago: metodoPago === 'Transferencia' ? 'Transferencia' : 
-                     metodoPago === 'Tarjeta' ? 'Tarjeta' : 
-                     metodoPago === 'EPS' ? 'EPS' : 'Efectivo',
-        },
-      });
+      const pagoData = {
+        facturaId: factura.id,
+        monto: total,
+        metodoPago: metodoPago === 'Transferencia' ? 'Transferencia' :
+                   metodoPago === 'Tarjeta' ? 'Tarjeta' :
+                   metodoPago === 'EPS' ? 'EPS' : 'Efectivo',
+      };
+
+      // Agregar datos de transferencia si existen
+      if (metodoPago === 'Transferencia' && datosTransferencia) {
+        pagoData.referencia = datosTransferencia.numeroReferencia || null;
+        pagoData.observaciones = datosTransferencia.bancoDestino
+          ? `Banco destino: ${datosTransferencia.bancoDestino}`
+          : null;
+      }
+
+      await client.pago.create({ data: pagoData });
     }
 
     return factura;
@@ -423,7 +437,20 @@ class CitaService {
 
         // Crear factura automáticamente si es necesario (y si hay costo)
         if (validatedData.costo > 0) {
-          await this.crearFacturaCita(cita, validatedData.metodo_pago, validatedData.estado_pago, validatedData.cubierto_por_eps, tx);
+          // Preparar datos de transferencia si aplica
+          const datosTransferencia = validatedData.metodo_pago === 'Transferencia' ? {
+            bancoDestino: validatedData.banco_destino,
+            numeroReferencia: validatedData.numero_referencia,
+          } : null;
+
+          await this.crearFacturaCita(
+            cita,
+            validatedData.metodo_pago,
+            validatedData.estado_pago,
+            validatedData.cubierto_por_eps,
+            datosTransferencia,
+            tx
+          );
         }
 
         // Audit Log
@@ -439,7 +466,7 @@ class CitaService {
         return cita;
       });
 
-      // Enviar correo de confirmación de cita (fuera de la transacción)
+      // Enviar correo de confirmación de cita con resumen de pago (fuera de la transacción)
       try {
         // Obtener datos completos para el email
         const citaCompleta = await prisma.cita.findUnique({
@@ -467,7 +494,15 @@ class CitaService {
               nombre: citaCompleta.doctor.nombre,
               apellido: citaCompleta.doctor.apellido
             } : null,
-            especialidad: citaCompleta.especialidad?.titulo || 'Consulta General'
+            especialidad: citaCompleta.especialidad?.titulo || 'Consulta General',
+            // Información de pago para el resumen
+            pago: {
+              monto: validatedData.costo,
+              metodoPago: validatedData.metodo_pago || 'Efectivo',
+              estadoPago: validatedData.estado_pago || 'Pendiente',
+              bancoDestino: validatedData.banco_destino || null,
+              numeroReferencia: validatedData.numero_referencia || null,
+            }
           });
           console.log(`[Cita] Email de confirmación enviado a ${citaCompleta.paciente.email}`);
         }
@@ -601,7 +636,19 @@ class CitaService {
           });
 
           if (!facturaItem && cita.costo > 0) {
-            await this.crearFacturaCita(cita, validatedData.metodo_pago, validatedData.estado_pago, validatedData.cubierto_por_eps, tx);
+            const datosTransferencia = validatedData.metodo_pago === 'Transferencia' ? {
+              bancoDestino: validatedData.banco_destino,
+              numeroReferencia: validatedData.numero_referencia,
+            } : null;
+
+            await this.crearFacturaCita(
+              cita,
+              validatedData.metodo_pago,
+              validatedData.estado_pago,
+              validatedData.cubierto_por_eps,
+              datosTransferencia,
+              tx
+            );
           }
         }
 

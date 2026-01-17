@@ -123,6 +123,10 @@ model Usuario {
   ventasDrogueria                    DrogueriaVenta[]
   cajasDrogueria                     DrogueriaCaja[]
 
+  // Tienda Online - Pedidos
+  ordenesResponsable                 OrdenTienda[]            @relation("OrdenResponsable")
+  historialOrdenesTienda             OrdenTiendaHistorial[]   @relation("HistorialOrdenUsuario")
+
   // Mantenimientos - Infraestructura
   equiposInfraestructuraRegistrados        EquipoInfraestructura[]        @relation("EquipoInfraestructuraCreador")
   mantenimientosInfraestructuraRegistrados MantenimientoInfraestructura[] @relation("MantenimientoInfraestructuraRegistrador")
@@ -340,6 +344,9 @@ model Paciente {
 
   // Solicitudes de Historia Clínica
   solicitudesHistoriaClinica SolicitudHistoriaClinica[]
+
+  // Droguería - Ventas retail
+  ventasDrogueria DrogueriaVenta[]
 
   @@map("pacientes")
 }
@@ -579,21 +586,35 @@ model Producto {
   cum                        String?                   @map("cum")
   registroSanitario          String?                   @map("registro_sanitario")
 
+  // Información Clínica
+  posologiaRecomendada       String?                   @map("posologia_recomendada")
+  indicaciones               String?
+  contraindicaciones         String?
+  efectosAdversos            String?                   @map("efectos_adversos")
+  interacciones              String?
+  riesgoEmbarazo             String?                   @map("riesgo_embarazo")
+
   // Control y Regulación
   requiereReceta             Boolean                   @default(false) @map("requiere_receta")
   controlado                 Boolean                   @default(false)
   tipoControlado             String?                   @map("tipo_controlado")
+  medicamentoAltoRiesgo      Boolean                   @default(false) @map("medicamento_alto_riesgo")
+  medicamentoLASA            Boolean                   @default(false) @map("medicamento_lasa")
 
   // Almacenamiento
   temperaturaAlmacenamiento  String?                   @map("temperatura_almacenamiento")
   requiereCadenaFrio         Boolean                   @default(false) @map("requiere_cadena_frio")
+  protegerLuz                Boolean                   @default(false) @map("proteger_luz")
+  protegerHumedad            Boolean                   @default(false) @map("proteger_humedad")
   ubicacionAlmacen           String?                   @map("ubicacion_almacen")
+  condicionesEspeciales      String?                   @map("condiciones_especiales")
 
   // Inventario
   cantidadTotal              Int                       @default(0) @map("cantidad_total")
   cantidadConsumida          Int                       @default(0) @map("cantidad_consumida")
   cantidadMinAlerta          Int                       @default(10) @map("cantidad_min_alerta")
   cantidadMaxAlerta          Int?                      @map("cantidad_max_alerta")
+  puntoReorden               Int?                      @map("punto_reorden")
   lote                       String?
   fechaVencimiento           DateTime?                 @map("fecha_vencimiento")
 
@@ -3069,6 +3090,10 @@ model OrdenTienda {
   numeroGuia     String?   @map("numero_guia")
   transportadora String?
 
+  // Responsable actual
+  responsableId String?  @map("responsable_id") @db.Uuid
+  responsable   Usuario? @relation("OrdenResponsable", fields: [responsableId], references: [id])
+
   // Notas
   notas         String?
   notasInternas String? @map("notas_internas")
@@ -3077,11 +3102,43 @@ model OrdenTienda {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relaciones
-  paciente       Paciente?             @relation(fields: [pacienteId], references: [id])
+  paciente       Paciente?               @relation(fields: [pacienteId], references: [id])
   items          OrdenTiendaItem[]
   paymentSession PaymentSessionTienda?
+  historial      OrdenTiendaHistorial[]
 
   @@map("ordenes_tienda")
+}
+
+// Historial de cambios de estado de pedidos
+model OrdenTiendaHistorial {
+  id      String @id @default(uuid())
+  ordenId String @map("orden_id")
+
+  // Estado anterior y nuevo
+  estadoAnterior EstadoOrdenTienda  @map("estado_anterior")
+  estadoNuevo    EstadoOrdenTienda  @map("estado_nuevo")
+
+  // Quién hizo el cambio
+  usuarioId     String  @map("usuario_id") @db.Uuid
+  nombreUsuario String  @map("nombre_usuario") // Snapshot del nombre
+
+  // Detalles del cambio
+  comentario    String?
+  detalleEnvio  String? @map("detalle_envio") // Para info de envío
+  numeroGuia    String? @map("numero_guia")
+  transportadora String?
+
+  // Ubicación/IP para auditoría (opcional)
+  ipAddress String? @map("ip_address")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relaciones
+  orden   OrdenTienda @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  usuario Usuario     @relation("HistorialOrdenUsuario", fields: [usuarioId], references: [id])
+
+  @@map("ordenes_tienda_historial")
 }
 
 model OrdenTiendaItem {
@@ -10541,6 +10598,19 @@ model DrogueriaVenta {
   motivoAnulacion String?  @map("motivo_anulacion")
   fechaAnulacion  DateTime? @map("fecha_anulacion")
 
+  // Desglose de pagos combinados
+  montoEfectivo           Float?   @default(0) @map("monto_efectivo")
+  montoTarjeta            Float?   @default(0) @map("monto_tarjeta")
+  montoTransferencia      Float?   @default(0) @map("monto_transferencia")
+
+  // Campos para transferencia
+  referenciaTransferencia String? @map("referencia_transferencia")
+  bancoTransferencia      String? @map("banco_transferencia")
+  comprobanteUrl          String? @map("comprobante_url")
+
+  // Relación con paciente (cliente)
+  pacienteId      String?  @map("paciente_id")
+
   // Facturación Electrónica DIAN (Siigo)
   siigoId         String?  @unique @map("siigo_id")
   cufe            String?
@@ -10550,6 +10620,7 @@ model DrogueriaVenta {
   items           DrogueriaVentaItem[]
   vendedor        Usuario  @relation(fields: [vendedorId], references: [id])
   caja            DrogueriaCaja? @relation(fields: [cajaId], references: [id])
+  paciente        Paciente? @relation(fields: [pacienteId], references: [id])
 
   @@map("drogueria_ventas")
 }
@@ -10572,6 +10643,7 @@ model DrogueriaVentaItem {
 
 model DrogueriaCaja {
   id              String   @id @default(uuid())
+  nombre          String   @default("Caja Principal") // Identificador de la caja física
   usuarioId       String   @map("usuario_id") @db.Uuid
   fechaApertura   DateTime @default(now()) @map("fecha_apertura")
   fechaCierre     DateTime? @map("fecha_cierre")
@@ -10580,6 +10652,12 @@ model DrogueriaCaja {
   montoEsperado   Float?   @map("monto_esperado")
   diferencia      Float?
   estado          String   @default("Abierta") // Abierta, Cerrada
+  observaciones   String?  // Notas al cerrar
+
+  // Desglose por método de pago al cerrar
+  totalEfectivo     Float?   @map("total_efectivo")
+  totalTarjeta      Float?   @map("total_tarjeta")
+  totalTransferencia Float?  @map("total_transferencia")
 
   ventas          DrogueriaVenta[]
   usuario         Usuario  @relation(fields: [usuarioId], references: [id])
