@@ -72,7 +72,8 @@ export default function TabCitasPaciente({ pacienteId }) {
     return new Date(dateString).toLocaleDateString('es-CO', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -81,7 +82,8 @@ export default function TabCitasPaciente({ pacienteId }) {
     const date = new Date(timeString);
     return date.toLocaleTimeString('es-CO', {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -237,7 +239,7 @@ export default function TabCitasPaciente({ pacienteId }) {
                 </div>
                 <div>
                   <span className="text-sm text-gray-600">Costo:</span>
-                  <p className="font-semibold">${citaSeleccionada.costo?.toLocaleString('es-CO') || '0'}</p>
+                  <p className="font-semibold">${citaSeleccionada.costo?.toLocaleString('es-CO', { timeZone: 'America/Bogota' }) || '0'}</p>
                 </div>
               </div>
               

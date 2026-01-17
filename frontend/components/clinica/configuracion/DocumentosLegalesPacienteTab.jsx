@@ -134,7 +134,7 @@ export default function DocumentosLegalesPacienteTab() {
             <div className="flex items-center gap-2">
               {documento && (
                 <span className="text-xs text-muted-foreground">
-                  v{documento.version} - Actualizado: {new Date(documento.updatedAt).toLocaleDateString('es-CO')}
+                  v{documento.version} - Actualizado: {new Date(documento.updatedAt).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                 </span>
               )}
               <Button

@@ -45,6 +45,8 @@ export default function VisualizadorHistorialConsulta({ pacienteId, onClose }) {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    ,
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -54,6 +56,8 @@ export default function VisualizadorHistorialConsulta({ pacienteId, onClose }) {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
+    ,
+      timeZone: 'America/Bogota'
     });
   };
 

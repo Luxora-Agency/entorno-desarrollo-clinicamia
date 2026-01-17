@@ -24,6 +24,9 @@ const { NotFoundError } = require('../utils/errors');
 const path = require('path');
 const fs = require('fs');
 
+// Zona horaria de Colombia para formateo de fechas
+const TIMEZONE_BOGOTA = 'America/Bogota';
+
 class HCEPdfService {
   constructor() {
     this.margins = { top: 60, bottom: 60, left: 50, right: 50 };
@@ -175,7 +178,7 @@ class HCEPdfService {
     let resultado = [];
 
     if (data.observacionesGenerales) {
-      resultado.push(`• Observaciones generales: ${data.observacionesGenerales}`);
+      resultado.push(`- Observaciones generales: ${data.observacionesGenerales}`);
     }
 
     for (const [sistema, nombreSistema] of Object.entries(sistemasMap)) {
@@ -186,7 +189,7 @@ class HCEPdfService {
           .join(', ');
 
         if (sintomas) {
-          resultado.push(`• ${nombreSistema}: ${sintomas}`);
+          resultado.push(`- ${nombreSistema}: ${sintomas}`);
         }
       }
     }
@@ -195,16 +198,55 @@ class HCEPdfService {
   }
 
   /**
+   * Formatear examen físico de JSON a texto legible
+   */
+  formatearExamenFisico(data) {
+    if (!data || typeof data !== 'object') return null;
+
+    const sistemasMap = {
+      piel: 'Piel y Faneras',
+      cabeza: 'Cabeza',
+      ojos: 'Ojos',
+      nariz: 'Nariz',
+      oidos: 'Oidos',
+      bocaFaringe: 'Boca y Faringe',
+      cuello: 'Cuello',
+      torax: 'Torax',
+      corazon: 'Corazon',
+      abdomen: 'Abdomen',
+      genitourinario: 'Genitourinario',
+      extremidades: 'Extremidades',
+      sistemaNervioso: 'Sistema Nervioso'
+    };
+
+    let resultado = [];
+
+    for (const [key, nombreSistema] of Object.entries(sistemasMap)) {
+      const valor = data[key];
+      if (valor && valor !== 'Sin alteraciones') {
+        resultado.push(`- ${nombreSistema}: ${valor}`);
+      }
+    }
+
+    // Si todos están sin alteraciones, indicarlo
+    if (resultado.length === 0) {
+      return 'Examen fisico sin alteraciones relevantes';
+    }
+
+    return resultado.join('\n');
+  }
+
+  /**
    * Formatear plan de manejo de JSON a texto legible
    */
   formatearPlanManejo(data) {
     let resultado = [];
 
-    if (data.incapacidades) resultado.push(`• Incapacidades: ${data.incapacidades} día(s)`);
-    if (data.certificados) resultado.push(`• Certificados médicos: ${data.certificados}`);
-    if (data.seguimientos) resultado.push(`• Seguimientos programados: ${data.seguimientos}`);
-    if (data.observaciones) resultado.push(`• Observaciones: ${data.observaciones}`);
-    if (data.recomendaciones) resultado.push(`• Recomendaciones: ${data.recomendaciones}`);
+    if (data.incapacidades) resultado.push(`- Incapacidades: ${data.incapacidades} dia(s)`);
+    if (data.certificados) resultado.push(`- Certificados medicos: ${data.certificados}`);
+    if (data.seguimientos) resultado.push(`- Seguimientos programados: ${data.seguimientos}`);
+    if (data.observaciones) resultado.push(`- Observaciones: ${data.observaciones}`);
+    if (data.recomendaciones) resultado.push(`- Recomendaciones: ${data.recomendaciones}`);
 
     return resultado.length > 0 ? resultado.join('\n') : 'Plan indicado';
   }
@@ -285,7 +327,7 @@ class HCEPdfService {
     const datos = await this.obtenerDatosCompletos(pacienteId, opciones);
 
     const rangoTexto = opciones.fechaDesde && opciones.fechaHasta
-      ? ` (${opciones.fechaDesde.toLocaleDateString('es-CO')} - ${opciones.fechaHasta.toLocaleDateString('es-CO')})`
+      ? ` (${opciones.fechaDesde.toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })} - ${opciones.fechaHasta.toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })})`
       : ' (Completa)';
 
     console.log(`[PDF] Generando HCE para paciente ${pacienteId}${rangoTexto} - Evoluciones: ${datos.evoluciones.length}, Signos Vitales: ${datos.signosVitales.length}, Diagnósticos: ${datos.diagnosticos.length}`);
@@ -867,12 +909,15 @@ class HCEPdfService {
     doc.fontSize(11).font('Helvetica-Bold').fillColor(this.colors.primary)
        .text(nombreCompleto || 'NOMBRE NO REGISTRADO', dataX, y + 5, { width: pageWidth - fotoSize - 30 });
 
+    const infoDocumento = `${paciente.tipoDocumento || 'CC'}: ${paciente.cedula || 'N/A'} | Exp: ${(paciente.lugarExpedicion || 'N/A').substring(0, 15)} | Sangre: ${paciente.tipoSangre || 'N/A'}`;
     doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-       .text(`${paciente.tipoDocumento || 'CC'}: ${paciente.cedula || 'N/A'} | Exp: ${paciente.lugarExpedicion || 'N/A'} | Sangre: ${paciente.tipoSangre || 'N/A'}`, dataX, y + 19);
+       .text(infoDocumento.substring(0, 70), dataX, y + 19);
 
+    const infoDemografico = `Edad: ${this.calcularEdad(paciente.fechaNacimiento, true)} | Sexo: ${this.formatearValor(paciente.genero)} | Género: ${this.formatearValor(paciente.identidadGenero)} | Nac: ${this.formatearFecha(paciente.fechaNacimiento)}`;
+    const infoEps = `EPS: ${(paciente.eps || 'N/A').substring(0, 25)} | Régimen: ${this.formatearValor(paciente.regimen)} | Afiliación: ${this.formatearValor(paciente.tipoAfiliacion)}`;
     doc.fontSize(7).fillColor(this.colors.textLight)
-       .text(`Edad: ${this.calcularEdad(paciente.fechaNacimiento, true)} | Sexo: ${this.formatearValor(paciente.genero)} | Id. Género: ${this.formatearValor(paciente.identidadGenero)} | Nac: ${this.formatearFecha(paciente.fechaNacimiento)}`, dataX, y + 31)
-       .text(`EPS: ${paciente.eps || 'N/A'} | Régimen: ${this.formatearValor(paciente.regimen)} | Afiliación: ${this.formatearValor(paciente.tipoAfiliacion)}`, dataX, y + 42);
+       .text(infoDemografico.substring(0, 90), dataX, y + 31)
+       .text(infoEps.substring(0, 85), dataX, y + 42);
 
     y += 58;
 
@@ -919,29 +964,30 @@ class HCEPdfService {
 
     // Fila 3: Discapacidad (siempre mostrar el estado)
     const tieneDiscapacidad = paciente.discapacidad === 'Aplica';
-    const bgDiscapacidad = tieneDiscapacidad ? '#fae8ff' : '#f8fafc';
-    const colorDiscapacidad = tieneDiscapacidad ? '#9333ea' : this.colors.text;
+    const bgDiscapacidad = tieneDiscapacidad ? this.colors.warningBg : '#f8fafc';
+    const colorDiscapacidad = tieneDiscapacidad ? this.colors.warning : this.colors.text;
     doc.rect(this.margins.left, y, pageWidth, 13).fill(bgDiscapacidad);
     doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
     doc.text('Discapacidad:', r1c1, y + 3);
     doc.text('Tipo Discapacidad:', this.margins.left + col2Width, y + 3);
 
     doc.font('Helvetica-Bold').fontSize(7).fillColor(colorDiscapacidad);
-    doc.text(paciente.discapacidad || 'No aplica', r1c1 + 50, y + 3);
+    doc.text(paciente.discapacidad || 'Ninguna', r1c1 + 50, y + 3);
     doc.text(tieneDiscapacidad ? (paciente.tipoDiscapacidad || 'No especificado') : 'N/A', this.margins.left + col2Width + 70, y + 3);
     y += 15;
 
     // === UBICACIÓN Y CONTACTO ===
-    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.secondary);
+    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.primaryDark);
     doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
        .text('UBICACIÓN Y CONTACTO', this.margins.left + 6, y + 4);
     y += 16;
 
     // Dirección completa
-    doc.rect(this.margins.left, y, pageWidth, 13).fill('#f0f9ff');
+    doc.rect(this.margins.left, y, pageWidth, 13).fill(this.colors.headerBg);
     doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted).text('Dirección:', this.margins.left + 4, y + 3);
+    const direccionCompleta = `${paciente.direccion || 'N/A'}, ${paciente.barrio || ''} - ${paciente.municipio || ''}, ${paciente.departamento || ''} | Zona: ${paciente.zona || 'N/A'}`;
     doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text)
-       .text(`${paciente.direccion || 'N/A'}, ${paciente.barrio || ''} - ${paciente.municipio || ''}, ${paciente.departamento || ''} | Zona: ${paciente.zona || 'N/A'}`, this.margins.left + 40, y + 3);
+       .text(direccionCompleta.substring(0, 95), this.margins.left + 40, y + 3);
     y += 14;
 
     // Teléfono y email
@@ -952,28 +998,30 @@ class HCEPdfService {
 
     doc.font('Helvetica-Bold').fontSize(7).fillColor(this.colors.text);
     doc.text(paciente.telefono || 'N/A', this.margins.left + 40, y + 3);
-    doc.text(paciente.email || 'N/A', this.margins.left + col2Width + 25, y + 3, { width: col2Width - 30 });
+    doc.text((paciente.email || 'N/A').substring(0, 40), this.margins.left + col2Width + 25, y + 3);
     y += 15;
 
     // === RESPONSABLE (si existe) ===
     if (paciente.responsable && paciente.responsable.nombre) {
       doc.rect(this.margins.left, y, pageWidth, 16)
-         .fillAndStroke('#fff7ed', '#f59e0b');
-      doc.fontSize(6).font('Helvetica-Bold').fillColor('#b45309')
+         .fillAndStroke(this.colors.headerBg, this.colors.primary);
+      doc.fontSize(6).font('Helvetica-Bold').fillColor(this.colors.primaryDark)
          .text('RESPONSABLE:', this.margins.left + 6, y + 5);
+      const textoResponsable = `${paciente.responsable.nombre} | ${paciente.responsable.parentesco || ''} | Tel: ${paciente.responsable.telefono || 'N/A'}`;
       doc.font('Helvetica').fontSize(7).fillColor(this.colors.text)
-         .text(`${paciente.responsable.nombre} | ${paciente.responsable.parentesco || ''} | Tel: ${paciente.responsable.telefono || 'N/A'}`, this.margins.left + 65, y + 5);
+         .text(textoResponsable.substring(0, 80), this.margins.left + 65, y + 5);
       y += 18;
     }
 
     // === ACOMPAÑANTE (si existe) ===
     if (paciente.acompanante && paciente.acompanante.nombre) {
       doc.rect(this.margins.left, y, pageWidth, 16)
-         .fillAndStroke('#eff6ff', '#3b82f6');
-      doc.fontSize(6).font('Helvetica-Bold').fillColor('#1d4ed8')
+         .fillAndStroke('#f0fdfa', this.colors.accent);
+      doc.fontSize(6).font('Helvetica-Bold').fillColor(this.colors.primary)
          .text('ACOMPAÑANTE:', this.margins.left + 6, y + 5);
+      const textoAcompanante = `${paciente.acompanante.nombre} | ${paciente.acompanante.parentesco || ''} | Tel: ${paciente.acompanante.telefono || 'N/A'}`;
       doc.font('Helvetica').fontSize(7).fillColor(this.colors.text)
-         .text(`${paciente.acompanante.nombre} | ${paciente.acompanante.parentesco || ''} | Tel: ${paciente.acompanante.telefono || 'N/A'}`, this.margins.left + 65, y + 5);
+         .text(textoAcompanante.substring(0, 80), this.margins.left + 65, y + 5);
       y += 18;
     }
 
@@ -994,23 +1042,23 @@ class HCEPdfService {
 
     if (contactosEmergencia.length > 0) {
       doc.rect(this.margins.left, y, pageWidth, 16)
-         .fillAndStroke('#fef2f2', '#dc2626');
-      doc.fontSize(6).font('Helvetica-Bold').fillColor('#dc2626')
+         .fillAndStroke(this.colors.warningBg, this.colors.warning);
+      doc.fontSize(6).font('Helvetica-Bold').fillColor(this.colors.warning)
          .text('EMERGENCIA:', this.margins.left + 6, y + 5);
       const contactoTexto = contactosEmergencia.slice(0, 2).map(c => `${c.nombre || ''} (${c.parentesco || ''}) ${c.telefono || ''}`).join(' | ');
       doc.font('Helvetica').fontSize(7).fillColor(this.colors.text)
-         .text(contactoTexto, this.margins.left + 55, y + 5, { width: pageWidth - 65 });
+         .text(contactoTexto.substring(0, 85), this.margins.left + 55, y + 5);
       y += 18;
     }
 
     // === ASEGURAMIENTO EN SALUD ===
-    doc.rect(this.margins.left, y, pageWidth, 14).fill('#7c3aed');
+    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.primary);
     doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
        .text('ASEGURAMIENTO EN SALUD', this.margins.left + 6, y + 4);
     y += 16;
 
     // Fila 1: ARL, SISBEN, Convenio, Carnet
-    doc.rect(this.margins.left, y, pageWidth, 13).fill('#f5f3ff');
+    doc.rect(this.margins.left, y, pageWidth, 13).fill(this.colors.headerBg);
     doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
     doc.text('ARL:', r1c1, y + 3);
     doc.text('SISBEN:', r1c2, y + 3);
@@ -1041,7 +1089,7 @@ class HCEPdfService {
 
     // === REFERENCIA ===
     if (paciente.referidoPor || paciente.nombreRefiere) {
-      doc.rect(this.margins.left, y, pageWidth, 14).fill('#fef3c7');
+      doc.rect(this.margins.left, y, pageWidth, 14).fill('#f0fdfa');
       doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
       doc.text('Referido por:', this.margins.left + 4, y + 4);
       doc.text('Nombre quien refiere:', this.margins.left + col2Width, y + 4);
@@ -1054,7 +1102,7 @@ class HCEPdfService {
 
     // === DATOS ANTROPOMÉTRICOS ===
     if (paciente.peso || paciente.altura) {
-      doc.rect(this.margins.left, y, pageWidth, 14).fill('#ecfdf5');
+      doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.headerBg);
       doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted);
       doc.text('Peso:', this.margins.left + 4, y + 4);
       doc.text('Altura:', this.margins.left + col3Width, y + 4);
@@ -1075,16 +1123,16 @@ class HCEPdfService {
     }
 
     // === ANTECEDENTES CLÍNICOS ===
-    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.danger);
+    doc.rect(this.margins.left, y, pageWidth, 14).fill(this.colors.primaryDark);
     doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
        .text('ANTECEDENTES CLÍNICOS', this.margins.left + 6, y + 4);
     y += 16;
 
     const antecedentes = [
-      ['Alergias', paciente.alergias || 'Ninguna conocida', '#fef2f2'],
-      ['Enf. Crónicas', paciente.enfermedadesCronicas || 'Ninguna reportada', '#fffbeb'],
-      ['Medicamentos', paciente.medicamentosActuales || 'Ninguno actual', '#eff6ff'],
-      ['Quirúrgicos', paciente.antecedentesQuirurgicos || 'Sin antecedentes', '#f0fdf4'],
+      ['Alergias', paciente.alergias || 'Ninguna conocida', this.colors.warningBg],
+      ['Enf. Crónicas', paciente.enfermedadesCronicas || 'Ninguna reportada', this.colors.headerBg],
+      ['Medicamentos', paciente.medicamentosActuales || 'Ninguno actual', '#f0fdfa'],
+      ['Quirúrgicos', paciente.antecedentesQuirurgicos || 'Sin antecedentes', '#f0fdfa'],
     ];
 
     for (const [label, value, bgColor] of antecedentes) {
@@ -1107,7 +1155,7 @@ class HCEPdfService {
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
     doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.danger)
-       .text('⚠ ALERTAS ACTIVAS', this.margins.left, y);
+       .text('[!] ALERTAS ACTIVAS', this.margins.left, y);
     y += 14;
 
     for (const alerta of alertas.slice(0, 5)) {
@@ -1119,8 +1167,9 @@ class HCEPdfService {
       doc.rect(this.margins.left, y, pageWidth, 20)
          .fillAndStroke(colorFondo, colorBorde);
 
+      const textoAlerta = `${alerta.tipo || 'ALERTA'}: ${(alerta.titulo || 'Sin título').substring(0, 70)}`;
       doc.fontSize(8).font('Helvetica-Bold').fillColor(colorBorde)
-         .text(`${alerta.tipo || 'ALERTA'}: ${alerta.titulo || 'Sin título'}`, this.margins.left + 8, y + 5, { width: pageWidth - 16 });
+         .text(textoAlerta, this.margins.left + 8, y + 5);
 
       y += 24;
     }
@@ -1135,35 +1184,60 @@ class HCEPdfService {
     let y = startY;
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
-    doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
-       .text('DIAGNÓSTICOS (CIE-10/CIE-11)', this.margins.left, y);
-    y += 14;
+    y = this.generarTituloSeccion(doc, 'DIAGNOSTICOS CLINICOS (CIE-10/CIE-11)', y);
 
-    // Header tabla
-    doc.rect(this.margins.left, y, pageWidth, 16).fill(this.colors.primary);
-    doc.fontSize(7).font('Helvetica-Bold').fillColor('#ffffff')
-       .text('Código', this.margins.left + 5, y + 4)
-       .text('Descripción', this.margins.left + 65, y + 4)
-       .text('Tipo', this.margins.left + pageWidth - 95, y + 4)
-       .text('Fecha', this.margins.left + pageWidth - 50, y + 4);
-    y += 18;
-
-    for (let i = 0; i < Math.min(diagnosticos.length, 10); i++) {
-      y = this.verificarEspacio(doc, y, 16);
+    for (let i = 0; i < diagnosticos.length; i++) {
       const diag = diagnosticos[i];
-      const bgColor = i % 2 === 0 ? '#f8fafc' : '#ffffff';
+      const descripcion = diag.descripcionCIE11 || diag.descripcion || 'Sin descripcion';
+      const codigo = diag.codigoCIE11 || diag.codigoCIE10 || 'N/A';
+      const tipo = diag.tipoDiagnostico || 'Principal';
+      const nombreMedico = diag.doctor ? `Dr(a). ${diag.doctor.nombre} ${diag.doctor.apellido}` : '';
 
-      doc.rect(this.margins.left, y, pageWidth, 15).fill(bgColor);
+      // Calcular altura dinamica
+      doc.fontSize(8).font('Helvetica');
+      const descHeight = doc.heightOfString(descripcion, { width: pageWidth - 100 });
+      const cardHeight = Math.max(45, descHeight + 35);
 
-      doc.fontSize(7).font('Helvetica').fillColor(this.colors.text)
-         .text(diag.codigoCIE11 || diag.codigoCIE10 || '-', this.margins.left + 5, y + 4)
-         .text((diag.descripcionCIE11 || diag.descripcion || 'N/A').substring(0, 45), this.margins.left + 65, y + 4)
-         .text(diag.tipoDiagnostico || 'Principal', this.margins.left + pageWidth - 95, y + 4)
-         .text(this.formatearFechaCorta(diag.fechaDiagnostico), this.margins.left + pageWidth - 50, y + 4);
-      y += 15;
+      y = this.verificarEspacio(doc, y, cardHeight + 5);
+
+      // Color segun tipo de diagnostico
+      const colorTipo = tipo === 'Principal' ? { bg: '#fef2f2', border: '#dc2626' } :
+                        tipo === 'Confirmado' ? { bg: '#f0fdf4', border: '#16a34a' } :
+                        tipo === 'Presuntivo' ? { bg: '#fefce8', border: '#ca8a04' } :
+                        { bg: '#f8fafc', border: '#64748b' };
+
+      // Tarjeta del diagnostico
+      doc.rect(this.margins.left, y, pageWidth, cardHeight)
+         .lineWidth(1)
+         .fillAndStroke(colorTipo.bg, colorTipo.border);
+
+      // Barra lateral de color
+      doc.rect(this.margins.left, y, 4, cardHeight).fill(colorTipo.border);
+
+      // Codigo CIE
+      doc.fontSize(10).font('Helvetica-Bold').fillColor(colorTipo.border)
+         .text(codigo, this.margins.left + 10, y + 5);
+
+      // Tipo de diagnostico (badge)
+      doc.fontSize(6).font('Helvetica-Bold').fillColor(colorTipo.border)
+         .text(tipo.toUpperCase(), this.margins.left + 10, y + 18);
+
+      // Descripcion completa
+      doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+         .text(descripcion, this.margins.left + 80, y + 5, { width: pageWidth - 100 });
+
+      // Fecha y medico
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
+         .text(`Fecha: ${this.formatearFechaCorta(diag.fechaDiagnostico)}`, this.margins.left + 80, y + cardHeight - 14);
+
+      if (nombreMedico) {
+        doc.text(`| ${nombreMedico}`, this.margins.left + 160, y + cardHeight - 14);
+      }
+
+      y += cardHeight + 4;
     }
 
-    return y + 10;
+    return y + 5;
   }
 
   /**
@@ -1177,11 +1251,12 @@ class HCEPdfService {
 
     y = this.generarTituloSeccion(doc, 'EVOLUCIONES MÉDICAS - FORMATO SOAP', y);
 
+    // Colores SOAP con paleta Teal de la clínica
     const soapColors = {
-      S: { bg: '#e0f2fe', border: '#0284c7', text: '#0369a1' },
-      O: { bg: '#dcfce7', border: '#16a34a', text: '#15803d' },
-      A: { bg: '#fef3c7', border: '#f59e0b', text: '#b45309' },
-      P: { bg: '#f3e8ff', border: '#9333ea', text: '#7c3aed' },
+      S: { bg: '#f0fdfa', border: '#0d9488', text: '#0f766e' },   // Teal para Subjetivo
+      O: { bg: '#ccfbf1', border: '#14b8a6', text: '#0d9488' },   // Teal claro para Objetivo
+      A: { bg: '#99f6e4', border: '#0f766e', text: '#115e59' },   // Teal medio para Análisis
+      P: { bg: '#5eead4', border: '#0d9488', text: '#134e4a' },   // Teal oscuro para Plan
     };
 
     for (let i = 0; i < evoluciones.length; i++) {
@@ -1222,60 +1297,99 @@ class HCEPdfService {
       const esPrimeraConsulta = evol.esPrimeraConsulta ? 'Primera vez' : 'Control';
 
       doc.fontSize(7).font('Helvetica').fillColor(this.colors.accent)
-         .text(`Tipo Consulta: ${tipoEvolucion} | Tipo Atención: ${tipoAtencion} | ${esPrimeraConsulta}`,
+         .text(`Tipo Consulta: ${tipoEvolucion} | Tipo Atencion: ${tipoAtencion} | ${esPrimeraConsulta}`,
                this.margins.left + 10, y + 28);
 
       y += 40;
 
-      // SOAP en grid 2x2
-      const cardWidth = (pageWidth - 8) / 2;
-      const cardHeight = 70;
-      const secciones = [
-        { key: 'S', titulo: 'SUBJETIVO', contenido: this.formatearContenidoEvolucion(evol.subjetivo) },
-        { key: 'O', titulo: 'OBJETIVO', contenido: this.formatearContenidoEvolucion(evol.objetivo) },
-        { key: 'A', titulo: 'ANÁLISIS', contenido: this.formatearContenidoEvolucion(evol.analisis) },
-        { key: 'P', titulo: 'PLAN', contenido: this.formatearContenidoEvolucion(evol.plan) },
-      ];
+      // === MOTIVO DE CONSULTA Y ENFERMEDAD ACTUAL ===
+      if (evol.motivoConsulta || evol.enfermedadActual) {
+        // Sección de Motivo de Consulta
+        if (evol.motivoConsulta) {
+          const motivoTexto = this.formatearContenidoEvolucion(evol.motivoConsulta);
+          doc.fontSize(8).font('Helvetica');
+          const motivoHeight = doc.heightOfString(motivoTexto, { width: pageWidth - 30 });
+          const motivoCardHeight = Math.max(30, motivoHeight + 20);
 
-      let cardY = y;
-      let cardCol = 0;
+          y = this.verificarEspacio(doc, y, motivoCardHeight + 5);
 
-      for (const seccion of secciones) {
-        const contenido = seccion.contenido?.trim() || 'Sin información';
-        const colors = soapColors[seccion.key];
-        const cardX = this.margins.left + (cardCol * (cardWidth + 8));
+          doc.rect(this.margins.left, y, pageWidth, motivoCardHeight)
+             .lineWidth(1)
+             .fillAndStroke('#fef3c7', '#f59e0b'); // Amarillo
 
-        doc.rect(cardX, cardY, cardWidth, cardHeight)
-           .lineWidth(1.5)
-           .fillAndStroke(colors.bg, colors.border);
+          doc.fontSize(8).font('Helvetica-Bold').fillColor('#b45309')
+             .text('MOTIVO DE CONSULTA', this.margins.left + 10, y + 5);
 
-        // Letra grande
-        doc.fontSize(16).font('Helvetica-Bold').fillColor(colors.border)
-           .text(seccion.key, cardX + 6, cardY + 4);
+          doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+             .text(motivoTexto, this.margins.left + 10, y + 17, { width: pageWidth - 20 });
 
-        // Título
-        doc.fontSize(7).font('Helvetica-Bold').fillColor(colors.text)
-           .text(seccion.titulo, cardX + 28, cardY + 7);
+          y += motivoCardHeight + 4;
+        }
 
-        // Contenido truncado
-        const maxLen = 150;
-        const displayContent = contenido.length > maxLen ? contenido.substring(0, maxLen) + '...' : contenido;
+        // Sección de Enfermedad Actual
+        if (evol.enfermedadActual) {
+          const enfermedadTexto = this.formatearContenidoEvolucion(evol.enfermedadActual);
+          doc.fontSize(8).font('Helvetica');
+          const enfermedadHeight = doc.heightOfString(enfermedadTexto, { width: pageWidth - 30 });
+          const enfermedadCardHeight = Math.max(30, enfermedadHeight + 20);
 
-        doc.fontSize(7).font('Helvetica').fillColor(this.colors.text)
-           .text(displayContent, cardX + 8, cardY + 22, {
-             width: cardWidth - 16,
-             height: cardHeight - 28,
-             ellipsis: true
-           });
+          y = this.verificarEspacio(doc, y, enfermedadCardHeight + 5);
 
-        cardCol++;
-        if (cardCol >= 2) {
-          cardCol = 0;
-          cardY += cardHeight + 6;
+          doc.rect(this.margins.left, y, pageWidth, enfermedadCardHeight)
+             .lineWidth(1)
+             .fillAndStroke('#fce7f3', '#ec4899'); // Rosa
+
+          doc.fontSize(8).font('Helvetica-Bold').fillColor('#be185d')
+             .text('ENFERMEDAD ACTUAL', this.margins.left + 10, y + 5);
+
+          doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+             .text(enfermedadTexto, this.margins.left + 10, y + 17, { width: pageWidth - 20 });
+
+          y += enfermedadCardHeight + 4;
         }
       }
 
-      y = cardY + (cardCol > 0 ? cardHeight + 6 : 0);
+      // SOAP en formato vertical para mostrar todo el contenido
+      const secciones = [
+        { key: 'S', titulo: 'SUBJETIVO (Sintomas reportados por el paciente)', contenido: this.formatearContenidoEvolucion(evol.subjetivo) },
+        { key: 'O', titulo: 'OBJETIVO (Examen fisico y hallazgos)', contenido: this.formatearContenidoEvolucion(evol.objetivo) },
+        { key: 'A', titulo: 'ANALISIS (Impresion diagnostica)', contenido: this.formatearContenidoEvolucion(evol.analisis) },
+        { key: 'P', titulo: 'PLAN (Tratamiento y recomendaciones)', contenido: this.formatearContenidoEvolucion(evol.plan) },
+      ];
+
+      for (const seccion of secciones) {
+        const contenido = seccion.contenido?.trim() || 'Sin informacion';
+        const colors = soapColors[seccion.key];
+
+        // Calcular altura necesaria para el contenido
+        doc.fontSize(8).font('Helvetica');
+        const textHeight = doc.heightOfString(contenido, { width: pageWidth - 50 });
+        const cardHeight = Math.max(35, textHeight + 25);
+
+        // Verificar espacio en pagina
+        y = this.verificarEspacio(doc, y, cardHeight + 5);
+
+        // Dibujar tarjeta SOAP
+        doc.rect(this.margins.left, y, pageWidth, cardHeight)
+           .lineWidth(1)
+           .fillAndStroke(colors.bg, colors.border);
+
+        // Letra identificadora
+        doc.fontSize(14).font('Helvetica-Bold').fillColor(colors.border)
+           .text(seccion.key, this.margins.left + 8, y + 5);
+
+        // Titulo de la seccion
+        doc.fontSize(8).font('Helvetica-Bold').fillColor(colors.text)
+           .text(seccion.titulo, this.margins.left + 30, y + 8);
+
+        // Contenido completo (sin truncar)
+        doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+           .text(contenido, this.margins.left + 30, y + 20, {
+             width: pageWidth - 50
+           });
+
+        y += cardHeight + 4;
+      }
 
       // Firma del médico - Ley 2015/2020 requiere firma digital
       // Formato según documento de referencia: Profesional + RM + Especialidad(es)
@@ -1325,12 +1439,12 @@ class HCEPdfService {
           // Si falla, mostrar texto de firma
           if (evol.firmada) {
             doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.success)
-               .text('✓ FIRMADO DIGITALMENTE', this.margins.left + pageWidth - 100, y + 20);
+               .text('[FIRMADO DIGITALMENTE]', this.margins.left + pageWidth - 100, y + 20);
           }
         }
       } else if (evol.firmada) {
         doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.success)
-           .text('✓ FIRMADO', this.margins.left + pageWidth - 60, y + 15);
+           .text('[FIRMADO]', this.margins.left + pageWidth - 60, y + 15);
       }
 
       y += alturaFirma + 7;
@@ -1412,7 +1526,213 @@ class HCEPdfService {
       y += 13;
     }
 
+    // === GRAFICA DE SIGNOS VITALES ===
+    if (signosVitales.length >= 2) {
+      y += 10;
+      y = this.verificarEspacio(doc, y, 160);
+      y = this.generarGraficaSignosVitales(doc, signosVitales, y);
+    }
+
+    // === EXAMEN FÍSICO POR SISTEMAS ===
+    // Buscar el signo vital más reciente que tenga examen físico
+    const svConExamenFisico = signosVitales.find(sv => sv.examenFisico);
+    if (svConExamenFisico && svConExamenFisico.examenFisico) {
+      y += 10;
+      y = this.verificarEspacio(doc, y, 80);
+
+      const examenFormateado = this.formatearExamenFisico(svConExamenFisico.examenFisico);
+      if (examenFormateado) {
+        doc.fontSize(8).font('Helvetica');
+        const examenHeight = doc.heightOfString(examenFormateado, { width: pageWidth - 30 });
+        const cardHeight = Math.max(35, examenHeight + 25);
+
+        doc.rect(this.margins.left, y, pageWidth, cardHeight)
+           .lineWidth(1)
+           .fillAndStroke('#e0f2fe', '#0284c7'); // Azul claro
+
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#0369a1')
+           .text('EXAMEN FISICO POR SISTEMAS', this.margins.left + 10, y + 5);
+
+        doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
+           .text(`Registrado: ${this.formatearFechaHora(svConExamenFisico.fechaRegistro)}`, this.margins.left + pageWidth - 150, y + 6);
+
+        doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+           .text(examenFormateado, this.margins.left + 10, y + 18, { width: pageWidth - 20 });
+
+        y += cardHeight + 5;
+      }
+    }
+
     return y + 10;
+  }
+
+  /**
+   * Gráfica de tendencia de signos vitales - Versión mejorada
+   */
+  generarGraficaSignosVitales(doc, signosVitales, startY) {
+    let y = startY;
+    const pageWidth = doc.page.width - this.margins.left - this.margins.right;
+
+    // Título de la sección
+    doc.rect(this.margins.left, y, pageWidth, 20)
+       .fill(this.colors.headerBg);
+    doc.fontSize(10).font('Helvetica-Bold').fillColor(this.colors.primary)
+       .text('TENDENCIA DE SIGNOS VITALES', this.margins.left + 10, y + 5);
+    y += 25;
+
+    // Preparar datos (últimos 10 registros, ordenados cronológicamente)
+    const datos = signosVitales
+      .slice(0, 10)
+      .reverse()
+      .map((sv, idx) => ({
+        idx,
+        fecha: sv.fechaRegistro,
+        pa_s: sv.presionSistolica || null,
+        pa_d: sv.presionDiastolica || null,
+        fc: sv.frecuenciaCardiaca || null,
+        spo2: sv.saturacionOxigeno ? parseFloat(sv.saturacionOxigeno) : null
+      }));
+
+    if (datos.length < 2) {
+      doc.fontSize(9).font('Helvetica').fillColor(this.colors.textMuted)
+         .text('Datos insuficientes para graficar (se requieren al menos 2 registros)', this.margins.left + 20, y + 20);
+      return y + 60;
+    }
+
+    // Dimensiones del gráfico más grande
+    const graficaX = this.margins.left + 40;
+    const graficaY = y + 5;
+    const graficaWidth = pageWidth - 60;
+    const graficaHeight = 130;
+
+    // Fondo del gráfico con borde más visible
+    doc.rect(graficaX, graficaY, graficaWidth, graficaHeight)
+       .lineWidth(1.5)
+       .fillAndStroke('#ffffff', this.colors.primary);
+
+    // Configuración de líneas con colores más contrastantes
+    const lineas = [
+      { key: 'pa_s', color: '#dc2626', label: 'PA Sistólica', symbol: '●', visible: datos.some(d => d.pa_s) },
+      { key: 'pa_d', color: '#f97316', label: 'PA Diastólica', symbol: '■', visible: datos.some(d => d.pa_d) },
+      { key: 'fc', color: '#22c55e', label: 'Frec. Cardíaca', symbol: '▲', visible: datos.some(d => d.fc) },
+      { key: 'spo2', color: '#3b82f6', label: 'SpO2 (%)', symbol: '◆', visible: datos.some(d => d.spo2) },
+    ];
+
+    // Dibujar líneas de referencia horizontales con etiquetas
+    const refLines = [60, 80, 100, 120, 140, 160, 180];
+
+    for (const val of refLines) {
+      const yPos = graficaY + graficaHeight - ((val - 40) / 160 * graficaHeight);
+      if (yPos >= graficaY && yPos <= graficaY + graficaHeight) {
+        // Línea de referencia
+        doc.moveTo(graficaX, yPos)
+           .lineTo(graficaX + graficaWidth, yPos)
+           .lineWidth(0.5)
+           .dash(3, { space: 3 })
+           .stroke('#d1d5db')
+           .undash();
+
+        // Etiqueta del valor a la izquierda
+        doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
+           .text(String(val), this.margins.left + 5, yPos - 4, { width: 30, align: 'right' });
+      }
+    }
+
+    // Dibujar cada línea de datos con puntos más grandes y valores
+    const stepX = graficaWidth / Math.max(datos.length - 1, 1);
+
+    for (const linea of lineas) {
+      if (!linea.visible) continue;
+
+      // Dibujar la línea
+      doc.strokeColor(linea.color).lineWidth(2.5);
+      let started = false;
+      const puntos = [];
+
+      for (let i = 0; i < datos.length; i++) {
+        const val = datos[i][linea.key];
+        if (val === null) continue;
+
+        const x = graficaX + (i * stepX);
+        const normalizedVal = linea.key === 'spo2'
+          ? ((val - 80) / 20 * graficaHeight * 0.8) + (graficaHeight * 0.1)
+          : ((val - 40) / 160 * graficaHeight);
+        const yVal = graficaY + graficaHeight - Math.min(Math.max(normalizedVal, 5), graficaHeight - 5);
+
+        puntos.push({ x, y: yVal, val });
+
+        if (!started) {
+          doc.moveTo(x, yVal);
+          started = true;
+        } else {
+          doc.lineTo(x, yVal);
+        }
+      }
+
+      if (started) {
+        doc.stroke();
+      }
+
+      // Dibujar puntos y valores
+      for (const punto of puntos) {
+        // Punto más grande con borde blanco
+        doc.circle(punto.x, punto.y, 4).fill('#ffffff');
+        doc.circle(punto.x, punto.y, 3).fill(linea.color);
+
+        // Valor encima del punto
+        doc.fontSize(6).font('Helvetica-Bold').fillColor(linea.color)
+           .text(String(Math.round(punto.val)), punto.x - 10, punto.y - 12, { width: 20, align: 'center' });
+      }
+    }
+
+    // Etiquetas de fecha en eje X más claras
+    doc.fontSize(7).font('Helvetica').fillColor(this.colors.text);
+    for (let i = 0; i < datos.length; i++) {
+      const x = graficaX + (i * stepX);
+      const fecha = new Date(datos[i].fecha);
+      const dia = fecha.getDate();
+      const mes = fecha.getMonth() + 1;
+      const hora = fecha.getHours();
+      const min = String(fecha.getMinutes()).padStart(2, '0');
+
+      // Solo mostrar algunas fechas si hay muchos datos
+      if (datos.length <= 5 || i % Math.ceil(datos.length / 5) === 0) {
+        doc.text(`${dia}/${mes}`, x - 12, graficaY + graficaHeight + 4, { width: 25, align: 'center' });
+        doc.fontSize(5).fillColor(this.colors.textMuted)
+           .text(`${hora}:${min}`, x - 12, graficaY + graficaHeight + 13, { width: 25, align: 'center' });
+      }
+    }
+
+    // Leyenda mejorada con recuadro
+    const legendY = graficaY + graficaHeight + 28;
+    const legendHeight = 20;
+
+    doc.rect(this.margins.left, legendY, pageWidth, legendHeight)
+       .fill('#f8fafc');
+
+    let legendX = this.margins.left + 15;
+    const legendSpacing = pageWidth / 4.5;
+
+    for (const linea of lineas) {
+      if (!linea.visible) continue;
+
+      // Línea de muestra
+      doc.moveTo(legendX, legendY + 10)
+         .lineTo(legendX + 15, legendY + 10)
+         .lineWidth(2.5)
+         .stroke(linea.color);
+
+      // Punto de muestra
+      doc.circle(legendX + 7.5, legendY + 10, 3).fill(linea.color);
+
+      // Etiqueta
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.text)
+         .text(linea.label, legendX + 20, legendY + 6);
+
+      legendX += legendSpacing;
+    }
+
+    return y + graficaHeight + 55;
   }
 
   /**
@@ -1463,12 +1783,25 @@ class HCEPdfService {
     y = this.generarTituloSeccion(doc, 'ÓRDENES MÉDICAS', y);
 
     for (const orden of ordenes.slice(0, 15)) {
-      // Calcular altura dinámica según contenido
-      const tieneObservaciones = orden.observaciones && orden.observaciones.trim().length > 0;
-      const tieneDescripcion = orden.examenProcedimiento?.descripcion && orden.examenProcedimiento.descripcion.trim().length > 0;
-      const alturaBase = 65;
-      const alturaExtra = (tieneObservaciones ? 25 : 0) + (tieneDescripcion ? 20 : 0);
-      const alturaTotal = alturaBase + alturaExtra;
+      // Obtener nombre del examen
+      const nombreExamen = (orden.examenProcedimiento?.nombre || 'Examen no especificado').replace(/\n/g, ' ');
+      const descripcion = (orden.examenProcedimiento?.descripcion || '').replace(/\n/g, ' ').substring(0, 60);
+      const observacionesRaw = orden.observaciones || '';
+
+      // Limpiar observaciones - extraer solo el nombre del kit si aplica
+      let notaCorta = '';
+      if (observacionesRaw.includes('APLICACIÓN DE KIT:')) {
+        const match = observacionesRaw.match(/Kit[^(]+/);
+        notaCorta = match ? match[0].trim() : '';
+      } else {
+        notaCorta = observacionesRaw.replace(/\n/g, ' ').substring(0, 50);
+      }
+
+      const tieneDesc = descripcion.trim().length > 0;
+      const tieneObs = notaCorta.trim().length > 0;
+
+      // Altura fija para consistencia
+      const alturaTotal = 55;
 
       y = this.verificarEspacio(doc, y, alturaTotal + 10);
 
@@ -1491,49 +1824,37 @@ class HCEPdfService {
       doc.fontSize(8).fillColor('#ffffff')
          .text(orden.estado || 'Pendiente', this.margins.left + pageWidth - 80, y + 4);
 
-      y += 22;
+      // Contenido interno
+      let contentY = y + 22;
 
-      // Nombre del examen/procedimiento si existe
-      const nombreExamen = orden.examenProcedimiento?.nombre || 'Examen no especificado';
-      const codigoExamen = orden.examenProcedimiento?.codigo || '';
+      // Nombre del examen (truncado)
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
+         .text(nombreExamen.substring(0, 55), this.margins.left + 10, contentY);
+      contentY += 12;
 
-      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
-         .text(codigoExamen ? `[${codigoExamen}] ${nombreExamen}` : nombreExamen,
-               this.margins.left + 10, y, { width: pageWidth - 20 });
-
-      y += 14;
-
-      // Descripción del examen (si existe)
-      if (tieneDescripcion) {
-        doc.fontSize(7).font('Helvetica-Oblique').fillColor(this.colors.textLight)
-           .text(`Descripción: ${orden.examenProcedimiento.descripcion.substring(0, 100)}`,
-                 this.margins.left + 10, y, { width: pageWidth - 20 });
-        y += 14;
+      // Descripción (si existe)
+      if (tieneDesc) {
+        doc.fontSize(6).font('Helvetica-Oblique').fillColor(this.colors.textLight)
+           .text(`Descripción: ${descripcion}`, this.margins.left + 10, contentY);
       }
 
-      // Observaciones/Notas del médico (si existen)
-      if (tieneObservaciones) {
-        doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-           .text(`📝 Nota: ${orden.observaciones.substring(0, 150)}`,
-                 this.margins.left + 10, y, { width: pageWidth - 20 });
-        y += 18;
+      // Nota (si existe) - al lado de la descripción o en su lugar
+      if (tieneObs) {
+        const notaX = tieneDesc ? this.margins.left + pageWidth - 180 : this.margins.left + 10;
+        doc.fontSize(6).font('Helvetica').fillColor(this.colors.text)
+           .text(`Nota: ${notaCorta}`, notaX, contentY);
       }
+      contentY += 12;
 
-      // Detalles adicionales
+      // Fecha y médico
       const medicoNombre = orden.doctor ? `Dr(a). ${orden.doctor.nombre} ${orden.doctor.apellido}` :
                            orden.medicoOrdenante ? `Dr(a). ${orden.medicoOrdenante.nombre} ${orden.medicoOrdenante.apellido}` : 'N/A';
 
-      doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
-         .text(`Fecha: ${this.formatearFechaCorta(orden.fechaOrden || orden.createdAt)} | Ordenado por: ${medicoNombre}`,
-               this.margins.left + 10, y);
+      doc.fontSize(6).font('Helvetica').fillColor(this.colors.textMuted)
+         .text(`Fecha: ${this.formatearFechaCorta(orden.fechaOrden || orden.createdAt)} | Por: ${medicoNombre.substring(0, 25)}`,
+               this.margins.left + 10, contentY);
 
-      // Si tiene resultados, mostrar indicador
-      if (orden.resultados) {
-        doc.fontSize(7).fillColor(this.colors.success)
-           .text('✓ Con resultados', this.margins.left + pageWidth - 80, y);
-      }
-
-      y += 18;
+      y += alturaTotal + 8;
     }
 
     return y + 5;
@@ -1585,9 +1906,9 @@ class HCEPdfService {
 
       doc.rect(this.margins.left, y, pageWidth, 55)
          .lineWidth(1)
-         .fillAndStroke('#faf5ff', '#9333ea');
+         .fillAndStroke(this.colors.headerBg, this.colors.primary);
 
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#9333ea')
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
          .text(cirugia.nombre || cirugia.tipoCirugia || 'Cirugía', this.margins.left + 10, y + 6);
 
       doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
@@ -1650,13 +1971,13 @@ class HCEPdfService {
       y = this.verificarEspacio(doc, y, 40);
 
       doc.rect(this.margins.left, y, pageWidth, 35)
-         .fill('#fdf2f8');
+         .fill(this.colors.headerBg);
 
-      doc.fontSize(8).font('Helvetica-Bold').fillColor('#be185d')
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
          .text(this.formatearFechaHora(nota.fechaHora), this.margins.left + 10, y + 5);
 
       doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-         .text((nota.contenido || nota.nota || 'N/A').substring(0, 80), this.margins.left + 10, y + 18, { width: pageWidth - 20 });
+         .text((nota.contenido || nota.nota || 'N/A').substring(0, 100), this.margins.left + 10, y + 18);
 
       y += 38;
     }
@@ -1877,39 +2198,122 @@ class HCEPdfService {
     let y = startY;
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
-    y = this.generarTituloSeccion(doc, 'FORMULACIÓN', y);
+    y = this.generarTituloSeccion(doc, 'FORMULACION / RECETAS MEDICAS', y);
 
-    for (const presc of prescripciones.slice(0, 10)) {
-      y = this.verificarEspacio(doc, y, 35);
+    for (let i = 0; i < prescripciones.length; i++) {
+      const presc = prescripciones[i];
+      const nombreMedico = presc.medico ? `Dr(a). ${presc.medico.nombre} ${presc.medico.apellido}` : '';
+      const fechaPresc = this.formatearFechaCorta(presc.fechaPrescripcion);
+
+      // Header de la prescripcion
+      y = this.verificarEspacio(doc, y, 30);
+
+      doc.rect(this.margins.left, y, pageWidth, 20)
+         .fill('#f0fdf4');
+
+      doc.fontSize(8).font('Helvetica-Bold').fillColor('#16a34a')
+         .text(`Rx #${i + 1}`, this.margins.left + 10, y + 5);
+
+      doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
+         .text(`${fechaPresc} | ${nombreMedico}`, this.margins.left + 60, y + 6);
+
+      y += 22;
 
       // Si tiene medicamentos detallados
       if (presc.medicamentos && presc.medicamentos.length > 0) {
         for (const med of presc.medicamentos) {
           const nombreMed = med.producto?.nombre || med.nombreMedicamento || 'Medicamento';
+          const principioActivo = med.producto?.principioActivo || '';
+          const concentracion = med.producto?.concentracion || '';
+          const formaFarm = med.producto?.formaFarmaceutica || '';
           const dosis = med.dosis || presc.dosis || '';
           const via = med.viaAdministracion || presc.via || 'Oral';
           const frecuencia = med.frecuencia || presc.frecuencia || '';
-          const duracion = med.duracionDias ? `por ${med.duracionDias} Día(s)` : '';
+          const duracion = med.duracionDias ? `${med.duracionDias} dia(s)` : '';
+          const cantidad = med.cantidad || '';
+          const indicaciones = med.indicaciones || presc.indicaciones || '';
 
-          // Formato: » Medicamento Dosis Tomar X vía Y cada Z Hora(s) por N Día(s).
-          const textoFormulacion = `» ${nombreMed} ${dosis} Tomar vía ${via} cada ${frecuencia} ${duracion}.`.trim();
+          // Calcular altura
+          const infoMed = principioActivo ? `${principioActivo} ${concentracion} - ${formaFarm}` : '';
+          const instrucciones = `Dosis: ${dosis} | Via: ${via} | Frecuencia: ${frecuencia} | Duracion: ${duracion}`;
 
+          doc.fontSize(8).font('Helvetica');
+          const indicHeight = indicaciones ? doc.heightOfString(indicaciones, { width: pageWidth - 30 }) : 0;
+          const cardHeight = 45 + indicHeight;
+
+          y = this.verificarEspacio(doc, y, cardHeight + 5);
+
+          // Tarjeta del medicamento
+          doc.rect(this.margins.left, y, pageWidth, cardHeight)
+             .lineWidth(1)
+             .fillAndStroke('#ffffff', '#22c55e');
+
+          // Icono Rx
+          doc.fontSize(12).font('Helvetica-Bold').fillColor('#16a34a')
+             .text('Rx', this.margins.left + 8, y + 5);
+
+          // Nombre del medicamento
+          doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.text)
+             .text(nombreMed, this.margins.left + 30, y + 5, { width: pageWidth - 80 });
+
+          // Info farmaceutica
+          if (infoMed) {
+            doc.fontSize(7).font('Helvetica').fillColor(this.colors.textMuted)
+               .text(infoMed, this.margins.left + 30, y + 17);
+          }
+
+          // Cantidad (si aplica)
+          if (cantidad) {
+            doc.fontSize(8).font('Helvetica-Bold').fillColor('#16a34a')
+               .text(`Cant: ${cantidad}`, this.margins.left + pageWidth - 60, y + 5);
+          }
+
+          // Instrucciones de uso
           doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-             .text(textoFormulacion, this.margins.left + 5, y, { width: pageWidth - 10 });
-          y += doc.heightOfString(textoFormulacion, { width: pageWidth - 10 }) + 6;
+             .text(instrucciones, this.margins.left + 10, y + 28);
+
+          // Indicaciones adicionales
+          if (indicaciones) {
+            doc.fontSize(7).font('Helvetica-Oblique').fillColor(this.colors.textMuted)
+               .text(`Indicaciones: ${indicaciones}`, this.margins.left + 10, y + 40, { width: pageWidth - 20 });
+          }
+
+          y += cardHeight + 4;
         }
       } else {
-        // Usar datos de la prescripción directamente
-        const nombreMed = presc.diagnostico || 'Prescripción';
+        // Usar datos de la prescripcion directamente
+        const nombreMed = presc.diagnostico || 'Prescripcion';
         const dosis = presc.dosis || '';
         const via = presc.via || 'Oral';
         const frecuencia = presc.frecuencia || '';
+        const indicaciones = presc.indicaciones || '';
 
-        const textoFormulacion = `» ${nombreMed} ${dosis} vía ${via} ${frecuencia}`.trim();
+        const instrucciones = `Dosis: ${dosis} | Via: ${via} | Frecuencia: ${frecuencia}`;
+        doc.fontSize(8).font('Helvetica');
+        const indicHeight = indicaciones ? doc.heightOfString(indicaciones, { width: pageWidth - 30 }) : 0;
+        const cardHeight = 35 + indicHeight;
+
+        y = this.verificarEspacio(doc, y, cardHeight + 5);
+
+        doc.rect(this.margins.left, y, pageWidth, cardHeight)
+           .lineWidth(1)
+           .fillAndStroke('#ffffff', '#22c55e');
+
+        doc.fontSize(12).font('Helvetica-Bold').fillColor('#16a34a')
+           .text('Rx', this.margins.left + 8, y + 5);
+
+        doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.text)
+           .text(nombreMed, this.margins.left + 30, y + 5, { width: pageWidth - 40 });
 
         doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-           .text(textoFormulacion, this.margins.left + 5, y, { width: pageWidth - 10 });
-        y += doc.heightOfString(textoFormulacion, { width: pageWidth - 10 }) + 6;
+           .text(instrucciones, this.margins.left + 10, y + 20);
+
+        if (indicaciones) {
+          doc.fontSize(7).font('Helvetica-Oblique').fillColor(this.colors.textMuted)
+             .text(`Indicaciones: ${indicaciones}`, this.margins.left + 10, y + 32, { width: pageWidth - 20 });
+        }
+
+        y += cardHeight + 4;
       }
     }
 
@@ -1938,71 +2342,62 @@ class HCEPdfService {
 
       // Subtítulo por tipo
       doc.rect(this.margins.left, y, pageWidth, 16)
-         .fill('#f0f9ff');
+         .fill(this.colors.headerBg);
 
-      doc.fontSize(8).font('Helvetica-Bold').fillColor('#0369a1')
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
          .text(tipo.toUpperCase(), this.margins.left + 10, y + 4);
 
       y += 20;
 
       for (const examen of listaExamenes.slice(0, 15)) {
-        const tieneObservaciones = examen.observaciones && examen.observaciones.trim().length > 0;
-        const tieneDescripcion = examen.examenProcedimiento?.descripcion && examen.examenProcedimiento.descripcion.trim().length > 0;
-        const alturaItem = 22 + (tieneObservaciones ? 16 : 0) + (tieneDescripcion ? 12 : 0);
-
-        y = this.verificarEspacio(doc, y, alturaItem);
-
-        // Obtener código CUPS del modelo ExamenProcedimiento
-        const codigoCUPS = examen.examenProcedimiento?.codigoCUPS || '';
+        // Obtener datos del examen
+        const codigoCUPS = examen.examenProcedimiento?.codigoCUPS || 'N/A';
         const nombre = examen.examenProcedimiento?.nombre || 'Examen';
-        const descripcion = examen.examenProcedimiento?.descripcion || '';
         const estado = examen.estado || 'Pendiente';
         const fecha = this.formatearFechaCorta(examen.fechaOrden || examen.createdAt);
+        const observaciones = examen.observaciones || '';
 
-        // Icono de estado
+        // Limpiar observaciones - extraer solo el nombre del kit si es aplicación de kit
+        let notaCorta = '';
+        if (observaciones.includes('APLICACIÓN DE KIT:')) {
+          const match = observaciones.match(/Kit[^(]+/);
+          notaCorta = match ? match[0].trim() : observaciones.split('\n')[0].substring(0, 50);
+        } else {
+          notaCorta = observaciones.replace(/\n/g, ' ').substring(0, 50);
+        }
+
+        y = this.verificarEspacio(doc, y, 28);
+
+        // Color según estado
         const colorEstado = estado === 'Pendiente' ? this.colors.warning :
                            estado === 'Ejecutada' ? this.colors.accent : this.colors.success;
 
-        // Bullet con código CUPS
-        doc.circle(this.margins.left + 8, y + 5, 3).fill(colorEstado);
+        // Bullet indicador
+        doc.circle(this.margins.left + 8, y + 4, 3).fill(colorEstado);
 
-        // Mostrar código CUPS prominente
-        if (codigoCUPS) {
-          doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
-             .text(`CUPS: ${codigoCUPS}`, this.margins.left + 15, y);
-          doc.font('Helvetica').fillColor(this.colors.text)
-             .text(nombre, this.margins.left + 95, y, { width: pageWidth - 200 });
-        } else {
-          doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.textMuted)
-             .text('CUPS: N/A', this.margins.left + 15, y);
-          doc.font('Helvetica').fillColor(this.colors.text)
-             .text(nombre, this.margins.left + 75, y, { width: pageWidth - 180 });
-        }
+        // Línea 1: Código CUPS y Nombre del examen
+        doc.fontSize(7).font('Helvetica-Bold').fillColor(this.colors.primary)
+           .text(codigoCUPS, this.margins.left + 15, y, { width: 60, lineBreak: false });
 
-        // Estado y fecha
-        doc.fontSize(7).fillColor(colorEstado)
-           .text(estado, this.margins.left + pageWidth - 100, y);
+        doc.font('Helvetica').fillColor(this.colors.text)
+           .text(nombre.substring(0, 35), this.margins.left + 80, y, { width: 200, lineBreak: false });
 
+        // Estado y fecha al final de la línea
+        doc.fontSize(6).fillColor(colorEstado)
+           .text(estado, this.margins.left + pageWidth - 100, y, { width: 50, lineBreak: false });
         doc.fillColor(this.colors.textMuted)
-           .text(fecha, this.margins.left + pageWidth - 55, y);
+           .text(fecha, this.margins.left + pageWidth - 50, y, { width: 50, lineBreak: false });
 
-        y += 14;
+        y += 12;
 
-        // Mostrar descripción del examen si existe
-        if (tieneDescripcion) {
-          doc.fontSize(7).font('Helvetica').fillColor(this.colors.textLight)
-             .text(`   Descripción: ${descripcion.substring(0, 100)}`,
-                   this.margins.left + 15, y, { width: pageWidth - 30 });
-          y += 12;
+        // Línea 2: Nota resumida (si existe)
+        if (notaCorta.trim()) {
+          doc.fontSize(6).font('Helvetica-Oblique').fillColor(this.colors.textMuted)
+             .text(`Nota: ${notaCorta}`, this.margins.left + 20, y, { width: pageWidth - 40, lineBreak: false });
+          y += 10;
         }
 
-        // Mostrar observaciones/notas si existen
-        if (tieneObservaciones) {
-          doc.fontSize(7).font('Helvetica-Oblique').fillColor(this.colors.textLight)
-             .text(`   → Nota: ${examen.observaciones.substring(0, 120)}`,
-                   this.margins.left + 15, y, { width: pageWidth - 30 });
-          y += 16;
-        }
+        y += 6; // Espacio entre items
       }
     }
 
@@ -2022,9 +2417,9 @@ class HCEPdfService {
       y = this.verificarEspacio(doc, y, 40);
 
       doc.rect(this.margins.left, y, pageWidth, 35)
-         .fill('#f0f9ff');
+         .fill(this.colors.headerBg);
 
-      doc.fontSize(8).font('Helvetica-Bold').fillColor('#0369a1')
+      doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.primary)
          .text(estudio.tipoEstudio || 'Estudio', this.margins.left + 10, y + 6);
 
       doc.fontSize(7).fillColor(estudio.estado === 'Completado' ? this.colors.success : this.colors.warning)
@@ -2094,9 +2489,9 @@ class HCEPdfService {
 
       doc.rect(this.margins.left, y, pageWidth, 65)
          .lineWidth(1)
-         .fillAndStroke('#eef2ff', '#6366f1');
+         .fillAndStroke(this.colors.headerBg, this.colors.primary);
 
-      doc.fontSize(9).font('Helvetica-Bold').fillColor('#6366f1')
+      doc.fontSize(9).font('Helvetica-Bold').fillColor(this.colors.primary)
          .text(`ADMISIÓN - ${hosp.unidad?.nombre || 'Unidad'}`, this.margins.left + 10, y + 6);
 
       doc.fontSize(7).fillColor(hosp.estado === 'Activa' ? this.colors.success : this.colors.textMuted)
@@ -2145,7 +2540,7 @@ class HCEPdfService {
 
     y += 24;
     doc.fontSize(7).fillColor(this.colors.textMuted)
-       .text('• Res. 1995/1999 - Historia Clínica | • Ley 2015/2020 - Interoperabilidad HCE | • Res. 866/2021 - Datos Clínicos | • Ley 1581/2012 - Habeas Data',
+       .text('Res. 1995/1999 - Historia Clinica | Ley 2015/2020 - Interoperabilidad HCE | Res. 866/2021 - Datos Clinicos | Ley 1581/2012 - Habeas Data',
              this.margins.left + 15, y, { width: pageWidth - 30 });
 
     y += 18;
@@ -2269,7 +2664,7 @@ class HCEPdfService {
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
     doc.fontSize(10).font('Helvetica-Bold').fillColor(this.colors.danger)
-       .text('⚠ ALERTAS ACTIVAS', this.margins.left, y);
+       .text('[!] ALERTAS ACTIVAS', this.margins.left, y);
     y += 18;
 
     for (const alerta of alertas.slice(0, 5)) {
@@ -2331,12 +2726,12 @@ class HCEPdfService {
     let y = 130;
     const pageWidth = doc.page.width - this.margins.left - this.margins.right;
 
-    // Colores SOAP profesionales
+    // Colores SOAP con paleta Teal de la clínica
     const soapColors = {
-      S: { bg: '#e0f2fe', border: '#0284c7', text: '#0369a1' },  // Sky/Azul
-      O: { bg: '#dcfce7', border: '#16a34a', text: '#15803d' },  // Green
-      A: { bg: '#fef3c7', border: '#f59e0b', text: '#b45309' },  // Amber
-      P: { bg: '#f3e8ff', border: '#9333ea', text: '#7c3aed' },  // Purple
+      S: { bg: '#f0fdfa', border: '#0d9488', text: '#0f766e' },   // Teal para Subjetivo
+      O: { bg: '#ccfbf1', border: '#14b8a6', text: '#0d9488' },   // Teal claro para Objetivo
+      A: { bg: '#99f6e4', border: '#0f766e', text: '#115e59' },   // Teal medio para Análisis
+      P: { bg: '#5eead4', border: '#0d9488', text: '#134e4a' },   // Teal oscuro para Plan
     };
 
     for (let i = 0; i < evoluciones.length; i++) {
@@ -2363,69 +2758,104 @@ class HCEPdfService {
 
       y += 30;
 
-      // === TARJETAS SOAP EN GRID 2x2 ===
+      // === MOTIVO DE CONSULTA Y ENFERMEDAD ACTUAL ===
+      if (evol.motivoConsulta || evol.enfermedadActual) {
+        // Sección de Motivo de Consulta
+        if (evol.motivoConsulta) {
+          const motivoTexto = this.formatearContenidoEvolucion(evol.motivoConsulta);
+          doc.fontSize(8).font('Helvetica');
+          const motivoHeight = doc.heightOfString(motivoTexto, { width: pageWidth - 30 });
+          const motivoCardHeight = Math.max(30, motivoHeight + 20);
+
+          if (y + motivoCardHeight > doc.page.height - 80) {
+            doc.addPage();
+            y = 60;
+          }
+
+          doc.rect(this.margins.left, y, pageWidth, motivoCardHeight)
+             .lineWidth(1)
+             .fillAndStroke('#fef3c7', '#f59e0b'); // Amarillo
+
+          doc.fontSize(8).font('Helvetica-Bold').fillColor('#b45309')
+             .text('MOTIVO DE CONSULTA', this.margins.left + 10, y + 5);
+
+          doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+             .text(motivoTexto, this.margins.left + 10, y + 17, { width: pageWidth - 20 });
+
+          y += motivoCardHeight + 4;
+        }
+
+        // Sección de Enfermedad Actual
+        if (evol.enfermedadActual) {
+          const enfermedadTexto = this.formatearContenidoEvolucion(evol.enfermedadActual);
+          doc.fontSize(8).font('Helvetica');
+          const enfermedadHeight = doc.heightOfString(enfermedadTexto, { width: pageWidth - 30 });
+          const enfermedadCardHeight = Math.max(30, enfermedadHeight + 20);
+
+          if (y + enfermedadCardHeight > doc.page.height - 80) {
+            doc.addPage();
+            y = 60;
+          }
+
+          doc.rect(this.margins.left, y, pageWidth, enfermedadCardHeight)
+             .lineWidth(1)
+             .fillAndStroke('#fce7f3', '#ec4899'); // Rosa
+
+          doc.fontSize(8).font('Helvetica-Bold').fillColor('#be185d')
+             .text('ENFERMEDAD ACTUAL', this.margins.left + 10, y + 5);
+
+          doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
+             .text(enfermedadTexto, this.margins.left + 10, y + 17, { width: pageWidth - 20 });
+
+          y += enfermedadCardHeight + 4;
+        }
+      }
+
+      // === TARJETAS SOAP EN FORMATO VERTICAL (contenido completo) ===
       const secciones = [
-        { key: 'S', titulo: 'SUBJETIVO', contenido: this.formatearContenidoEvolucion(evol.subjetivo) },
-        { key: 'O', titulo: 'OBJETIVO', contenido: this.formatearContenidoEvolucion(evol.objetivo) },
-        { key: 'A', titulo: 'ANÁLISIS', contenido: this.formatearContenidoEvolucion(evol.analisis) },
-        { key: 'P', titulo: 'PLAN', contenido: this.formatearContenidoEvolucion(evol.plan) },
+        { key: 'S', titulo: 'SUBJETIVO (Sintomas)', contenido: this.formatearContenidoEvolucion(evol.subjetivo) },
+        { key: 'O', titulo: 'OBJETIVO (Examen fisico)', contenido: this.formatearContenidoEvolucion(evol.objetivo) },
+        { key: 'A', titulo: 'ANALISIS (Impresion Dx)', contenido: this.formatearContenidoEvolucion(evol.analisis) },
+        { key: 'P', titulo: 'PLAN (Tratamiento)', contenido: this.formatearContenidoEvolucion(evol.plan) },
       ];
 
-      const cardWidth = (pageWidth - 10) / 2;
-      const cardHeight = 80;
-      let cardY = y;
-      let cardCol = 0;
-
       for (const seccion of secciones) {
-        const contenido = seccion.contenido?.trim() || 'Sin información';
+        const contenido = seccion.contenido?.trim() || 'Sin informacion';
         const colors = soapColors[seccion.key];
-        const cardX = this.margins.left + (cardCol * (cardWidth + 10));
 
-        // Verificar si necesitamos nueva página
-        if (cardY + cardHeight > doc.page.height - 100) {
+        // Calcular altura necesaria para el contenido
+        doc.fontSize(8).font('Helvetica');
+        const textHeight = doc.heightOfString(contenido, { width: pageWidth - 50 });
+        const cardHeight = Math.max(35, textHeight + 25);
+
+        // Verificar si necesitamos nueva pagina
+        if (y + cardHeight > doc.page.height - 80) {
           doc.addPage();
-          cardY = 60;
+          this.generarEncabezadoSeccion(doc, 'EVOLUCIONES MEDICAS (Continuacion)');
+          y = 130;
         }
 
         // Fondo de tarjeta
-        doc.rect(cardX, cardY, cardWidth, cardHeight)
-           .lineWidth(2)
+        doc.rect(this.margins.left, y, pageWidth, cardHeight)
+           .lineWidth(1)
            .fillAndStroke(colors.bg, colors.border);
 
         // Letra indicadora
-        doc.fontSize(20).font('Helvetica-Bold').fillColor(colors.border)
-           .text(seccion.key, cardX + 8, cardY + 5);
+        doc.fontSize(14).font('Helvetica-Bold').fillColor(colors.border)
+           .text(seccion.key, this.margins.left + 8, y + 5);
 
-        // Título
+        // Titulo
         doc.fontSize(8).font('Helvetica-Bold').fillColor(colors.text)
-           .text(seccion.titulo, cardX + 35, cardY + 8);
+           .text(seccion.titulo, this.margins.left + 30, y + 8);
 
-        // Contenido (truncado si es muy largo)
-        const maxContentLength = 180;
-        const displayContent = contenido.length > maxContentLength
-          ? contenido.substring(0, maxContentLength) + '...'
-          : contenido;
-
+        // Contenido completo (sin truncar)
         doc.fontSize(8).font('Helvetica').fillColor(this.colors.text)
-           .text(displayContent, cardX + 10, cardY + 25, {
-             width: cardWidth - 20,
-             height: cardHeight - 35,
-             ellipsis: true
+           .text(contenido, this.margins.left + 30, y + 20, {
+             width: pageWidth - 50
            });
 
-        cardCol++;
-        if (cardCol >= 2) {
-          cardCol = 0;
-          cardY += cardHeight + 8;
-        }
+        y += cardHeight + 4;
       }
-
-      // Si terminamos en columna impar, ajustar Y
-      if (cardCol > 0) {
-        cardY += cardHeight + 8;
-      }
-
-      y = cardY;
 
       // === FIRMA COMPACTA ===
       if (y > doc.page.height - 60) {
@@ -2446,7 +2876,7 @@ class HCEPdfService {
 
       if (evol.firmada) {
         doc.fontSize(8).font('Helvetica-Bold').fillColor(this.colors.success)
-           .text('✓ FIRMADO DIGITALMENTE', this.margins.left + pageWidth - 130, y + 12);
+           .text('[FIRMADO DIGITALMENTE]', this.margins.left + pageWidth - 130, y + 12);
       }
 
       y += 45;
@@ -2603,8 +3033,8 @@ class HCEPdfService {
     doc.fontSize(9).font('Helvetica').fillColor(this.colors.text);
 
     for (const [stat1, stat2] of stats) {
-      doc.text(`• ${stat1}`, col1X, y);
-      doc.text(`• ${stat2}`, col2X, y);
+      doc.text(`- ${stat1}`, col1X, y);
+      doc.text(`- ${stat2}`, col2X, y);
       y += 18;
     }
 
@@ -2719,8 +3149,8 @@ class HCEPdfService {
 
     // Rango de fechas si aplica
     if (datos.rangoFechas) {
-      const desde = datos.rangoFechas.desde.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-      const hasta = datos.rangoFechas.hasta.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+      const desde = datos.rangoFechas.desde.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: TIMEZONE_BOGOTA });
+      const hasta = datos.rangoFechas.hasta.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', timeZone: TIMEZONE_BOGOTA });
       doc.fontSize(7).font('Helvetica').fillColor(this.colors.warning)
          .text(`Período: ${desde} - ${hasta}`, this.margins.left + 200, y + 6);
     }
@@ -2739,7 +3169,7 @@ class HCEPdfService {
        .fillAndStroke(this.colors.dangerBg, this.colors.danger);
 
     doc.fillColor(this.colors.danger).fontSize(7).font('Helvetica-Bold')
-       .text('⚠ DOCUMENTO CONFIDENCIAL', this.margins.left + 8, y + 4);
+       .text('[!] DOCUMENTO CONFIDENCIAL', this.margins.left + 8, y + 4);
 
     doc.fontSize(6).font('Helvetica').fillColor(this.colors.text)
        .text('Información protegida por Ley 1581/2012 (Habeas Data), Ley 23/1981 (Ética Médica) y Ley 2015/2020. Conforme a Res. 1995/1999, 839/2017, 3100/2019, 866/2021.',
@@ -2822,7 +3252,7 @@ class HCEPdfService {
 
     for (const seccion of secciones) {
       if (seccion.tiene) {
-        const indicador = seccion.obligatorio ? '●' : '○';
+        const indicador = seccion.obligatorio ? '[*]' : '[ ]';
         doc.fillColor(seccion.obligatorio ? this.colors.primary : this.colors.textLight)
            .text(indicador, this.margins.left + 10, y);
 
@@ -2838,7 +3268,7 @@ class HCEPdfService {
     y += 20;
     doc.fontSize(8)
        .fillColor(this.colors.textMuted)
-       .text('● Sección obligatoria según Res. 1995/1999    ○ Sección condicional', this.margins.left + 10, y);
+       .text('[*] Seccion obligatoria segun Res. 1995/1999    [ ] Seccion condicional', this.margins.left + 10, y);
 
     // Resumen estadístico
     y += 40;
@@ -2866,8 +3296,8 @@ class HCEPdfService {
     ];
 
     for (const [stat1, stat2] of estadisticas) {
-      doc.text(`• ${stat1}`, col1X, y);
-      doc.text(`• ${stat2}`, col2X, y);
+      doc.text(`- ${stat1}`, col1X, y);
+      doc.text(`- ${stat2}`, col2X, y);
       y += 18;
     }
   }
@@ -3242,7 +3672,7 @@ class HCEPdfService {
     // === ALERTAS ACTIVAS ===
     const alertasActivas = datos.alertas.filter(a => a.activa);
     if (alertasActivas.length > 0) {
-      y = this.generarSubseccion(doc, '⚠ ALERTAS CLÍNICAS ACTIVAS', y);
+      y = this.generarSubseccion(doc, '[!] ALERTAS CLINICAS ACTIVAS', y);
 
       doc.rect(this.margins.left, y, pageWidth, 20 + alertasActivas.length * 18)
          .fill(this.colors.dangerBg);
@@ -3252,7 +3682,7 @@ class HCEPdfService {
         doc.fontSize(9)
            .font('Helvetica-Bold')
            .fillColor(this.colors.danger)
-           .text(`• ${alerta.tipo}: ${alerta.titulo}`, this.margins.left + 10, y);
+           .text(`- ${alerta.tipo}: ${alerta.titulo}`, this.margins.left + 10, y);
         y += 18;
       }
     }
@@ -3270,7 +3700,7 @@ class HCEPdfService {
     doc.fontSize(9)
        .fillColor(this.colors.danger)
        .font('Helvetica-Bold')
-       .text('⚠ INFORMACIÓN CRÍTICA PARA LA SEGURIDAD DEL PACIENTE', this.margins.left, y);
+       .text('[!] INFORMACION CRITICA PARA LA SEGURIDAD DEL PACIENTE', this.margins.left, y);
     y += 25;
 
     for (const alerta of alertas) {
@@ -3295,7 +3725,7 @@ class HCEPdfService {
       doc.fontSize(8)
          .font('Helvetica')
          .fillColor(esActiva ? this.colors.danger : this.colors.textMuted)
-         .text(esActiva ? '● ACTIVA' : '○ INACTIVA', this.margins.left + pageWidth - 80, y);
+         .text(esActiva ? '[ACTIVA]' : '[INACTIVA]', this.margins.left + pageWidth - 80, y);
 
       doc.fontSize(11)
          .font('Helvetica-Bold')
@@ -3607,7 +4037,7 @@ class HCEPdfService {
         doc.fontSize(7)
            .font('Helvetica-Bold')
            .fillColor(this.colors.accent)
-           .text('✓ FIRMADO DIGITALMENTE', datosX, imgY + 42);
+           .text('[FIRMADO DIGITALMENTE]', datosX, imgY + 42);
       }
 
       y += 75;
@@ -4511,7 +4941,7 @@ class HCEPdfService {
           doc.fontSize(8)
              .font('Helvetica')
              .fillColor(this.colors.text)
-             .text(`• ${this.formatearFechaHoraCorta(mov.fechaMovimiento)} - ${mov.tipo}: ${mov.motivo || 'N/A'}`,
+             .text(`- ${this.formatearFechaHoraCorta(mov.fechaMovimiento)} - ${mov.tipo}: ${mov.motivo || 'N/A'}`,
                     this.margins.left + 15, y);
           y += 12;
         }
@@ -4629,13 +5059,13 @@ class HCEPdfService {
 
     doc.fontSize(9);
     const normativas = [
-      '• Resolución 1995 de 1999 - Normas para el manejo de la Historia Clínica',
-      '• Resolución 839 de 2017 - Modificaciones a la Resolución 1995/1999',
-      '• Resolución 3100 de 2019 - Habilitación de servicios de salud',
-      '• Resolución 866 de 2021 - Interoperabilidad de HCE',
-      '• Ley 2015 de 2020 - Historia Clínica Electrónica Interoperable',
-      '• Ley 1581 de 2012 - Protección de datos personales',
-      '• Ley 23 de 1981 - Ética Médica',
+      '- Resolucion 1995 de 1999 - Normas para el manejo de la Historia Clinica',
+      '- Resolucion 839 de 2017 - Modificaciones a la Resolucion 1995/1999',
+      '- Resolucion 3100 de 2019 - Habilitacion de servicios de salud',
+      '- Resolucion 866 de 2021 - Interoperabilidad de HCE',
+      '- Ley 2015 de 2020 - Historia Clinica Electronica Interoperable',
+      '- Ley 1581 de 2012 - Proteccion de datos personales',
+      '- Ley 23 de 1981 - Etica Medica',
     ];
 
     for (const norma of normativas) {
@@ -4899,6 +5329,7 @@ class HCEPdfService {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+      timeZone: TIMEZONE_BOGOTA
     });
   }
 
@@ -4909,6 +5340,7 @@ class HCEPdfService {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
+      timeZone: TIMEZONE_BOGOTA
     });
   }
 
@@ -4921,6 +5353,7 @@ class HCEPdfService {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: TIMEZONE_BOGOTA
     });
   }
 
@@ -4932,6 +5365,7 @@ class HCEPdfService {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: TIMEZONE_BOGOTA
     });
   }
 
@@ -4946,6 +5380,7 @@ class HCEPdfService {
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
+      timeZone: TIMEZONE_BOGOTA
     });
   }
 

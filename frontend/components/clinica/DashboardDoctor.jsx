@@ -749,7 +749,9 @@ export default function DashboardDoctor({ user, onChangeAttentionType, onNavigat
                 </h1>
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-gray-600">
-                    {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                    {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' ,
+      timeZone: 'America/Bogota'
+    })}
                   </p>
                   {doctorProfile?.especialidades && doctorProfile.especialidades.length > 0 && (
                     <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200">
@@ -1057,7 +1059,9 @@ export default function DashboardDoctor({ user, onChangeAttentionType, onNavigat
                           <p>Actualizar lista</p>
                           {lastRefresh && (
                             <p className="text-xs text-gray-300">
-                              Última: {lastRefresh.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                              Última: {lastRefresh.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
+      timeZone: 'America/Bogota'
+    })}
                             </p>
                           )}
                         </TooltipContent>

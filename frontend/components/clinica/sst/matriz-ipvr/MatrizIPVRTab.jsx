@@ -71,7 +71,7 @@ export default function MatrizIPVRTab({ user }) {
               <div>
                 <span className="text-gray-500">Fecha Elaboracion:</span>
                 <p className="font-medium">
-                  {new Date(matrizIPVR.fechaElaboracion).toLocaleDateString('es-CO')}
+                  {new Date(matrizIPVR.fechaElaboracion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                 </p>
               </div>
               <div>
@@ -164,7 +164,7 @@ export default function MatrizIPVRTab({ user }) {
                     <TableCell>{matriz.nombre}</TableCell>
                     <TableCell>{matriz.version}</TableCell>
                     <TableCell>
-                      {new Date(matriz.fechaElaboracion).toLocaleDateString('es-CO')}
+                      {new Date(matriz.fechaElaboracion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </TableCell>
                     <TableCell>
                       <Badge variant={matriz.estado === 'VIGENTE' ? 'success' : 'secondary'}>

@@ -158,7 +158,7 @@ export default function PlanAnualTab({ user }) {
                         <TableCell>{actividad.responsable || 'N/A'}</TableCell>
                         <TableCell>
                           {actividad.fechaProgramada
-                            ? new Date(actividad.fechaProgramada).toLocaleDateString('es-CO')
+                            ? new Date(actividad.fechaProgramada).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
                             : '-'}
                         </TableCell>
                         <TableCell>{getEstadoBadge(actividad.estado)}</TableCell>

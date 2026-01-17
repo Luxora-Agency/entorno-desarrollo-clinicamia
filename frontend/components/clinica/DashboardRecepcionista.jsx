@@ -108,7 +108,9 @@ export default function DashboardRecepcionista({ user }) {
   const formatHora = (hora) => {
     if (!hora) return '';
     const date = new Date(`1970-01-01T${hora}`);
-    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
+      timeZone: 'America/Bogota'
+    });
   };
 
   const citasFiltradas = citasHoy.filter(cita => {
@@ -141,7 +143,9 @@ export default function DashboardRecepcionista({ user }) {
           <ClipboardList className="h-8 w-8 text-emerald-600" />
           Bienvenida, {user?.nombre} {user?.apellido}
         </h1>
-        <p className="text-gray-600">Panel de Recepción - {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        <p className="text-gray-600">Panel de Recepción - {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' ,
+      timeZone: 'America/Bogota'
+    })}</p>
       </div>
 
       {/* KPIs */}

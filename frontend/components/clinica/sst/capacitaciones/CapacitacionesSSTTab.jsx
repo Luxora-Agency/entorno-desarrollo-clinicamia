@@ -149,7 +149,7 @@ export default function CapacitacionesSSTTab({ user }) {
                     </TableCell>
                     <TableCell>
                       {cap.fechaProgramada
-                        ? new Date(cap.fechaProgramada).toLocaleDateString('es-CO')
+                        ? new Date(cap.fechaProgramada).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
                         : '-'}
                     </TableCell>
                     <TableCell>{cap.duracionHoras}h</TableCell>

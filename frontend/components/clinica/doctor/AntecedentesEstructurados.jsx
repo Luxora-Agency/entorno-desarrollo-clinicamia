@@ -477,7 +477,7 @@ export default function AntecedentesEstructurados({ pacienteId, pacienteGenero, 
                         {item.fecha && (
                           <Badge variant="outline" className="text-xs">
                             <Calendar className="h-3 w-3 mr-1" />
-                            {new Date(item.fecha).toLocaleDateString('es-CO')}
+                            {new Date(item.fecha).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                           </Badge>
                         )}
                       </div>

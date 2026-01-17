@@ -118,7 +118,7 @@ export default function AuditoriasTab({ user }) {
                   auditorias.map((auditoria) => (
                     <TableRow key={auditoria.id}>
                       <TableCell>
-                        {new Date(auditoria.fechaProgramada).toLocaleDateString('es-CO')}
+                        {new Date(auditoria.fechaProgramada).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline">{auditoria.tipoAuditoria}</Badge>
@@ -191,7 +191,7 @@ export default function AuditoriasTab({ user }) {
                               ? 'text-red-500 font-medium'
                               : ''
                           }>
-                            {new Date(accion.fechaImplementacion).toLocaleDateString('es-CO')}
+                            {new Date(accion.fechaImplementacion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                           </span>
                         )}
                       </TableCell>

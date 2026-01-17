@@ -58,6 +58,8 @@ export default function TabExamenesProcedimientosPaciente({ pacienteId }) {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
+    ,
+      timeZone: 'America/Bogota'
     });
   };
 

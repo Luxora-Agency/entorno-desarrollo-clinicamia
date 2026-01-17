@@ -100,7 +100,7 @@ export default function AlertaCard({ alerta, onMarcarAtendida }) {
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Clock className="w-3.5 h-3.5" />
           <span>
-            Generada el {new Date(alerta.fechaAlerta).toLocaleString('es-CO')}
+            Generada el {new Date(alerta.fechaAlerta).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
           </span>
         </div>
 
@@ -121,7 +121,7 @@ export default function AlertaCard({ alerta, onMarcarAtendida }) {
                 Atendida por: {alerta.atendedor?.nombre || 'Usuario desconocido'}
               </p>
               <p className="text-xs text-green-700">
-                Fecha: {new Date(alerta.fechaAtencion).toLocaleString('es-CO')}
+                Fecha: {new Date(alerta.fechaAtencion).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
               </p>
               {alerta.observacionesAtencion && (
                 <div className="mt-2">

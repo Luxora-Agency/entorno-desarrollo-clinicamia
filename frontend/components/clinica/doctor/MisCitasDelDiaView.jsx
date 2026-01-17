@@ -337,12 +337,16 @@ export default function MisCitasDelDiaView({ user }) {
               </h1>
               <div className="flex items-center gap-3 mt-1.5">
                 <p className="text-gray-500 text-sm capitalize">
-                  {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long' ,
+      timeZone: 'America/Bogota'
+    })}
                 </p>
                 <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full border border-blue-100">
                   <div className="h-2 w-2 bg-blue-500 rounded-full animate-pulse" />
                   <span className="text-xs font-semibold text-blue-700 font-mono">
-                    {currentTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                    {currentTime.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
+      timeZone: 'America/Bogota'
+    })}
                   </span>
                 </div>
               </div>
@@ -1096,7 +1100,9 @@ function formatHora(hora) {
   if (!hora) return '--:--';
   try {
     if (typeof hora === 'string' && hora.includes('T')) {
-      return new Date(hora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      return new Date(hora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
+      timeZone: 'America/Bogota'
+    });
     }
     return hora.substring(0, 5);
   } catch {

@@ -462,7 +462,7 @@ export default function ActivosFijosModule() {
                         <TableCell>{activo.nombre}</TableCell>
                         <TableCell>
                           <Badge variant="destructive">
-                            {new Date(activo.proximoMantenimiento).toLocaleDateString('es-CO')}
+                            {new Date(activo.proximoMantenimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                           </Badge>
                         </TableCell>
                         <TableCell>

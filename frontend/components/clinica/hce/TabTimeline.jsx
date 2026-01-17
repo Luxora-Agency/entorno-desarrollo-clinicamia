@@ -77,11 +77,11 @@ export default function TabTimeline({ pacienteId }) {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
 
-        fetch(`${apiUrl}/procedimientos?paciente_id=${pacienteId}&limit=50`, {
+        fetch(`${apiUrl}/procedimientos?pacienteId=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
 
-        fetch(`${apiUrl}/prescripciones?paciente_id=${pacienteId}&limit=50`, {
+        fetch(`${apiUrl}/prescripciones?pacienteId=${pacienteId}&limit=50`, {
           headers: { Authorization: `Bearer ${token}` }
         }).then(r => r.ok ? r.json() : { data: [] }),
 
@@ -95,59 +95,74 @@ export default function TabTimeline({ pacienteId }) {
         ...(evoluciones.data || []).map(e => ({
           ...e,
           tipo: 'evolucion',
-          fecha: e.createdAt,
-          titulo: 'Evolución SOAP',
-          descripcion: e.subjetivo?.substring(0, 100) + '...',
+          fecha: e.fechaEvolucion || e.createdAt,
+          titulo: e.tipoEvolucion === 'Seguimiento' ? 'Consulta Médica - SOAP' : `Evolución: ${e.tipoEvolucion || 'SOAP'}`,
+          descripcion: e.motivoConsulta || e.subjetivo?.substring(0, 100) || 'Evolución clínica registrada',
           firmada: e.firmada,
           hashRegistro: e.hashRegistro,
+          esPrimeraConsulta: e.esPrimeraConsulta,
         })),
         ...(signos.data || []).map(s => ({
           ...s,
           tipo: 'signos',
-          fecha: s.createdAt,
+          fecha: s.fechaRegistro || s.createdAt,
           titulo: 'Signos Vitales',
-          descripcion: `Temperatura: ${s.temperatura || 'N/A'}°C, PA: ${s.presionSistolica || '--'}/${s.presionDiastolica || '--'}`,
+          descripcion: `PA: ${s.presionSistolica || '--'}/${s.presionDiastolica || '--'} mmHg | FC: ${s.frecuenciaCardiaca || '--'} lpm | Temp: ${s.temperatura || 'N/A'}°C | SpO2: ${s.saturacionOxigeno || '--'}%`,
         })),
         ...(diagnosticos.data || []).map(d => ({
           ...d,
           tipo: 'diagnostico',
-          fecha: d.createdAt,
-          titulo: 'Diagnóstico',
-          descripcion: `${d.codigoCIE11} - ${d.descripcionCIE11}`,
+          fecha: d.fechaDiagnostico || d.createdAt,
+          titulo: d.tipoDiagnostico === 'Principal' ? 'Diagnóstico Principal' : 'Diagnóstico',
+          descripcion: `${d.codigoCIE10 || d.codigoCIE11 || ''} - ${d.descripcionCIE10 || d.descripcionCIE11 || d.descripcion || 'Sin descripción'}`,
         })),
         ...(alertas.data || []).map(a => ({
           ...a,
           tipo: 'alerta',
-          fecha: a.createdAt,
-          titulo: `Alerta: ${a.titulo}`,
-          descripcion: a.descripcion,
+          fecha: a.fechaAlerta || a.createdAt,
+          titulo: `Alerta: ${a.titulo || a.tipo}`,
+          descripcion: a.descripcion || a.observaciones,
         })),
         ...(procedimientos.data || []).map(p => ({
           ...p,
           tipo: 'procedimiento',
-          fecha: p.fechaRealizada || p.createdAt,
-          titulo: 'Procedimiento',
-          descripcion: p.nombre,
+          fecha: p.fechaRealizada || p.fechaProgramada || p.createdAt,
+          titulo: `Procedimiento: ${p.nombre || 'Sin nombre'}`,
+          descripcion: `${p.codigoCups ? `CUPS: ${p.codigoCups} - ` : ''}Estado: ${p.estado || 'Pendiente'}`,
         })),
         ...(prescripciones.data || []).map(p => ({
           ...p,
           tipo: 'prescripcion',
-          fecha: p.createdAt,
+          fecha: p.fechaPrescripcion || p.createdAt,
           titulo: 'Prescripción Médica',
-          descripcion: `${p.medicamentos?.length || 0} medicamento(s)`,
+          descripcion: p.medicamentos?.length > 0
+            ? p.medicamentos.map(m => m.producto?.nombre || m.nombre || 'Medicamento').join(', ').substring(0, 80)
+            : `${p.medicamentos?.length || 0} medicamento(s)`,
         })),
-        // Órdenes Médicas (Laboratorio, Exámenes, Procedimientos)
-        ...(ordenesMedicas.data || []).map(o => ({
-          ...o,
-          tipo: 'laboratorio',
-          fecha: o.fechaEjecucion || o.fechaOrden || o.createdAt,
-          titulo: o.estado === 'Completada'
-            ? `Resultado: ${o.examenProcedimiento?.nombre || 'Examen'}`
-            : `Orden: ${o.examenProcedimiento?.nombre || 'Examen'}`,
-          descripcion: o.estado === 'Completada' && o.resultados
-            ? 'Ver resultados disponibles'
-            : `Estado: ${o.estado}`,
-        })),
+        // Órdenes Médicas (Laboratorio, Exámenes, Procedimientos, Kits)
+        ...(ordenesMedicas.data || []).map(o => {
+          // Detectar si es un kit aplicado
+          const esKit = o.observaciones?.startsWith('APLICACIÓN DE KIT:');
+          const nombreKit = esKit
+            ? o.observaciones.split('\n')[0].replace('APLICACIÓN DE KIT:', '').trim()
+            : null;
+
+          return {
+            ...o,
+            tipo: esKit ? 'prescripcion' : 'laboratorio',
+            fecha: o.fechaEjecucion || o.fechaOrden || o.createdAt,
+            titulo: esKit
+              ? `Kit Aplicado: ${nombreKit}`
+              : (o.estado === 'Completada'
+                  ? `Resultado: ${o.examenProcedimiento?.nombre || o.descripcion || 'Examen'}`
+                  : `Orden: ${o.examenProcedimiento?.nombre || o.descripcion || 'Examen'}`),
+            descripcion: esKit
+              ? `Precio: $${o.precioAplicado || '0'} | Estado: ${o.estado || 'Pendiente'}`
+              : (o.estado === 'Completada' && o.resultados
+                  ? 'Ver resultados disponibles'
+                  : `Estado: ${o.estado || 'Pendiente'}`),
+          };
+        }),
       ];
 
       // Ordenar por fecha descendente
@@ -185,6 +200,7 @@ export default function TabTimeline({ pacienteId }) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'America/Bogota'
     });
   };
 

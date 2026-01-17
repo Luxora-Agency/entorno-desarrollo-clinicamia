@@ -206,8 +206,8 @@ export default function SuscriptoresMiaPassModule() {
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Calendar className="w-4 h-4 text-gray-400" />
                   <span>
-                    {new Date(suscripcion.fechaInicio).toLocaleDateString('es-CO')} -
-                    {new Date(suscripcion.fechaFin).toLocaleDateString('es-CO')}
+                    {new Date(suscripcion.fechaInicio).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })} -
+                    {new Date(suscripcion.fechaFin).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                   </span>
                 </div>
               </div>
@@ -289,13 +289,13 @@ export default function SuscriptoresMiaPassModule() {
                   <div>
                     <label className="text-sm font-medium text-gray-600">Fecha Inicio</label>
                     <p className="text-gray-900">
-                      {new Date(selectedSuscripcion.fechaInicio).toLocaleDateString('es-CO')}
+                      {new Date(selectedSuscripcion.fechaInicio).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </p>
                   </div>
                   <div>
                     <label className="text-sm font-medium text-gray-600">Fecha Fin</label>
                     <p className="text-gray-900">
-                      {new Date(selectedSuscripcion.fechaFin).toLocaleDateString('es-CO')}
+                      {new Date(selectedSuscripcion.fechaFin).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </p>
                   </div>
                 </div>

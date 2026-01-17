@@ -30,7 +30,9 @@ const getRelativeTime = (dateString) => {
   if (diffHours < 24) return `Hace ${diffHours}h`;
   if (diffDays === 1) return 'Ayer';
   if (diffDays < 7) return `Hace ${diffDays} días`;
-  return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' });
+  return date.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' ,
+      timeZone: 'America/Bogota'
+    });
 };
 
 // Obtener tipo de consulta badge

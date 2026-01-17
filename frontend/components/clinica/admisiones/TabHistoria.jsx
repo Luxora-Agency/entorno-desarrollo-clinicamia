@@ -78,6 +78,7 @@ export default function TabHistoria({ pacienteId, paciente }) {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+      timeZone: 'America/Bogota'
     });
   };
 

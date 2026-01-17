@@ -68,6 +68,7 @@ export default function TabHospitalizaciones({ pacienteId }) {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -80,6 +81,7 @@ export default function TabHospitalizaciones({ pacienteId }) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'America/Bogota'
     });
   };
 

@@ -145,7 +145,7 @@ export default function EPPTab({ user }) {
                   entregasEpp.map((entrega) => (
                     <TableRow key={entrega.id}>
                       <TableCell>
-                        {new Date(entrega.fechaEntrega).toLocaleDateString('es-CO')}
+                        {new Date(entrega.fechaEntrega).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </TableCell>
                       <TableCell>
                         {entrega.empleado?.nombre} {entrega.empleado?.apellido}
@@ -159,7 +159,7 @@ export default function EPPTab({ user }) {
                               ? 'text-red-500 font-medium'
                               : ''
                           }>
-                            {new Date(entrega.fechaVencimiento).toLocaleDateString('es-CO')}
+                            {new Date(entrega.fechaVencimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                           </span>
                         )}
                       </TableCell>

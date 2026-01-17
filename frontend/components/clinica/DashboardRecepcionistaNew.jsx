@@ -422,7 +422,7 @@ export default function DashboardRecepcionistaNew({ user }) {
                     {bloque.cita && bloque.cita.costo && (
                       <div className="text-right">
                         <div className="text-lg font-bold text-gray-900">
-                          ${parseFloat(bloque.cita.costo).toLocaleString('es-CO')}
+                          ${parseFloat(bloque.cita.costo).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                         </div>
                         <div className="text-xs text-gray-500">COP</div>
                       </div>
@@ -532,7 +532,7 @@ export default function DashboardRecepcionistaNew({ user }) {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-semibold text-gray-900">
-                        ${parseFloat(cita.costo || 0).toLocaleString('es-CO')}
+                        ${parseFloat(cita.costo || 0).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                       </div>
                     </td>
                   </tr>

@@ -99,6 +99,7 @@ export default function TabProcedimientos({ pacienteId }) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -217,7 +218,7 @@ export default function TabProcedimientos({ pacienteId }) {
         </div>
         {orden.precioAplicado > 0 && (
           <div className={`text-${colorClass}-600 font-medium`}>
-            ${orden.precioAplicado?.toLocaleString('es-CO')}
+            ${orden.precioAplicado?.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
           </div>
         )}
       </div>

@@ -172,7 +172,7 @@ export default function AccidentesTab({ user }) {
                 accidentes.map((accidente) => (
                   <TableRow key={accidente.id}>
                     <TableCell>
-                      {new Date(accidente.fechaAccidente).toLocaleDateString('es-CO')}
+                      {new Date(accidente.fechaAccidente).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </TableCell>
                     <TableCell>
                       <div>

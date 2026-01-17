@@ -321,7 +321,9 @@ export default function ComisionesMiaPassModule({ user }) {
                                 day: '2-digit',
                                 month: 'short',
                                 year: 'numeric'
-                              })
+                              ,
+      timeZone: 'America/Bogota'
+    })
                             : '-'
                           }
                         </TableCell>

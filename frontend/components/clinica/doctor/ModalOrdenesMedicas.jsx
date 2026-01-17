@@ -610,7 +610,7 @@ export default function ModalOrdenesMedicas({
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm text-gray-500">
-                        {new Date(orden.updatedAt || orden.createdAt).toLocaleDateString('es-CO')}
+                        {new Date(orden.updatedAt || orden.createdAt).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </TableCell>
                     </TableRow>
                   ))}

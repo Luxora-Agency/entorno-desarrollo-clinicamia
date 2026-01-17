@@ -250,7 +250,7 @@ export default function ChecklistAuditoriaHC({ onGenerateHallazgos }) {
   const exportarChecklist = () => {
     const stats = calcularEstadisticas();
     let contenido = '=== CHECKLIST DE AUDITORÍA DE HISTORIA CLÍNICA ===\n\n';
-    contenido += `Fecha: ${new Date().toLocaleDateString('es-CO')}\n`;
+    contenido += `Fecha: ${new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}\n`;
     contenido += `Cumplimiento: ${stats.porcentajeCumplimiento}%\n`;
     contenido += `Criterios cumplidos: ${stats.cumplidos}/${stats.totalCriterios}\n\n`;
 

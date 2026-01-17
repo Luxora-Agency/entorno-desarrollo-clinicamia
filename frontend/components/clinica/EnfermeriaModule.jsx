@@ -386,7 +386,7 @@ export default function EnfermeriaModule({ user }) {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(asig.fechaInicio).toLocaleDateString('es-CO')}
+                        {new Date(asig.fechaInicio).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </TableCell>
                       <TableCell>
                         <Badge className={asig.activo ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}>

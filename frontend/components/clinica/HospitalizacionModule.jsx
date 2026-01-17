@@ -431,7 +431,7 @@ export default function HospitalizacionModule({ user }) {
                         CC: {camaSeleccionada.admisiones[0].paciente.cedula}
                       </p>
                       <p className="text-gray-600">
-                        Ingreso: {new Date(camaSeleccionada.admisiones[0].fechaIngreso).toLocaleDateString('es-CO')}
+                        Ingreso: {new Date(camaSeleccionada.admisiones[0].fechaIngreso).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </p>
                     </div>
                   </CardContent>

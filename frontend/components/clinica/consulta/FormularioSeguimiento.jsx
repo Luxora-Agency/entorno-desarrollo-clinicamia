@@ -105,7 +105,7 @@ export default function FormularioSeguimiento({
 
       toast({
         title: 'Seguimiento programado',
-        description: `Control programado para ${fechaSugerida.toLocaleDateString('es-CO')}.`
+        description: `Control programado para ${fechaSugerida.toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}.`
       });
 
       // TODO: Si crearCitaDirecta es true, redirigir a crear cita
@@ -195,7 +195,7 @@ export default function FormularioSeguimiento({
                   </div>
                   <p className="text-sm text-purple-700">
                     <Clock className="h-3 w-3 inline mr-1" />
-                    En {seg.diasParaControl} días - {new Date(seg.fechaSugerida).toLocaleDateString('es-CO')}
+                    En {seg.diasParaControl} días - {new Date(seg.fechaSugerida).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                   </p>
                 </div>
               </div>
@@ -315,8 +315,9 @@ export default function FormularioSeguimiento({
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
-                    day: 'numeric'
-                  })}
+                    day: 'numeric',
+      timeZone: 'America/Bogota'
+    })}
                 </p>
               </div>
             </div>

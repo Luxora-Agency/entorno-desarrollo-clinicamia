@@ -16,7 +16,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 const formatHora = (fecha) => {
   if (!fecha) return '--:--';
   const date = new Date(fecha);
-  return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  return date.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
+      timeZone: 'America/Bogota'
+    });
 };
 
 // Obtener color de estado

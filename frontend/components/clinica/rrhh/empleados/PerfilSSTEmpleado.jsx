@@ -270,7 +270,7 @@ export default function PerfilSSTEmpleado({ empleadoId, onClose }) {
                     perfilSST.examenesMedicos.map((examen) => (
                       <TableRow key={examen.id}>
                         <TableCell>
-                          {new Date(examen.fechaProgramada).toLocaleDateString('es-CO')}
+                          {new Date(examen.fechaProgramada).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{examen.tipoExamen}</Badge>
@@ -325,7 +325,7 @@ export default function PerfilSSTEmpleado({ empleadoId, onClose }) {
                     perfilSST.capacitacionesSST.map((asistencia) => (
                       <TableRow key={asistencia.id}>
                         <TableCell>
-                          {new Date(asistencia.capacitacion?.fechaProgramada).toLocaleDateString('es-CO')}
+                          {new Date(asistencia.capacitacion?.fechaProgramada).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </TableCell>
                         <TableCell>{asistencia.capacitacion?.nombre}</TableCell>
                         <TableCell>{asistencia.capacitacion?.duracionHoras}h</TableCell>
@@ -376,7 +376,7 @@ export default function PerfilSSTEmpleado({ empleadoId, onClose }) {
                       <TableRow key={entrega.id}>
                         <TableCell className="font-medium">{entrega.epp?.nombre}</TableCell>
                         <TableCell>
-                          {new Date(entrega.fechaEntrega).toLocaleDateString('es-CO')}
+                          {new Date(entrega.fechaEntrega).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </TableCell>
                         <TableCell>
                           <Badge variant={entrega.fechaDevolucion ? 'secondary' : 'success'}>
@@ -415,7 +415,7 @@ export default function PerfilSSTEmpleado({ empleadoId, onClose }) {
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="destructive">ACCIDENTE</Badge>
                         <span className="text-sm text-gray-500">
-                          {new Date(accidente.fechaAccidente).toLocaleDateString('es-CO')}
+                          {new Date(accidente.fechaAccidente).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </span>
                       </div>
                       <p className="font-medium">{accidente.tipoAccidente}</p>
@@ -433,7 +433,7 @@ export default function PerfilSSTEmpleado({ empleadoId, onClose }) {
                       <div className="flex items-center justify-between mb-2">
                         <Badge variant="warning" className="bg-yellow-100 text-yellow-700">INCIDENTE</Badge>
                         <span className="text-sm text-gray-500">
-                          {new Date(incidente.fechaIncidente).toLocaleDateString('es-CO')}
+                          {new Date(incidente.fechaIncidente).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </span>
                       </div>
                       <p className="font-medium">{incidente.tipoIncidente}</p>

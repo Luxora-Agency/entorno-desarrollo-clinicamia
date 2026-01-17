@@ -1,5 +1,8 @@
 import * as XLSX from 'xlsx';
 
+// Zona horaria de Colombia para formateo de fechas
+const TIMEZONE_BOGOTA = 'America/Bogota';
+
 /**
  * Export inventory data to Excel
  */
@@ -14,7 +17,7 @@ export function exportInventarioToExcel(items, tipo = 'TODOS') {
     'Nombre': item.nombre || '',
     'Tipo': item.tipo || '',
     'Lote': item.lote || '',
-    'Fecha Vencimiento': item.fechaVencimiento ? new Date(item.fechaVencimiento).toLocaleDateString('es-CO') : '',
+    'Fecha Vencimiento': item.fechaVencimiento ? new Date(item.fechaVencimiento).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA }) : '',
     'Cantidad': item.cantidadActual || 0,
     'Unidad': item.unidadMedida || '',
     'Stock Mínimo': item.stockMinimo || '',
@@ -55,7 +58,7 @@ export function exportInventarioToExcel(items, tipo = 'TODOS') {
   const summary = [
     ['Reporte de Inventario'],
     ['Tipo:', tipo],
-    ['Fecha:', new Date().toLocaleString('es-CO')],
+    ['Fecha:', new Date().toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA })],
     ['Total Items:', items.length],
     [],
     ['Resumen por Tipo'],
@@ -88,7 +91,7 @@ export function exportFarmacovigilanciaToExcel(reportes) {
 
   const data = reportes.map((reporte, index) => ({
     '#': index + 1,
-    'Fecha Evento': reporte.fechaEvento ? new Date(reporte.fechaEvento).toLocaleDateString('es-CO') : '',
+    'Fecha Evento': reporte.fechaEvento ? new Date(reporte.fechaEvento).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA }) : '',
     'Medicamento': reporte.medicamento || '',
     'Lote': reporte.lote || '',
     'Laboratorio': reporte.laboratorio || '',
@@ -116,7 +119,7 @@ export function exportFarmacovigilanciaToExcel(reportes) {
   // Summary
   const summary = [
     ['Reporte de Farmacovigilancia'],
-    ['Fecha:', new Date().toLocaleString('es-CO')],
+    ['Fecha:', new Date().toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA })],
     ['Total Reportes:', reportes.length],
     [],
     ['Por Gravedad'],
@@ -151,7 +154,7 @@ export function exportTecnovigilanciaToExcel(reportes) {
 
   const data = reportes.map((reporte, index) => ({
     '#': index + 1,
-    'Fecha Evento': reporte.fechaEvento ? new Date(reporte.fechaEvento).toLocaleDateString('es-CO') : '',
+    'Fecha Evento': reporte.fechaEvento ? new Date(reporte.fechaEvento).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA }) : '',
     'Dispositivo': reporte.dispositivoMedico || '',
     'Fabricante': reporte.fabricante || '',
     'Modelo': reporte.modelo || '',
@@ -180,7 +183,7 @@ export function exportTecnovigilanciaToExcel(reportes) {
   // Summary
   const summary = [
     ['Reporte de Tecnovigilancia'],
-    ['Fecha:', new Date().toLocaleString('es-CO')],
+    ['Fecha:', new Date().toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA })],
     ['Total Reportes:', reportes.length],
     [],
     ['Por Tipo de Evento'],
@@ -216,7 +219,7 @@ export function exportTemperaturaToExcel(registros, area = 'TODAS') {
 
   const data = registros.map((registro, index) => ({
     '#': index + 1,
-    'Fecha': registro.fecha ? new Date(registro.fecha).toLocaleString('es-CO') : '',
+    'Fecha': registro.fecha ? new Date(registro.fecha).toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA }) : '',
     'Área': registro.area || '',
     'Temperatura (°C)': registro.temperatura || '',
     'Temperatura Min': registro.temperaturaMin || '',
@@ -245,7 +248,7 @@ export function exportTemperaturaToExcel(registros, area = 'TODAS') {
   const summary = [
     ['Registro de Temperatura y Humedad'],
     ['Área:', area],
-    ['Fecha:', new Date().toLocaleString('es-CO')],
+    ['Fecha:', new Date().toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA })],
     ['Total Registros:', registros.length],
     [],
     ['Estadísticas'],
@@ -283,13 +286,13 @@ export function exportAlertasToExcel(alertas) {
 
   const data = alertas.map((alerta, index) => ({
     '#': index + 1,
-    'Fecha Alerta': alerta.fechaAlerta ? new Date(alerta.fechaAlerta).toLocaleString('es-CO') : '',
+    'Fecha Alerta': alerta.fechaAlerta ? new Date(alerta.fechaAlerta).toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA }) : '',
     'Tipo': alerta.tipo || '',
     'Prioridad': alerta.prioridad || '',
     'Título': alerta.titulo || '',
     'Descripción': alerta.descripcion || '',
     'Atendida': alerta.atendida ? 'Sí' : 'No',
-    'Fecha Atención': alerta.fechaAtencion ? new Date(alerta.fechaAtencion).toLocaleString('es-CO') : '',
+    'Fecha Atención': alerta.fechaAtencion ? new Date(alerta.fechaAtencion).toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA }) : '',
     'Atendedor': alerta.atendedor?.nombre || '',
     'Observaciones': alerta.observacionesAtencion || '',
   }));
@@ -306,7 +309,7 @@ export function exportAlertasToExcel(alertas) {
   // Summary
   const summary = [
     ['Reporte de Alertas'],
-    ['Fecha:', new Date().toLocaleString('es-CO')],
+    ['Fecha:', new Date().toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA })],
     ['Total Alertas:', alertas.length],
     ['Atendidas:', alertas.filter(a => a.atendida).length],
     ['Pendientes:', alertas.filter(a => !a.atendida).length],
@@ -354,7 +357,7 @@ export function exportDashboardToExcel(resumenGeneral) {
   // Summary Sheet
   const summary = [
     ['Dashboard General - Medicamentos, Dispositivos e Insumos'],
-    ['Fecha Generación:', new Date().toLocaleString('es-CO')],
+    ['Fecha Generación:', new Date().toLocaleString('es-CO', { timeZone: TIMEZONE_BOGOTA })],
     [],
     ['INVENTARIO'],
     ['Total Items:', resumenGeneral.inventario?.totales?.total || 0],

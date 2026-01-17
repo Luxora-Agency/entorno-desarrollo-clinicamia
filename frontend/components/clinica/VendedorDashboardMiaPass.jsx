@@ -383,7 +383,7 @@ export default function VendedorDashboardMiaPass({ user }) {
                   .map(com => (
                     <TableRow key={com.id}>
                       <TableCell className="text-xs text-gray-500">
-                        {new Date(com.createdAt).toLocaleDateString('es-CO')}
+                        {new Date(com.createdAt).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </TableCell>
                       <TableCell className="font-medium">
                         {com.suscripcion?.paciente?.nombre} {com.suscripcion?.paciente?.apellido}

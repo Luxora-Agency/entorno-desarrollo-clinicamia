@@ -391,7 +391,9 @@ export default function UrgenciasModule({ user }) {
                             </div>
                           </TableCell>
                           <TableCell className="text-sm">
-                            {new Date(atencion.horaLlegada).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(atencion.horaLlegada).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
+      timeZone: 'America/Bogota'
+    })}
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline" className="text-xs">

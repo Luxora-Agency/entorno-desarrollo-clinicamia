@@ -413,7 +413,7 @@ export default function DashboardGeneralMedicamentos({ user }) {
                     </div>
                     <div className="text-right ml-2">
                       <p className="text-xs font-semibold text-orange-600">
-                        {new Date(item.fechaVencimiento).toLocaleDateString('es-CO')}
+                        {new Date(item.fechaVencimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </p>
                     </div>
                   </div>

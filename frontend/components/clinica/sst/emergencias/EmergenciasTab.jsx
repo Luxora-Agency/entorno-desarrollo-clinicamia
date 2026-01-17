@@ -79,7 +79,7 @@ export default function EmergenciasTab({ user }) {
                     <div>
                       <span className="text-gray-500">Fecha:</span>
                       <p className="font-medium">
-                        {new Date(planEmergencias.fechaElaboracion).toLocaleDateString('es-CO')}
+                        {new Date(planEmergencias.fechaElaboracion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </p>
                     </div>
                     <div>
@@ -233,7 +233,7 @@ export default function EmergenciasTab({ user }) {
                     simulacros.map((simulacro) => (
                       <TableRow key={simulacro.id}>
                         <TableCell>
-                          {new Date(simulacro.fechaProgramada).toLocaleDateString('es-CO')}
+                          {new Date(simulacro.fechaProgramada).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </TableCell>
                         <TableCell>{simulacro.tipoEmergencia}</TableCell>
                         <TableCell>{simulacro.participantes || 0}</TableCell>

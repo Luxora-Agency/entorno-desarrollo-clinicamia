@@ -24,7 +24,13 @@ import {
   Building2,
   UserCheck,
   Stethoscope,
-  Info
+  Info,
+  GraduationCap,
+  Briefcase,
+  Globe,
+  Scissors,
+  Pill,
+  Users
 } from 'lucide-react';
 
 export default function PanelPacienteHCE({ paciente }) {
@@ -82,7 +88,9 @@ export default function PanelPacienteHCE({ paciente }) {
     if (valor < 18.5) return { texto: 'Bajo peso', color: 'text-yellow-600 bg-yellow-50' };
     if (valor < 25) return { texto: 'Normal', color: 'text-green-600 bg-green-50' };
     if (valor < 30) return { texto: 'Sobrepeso', color: 'text-orange-600 bg-orange-50' };
-    return { texto: 'Obesidad', color: 'text-red-600 bg-red-50' };
+    if (valor < 35) return { texto: 'Obesidad I', color: 'text-red-500 bg-red-50' };
+    if (valor < 40) return { texto: 'Obesidad II', color: 'text-red-600 bg-red-50' };
+    return { texto: 'Obesidad III', color: 'text-red-700 bg-red-50' };
   };
 
   const formatearFecha = (fecha) => {
@@ -91,6 +99,8 @@ export default function PanelPacienteHCE({ paciente }) {
       day: '2-digit',
       month: 'short',
       year: 'numeric'
+    ,
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -105,6 +115,13 @@ export default function PanelPacienteHCE({ paciente }) {
     if (fotoUrl.startsWith('http')) return fotoUrl;
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
     return `${apiUrl}${fotoUrl.startsWith('/') ? '' : '/'}${fotoUrl}`;
+  };
+
+  // Helper para parsear arrays de strings separados por coma
+  const parseListaTexto = (texto) => {
+    if (!texto) return [];
+    if (Array.isArray(texto)) return texto;
+    return texto.split(',').map(item => item.trim()).filter(Boolean);
   };
 
   const patientPhotoUrl = getPatientPhotoUrl(paciente.fotoUrl || paciente.foto);
@@ -293,159 +310,275 @@ export default function PanelPacienteHCE({ paciente }) {
 
         {/* Información expandida */}
         {expandido && (
-          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Columna 1: Datos personales */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
-                <User className="w-3.5 h-3.5" />
-                Datos Personales
-              </h4>
+          <div className="mt-4 pt-4 border-t border-gray-200 space-y-4">
+            {/* Primera fila: 4 columnas de información */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Columna 1: Datos personales */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                  <User className="w-3.5 h-3.5" />
+                  Datos Personales
+                </h4>
 
-              <div className="space-y-2 text-sm">
-                {paciente.pais && (
+                <div className="space-y-2 text-sm bg-gray-50 rounded-lg p-3">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">País:</span>
-                    <span className="text-gray-900">{paciente.pais}</span>
+                    <span className="text-gray-500">Documento:</span>
+                    <span className="text-gray-900 font-medium">{paciente.tipoDocumento || 'CC'} {paciente.cedula}</span>
                   </div>
-                )}
-                {paciente.estadoCivil && (
+                  {paciente.lugarExpedicion && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Expedido en:</span>
+                      <span className="text-gray-900">{paciente.lugarExpedicion}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Sexo Biológico:</span>
+                    <span className="text-gray-900">{paciente.genero || 'N/A'}</span>
+                  </div>
+                  {paciente.identidadGenero && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Identidad Género:</span>
+                      <span className="text-gray-900">{paciente.identidadGenero}</span>
+                    </div>
+                  )}
+                  {paciente.preferenciaLlamado && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Llamar como:</span>
+                      <span className="text-gray-900">{paciente.preferenciaLlamado}</span>
+                    </div>
+                  )}
                   <div className="flex justify-between">
                     <span className="text-gray-500">Estado Civil:</span>
-                    <span className="text-gray-900">{paciente.estadoCivil}</span>
+                    <span className="text-gray-900 capitalize">{paciente.estadoCivil?.replace(/_/g, ' ') || 'N/A'}</span>
                   </div>
-                )}
-                {paciente.ocupacion && (
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Ocupación:</span>
-                    <span className="text-gray-900">{paciente.ocupacion}</span>
+                    <span className="text-gray-500">País:</span>
+                    <span className="text-gray-900">{paciente.paisNacimiento || paciente.pais || 'N/A'}</span>
                   </div>
-                )}
-                {paciente.escolaridad && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Escolaridad:</span>
-                    <span className="text-gray-900">{paciente.escolaridad}</span>
-                  </div>
-                )}
-                {paciente.etnia && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Etnia:</span>
-                    <span className="text-gray-900">{paciente.etnia}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Columna 2: Ubicación y Contacto */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
-                <MapPin className="w-3.5 h-3.5" />
-                Ubicación y Contacto
-              </h4>
-
-              <div className="space-y-2 text-sm">
-                {paciente.direccion && (
-                  <div className="flex items-start gap-2">
-                    <MapPin className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-gray-900">{paciente.direccion}</p>
-                      <p className="text-gray-500 text-xs">
-                        {[paciente.barrio, paciente.municipio, paciente.departamento]
-                          .filter(Boolean)
-                          .join(', ')}
-                      </p>
+                  {paciente.etnia && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Etnia:</span>
+                      <span className="text-gray-900">{paciente.etnia}</span>
                     </div>
-                  </div>
-                )}
-
-                {paciente.email && (
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <p className="text-gray-900 truncate">{paciente.email}</p>
-                  </div>
-                )}
-
-                {paciente.celular && paciente.celular !== paciente.telefono && (
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                    <p className="text-gray-900">{paciente.celular} (Celular)</p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Columna 3: Aseguramiento */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
-                <Building2 className="w-3.5 h-3.5" />
-                Aseguramiento
-              </h4>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Régimen:</span>
-                  <span className="text-gray-900">{paciente.regimen || 'N/A'}</span>
-                </div>
-                {paciente.tipoAfiliacion && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Tipo Afiliación:</span>
-                    <span className="text-gray-900">{paciente.tipoAfiliacion}</span>
-                  </div>
-                )}
-                {paciente.nivelSisben && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">SISBEN:</span>
-                    <span className="text-gray-900">{paciente.nivelSisben}</span>
-                  </div>
-                )}
-                {paciente.arl && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">ARL:</span>
-                    <span className="text-gray-900">{paciente.arl}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Columna 4: Datos Clínicos */}
-            <div className="space-y-3">
-              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
-                <Heart className="w-3.5 h-3.5" />
-                Datos Clínicos
-              </h4>
-
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Tipo Sangre:</span>
-                  {paciente.tipoSangre ? (
-                    <Badge className="bg-red-100 text-red-700 border-red-200">
-                      <Droplets className="w-3 h-3 mr-1" />
-                      {paciente.tipoSangre}
-                    </Badge>
-                  ) : (
-                    <span className="text-gray-400">No registrado</span>
                   )}
                 </div>
+              </div>
 
-                {paciente.peso && (
+              {/* Columna 2: Ubicación y Contacto */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5" />
+                  Ubicación y Contacto
+                </h4>
+
+                <div className="space-y-2 text-sm bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Departamento:</span>
+                    <span className="text-gray-900">{paciente.departamento || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Municipio:</span>
+                    <span className="text-gray-900">{paciente.municipio || 'N/A'}</span>
+                  </div>
+                  {paciente.barrio && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Barrio:</span>
+                      <span className="text-gray-900">{paciente.barrio}</span>
+                    </div>
+                  )}
+                  {paciente.zona && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Zona:</span>
+                      <span className="text-gray-900 capitalize">{paciente.zona}</span>
+                    </div>
+                  )}
+                  {paciente.direccion && (
+                    <div className="pt-1">
+                      <span className="text-gray-500 block text-xs">Dirección:</span>
+                      <span className="text-gray-900">{paciente.direccion}</span>
+                    </div>
+                  )}
+                  <div className="pt-2 border-t border-gray-200 mt-2">
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Teléfono:</span>
+                      <span className="text-gray-900">{paciente.telefono || 'N/A'}</span>
+                    </div>
+                    {paciente.email && (
+                      <div className="pt-1">
+                        <span className="text-gray-500 block text-xs">Email:</span>
+                        <span className="text-gray-900 text-xs break-all">{paciente.email}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Columna 3: Aseguramiento */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                  <Shield className="w-3.5 h-3.5" />
+                  Aseguramiento en Salud
+                </h4>
+
+                <div className="space-y-2 text-sm bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">EPS:</span>
+                    <span className="text-gray-900 font-medium">{paciente.eps || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Régimen:</span>
+                    <span className="text-gray-900 capitalize">{paciente.regimen || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tipo Afiliación:</span>
+                    <span className="text-gray-900 capitalize">{paciente.tipoAfiliacion || 'N/A'}</span>
+                  </div>
+                  {paciente.nivelSisben && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">SISBEN:</span>
+                      <span className="text-gray-900">{paciente.nivelSisben}</span>
+                    </div>
+                  )}
+                  {paciente.numeroAutorizacion && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">No. Autorización:</span>
+                      <span className="text-gray-900">{paciente.numeroAutorizacion}</span>
+                    </div>
+                  )}
+                  {paciente.fechaAfiliacion && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Fecha Afiliación:</span>
+                      <span className="text-gray-900">{formatearFecha(paciente.fechaAfiliacion)}</span>
+                    </div>
+                  )}
+                  {paciente.carnetPoliza && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Carnet/Póliza:</span>
+                      <span className="text-gray-900">{paciente.carnetPoliza}</span>
+                    </div>
+                  )}
+                  {paciente.tipoUsuario && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Tipo Usuario:</span>
+                      <span className="text-gray-900 capitalize">{paciente.tipoUsuario}</span>
+                    </div>
+                  )}
+                  {paciente.arl && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">ARL:</span>
+                      <span className="text-gray-900">{paciente.arl}</span>
+                    </div>
+                  )}
+                  {paciente.convenio && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Convenio:</span>
+                      <span className="text-gray-900">{paciente.convenio}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Columna 4: Datos Clínicos */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                  <Heart className="w-3.5 h-3.5" />
+                  Datos Clínicos
+                </h4>
+
+                <div className="space-y-2 text-sm bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500">Tipo Sangre:</span>
+                    {paciente.tipoSangre ? (
+                      <Badge className="bg-red-100 text-red-700 border-red-200">
+                        <Droplets className="w-3 h-3 mr-1" />
+                        {paciente.tipoSangre}
+                      </Badge>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
+                  </div>
+
                   <div className="flex justify-between">
                     <span className="text-gray-500">Peso:</span>
-                    <span className="text-gray-900">{paciente.peso} kg</span>
+                    <span className="text-gray-900">{paciente.peso ? `${paciente.peso} kg` : 'N/A'}</span>
                   </div>
-                )}
-                {paciente.altura && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Talla:</span>
                     <span className="text-gray-900">
-                      {paciente.altura > 3 ? paciente.altura : (paciente.altura * 100).toFixed(0)} cm
+                      {paciente.altura ? `${paciente.altura > 3 ? paciente.altura : (paciente.altura * 100).toFixed(0)} cm` : 'N/A'}
                     </span>
                   </div>
-                )}
+                  {imc && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">IMC:</span>
+                      <span className={`font-semibold ${clasificacionIMC?.color?.split(' ')[0] || ''}`}>
+                        {imc} - {clasificacionIMC?.texto}
+                      </span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Fila completa: Discapacidad */}
-            {paciente.discapacidad && paciente.discapacidad !== 'No aplica' && (
-              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
+            {/* Segunda fila: Información laboral y de referencia */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-gray-100">
+              {/* Información Laboral y Educativa */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  Información Laboral y Educativa
+                </h4>
+                <div className="space-y-2 text-sm bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Nivel Educación:</span>
+                    <span className="text-gray-900 capitalize">{paciente.nivelEducacion?.replace(/_/g, ' ') || paciente.escolaridad || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Ocupación:</span>
+                    <span className="text-gray-900">{paciente.ocupacion || 'N/A'}</span>
+                  </div>
+                  {paciente.empleadorActual && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Empleador:</span>
+                      <span className="text-gray-900">{paciente.empleadorActual}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Información de Referencia */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
+                  <Globe className="w-3.5 h-3.5" />
+                  Referencia y Categoría
+                </h4>
+                <div className="space-y-2 text-sm bg-gray-50 rounded-lg p-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Referido Por:</span>
+                    <span className="text-gray-900">{paciente.referidoPor || 'N/A'}</span>
+                  </div>
+                  {paciente.nombreRefiere && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Quien Refiere:</span>
+                      <span className="text-gray-900">{paciente.nombreRefiere}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Tipo Paciente:</span>
+                    <span className="text-gray-900">{paciente.tipoPaciente || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Categoría:</span>
+                    <span className="text-gray-900">{paciente.categoria || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tercera fila: Alertas especiales */}
+            {/* Discapacidad */}
+            {paciente.discapacidad && paciente.discapacidad !== 'No aplica' && paciente.discapacidad !== 'Ninguna' && (
+              <div className="pt-3 border-t border-gray-100">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
                   <AlertCircle className="w-3.5 h-3.5" />
                   Condición de Discapacidad
@@ -464,9 +597,9 @@ export default function PanelPacienteHCE({ paciente }) {
               </div>
             )}
 
-            {/* Fila completa: Responsable */}
-            {paciente.responsable && (paciente.responsable.nombre || paciente.responsable?.nombre) && (
-              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
+            {/* Responsable */}
+            {paciente.responsable && paciente.responsable.nombre && (
+              <div className="pt-3 border-t border-gray-100">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
                   <UserCheck className="w-3.5 h-3.5" />
                   Responsable del Paciente
@@ -486,11 +619,11 @@ export default function PanelPacienteHCE({ paciente }) {
               </div>
             )}
 
-            {/* Fila completa: Acompañante */}
-            {paciente.acompanante && (paciente.acompanante.nombre || paciente.acompanante?.nombre) && (
-              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
+            {/* Acompañante */}
+            {paciente.acompanante && paciente.acompanante.nombre && (
+              <div className="pt-3 border-t border-gray-100">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
-                  <User className="w-3.5 h-3.5" />
+                  <Users className="w-3.5 h-3.5" />
                   Acompañante
                 </h4>
                 <div className="flex items-center gap-3 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
@@ -508,54 +641,118 @@ export default function PanelPacienteHCE({ paciente }) {
               </div>
             )}
 
-            {/* Fila completa: Contacto de emergencia */}
-            {paciente.contactosEmergencia && Array.isArray(paciente.contactosEmergencia) && paciente.contactosEmergencia.length > 0 && (
-              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
-                  <Phone className="w-3.5 h-3.5" />
-                  Contactos de Emergencia
-                </h4>
-                <div className="flex flex-wrap gap-4">
-                  {paciente.contactosEmergencia.slice(0, 3).map((contacto, idx) => (
-                    <div key={idx} className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg">
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                        <User className="w-4 h-4 text-gray-600" />
-                      </div>
-                      <div className="text-sm">
-                        <p className="font-medium text-gray-900">{contacto.nombre}</p>
-                        <p className="text-gray-500 text-xs">
-                          {contacto.parentesco} • {contacto.telefono}
-                        </p>
-                      </div>
+            {/* Contactos de Emergencia */}
+            {paciente.contactosEmergencia && (
+              (() => {
+                const contactos = Array.isArray(paciente.contactosEmergencia)
+                  ? paciente.contactosEmergencia
+                  : JSON.parse(paciente.contactosEmergencia || '[]');
+                const contactosValidos = contactos.filter(c => c.nombre);
+
+                if (contactosValidos.length === 0) return null;
+
+                return (
+                  <div className="pt-3 border-t border-gray-100">
+                    <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
+                      <Phone className="w-3.5 h-3.5" />
+                      Contactos de Emergencia
+                    </h4>
+                    <div className="flex flex-wrap gap-3">
+                      {contactosValidos.map((contacto, idx) => (
+                        <div key={idx} className="flex items-center gap-3 bg-gray-50 px-3 py-2 rounded-lg">
+                          <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                            <User className="w-4 h-4 text-gray-600" />
+                          </div>
+                          <div className="text-sm">
+                            <p className="font-medium text-gray-900">{contacto.nombre}</p>
+                            <p className="text-gray-500 text-xs">
+                              {contacto.parentesco && `${contacto.parentesco} • `}{contacto.telefono}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+                );
+              })()
             )}
 
-            {/* Antecedentes importantes */}
-            {(paciente.enfermedadesCronicas || paciente.antecedentesQuirurgicos) && (
-              <div className="md:col-span-2 lg:col-span-4 pt-3 border-t border-gray-100">
-                <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-2">
-                  <Info className="w-3.5 h-3.5" />
-                  Antecedentes Relevantes
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {paciente.enfermedadesCronicas && (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                      <p className="text-xs font-medium text-yellow-700 mb-1">Enfermedades Crónicas</p>
-                      <p className="text-sm text-gray-700">{paciente.enfermedadesCronicas}</p>
+            {/* Antecedentes Médicos */}
+            <div className="pt-3 border-t border-gray-100">
+              <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2 mb-3">
+                <Info className="w-3.5 h-3.5" />
+                Antecedentes y Condiciones Médicas
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Alergias */}
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-red-700 mb-2 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    Alergias
+                  </p>
+                  {tieneAlergias ? (
+                    <div className="flex flex-wrap gap-1">
+                      {parseListaTexto(paciente.alergias).map((alergia, i) => (
+                        <Badge key={i} className="bg-red-100 text-red-700 border-red-300 text-xs">{alergia}</Badge>
+                      ))}
                     </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">Sin alergias registradas</p>
                   )}
-                  {paciente.antecedentesQuirurgicos && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                      <p className="text-xs font-medium text-blue-700 mb-1">Antecedentes Quirúrgicos</p>
-                      <p className="text-sm text-gray-700">{paciente.antecedentesQuirurgicos}</p>
+                </div>
+
+                {/* Enfermedades Crónicas */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-yellow-700 mb-2 flex items-center gap-1">
+                    <Heart className="w-3 h-3" />
+                    Enfermedades Crónicas
+                  </p>
+                  {paciente.enfermedadesCronicas ? (
+                    <div className="flex flex-wrap gap-1">
+                      {parseListaTexto(paciente.enfermedadesCronicas).map((enf, i) => (
+                        <Badge key={i} className="bg-yellow-100 text-yellow-700 border-yellow-300 text-xs">{enf}</Badge>
+                      ))}
                     </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">Sin enfermedades crónicas</p>
+                  )}
+                </div>
+
+                {/* Medicamentos Actuales */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-blue-700 mb-2 flex items-center gap-1">
+                    <Pill className="w-3 h-3" />
+                    Medicamentos Actuales
+                  </p>
+                  {paciente.medicamentosActuales ? (
+                    <div className="flex flex-wrap gap-1">
+                      {parseListaTexto(paciente.medicamentosActuales).map((med, i) => (
+                        <Badge key={i} className="bg-blue-100 text-blue-700 border-blue-300 text-xs">{med}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">Sin medicamentos registrados</p>
+                  )}
+                </div>
+
+                {/* Antecedentes Quirúrgicos */}
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                  <p className="text-xs font-medium text-purple-700 mb-2 flex items-center gap-1">
+                    <Scissors className="w-3 h-3" />
+                    Antecedentes Quirúrgicos
+                  </p>
+                  {paciente.antecedentesQuirurgicos ? (
+                    <div className="flex flex-wrap gap-1">
+                      {parseListaTexto(paciente.antecedentesQuirurgicos).map((ant, i) => (
+                        <Badge key={i} className="bg-purple-100 text-purple-700 border-purple-300 text-xs">{ant}</Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 italic">Sin antecedentes quirúrgicos</p>
                   )}
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 

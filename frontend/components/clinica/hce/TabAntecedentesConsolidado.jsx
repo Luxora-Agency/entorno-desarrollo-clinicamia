@@ -64,6 +64,8 @@ export default function TabAntecedentesConsolidado({ pacienteId, paciente }) {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
+    ,
+      timeZone: 'America/Bogota'
     });
   };
 

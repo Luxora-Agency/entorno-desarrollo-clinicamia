@@ -425,7 +425,7 @@ export default function HCEModule({ user }) {
                   </div>
                   {fechaDesde && fechaHasta && (
                     <p className="text-xs text-gray-500 text-center">
-                      Período: {new Date(fechaDesde + 'T00:00:00').toLocaleDateString('es-CO')} - {new Date(fechaHasta + 'T00:00:00').toLocaleDateString('es-CO')}
+                      Período: {new Date(fechaDesde + 'T00:00:00').toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })} - {new Date(fechaHasta + 'T00:00:00').toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </p>
                   )}
                 </div>

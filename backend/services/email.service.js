@@ -5,6 +5,9 @@
 
 const { Resend } = require('resend');
 
+// Zona horaria de Colombia para formateo de fechas
+const TIMEZONE_BOGOTA = 'America/Bogota';
+
 class EmailService {
   constructor() {
     this.resend = null;
@@ -122,7 +125,7 @@ class EmailService {
         ${datos.fechaVencimiento ? `
         <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0;">
           <strong style="color: #856404;">Fecha de vencimiento:</strong>
-          <span style="color: #856404;">${new Date(datos.fechaVencimiento).toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          <span style="color: #856404;">${new Date(datos.fechaVencimiento).toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: TIMEZONE_BOGOTA })}</span>
         </div>
         ` : ''}
 
@@ -165,7 +168,7 @@ ${asunto}
 
 ${cuerpo.replace(/<[^>]*>/g, '')}
 
-${datos.fechaVencimiento ? `Fecha de vencimiento: ${new Date(datos.fechaVencimiento).toLocaleDateString('es-CO')}` : ''}
+${datos.fechaVencimiento ? `Fecha de vencimiento: ${new Date(datos.fechaVencimiento).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}` : ''}
 ${datos.diasRestantes !== undefined ? `Días restantes: ${datos.diasRestantes}` : ''}
 
 ---
@@ -436,7 +439,7 @@ Contáctanos:
     let horaFormateada = 'Por confirmar';
     if (cita.hora) {
       const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
-      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
     }
 
     const html = `
@@ -956,7 +959,7 @@ Detalles de la solicitud:
 - Tipo: Historia Clínica ${tipoLabel}
 ${solicitud.periodo ? `- Período: ${solicitud.periodo}` : ''}
 ${solicitud.motivo ? `- Motivo: ${solicitud.motivo}` : ''}
-- Fecha de solicitud: ${new Date().toLocaleDateString('es-CO')}
+- Fecha de solicitud: ${new Date().toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}
 
 Tiempo de procesamiento: 3 a 5 días hábiles
 
@@ -1020,7 +1023,7 @@ Clínica Mía
           ` : ''}
           <tr>
             <td style="padding: 8px 0; color: #666; font-size: 14px;">Fecha de solicitud:</td>
-            <td style="padding: 8px 0; color: #333; font-size: 14px;">${new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</td>
+            <td style="padding: 8px 0; color: #333; font-size: 14px;">${new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: TIMEZONE_BOGOTA })}</td>
           </tr>
         </table>
       </div>
@@ -1202,7 +1205,7 @@ Clínica Mía
     let horaFormateada = 'Por confirmar';
     if (cita.hora) {
       const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
-      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
     }
 
     // Configurar mensaje según tipo de recordatorio
@@ -1445,7 +1448,7 @@ Ver tus citas: ${frontendUrl}/perfil/citas
     let horaFormateada = 'Por confirmar';
     if (cita.hora) {
       const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
-      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
     }
 
     // Formatear fecha y hora anterior si existen
@@ -1461,7 +1464,7 @@ Ver tus citas: ${frontendUrl}/perfil/citas
       });
       if (citaAnterior.hora) {
         const horaAnt = citaAnterior.hora instanceof Date ? citaAnterior.hora : new Date(`1970-01-01T${citaAnterior.hora}`);
-        horaAnteriorFormateada = horaAnt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+        horaAnteriorFormateada = horaAnt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
       }
     }
 
@@ -2443,6 +2446,705 @@ Tel: 324 333 8555
     return this.send({
       to,
       subject: `Gracias por tu postulacion - ${vacanteTitulo} | Clinica Mia`,
+      html,
+      text
+    });
+  }
+
+  /**
+   * Envía email de notificación de cita re-agendada
+   * @param {Object} options - Opciones del email
+   * @param {string} options.to - Email del paciente
+   * @param {Object} options.paciente - Datos del paciente
+   * @param {Object} options.citaAnterior - Datos de la cita anterior
+   * @param {Object} options.citaNueva - Datos de la nueva cita
+   * @param {Object} options.doctor - Datos del doctor
+   * @param {string} options.especialidad - Nombre de la especialidad
+   */
+  async sendRescheduleEmail({ to, paciente, citaAnterior, citaNueva, doctor, especialidad }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de re-agendamiento no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
+    const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por asignar';
+    const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+
+    // Formatear fecha anterior
+    const fechaAnteriorObj = new Date(citaAnterior.fecha);
+    const fechaAnteriorFormateada = fechaAnteriorObj.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Formatear fecha nueva
+    const fechaNuevaObj = new Date(citaNueva.fecha);
+    const fechaNuevaFormateada = fechaNuevaObj.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Formatear horas
+    const formatHora = (hora) => {
+      if (!hora) return 'Por confirmar';
+      try {
+        const h = hora instanceof Date ? hora : new Date(`1970-01-01T${hora}`);
+        return h.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: TIMEZONE_BOGOTA });
+      } catch {
+        return hora;
+      }
+    };
+
+    const horaAnteriorFormateada = formatHora(citaAnterior.hora);
+    const horaNuevaFormateada = formatHora(citaNueva.hora);
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cita Re-agendada</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f4f8;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+    <!-- Header con gradiente -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); padding: 30px 20px; text-align: center;">
+        <div style="background: rgba(255,255,255,0.2); width: 70px; height: 70px; border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+          <span style="font-size: 35px;">📅</span>
+        </div>
+        <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 700;">Tu Cita ha sido Re-agendada</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 14px;">Confirmación de cambio de cita médica</p>
+      </td>
+    </tr>
+
+    <!-- Saludo -->
+    <tr>
+      <td style="padding: 30px 25px 20px;">
+        <p style="color: #374151; font-size: 16px; margin: 0; line-height: 1.6;">
+          Hola <strong>${nombrePaciente}</strong>,
+        </p>
+        <p style="color: #6b7280; font-size: 15px; margin: 15px 0 0; line-height: 1.6;">
+          Te confirmamos que tu cita médica ha sido re-agendada exitosamente. A continuación encontrarás los detalles de tu nueva cita.
+        </p>
+      </td>
+    </tr>
+
+    <!-- Cita Anterior (Cancelada) -->
+    <tr>
+      <td style="padding: 0 25px 20px;">
+        <div style="background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border-radius: 12px; padding: 20px; border-left: 4px solid #ef4444;">
+          <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <span style="font-size: 20px; margin-right: 10px;">❌</span>
+            <h3 style="color: #991b1b; margin: 0; font-size: 16px; font-weight: 600;">Cita Anterior (Cancelada)</h3>
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 5px 0; color: #7f1d1d; font-size: 14px;">
+                <span style="color: #9ca3af;">📆 Fecha:</span> <strong style="text-decoration: line-through;">${fechaAnteriorFormateada}</strong>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 5px 0; color: #7f1d1d; font-size: 14px;">
+                <span style="color: #9ca3af;">🕐 Hora:</span> <strong style="text-decoration: line-through;">${horaAnteriorFormateada}</strong>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Flecha de transición -->
+    <tr>
+      <td style="text-align: center; padding: 0 25px 20px;">
+        <div style="font-size: 30px;">⬇️</div>
+      </td>
+    </tr>
+
+    <!-- Nueva Cita -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 12px; padding: 25px; border-left: 4px solid #10b981;">
+          <div style="display: flex; align-items: center; margin-bottom: 15px;">
+            <span style="font-size: 24px; margin-right: 10px;">✅</span>
+            <h3 style="color: #065f46; margin: 0; font-size: 18px; font-weight: 700;">Nueva Cita Confirmada</h3>
+          </div>
+          <table width="100%" cellpadding="0" cellspacing="0">
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid rgba(16,185,129,0.2);">
+                <span style="color: #6b7280; font-size: 13px; display: block;">📆 Fecha</span>
+                <strong style="color: #047857; font-size: 16px;">${fechaNuevaFormateada}</strong>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid rgba(16,185,129,0.2);">
+                <span style="color: #6b7280; font-size: 13px; display: block;">🕐 Hora</span>
+                <strong style="color: #047857; font-size: 16px;">${horaNuevaFormateada}</strong>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid rgba(16,185,129,0.2);">
+                <span style="color: #6b7280; font-size: 13px; display: block;">👨‍⚕️ Doctor</span>
+                <strong style="color: #047857; font-size: 16px;">${nombreDoctor}</strong>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0;">
+                <span style="color: #6b7280; font-size: 13px; display: block;">🩺 Especialidad</span>
+                <strong style="color: #047857; font-size: 16px;">${especialidad || 'Consulta General'}</strong>
+              </td>
+            </tr>
+          </table>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Recordatorios -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background: #f8fafc; border-radius: 12px; padding: 20px;">
+          <h4 style="color: #1e3a8a; margin: 0 0 15px; font-size: 15px;">📋 Recordatorios Importantes</h4>
+          <ul style="color: #475569; font-size: 14px; margin: 0; padding-left: 20px; line-height: 1.8;">
+            <li>Llega 15 minutos antes de tu cita</li>
+            <li>Trae tu documento de identidad</li>
+            <li>Si tienes exámenes previos, tráelos contigo</li>
+            <li>Recuerda traer tu carnet de EPS si aplica</li>
+          </ul>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Botón de acción -->
+    <tr>
+      <td style="padding: 0 25px 30px; text-align: center;">
+        <a href="${frontendUrl}/mis-citas" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); color: #ffffff; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 14px rgba(59,130,246,0.4);">
+          Ver Mis Citas
+        </a>
+      </td>
+    </tr>
+
+    <!-- Contacto -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 20px; text-align: center;">
+          <p style="color: #92400e; font-size: 14px; margin: 0 0 10px;">
+            <strong>¿Necesitas cancelar o modificar tu cita?</strong>
+          </p>
+          <p style="color: #78350f; font-size: 13px; margin: 0;">
+            📞 Llámanos al <strong>324 333 8555</strong><br>
+            📧 info@clinicamiacolombia.com
+          </p>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Ubicación -->
+    <tr>
+      <td style="padding: 0 25px 25px; text-align: center;">
+        <p style="color: #6b7280; font-size: 13px; margin: 0;">
+          📍 <strong>Clínica Mía</strong> - Cra. 5 #28-85, Ibagué, Tolima
+        </p>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%); padding: 25px; text-align: center;">
+        <p style="color: rgba(255,255,255,0.9); font-size: 13px; margin: 0 0 10px;">
+          ¡Gracias por confiar en nosotros para tu salud!
+        </p>
+        <p style="color: rgba(255,255,255,0.7); font-size: 12px; margin: 0;">
+          © ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+CITA RE-AGENDADA - CLÍNICA MÍA
+
+Hola ${nombrePaciente},
+
+Te confirmamos que tu cita médica ha sido re-agendada exitosamente.
+
+❌ CITA ANTERIOR (CANCELADA)
+---------------------------
+Fecha: ${fechaAnteriorFormateada}
+Hora: ${horaAnteriorFormateada}
+
+✅ NUEVA CITA CONFIRMADA
+------------------------
+Fecha: ${fechaNuevaFormateada}
+Hora: ${horaNuevaFormateada}
+Doctor: ${nombreDoctor}
+Especialidad: ${especialidad || 'Consulta General'}
+
+📋 RECORDATORIOS:
+- Llega 15 minutos antes de tu cita
+- Trae tu documento de identidad
+- Si tienes exámenes previos, tráelos contigo
+- Recuerda traer tu carnet de EPS si aplica
+
+📍 UBICACIÓN: Cra. 5 #28-85, Ibagué, Tolima
+📞 CONTACTO: 324 333 8555
+
+Ver mis citas: ${frontendUrl}/mis-citas
+
+---
+¡Gracias por confiar en nosotros para tu salud!
+© ${new Date().getFullYear()} Clínica Mía
+    `;
+
+    return this.send({
+      to,
+      subject: `✅ Tu Cita ha sido Re-agendada | ${fechaNuevaFormateada} - Clínica Mía`,
+      html,
+      text
+    });
+  }
+
+  /**
+   * Enviar email de notificación de No Asistió
+   * @param {string} options.to - Email del paciente
+   * @param {Object} options.paciente - Datos del paciente
+   * @param {Object} options.cita - Datos de la cita
+   * @param {Object} options.doctor - Datos del doctor
+   * @param {string} options.especialidad - Nombre de la especialidad
+   */
+  async sendNoShowEmail({ to, paciente, cita, doctor, especialidad }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de No Asistió no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
+    const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'No asignado';
+    const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
+
+    // Formatear fecha
+    const fechaCita = new Date(cita.fecha);
+    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Formatear hora
+    let horaFormateada = 'No especificada';
+    if (cita.hora) {
+      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
+      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
+    }
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f3f4f6; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+
+          <!-- Header con icono de alerta -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); padding: 35px 25px; text-align: center;">
+              <div style="width: 70px; height: 70px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center;">
+                <span style="font-size: 35px;">⚠️</span>
+              </div>
+              <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">Cita No Atendida</h1>
+              <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 15px;">No pudimos atenderte en tu cita programada</p>
+            </td>
+          </tr>
+
+          <!-- Saludo -->
+          <tr>
+            <td style="padding: 30px 25px 20px;">
+              <p style="color: #374151; font-size: 16px; margin: 0; line-height: 1.6;">
+                Hola <strong>${nombrePaciente}</strong>,
+              </p>
+              <p style="color: #6b7280; font-size: 15px; margin: 15px 0 0; line-height: 1.6;">
+                Lamentamos informarte que tu cita programada fue marcada como <strong style="color: #ea580c;">No Asistió</strong>.
+                Entendemos que pueden surgir imprevistos, por eso queremos recordarte que puedes reagendar tu cita cuando lo necesites.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Detalles de la cita perdida -->
+          <tr>
+            <td style="padding: 0 25px 25px;">
+              <div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px; padding: 25px; border-left: 4px solid #f97316;">
+                <h3 style="color: #92400e; margin: 0 0 20px; font-size: 16px; display: flex; align-items: center;">
+                  <span style="margin-right: 10px;">📋</span> Detalles de la Cita
+                </h3>
+                <table width="100%" cellspacing="0" cellpadding="0">
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="color: #92400e; font-size: 13px; display: block;">📅 Fecha</span>
+                      <strong style="color: #78350f; font-size: 16px;">${fechaFormateada}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="color: #92400e; font-size: 13px; display: block;">🕐 Hora</span>
+                      <strong style="color: #78350f; font-size: 16px;">${horaFormateada}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="color: #92400e; font-size: 13px; display: block;">👨‍⚕️ Doctor</span>
+                      <strong style="color: #78350f; font-size: 16px;">${nombreDoctor}</strong>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 8px 0;">
+                      <span style="color: #92400e; font-size: 13px; display: block;">🩺 Especialidad</span>
+                      <strong style="color: #78350f; font-size: 16px;">${especialidad || 'Consulta General'}</strong>
+                    </td>
+                  </tr>
+                </table>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Mensaje de reagendamiento -->
+          <tr>
+            <td style="padding: 0 25px 25px;">
+              <div style="background: #ecfdf5; border-radius: 12px; padding: 20px; border: 1px solid #a7f3d0;">
+                <h4 style="color: #065f46; margin: 0 0 10px; font-size: 15px;">💡 ¿Necesitas reagendar?</h4>
+                <p style="color: #047857; font-size: 14px; margin: 0; line-height: 1.6;">
+                  Tu salud es importante para nosotros. Puedes comunicarte con nosotros para programar una nueva cita
+                  en el horario que mejor te convenga.
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Botón de acción -->
+          <tr>
+            <td style="padding: 0 25px 30px; text-align: center;">
+              <a href="${frontendUrl}/mis-citas" style="display: inline-block; background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: #ffffff; padding: 14px 35px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 4px 14px rgba(249,115,22,0.4);">
+                Agendar Nueva Cita
+              </a>
+            </td>
+          </tr>
+
+          <!-- Contacto -->
+          <tr>
+            <td style="padding: 0 25px 25px;">
+              <div style="background: #f8fafc; border-radius: 12px; padding: 20px; text-align: center;">
+                <p style="color: #64748b; font-size: 14px; margin: 0 0 10px;">
+                  <strong>¿Tienes alguna pregunta?</strong>
+                </p>
+                <p style="color: #64748b; font-size: 14px; margin: 0;">
+                  📍 Cra. 5 #28-85, Ibagué, Tolima<br>
+                  📞 324 333 8555<br>
+                  📧 contacto@clinicamia.com
+                </p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background: #f8fafc; padding: 20px 25px; text-align: center; border-top: 1px solid #e2e8f0;">
+              <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} Clínica Mía. Todos los derechos reservados.
+              </p>
+              <p style="color: #94a3b8; font-size: 11px; margin: 10px 0 0;">
+                Este correo fue enviado automáticamente. Por favor no responder a este mensaje.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+CITA NO ATENDIDA - Clínica Mía
+
+Hola ${nombrePaciente},
+
+Lamentamos informarte que tu cita programada fue marcada como "No Asistió".
+
+DETALLES DE LA CITA:
+- Fecha: ${fechaFormateada}
+- Hora: ${horaFormateada}
+- Doctor: ${nombreDoctor}
+- Especialidad: ${especialidad || 'Consulta General'}
+
+¿NECESITAS REAGENDAR?
+Tu salud es importante para nosotros. Puedes comunicarte con nosotros para programar una nueva cita.
+
+📍 UBICACIÓN: Cra. 5 #28-85, Ibagué, Tolima
+📞 CONTACTO: 324 333 8555
+
+Agendar nueva cita: ${frontendUrl}/mis-citas
+
+---
+© ${new Date().getFullYear()} Clínica Mía
+    `;
+
+    return this.send({
+      to,
+      subject: `⚠️ Cita No Atendida | ${fechaFormateada} - Clínica Mía`,
+      html,
+      text
+    });
+  }
+
+  /**
+   * Envía confirmación de pago al paciente
+   * @param {Object} params
+   * @param {string} params.to - Email del paciente
+   * @param {Object} params.paciente - { nombre, apellido }
+   * @param {Object} params.factura - { id, total, metodoPago, numeroReferencia }
+   * @param {Object} params.cita - { fecha, hora }
+   * @param {string} params.especialidad
+   */
+  async sendPaymentConfirmation({ to, paciente, factura, cita, especialidad }) {
+    if (!this.isEnabled()) {
+      console.warn('[Email] Servicio deshabilitado. Email de pago no enviado a:', to);
+      return { success: false, error: 'Servicio de email no configurado' };
+    }
+
+    const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
+
+    // Formatear fecha
+    const fechaCita = new Date(cita.fecha);
+    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+
+    // Formatear hora
+    let horaFormateada = 'Por confirmar';
+    if (cita.hora) {
+      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
+      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
+    }
+
+    // Formatear total
+    const totalFormateado = parseFloat(factura.total).toLocaleString('es-CO');
+
+    // Icono según método de pago
+    const metodoPagoIconos = {
+      'Efectivo': '💵',
+      'Tarjeta': '💳',
+      'Transferencia': '🏦',
+      'EPS': '🏥'
+    };
+    const iconoMetodo = metodoPagoIconos[factura.metodoPago] || '💰';
+
+    const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmación de Pago</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f5f5f5;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+    <!-- Header -->
+    <tr>
+      <td style="background: linear-gradient(135deg, #10B981 0%, #059669 100%); padding: 30px 20px; text-align: center;">
+        <div style="width: 70px; height: 70px; background-color: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 15px; line-height: 70px;">
+          <span style="font-size: 35px;">✓</span>
+        </div>
+        <h1 style="color: #ffffff; margin: 0; font-size: 26px; font-weight: 700;">¡Pago Confirmado!</h1>
+        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0; font-size: 14px;">Hemos recibido tu pago exitosamente</p>
+      </td>
+    </tr>
+
+    <!-- Logo -->
+    <tr>
+      <td style="padding: 25px; text-align: center; border-bottom: 1px solid #e5e5e5;">
+        <h2 style="color: #144F79; margin: 0; font-size: 28px; font-weight: 700;">Clínica Mía</h2>
+      </td>
+    </tr>
+
+    <!-- Saludo -->
+    <tr>
+      <td style="padding: 30px 25px 10px;">
+        <p style="color: #333; font-size: 16px; margin: 0;">
+          Hola <strong>${nombrePaciente}</strong>,
+        </p>
+        <p style="color: #555; font-size: 15px; line-height: 1.6; margin: 15px 0 0;">
+          Te confirmamos que hemos recibido tu pago. A continuación encontrarás los detalles:
+        </p>
+      </td>
+    </tr>
+
+    <!-- Resumen del pago -->
+    <tr>
+      <td style="padding: 20px 25px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); border-radius: 16px; overflow: hidden; border: 2px solid #10B981;">
+          <tr>
+            <td style="padding: 25px; text-align: center;">
+              <p style="color: #6b7280; font-size: 13px; text-transform: uppercase; margin: 0 0 5px;">Total Pagado</p>
+              <p style="color: #059669; font-size: 36px; font-weight: 800; margin: 0;">$${totalFormateado}</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Detalles del pago -->
+    <tr>
+      <td style="padding: 0 25px 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border-radius: 12px; overflow: hidden;">
+          <tr>
+            <td style="padding: 20px;">
+              <p style="color: #374151; font-size: 14px; font-weight: 600; margin: 0 0 15px; text-transform: uppercase;">Detalles del Pago</p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px;">${iconoMetodo} MÉTODO DE PAGO</span><br>
+                    <span style="color: #1f2937; font-size: 16px; font-weight: 600;">${factura.metodoPago}</span>
+                  </td>
+                </tr>
+                ${factura.bancoDestino ? `
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px;">🏦 BANCO / CUENTA DESTINO</span><br>
+                    <span style="color: #1f2937; font-size: 16px; font-weight: 600;">${factura.bancoDestino}</span>
+                  </td>
+                </tr>
+                ` : ''}
+                ${factura.numeroReferencia ? `
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                    <span style="color: #6b7280; font-size: 13px;">📝 NÚMERO DE REFERENCIA</span><br>
+                    <span style="color: #1f2937; font-size: 16px; font-weight: 600; font-family: monospace;">${factura.numeroReferencia}</span>
+                  </td>
+                </tr>
+                ` : ''}
+                <tr>
+                  <td style="padding: 10px 0;">
+                    <span style="color: #6b7280; font-size: 13px;">🧾 NO. FACTURA</span><br>
+                    <span style="color: #1f2937; font-size: 14px; font-family: monospace;">${factura.id.substring(0, 8).toUpperCase()}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Detalles de la consulta -->
+    <tr>
+      <td style="padding: 0 25px 20px;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border-radius: 12px; overflow: hidden;">
+          <tr>
+            <td style="padding: 20px;">
+              <p style="color: #374151; font-size: 14px; font-weight: 600; margin: 0 0 15px; text-transform: uppercase;">Consulta Asociada</p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="padding: 8px 0;">
+                    <span style="color: #6b7280; font-size: 13px;">📅 FECHA</span><br>
+                    <span style="color: #1f2937; font-size: 15px; font-weight: 500;">${fechaFormateada}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0;">
+                    <span style="color: #6b7280; font-size: 13px;">🕐 HORA</span><br>
+                    <span style="color: #1f2937; font-size: 15px; font-weight: 500;">${horaFormateada}</span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0;">
+                    <span style="color: #6b7280; font-size: 13px;">🏥 ESPECIALIDAD</span><br>
+                    <span style="color: #1f2937; font-size: 15px; font-weight: 500;">${especialidad || 'Consulta General'}</span>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <!-- Mensaje -->
+    <tr>
+      <td style="padding: 0 25px 25px;">
+        <div style="background-color: #eff6ff; border-left: 4px solid #3B82F6; padding: 15px; border-radius: 0 8px 8px 0;">
+          <p style="color: #1e40af; font-size: 14px; margin: 0; line-height: 1.5;">
+            <strong>💡 Importante:</strong> Recuerda llegar 15 minutos antes de tu cita para realizar el proceso de admisión. Conserva este correo como comprobante de pago.
+          </p>
+        </div>
+      </td>
+    </tr>
+
+    <!-- Footer -->
+    <tr>
+      <td style="background-color: #144F79; padding: 25px; text-align: center;">
+        <p style="color: rgba(255,255,255,0.9); font-size: 14px; margin: 0 0 10px;">
+          ¿Tienes preguntas? Contáctanos
+        </p>
+        <p style="color: rgba(255,255,255,0.7); font-size: 13px; margin: 0;">
+          📞 (1) 234-5678 | ✉️ info@clinicamia.com
+        </p>
+        <p style="color: rgba(255,255,255,0.5); font-size: 11px; margin: 15px 0 0;">
+          © ${new Date().getFullYear()} Clínica Mía - Todos los derechos reservados
+        </p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+    `;
+
+    const text = `
+CONFIRMACIÓN DE PAGO - CLÍNICA MÍA
+
+Hola ${nombrePaciente},
+
+Te confirmamos que hemos recibido tu pago exitosamente.
+
+DETALLES DEL PAGO:
+- Total Pagado: $${totalFormateado}
+- Método: ${factura.metodoPago}
+${factura.bancoDestino ? `- Banco/Cuenta: ${factura.bancoDestino}` : ''}
+${factura.numeroReferencia ? `- Referencia: ${factura.numeroReferencia}` : ''}
+- No. Factura: ${factura.id.substring(0, 8).toUpperCase()}
+
+CONSULTA ASOCIADA:
+- Fecha: ${fechaFormateada}
+- Hora: ${horaFormateada}
+- Especialidad: ${especialidad || 'Consulta General'}
+
+Recuerda llegar 15 minutos antes de tu cita para el proceso de admisión.
+
+¿Preguntas? Contáctanos al (1) 234-5678 o info@clinicamia.com
+
+© ${new Date().getFullYear()} Clínica Mía
+    `;
+
+    return this.send({
+      to,
+      subject: `✅ Pago Confirmado | $${totalFormateado} - Clínica Mía`,
       html,
       text
     });

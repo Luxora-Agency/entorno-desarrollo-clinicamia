@@ -689,7 +689,7 @@ export default function CentrosCostoModule() {
                         {reporteData.ultimosMovimientos.map((mov, idx) => (
                           <TableRow key={idx}>
                             <TableCell>
-                              {new Date(mov.fecha).toLocaleDateString('es-CO')}
+                              {new Date(mov.fecha).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                             </TableCell>
                             <TableCell className="font-mono">{mov.asientoNumero}</TableCell>
                             <TableCell className="font-mono">{mov.cuentaCodigo}</TableCell>

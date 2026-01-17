@@ -140,6 +140,90 @@ function duracionValida(duracionMinutos, minimo = 5, maximo = 480) {
   return !isNaN(dur) && dur >= minimo && dur <= maximo;
 }
 
+/**
+ * Formatea una fecha en zona horaria de Colombia
+ * @param {Date|string} date - Fecha a formatear
+ * @param {object} options - Opciones de formateo adicionales
+ * @returns {string} - Fecha formateada
+ */
+function formatDateColombia(date, options = {}) {
+  if (!date) return '';
+  const d = safeDate(date);
+  if (!d) return '';
+
+  const defaultOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: TIMEZONE_COLOMBIA,
+    ...options
+  };
+
+  return d.toLocaleDateString('es-CO', defaultOptions);
+}
+
+/**
+ * Formatea fecha y hora en zona horaria de Colombia
+ * @param {Date|string} date - Fecha a formatear
+ * @param {object} options - Opciones de formateo adicionales
+ * @returns {string} - Fecha y hora formateada
+ */
+function formatDateTimeColombia(date, options = {}) {
+  if (!date) return '';
+  const d = safeDate(date);
+  if (!d) return '';
+
+  const defaultOptions = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: TIMEZONE_COLOMBIA,
+    ...options
+  };
+
+  return d.toLocaleString('es-CO', defaultOptions);
+}
+
+/**
+ * Formatea fecha en formato largo en zona horaria de Colombia
+ * @param {Date|string} date - Fecha a formatear
+ * @returns {string} - Fecha formateada (ej: "Lunes, 15 de enero de 2025")
+ */
+function formatDateLongColombia(date) {
+  if (!date) return '';
+  const d = safeDate(date);
+  if (!d) return '';
+
+  return d.toLocaleDateString('es-CO', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: TIMEZONE_COLOMBIA
+  });
+}
+
+/**
+ * Formatea hora en zona horaria de Colombia
+ * @param {Date|string} date - Fecha/hora a formatear
+ * @returns {string} - Hora formateada (HH:MM)
+ */
+function formatTimeColombia(date) {
+  if (!date) return '';
+  const d = safeDate(date);
+  if (!d) return '';
+
+  return d.toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: TIMEZONE_COLOMBIA
+  });
+}
+
 module.exports = {
   safeDate,
   parseSimpleDate,
@@ -150,6 +234,10 @@ module.exports = {
   horasSeSuperponen,
   calcularHoraFin,
   duracionValida,
+  formatDateColombia,
+  formatDateTimeColombia,
+  formatDateLongColombia,
+  formatTimeColombia,
   TIMEZONE_COLOMBIA,
   TIMEZONE_OFFSET_HOURS
 };

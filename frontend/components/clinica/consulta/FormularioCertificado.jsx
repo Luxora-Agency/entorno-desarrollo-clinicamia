@@ -51,7 +51,8 @@ export default function FormularioCertificado({
     const fechaHoy = new Date().toLocaleDateString('es-CO', {
       day: 'numeric',
       month: 'long',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: 'America/Bogota'
     });
 
     const reemplazos = {
@@ -369,7 +370,7 @@ export default function FormularioCertificado({
                 </div>
                 <div className="border-t mt-4 pt-4 text-center text-sm text-gray-500">
                   <p>Firma del Médico</p>
-                  <p>Fecha de expedición: {new Date().toLocaleDateString('es-CO')}</p>
+                  <p>Fecha de expedición: {new Date().toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</p>
                 </div>
               </div>
             )}

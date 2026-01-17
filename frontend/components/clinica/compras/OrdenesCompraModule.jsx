@@ -458,7 +458,7 @@ export default function OrdenesCompraModule({ user }) {
                     <TableRow key={orden.id}>
                       <TableCell className="font-mono">{orden.numero}</TableCell>
                       <TableCell>
-                        {new Date(orden.fecha).toLocaleDateString('es-CO')}
+                        {new Date(orden.fecha).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                       </TableCell>
                       <TableCell>{orden.proveedor?.razonSocial}</TableCell>
                       <TableCell>
@@ -543,7 +543,7 @@ export default function OrdenesCompraModule({ user }) {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Fecha</Label>
-                  <p>{new Date(selectedOrden.fecha).toLocaleDateString('es-CO')}</p>
+                  <p>{new Date(selectedOrden.fecha).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Estado</Label>

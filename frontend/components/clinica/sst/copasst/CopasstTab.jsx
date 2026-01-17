@@ -88,14 +88,14 @@ export default function CopasstTab({ user }) {
                 <span className="text-gray-500">Ultima Reunion:</span>
                 <p className="font-medium">
                   {copasst.ultimaReunion
-                    ? new Date(copasst.ultimaReunion).toLocaleDateString('es-CO')
+                    ? new Date(copasst.ultimaReunion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
                     : 'N/A'}
                 </p>
               </div>
               <div>
                 <span className="text-gray-500">Vencimiento:</span>
                 <p className="font-medium">
-                  {new Date(copasst.vencimiento).toLocaleDateString('es-CO')}
+                  {new Date(copasst.vencimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                 </p>
               </div>
             </div>
@@ -165,7 +165,7 @@ export default function CopasstTab({ user }) {
                 reunionesCopasst.map((reunion) => (
                   <TableRow key={reunion.id}>
                     <TableCell>
-                      {new Date(reunion.fechaReunion).toLocaleDateString('es-CO')}
+                      {new Date(reunion.fechaReunion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </TableCell>
                     <TableCell>
                       <Badge variant={reunion.tipo === 'ORDINARIA' ? 'outline' : 'secondary'}>

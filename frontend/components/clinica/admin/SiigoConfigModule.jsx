@@ -323,7 +323,7 @@ export default function SiigoConfigModule({ user }) {
                     <div>
                       <span className="text-muted-foreground">Última Sync:</span>
                       <p className="font-medium">
-                        {config.ultimaSync ? new Date(config.ultimaSync).toLocaleString('es-CO') : 'Nunca'}
+                        {config.ultimaSync ? new Date(config.ultimaSync).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'Nunca'}
                       </p>
                     </div>
                   </div>
@@ -423,7 +423,7 @@ export default function SiigoConfigModule({ user }) {
                       {status.ultimosLogs.map((log, idx) => (
                         <TableRow key={idx}>
                           <TableCell className="text-sm">
-                            {new Date(log.createdAt).toLocaleString('es-CO')}
+                            {new Date(log.createdAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                           </TableCell>
                           <TableCell className="font-mono text-sm">{log.endpoint}</TableCell>
                           <TableCell>
@@ -472,7 +472,7 @@ export default function SiigoConfigModule({ user }) {
                     <span className="text-muted-foreground">Último Health Check:</span>
                     <p className="font-medium">
                       {status?.lastHealthCheck
-                        ? new Date(status.lastHealthCheck).toLocaleString('es-CO')
+                        ? new Date(status.lastHealthCheck).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
                         : 'N/A'}
                     </p>
                   </div>

@@ -149,7 +149,7 @@ export default function DocumentosSSTTab({ user }) {
                             ? 'text-red-500 font-medium'
                             : ''
                         }>
-                          {new Date(doc.fechaVigencia).toLocaleDateString('es-CO')}
+                          {new Date(doc.fechaVigencia).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </span>
                       )}
                     </TableCell>

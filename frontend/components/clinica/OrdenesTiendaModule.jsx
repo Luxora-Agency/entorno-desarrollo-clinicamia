@@ -52,10 +52,11 @@ const formatDate = (dateString) => {
   return new Date(dateString).toLocaleString('es-CO', {
     dateStyle: 'short',
     timeStyle: 'short',
-  });
+      timeZone: 'America/Bogota'
+    });
 };
 
-export default function OrdenesTiendaModule() {
+export default function OrdenesTiendaModule({ user, embedded = false }) {
   const {
     ordenes,
     stats,
@@ -136,27 +137,45 @@ export default function OrdenesTiendaModule() {
   };
 
   return (
-    <div className="p-6 lg:p-8 bg-white min-h-screen">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2.5 rounded-xl">
-              <ShoppingBag className="w-6 h-6 text-white" />
+    <div className={embedded ? "p-4 bg-white" : "p-6 lg:p-8 bg-white min-h-screen"}>
+      {/* Header - Solo mostrar si no está embebido */}
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-2.5 rounded-xl">
+                <ShoppingBag className="w-6 h-6 text-white" />
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">Pedidos Tienda</h1>
             </div>
-            <h1 className="text-3xl font-bold text-gray-900">Pedidos Tienda</h1>
+            <p className="text-gray-600 ml-14">Gestiona los pedidos de la tienda online</p>
           </div>
-          <p className="text-gray-600 ml-14">Gestiona los pedidos de la tienda online</p>
+          <Button
+            onClick={refresh}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Actualizar
+          </Button>
         </div>
-        <Button
-          onClick={refresh}
-          variant="outline"
-          className="gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Actualizar
-        </Button>
-      </div>
+      )}
+
+      {/* Header compacto para modo embebido */}
+      {embedded && (
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900">Pedidos de Tienda Online</h2>
+          <Button
+            onClick={refresh}
+            variant="outline"
+            size="sm"
+            className="gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Actualizar
+          </Button>
+        </div>
+      )}
 
       {/* Stats Cards */}
       {stats && (

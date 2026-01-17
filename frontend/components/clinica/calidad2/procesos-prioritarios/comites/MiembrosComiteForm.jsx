@@ -204,7 +204,7 @@ export default function MiembrosComiteForm({ open, onClose, comite, onAddMiembro
                           {miembro.fechaIngreso && (
                             <p className="text-xs text-muted-foreground">
                               Desde:{' '}
-                              {new Date(miembro.fechaIngreso).toLocaleDateString('es-CO')}
+                              {new Date(miembro.fechaIngreso).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                             </p>
                           )}
                           <Button

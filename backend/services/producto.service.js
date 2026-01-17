@@ -4,6 +4,7 @@
 const prisma = require('../db/prisma');
 const { ValidationError, NotFoundError } = require('../utils/errors');
 const { createProductoSchema, updateProductoSchema } = require('../validators/producto.schema');
+const { removeAccents } = require('../utils/validators');
 
 // Siigo integration for product synchronization
 let productSiigoService = null;
@@ -37,19 +38,106 @@ class ProductoService {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {};
-    
+
     // Filtro de búsqueda (nombre, principio activo, ATC, CUM)
+    // Incluye búsqueda normalizada (sin acentos) para mejor experiencia de usuario
     if (search) {
-      where.OR = [
-        { nombre: { contains: search, mode: 'insensitive' } },
-        { principioActivo: { contains: search, mode: 'insensitive' } },
-        { codigoAtc: { contains: search, mode: 'insensitive' } },
-        { cum: { contains: search, mode: 'insensitive' } },
-        { sku: { contains: search, mode: 'insensitive' } },
-        { descripcion: { contains: search, mode: 'insensitive' } },
-      ];
+      // Normalizar el término de búsqueda (quitar acentos)
+      const searchNormalized = removeAccents(search).toLowerCase();
+      const searchPattern = `%${searchNormalized}%`;
+
+      // Usar búsqueda SQL raw con unaccent para insensibilidad a acentos
+      // Esto permite buscar "acido" y encontrar "Ácido"
+      try {
+        const medicamentos = await prisma.$queryRawUnsafe(`
+          SELECT p.*, c.nombre as categoria_nombre, c.color as categoria_color
+          FROM productos p
+          LEFT JOIN categorias_productos c ON p.categoria_id = c.id
+          WHERE (
+            unaccent(lower(p.nombre)) LIKE $1
+            OR unaccent(lower(COALESCE(p.principio_activo, ''))) LIKE $1
+            OR unaccent(lower(COALESCE(p.descripcion, ''))) LIKE $1
+            OR lower(COALESCE(p.codigo_atc, '')) LIKE $1
+            OR lower(COALESCE(p.cum, '')) LIKE $1
+            OR lower(COALESCE(p.sku, '')) LIKE $1
+          )
+          ORDER BY p.nombre ASC
+          LIMIT $2
+          OFFSET $3
+        `, searchPattern, parseInt(limit), skip);
+
+        // Transformar resultados al formato esperado
+        return medicamentos.map(p => ({
+          id: p.id,
+          nombre: p.nombre,
+          sku: p.sku,
+          codigoBarras: p.codigo_barras,
+          descripcion: p.descripcion,
+          laboratorio: p.laboratorio,
+
+          // Información Farmacológica
+          principioActivo: p.principio_activo,
+          concentracion: p.concentracion,
+          formaFarmaceutica: p.forma_farmaceutica,
+          unidadMedida: p.unidad_medida,
+          viaAdministracion: p.via_administracion,
+          presentacion: p.presentacion,
+          codigoAtc: p.codigo_atc,
+          cum: p.cum,
+          registroSanitario: p.registro_sanitario,
+
+          // Control y Regulación
+          requiereReceta: p.requiere_receta,
+          controlado: p.controlado,
+          tipoControlado: p.tipo_controlado,
+
+          // Almacenamiento
+          temperaturaAlmacenamiento: p.temperatura_almacenamiento,
+          requiereCadenaFrio: p.requiere_cadena_frio,
+          ubicacionAlmacen: p.ubicacion_almacen,
+
+          // Inventario
+          cantidadTotal: p.cantidad_total,
+          cantidadConsumida: p.cantidad_consumida,
+          cantidadMinAlerta: p.cantidad_min_alerta,
+          cantidadMaxAlerta: p.cantidad_max_alerta,
+          lote: p.lote,
+          fechaVencimiento: p.fecha_vencimiento,
+
+          // Precios
+          precioVenta: p.precio_venta ? parseFloat(p.precio_venta) : 0,
+          precioCompra: p.precio_compra ? parseFloat(p.precio_compra) : null,
+          costoPromedio: p.costo_promedio ? parseFloat(p.costo_promedio) : null,
+          margenGanancia: p.margen_ganancia ? parseFloat(p.margen_ganancia) : null,
+
+          // Estado e Integración
+          activo: p.activo,
+          imagenUrl: p.imagen_url,
+          siigoId: p.siigo_id,
+          categoriaId: p.categoria_id,
+          categoria: p.categoria_nombre ? {
+            id: p.categoria_id,
+            nombre: p.categoria_nombre,
+            colorHex: p.categoria_color
+          } : null,
+          createdAt: p.created_at,
+          updatedAt: p.updated_at
+        }));
+      } catch (e) {
+        // Si falla la búsqueda con unaccent (extensión no instalada), usar búsqueda estándar
+        console.warn('[Producto] Busqueda con unaccent fallo, usando busqueda estandar:', e.message);
+
+        where.OR = [
+          { nombre: { contains: search, mode: 'insensitive' } },
+          { principioActivo: { contains: search, mode: 'insensitive' } },
+          { codigoAtc: { contains: search, mode: 'insensitive' } },
+          { cum: { contains: search, mode: 'insensitive' } },
+          { sku: { contains: search, mode: 'insensitive' } },
+          { descripcion: { contains: search, mode: 'insensitive' } },
+        ];
+      }
     }
-    
+
     if (activo !== undefined) where.activo = activo === 'true' || activo === true;
     if (controlado !== undefined) where.controlado = controlado === 'true' || controlado === true;
     if (requiereReceta !== undefined) where.requiereReceta = requiereReceta === 'true' || requiereReceta === true;
@@ -62,7 +150,12 @@ class ProductoService {
         take: parseInt(limit),
         orderBy: { nombre: 'asc' },
         include: {
-          categoria: true
+          categoria: true,
+          lotes: {
+            where: { estado: 'activo' },
+            orderBy: { fechaVencimiento: 'asc' },
+            take: 5
+          }
         }
       }),
       prisma.producto.count({ where }),
@@ -126,9 +219,22 @@ class ProductoService {
     const medicamento = await prisma.producto.findUnique({
       where: { id },
       include: {
+        categoria: true,
+        lotes: {
+          orderBy: { fechaVencimiento: 'asc' }
+        },
         prescripcionesMedicamentos: {
           take: 5,
           orderBy: { createdAt: 'desc' },
+        },
+        presentaciones: {
+          orderBy: { concentracion: 'asc' },
+          include: {
+            lotes: {
+              where: { estado: 'activo' },
+              orderBy: { fechaVencimiento: 'asc' }
+            }
+          }
         },
       },
     });
@@ -566,6 +672,76 @@ class ProductoService {
     }
 
     return results;
+  }
+
+  /**
+   * Verificar alergias del paciente contra medicamentos
+   * @param {string} pacienteId - ID del paciente
+   * @param {string[]} medicamentosIds - IDs de los medicamentos a verificar
+   * @returns {Object} - Resultado de la verificación de alergias
+   */
+  async verificarAlergias(pacienteId, medicamentosIds) {
+    if (!pacienteId || !medicamentosIds || medicamentosIds.length === 0) {
+      return { hayAlergias: false, alergias: [] };
+    }
+
+    // Obtener información del paciente
+    const paciente = await prisma.paciente.findUnique({
+      where: { id: pacienteId },
+      select: { alergias: true }
+    });
+
+    if (!paciente || !paciente.alergias) {
+      return { hayAlergias: false, alergias: [] };
+    }
+
+    // Normalizar alergias del paciente
+    const alergiasNormalizadas = paciente.alergias
+      .toLowerCase()
+      .split(/[,;]/)
+      .map(a => a.trim())
+      .filter(a => a.length > 0);
+
+    if (alergiasNormalizadas.length === 0) {
+      return { hayAlergias: false, alergias: [] };
+    }
+
+    // Obtener información de los medicamentos
+    const medicamentos = await prisma.producto.findMany({
+      where: { id: { in: medicamentosIds } },
+      select: {
+        id: true,
+        nombre: true,
+        principioActivo: true,
+        descripcion: true
+      }
+    });
+
+    // Verificar si algún medicamento coincide con las alergias
+    const alertas = [];
+    for (const med of medicamentos) {
+      const nombreLower = (med.nombre || '').toLowerCase();
+      const principioLower = (med.principioActivo || '').toLowerCase();
+      const descripcionLower = (med.descripcion || '').toLowerCase();
+
+      for (const alergia of alergiasNormalizadas) {
+        if (nombreLower.includes(alergia) ||
+            principioLower.includes(alergia) ||
+            descripcionLower.includes(alergia)) {
+          alertas.push({
+            medicamentoId: med.id,
+            medicamentoNombre: med.nombre,
+            alergia: alergia,
+            tipo: 'ALERGIA_DETECTADA'
+          });
+        }
+      }
+    }
+
+    return {
+      hayAlergias: alertas.length > 0,
+      alergias: alertas
+    };
   }
 }
 

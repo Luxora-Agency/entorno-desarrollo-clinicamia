@@ -109,7 +109,7 @@ export default function EnfermedadesTab({ user }) {
                 enfermedades.map((enfermedad) => (
                   <TableRow key={enfermedad.id}>
                     <TableCell>
-                      {new Date(enfermedad.fechaDiagnostico).toLocaleDateString('es-CO')}
+                      {new Date(enfermedad.fechaDiagnostico).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </TableCell>
                     <TableCell>
                       <div>

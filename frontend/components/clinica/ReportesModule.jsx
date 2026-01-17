@@ -485,7 +485,7 @@ export default function ReportesModule({ user }) {
                             <TableCell>{cap.modalidad}</TableCell>
                             <TableCell>{cap.duracionHoras}h</TableCell>
                             <TableCell>
-                              {cap.fechaInicio ? new Date(cap.fechaInicio).toLocaleDateString('es-CO') : '-'}
+                              {cap.fechaInicio ? new Date(cap.fechaInicio).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' }) : '-'}
                             </TableCell>
                             <TableCell className="text-center">
                               {cap.estado === 'COMPLETADO' || cap.estado === 'ASISTIO' ? (
@@ -844,8 +844,9 @@ export default function ReportesModule({ user }) {
                                     month: 'short',
                                     year: 'numeric',
                                     hour: '2-digit',
-                                    minute: '2-digit'
-                                  })}
+                                    minute: '2-digit',
+      timeZone: 'America/Bogota'
+    })}
                                 </span>
                                 <Badge variant="outline" className="text-xs">
                                   {item.tipo === 'consulta' ? 'Consulta' :

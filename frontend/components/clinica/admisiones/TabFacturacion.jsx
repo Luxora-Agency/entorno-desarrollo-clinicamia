@@ -139,6 +139,7 @@ export default function TabFacturacion({ pacienteId, paciente }) {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
+      timeZone: 'America/Bogota'
     });
   };
 

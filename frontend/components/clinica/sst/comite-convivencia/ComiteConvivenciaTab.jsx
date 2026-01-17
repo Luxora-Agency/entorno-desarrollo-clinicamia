@@ -66,7 +66,7 @@ export default function ComiteConvivenciaTab({ user }) {
               <div>
                 <span className="text-gray-500">Vencimiento:</span>
                 <p className="font-medium">
-                  {new Date(comiteConvivencia.vencimiento).toLocaleDateString('es-CO')}
+                  {new Date(comiteConvivencia.vencimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                 </p>
               </div>
             </div>
@@ -116,7 +116,7 @@ export default function ComiteConvivenciaTab({ user }) {
                 quejas.map((queja) => (
                   <TableRow key={queja.id}>
                     <TableCell>
-                      {new Date(queja.fechaQueja).toLocaleDateString('es-CO')}
+                      {new Date(queja.fechaQueja).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{queja.tipoAcoso}</Badge>

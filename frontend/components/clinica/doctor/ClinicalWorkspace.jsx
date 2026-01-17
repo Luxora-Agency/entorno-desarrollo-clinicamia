@@ -22,6 +22,7 @@ import FormularioSignosVitalesConsulta from '../consulta/FormularioSignosVitales
 import FormularioDiagnosticoConsulta from '../consulta/FormularioDiagnosticoConsulta';
 import FormularioPrescripcionesConsulta from '../consulta/FormularioPrescripcionesConsulta';
 import FormularioProcedimientosExamenesConsulta from '../consulta/FormularioProcedimientosExamenesConsulta';
+import FormularioRemisiones from '../consulta/FormularioRemisiones';
 import FormularioRevisionSistemas from '../consulta/FormularioRevisionSistemas';
 import FormularioPlanManejo from '../consulta/FormularioPlanManejo';
 import FormularioRecomendaciones from '../consulta/FormularioRecomendaciones';
@@ -136,6 +137,7 @@ export default function ClinicalWorkspace({
   const [consultaCompletaPrevia, setConsultaCompletaPrevia] = useState(null);
   const [showPreviousPanel, setShowPreviousPanel] = useState(false);
   const [loadingPreviousConsulta, setLoadingPreviousConsulta] = useState(false);
+  const [showCopyConfirmDialog, setShowCopyConfirmDialog] = useState(false);
 
   // Visualizador de historial completo
   const [showHistorialCompleto, setShowHistorialCompleto] = useState(false);
@@ -152,6 +154,7 @@ export default function ClinicalWorkspace({
     diagnostico: null,
     procedimientos: null,
     prescripciones: null,
+    remisiones: null,
     planManejo: null,
     recomendaciones: null,
     motivoConsulta: '',
@@ -171,6 +174,7 @@ export default function ClinicalWorkspace({
     diagnostico: true, // Opcional
     prescripciones: true,
     procedimientos: true,
+    remisiones: true, // Opcional
     planManejo: true, // Opcional
     recomendaciones: true, // Opcional
   });
@@ -228,6 +232,11 @@ export default function ClinicalWorkspace({
   const handleProcedimientosChange = useCallback((data, isValid) => {
     setConsultaData(prev => ({ ...prev, procedimientos: data }));
     setStepsValid(prev => ({ ...prev, procedimientos: isValid }));
+  }, []);
+
+  const handleRemisionesChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, remisiones: data }));
+    setStepsValid(prev => ({ ...prev, remisiones: isValid }));
   }, []);
 
   const handlePlanManejoChange = useCallback((data) => {
@@ -496,26 +505,82 @@ export default function ClinicalWorkspace({
   const copiarDatosConsultaPrevia = () => {
     if (!consultaCompletaPrevia) return;
 
-    // Copiar diagnósticos activos
+    const evolucion = consultaCompletaPrevia.evolucion || {};
+
+    // Preparar datos a copiar
+    const datosACopiar = {};
+
+    // Copiar SOAP si existe
+    if (evolucion.subjetivo || evolucion.objetivo || evolucion.analisis || evolucion.plan) {
+      datosACopiar.soap = {
+        subjetivo: evolucion.subjetivo || '',
+        objetivo: evolucion.objetivo || '',
+        analisis: evolucion.analisis || '',
+        plan: evolucion.plan || '',
+      };
+    }
+
+    // Copiar motivo de consulta (del subjetivo)
+    if (evolucion.subjetivo) {
+      datosACopiar.motivoConsulta = evolucion.subjetivo;
+    }
+
+    // Copiar enfermedad actual (del objetivo)
+    if (evolucion.objetivo) {
+      datosACopiar.enfermedadActual = evolucion.objetivo;
+    }
+
+    // Copiar analisis
+    if (evolucion.analisis) {
+      datosACopiar.analisis = evolucion.analisis;
+    }
+
+    // Copiar plan de manejo
+    if (evolucion.plan) {
+      datosACopiar.planManejo = {
+        descripcion: evolucion.plan,
+      };
+    }
+
+    // Copiar diagnosticos activos
     if (consultaCompletaPrevia.diagnosticos?.length > 0) {
       const diagnosticoActivo = consultaCompletaPrevia.diagnosticos.find(d => d.estadoDiagnostico === 'Activo');
       if (diagnosticoActivo) {
-        setConsultaData(prev => ({
-          ...prev,
-          diagnostico: {
-            ...prev.diagnostico,
-            codigoCIE11: diagnosticoActivo.codigoCIE11,
-            descripcionCIE11: diagnosticoActivo.descripcionCIE11,
-            tipoDiagnostico: 'Principal',
-            esControl: true
-          }
-        }));
+        datosACopiar.diagnostico = {
+          codigoCIE11: diagnosticoActivo.codigoCIE11,
+          descripcionCIE11: diagnosticoActivo.descripcionCIE11,
+          tipoDiagnostico: 'Principal',
+          esControl: true
+        };
       }
     }
 
+    // Copiar prescripciones/medicamentos
+    if (consultaCompletaPrevia.prescripciones?.length > 0) {
+      datosACopiar.prescripciones = consultaCompletaPrevia.prescripciones.map(med => ({
+        productoId: med.productoId,
+        nombre: med.producto?.nombre || med.nombreMedicamento || 'Medicamento',
+        dosis: med.dosis || '',
+        via: med.via || '',
+        frecuencia: med.frecuencia || '',
+        duracionDias: med.duracionDias || '',
+        cantidadRecetada: med.cantidadRecetada || '',
+        indicaciones: med.indicaciones || '',
+      }));
+    }
+
+    // Aplicar todos los datos copiados
+    setConsultaData(prev => ({
+      ...prev,
+      ...datosACopiar
+    }));
+
+    // Cerrar el dialogo
+    setShowCopyConfirmDialog(false);
+
     toast({
       title: 'Datos copiados',
-      description: 'Se han copiado los diagnósticos activos de la consulta anterior',
+      description: 'Se ha copiado toda la informacion de la consulta anterior',
     });
   };
 
@@ -722,12 +787,25 @@ ${consultaData.prescripciones ? 'Se han generado recetas médicas.' : 'Ninguna'}
 
 PROCEDIMIENTOS/ÓRDENES:
 ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'}
+
+REMISIONES:
+${consultaData.remisiones && consultaData.remisiones.length > 0
+  ? consultaData.remisiones.map(r => `- ${r.especialidadNombre}: ${r.motivoConsulta}`).join('\n')
+  : 'Ninguna'}
           `.trim()
         };
       }
 
+      // Combinar procedimientos y remisiones en un solo array para el backend
+      // El backend procesa items con tipo 'Interconsulta' de forma especial
+      const procedimientosConRemisiones = [
+        ...(consultaData.procedimientos || []),
+        ...(consultaData.remisiones || [])
+      ];
+
       await onFinish({
         ...consultaData,
+        procedimientos: procedimientosConRemisiones.length > 0 ? procedimientosConRemisiones : null,
         soap: soapData, // SOAP del formulario (control) o construido (primera)
         citaId: cita.id,
         pacienteId: cita.pacienteId,
@@ -952,7 +1030,9 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                 </div>
                 {lastSavedAt && saveStatus !== 'saving' && (
                   <span className="text-[10px] text-gray-400">
-                    {lastSavedAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                    {lastSavedAt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit',
+      timeZone: 'America/Bogota'
+    })}
                   </span>
                 )}
               </div>
@@ -988,7 +1068,7 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                 </div>
                 {ultimaConsulta && tipoConsulta === 'control' && (
                   <p className="text-xs text-gray-600 mt-1">
-                    Última: {new Date(ultimaConsulta.fechaEvolucion).toLocaleDateString('es-CO')}
+                    Última: {new Date(ultimaConsulta.fechaEvolucion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                   </p>
                 )}
               </div>
@@ -1116,19 +1196,40 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                     <div className="flex justify-between items-center border-b border-amber-200 pb-2">
                       <span className="text-xs text-gray-500">
                         {new Date(consultaCompletaPrevia.fechaEvolucion).toLocaleDateString('es-CO', {
-                          year: 'numeric', month: 'long', day: 'numeric'
-                        })}
+                          year: 'numeric', month: 'long', day: 'numeric',
+      timeZone: 'America/Bogota'
+    })}
                       </span>
                       <Button
                         size="sm"
                         variant="outline"
                         className="h-7 text-xs border-amber-300 text-amber-700 hover:bg-amber-100"
-                        onClick={copiarDatosConsultaPrevia}
+                        onClick={() => setShowCopyConfirmDialog(true)}
                       >
                         <Copy className="h-3 w-3 mr-1" />
-                        Copiar Dx
+                        Copiar Todo
                       </Button>
                     </div>
+
+                    {/* Dialogo de confirmacion para copiar consulta anterior */}
+                    <AlertDialog open={showCopyConfirmDialog} onOpenChange={setShowCopyConfirmDialog}>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Copiar consulta anterior</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esta accion copiara toda la informacion de la consulta anterior
+                            (SOAP, diagnosticos, medicamentos y plan de manejo) a la consulta actual.
+                            Los campos existentes seran reemplazados. ¿Esta seguro de continuar?
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={copiarDatosConsultaPrevia}>
+                            Si, copiar datos
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
 
                     {consultaCompletaPrevia.doctor && (
                       <p className="text-xs text-gray-600">
@@ -1315,6 +1416,14 @@ ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'
                              <FormularioProcedimientosExamenesConsulta
                                 data={consultaData.procedimientos}
                                 onChange={handleProcedimientosChange}
+                             />
+                        </div>
+
+                        <div className="border-t pt-8">
+                             <FormularioRemisiones
+                                data={consultaData.remisiones}
+                                diagnosticoConsulta={consultaData.diagnostico}
+                                onChange={handleRemisionesChange}
                              />
                         </div>
 

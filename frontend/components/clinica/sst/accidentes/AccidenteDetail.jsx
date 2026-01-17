@@ -100,7 +100,7 @@ export default function AccidenteDetail({ accidente, onClose }) {
               <div>
                 <span className="text-gray-500">Fecha:</span>
                 <p className="font-medium">
-                  {new Date(accidente.fechaAccidente).toLocaleDateString('es-CO')}
+                  {new Date(accidente.fechaAccidente).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                 </p>
               </div>
             </div>

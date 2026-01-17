@@ -418,12 +418,12 @@ export default function FacturasProveedorModule({ user }) {
                         <TableCell className="font-mono">{factura.numero}</TableCell>
                         <TableCell>{factura.proveedor?.razonSocial}</TableCell>
                         <TableCell>
-                          {new Date(factura.fechaFactura).toLocaleDateString('es-CO')}
+                          {new Date(factura.fechaFactura).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1">
                             {vencida && <AlertTriangle className="h-4 w-4 text-red-500" />}
-                            {new Date(factura.fechaVencimiento).toLocaleDateString('es-CO')}
+                            {new Date(factura.fechaVencimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                             {vencida && (
                               <Badge variant="destructive" className="ml-1">
                                 {Math.abs(diasVencimiento)}d
@@ -591,11 +591,11 @@ export default function FacturasProveedorModule({ user }) {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label className="text-muted-foreground">Fecha Factura</Label>
-                  <p>{new Date(selectedFactura.fechaFactura).toLocaleDateString('es-CO')}</p>
+                  <p>{new Date(selectedFactura.fechaFactura).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground">Fecha Vencimiento</Label>
-                  <p>{new Date(selectedFactura.fechaVencimiento).toLocaleDateString('es-CO')}</p>
+                  <p>{new Date(selectedFactura.fechaVencimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</p>
                 </div>
               </div>
 
@@ -641,7 +641,7 @@ export default function FacturasProveedorModule({ user }) {
                     <TableBody>
                       {selectedFactura.pagos.map((pago, idx) => (
                         <TableRow key={idx}>
-                          <TableCell>{new Date(pago.fecha).toLocaleDateString('es-CO')}</TableCell>
+                          <TableCell>{new Date(pago.fecha).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</TableCell>
                           <TableCell>{pago.metodoPago}</TableCell>
                           <TableCell className="text-right">{formatCurrency(pago.monto)}</TableCell>
                         </TableRow>

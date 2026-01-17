@@ -4,6 +4,9 @@
  */
 const prisma = require('../db/prisma');
 
+// Zona horaria de Colombia para formateo de fechas
+const TIMEZONE_BOGOTA = 'America/Bogota';
+
 class AIContextService {
   /**
    * Obtener contexto clínico completo del paciente
@@ -438,14 +441,14 @@ class AIContextService {
     if (context.evolucionesPrevias.length > 0) {
       const ultimaEvo = context.evolucionesPrevias[0];
       if (ultimaEvo.diagnosticos.length > 0) {
-        parts.push(`Último diagnóstico (${new Date(ultimaEvo.fecha).toLocaleDateString()}): ${ultimaEvo.diagnosticos.map(d => d.descripcion).join(', ')}.`);
+        parts.push(`Último diagnóstico (${new Date(ultimaEvo.fecha).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}): ${ultimaEvo.diagnosticos.map(d => d.descripcion).join(', ')}.`);
       }
     }
 
     // Hospitalizaciones recientes
     if (context.hospitalizaciones.length > 0) {
       const ultimaHosp = context.hospitalizaciones[0];
-      parts.push(`Última hospitalización: ${new Date(ultimaHosp.fechaIngreso).toLocaleDateString()} - ${ultimaHosp.motivoIngreso}.`);
+      parts.push(`Última hospitalización: ${new Date(ultimaHosp.fechaIngreso).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })} - ${ultimaHosp.motivoIngreso}.`);
     }
 
     // Alertas activas
@@ -537,7 +540,7 @@ INFORMACIÓN BÁSICA:
       const go = context.antecedentes.ginecoObstetrico;
       prompt += `\nANTECEDENTES GINECO-OBSTÉTRICOS:\n`;
       prompt += `- G${go.gestas}P${go.partos}A${go.abortos}C${go.cesareas}\n`;
-      if (go.fum) prompt += `- FUM: ${new Date(go.fum).toLocaleDateString()}\n`;
+      if (go.fum) prompt += `- FUM: ${new Date(go.fum).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}\n`;
       if (go.cicloMenstrual) prompt += `- Ciclo: ${go.cicloMenstrual}\n`;
       if (go.metodoPlanificacion) prompt += `- Planificación: ${go.metodoPlanificacion}\n`;
     }
@@ -546,7 +549,7 @@ INFORMACIÓN BÁSICA:
     if (context.evolucionesPrevias.length > 0) {
       prompt += `\nÚLTIMAS CONSULTAS (${context.evolucionesPrevias.length}):\n`;
       for (const evo of context.evolucionesPrevias.slice(0, 5)) {
-        prompt += `\n[${new Date(evo.fecha).toLocaleDateString()}] ${evo.especialidad || 'Medicina General'}\n`;
+        prompt += `\n[${new Date(evo.fecha).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}] ${evo.especialidad || 'Medicina General'}\n`;
         prompt += `Motivo: ${evo.motivoConsulta || 'No especificado'}\n`;
         if (evo.diagnosticos.length > 0) {
           prompt += `Dx: ${evo.diagnosticos.map(d => `${d.codigo} - ${d.descripcion}`).join(', ')}\n`;
@@ -560,7 +563,7 @@ INFORMACIÓN BÁSICA:
     // Signos vitales recientes
     if (context.signosVitalesHistorico.length > 0) {
       const sv = context.signosVitalesHistorico[0];
-      prompt += `\nÚLTIMOS SIGNOS VITALES (${new Date(sv.fecha).toLocaleDateString()}):\n`;
+      prompt += `\nÚLTIMOS SIGNOS VITALES (${new Date(sv.fecha).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}):\n`;
       if (sv.temperatura) prompt += `- Temperatura: ${sv.temperatura}°C\n`;
       if (sv.presionSistolica && sv.presionDiastolica) prompt += `- PA: ${sv.presionSistolica}/${sv.presionDiastolica} mmHg\n`;
       if (sv.frecuenciaCardiaca) prompt += `- FC: ${sv.frecuenciaCardiaca} lpm\n`;
@@ -575,7 +578,7 @@ INFORMACIÓN BÁSICA:
     if (context.resultadosLaboratorio.length > 0) {
       prompt += `\nRESULTADOS DE LABORATORIO RECIENTES:\n`;
       for (const lab of context.resultadosLaboratorio.slice(0, 3)) {
-        prompt += `[${new Date(lab.fecha).toLocaleDateString()}]\n`;
+        prompt += `[${new Date(lab.fecha).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}]\n`;
         for (const exam of lab.examenes) {
           const anormalMarker = exam.esAnormal ? ' ⚠️' : '';
           prompt += `- ${exam.examen}: ${exam.resultado}${exam.unidad ? ` ${exam.unidad}` : ''}${anormalMarker}\n`;
@@ -587,7 +590,7 @@ INFORMACIÓN BÁSICA:
     if (context.hospitalizaciones.length > 0) {
       prompt += `\nHOSPITALIZACIONES PREVIAS:\n`;
       for (const hosp of context.hospitalizaciones) {
-        prompt += `- ${new Date(hosp.fechaIngreso).toLocaleDateString()}: ${hosp.motivoIngreso} (${hosp.unidad}, ${hosp.diasEstancia || '?'} días)\n`;
+        prompt += `- ${new Date(hosp.fechaIngreso).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}: ${hosp.motivoIngreso} (${hosp.unidad}, ${hosp.diasEstancia || '?'} días)\n`;
       }
     }
 
@@ -595,7 +598,7 @@ INFORMACIÓN BÁSICA:
     if (context.urgencias.length > 0) {
       prompt += `\nVISITAS A URGENCIAS:\n`;
       for (const urg of context.urgencias) {
-        prompt += `- ${new Date(urg.fecha).toLocaleDateString()}: ${urg.motivoConsulta} (${urg.prioridad})\n`;
+        prompt += `- ${new Date(urg.fecha).toLocaleDateString('es-CO', { timeZone: TIMEZONE_BOGOTA })}: ${urg.motivoConsulta} (${urg.prioridad})\n`;
       }
     }
 

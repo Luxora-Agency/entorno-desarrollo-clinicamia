@@ -3,6 +3,9 @@
  * Centraliza el formateo de moneda, fechas, textos, etc.
  */
 
+// Zona horaria de Colombia (Bogotá)
+const TIMEZONE_BOGOTA = 'America/Bogota';
+
 /**
  * Formatear moneda colombiana (COP)
  */
@@ -22,13 +25,14 @@ export const formatCurrency = (value) => {
  */
 export const formatDate = (date) => {
   if (!date) return '';
-  
+
   const d = new Date(date);
-  const day = String(d.getDate()).padStart(2, '0');
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const year = d.getFullYear();
-  
-  return `${day}/${month}/${year}`;
+  return d.toLocaleDateString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: TIMEZONE_BOGOTA
+  });
 };
 
 /**
@@ -36,17 +40,15 @@ export const formatDate = (date) => {
  */
 export const formatDateLong = (date) => {
   if (!date) return '';
-  
+
   const d = new Date(date);
-  const options = { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
+  return d.toLocaleDateString('es-CO', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
     day: 'numeric',
-    timeZone:'UTC'
-  };
-  
-  return d.toLocaleDateString('es-CO', options);
+    timeZone: TIMEZONE_BOGOTA
+  });
 };
 
 /**
@@ -64,41 +66,38 @@ export const formatDateISO = (date) => {
  */
 export const formatDateTime = (date) => {
   if (!date) return '';
-  
+
   const d = new Date(date);
- const dateStr = d.toLocaleDateString('es-CO', { timeZone: 'UTC' });
-
-  const hours = String(d.getUTCHours()).padStart(2, '0');
-  const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-
-  return `${dateStr} ${hours}:${minutes}`;
+  return d.toLocaleString('es-CO', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: TIMEZONE_BOGOTA
+  });
 };
 
 /**
- * Formatear hora (HH:MM)
+ * Formatear hora (HH:MM) en zona horaria de Bogotá
  */
 export const formatTime = (time) => {
   if (!time) return '';
-  
-  // Si es un timestamp ISO completo (con T), extraer la hora
-  if (typeof time === 'string' && time.includes('T')) {
-    const d = new Date(time);
-    const hours = String(d.getUTCHours()).padStart(2, '0');
-    const minutes = String(d.getUTCMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  }
-  
+
   // Si ya es un string en formato HH:MM simple, retornarlo
   if (typeof time === 'string' && /^\d{2}:\d{2}/.test(time)) {
-    return time.substring(0, 5); // Retornar solo HH:MM
+    return time.substring(0, 5);
   }
-  
-  // Si es cualquier otro formato, intentar parsearlo
+
+  // Si es un timestamp ISO o cualquier otro formato, convertir a hora Bogotá
   const d = new Date(time);
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
-  
-  return `${hours}:${minutes}`;
+  return d.toLocaleTimeString('es-CO', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: TIMEZONE_BOGOTA
+  });
 };
 
 /**

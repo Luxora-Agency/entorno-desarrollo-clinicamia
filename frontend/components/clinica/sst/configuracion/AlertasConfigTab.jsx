@@ -396,7 +396,7 @@ export default function AlertasConfigTab({ user }) {
                     historial.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>
-                          {new Date(item.createdAt).toLocaleString('es-CO')}
+                          {new Date(item.createdAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{item.tipoAlerta?.replace(/_/g, ' ')}</Badge>

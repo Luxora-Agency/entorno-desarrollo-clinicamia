@@ -214,7 +214,9 @@ export default function MiAgendaView({ user }) {
           {lastSaved && (
             <Badge variant="outline" className="text-gray-500">
               <CheckCircle className="h-3 w-3 mr-1" />
-              Guardado: {lastSaved.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+              Guardado: {lastSaved.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
+      timeZone: 'America/Bogota'
+    })}
             </Badge>
           )}
 

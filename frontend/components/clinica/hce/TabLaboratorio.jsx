@@ -100,6 +100,7 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -110,6 +111,7 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -319,17 +321,32 @@ export default function TabLaboratorio({ pacienteId, admisionId, user }) {
                   <TableRow key={orden.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div className="flex items-start gap-3">
-                        <div className="p-2 bg-teal-100 rounded-lg">
-                          <Microscope className="w-4 h-4 text-teal-600" />
+                        <div className={`p-2 rounded-lg ${orden.observaciones?.startsWith('APLICACIÓN DE KIT:') ? 'bg-purple-100' : 'bg-teal-100'}`}>
+                          <Microscope className={`w-4 h-4 ${orden.observaciones?.startsWith('APLICACIÓN DE KIT:') ? 'text-purple-600' : 'text-teal-600'}`} />
                         </div>
                         <div>
                           <p className="font-medium text-gray-900">
-                            {orden.examenProcedimiento?.nombre || 'Examen'}
+                            {orden.examenProcedimiento?.nombre ||
+                              (orden.observaciones?.startsWith('APLICACIÓN DE KIT:')
+                                ? orden.observaciones.split('\n')[0].replace('APLICACIÓN DE KIT:', '').trim()
+                                : (orden.descripcion || 'Orden Médica')
+                              )
+                            }
                           </p>
                           <p className="text-xs text-gray-500">
-                            {orden.examenProcedimiento?.descripcion?.substring(0, 50) || ''}
+                            {orden.examenProcedimiento?.descripcion?.substring(0, 50) ||
+                              (orden.observaciones?.startsWith('APLICACIÓN DE KIT:')
+                                ? 'Kit de medicamentos aplicado'
+                                : ''
+                              )
+                            }
                             {orden.examenProcedimiento?.descripcion?.length > 50 ? '...' : ''}
                           </p>
+                          {orden.precioAplicado && (
+                            <p className="text-xs text-green-600 font-medium mt-1">
+                              Valor: ${parseInt(orden.precioAplicado).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
+                            </p>
+                          )}
                         </div>
                       </div>
                     </TableCell>

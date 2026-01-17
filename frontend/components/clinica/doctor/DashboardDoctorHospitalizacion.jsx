@@ -42,7 +42,8 @@ const formatFecha = (fecha) => {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
+      timeZone: 'America/Bogota'
+    });
 };
 
 export default function DashboardDoctorHospitalizacion({ user, onChangeAttentionType }) {

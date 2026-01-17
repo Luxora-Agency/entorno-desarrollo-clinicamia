@@ -160,7 +160,9 @@ export default function AttentionTypeSelector({ user, onSelect, skipSavedPrefere
           ¿Qué tipo de atención realizará hoy?
         </p>
         <p className="text-sm text-blue-300/60">
-          {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          {new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' ,
+      timeZone: 'America/Bogota'
+    })}
         </p>
       </div>
 

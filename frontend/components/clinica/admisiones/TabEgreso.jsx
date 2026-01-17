@@ -175,6 +175,7 @@ export default function TabEgreso({ pacienteId, paciente, user }) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -338,7 +339,7 @@ export default function TabEgreso({ pacienteId, paciente, user }) {
                     <Label className="text-sm font-semibold">Requiere Control Médico</Label>
                   </div>
                   <p className="text-sm text-gray-700">
-                    Fecha programada: <span className="font-semibold">{egreso.fechaControl ? new Date(egreso.fechaControl).toLocaleDateString('es-CO') : 'No especificada'}</span>
+                    Fecha programada: <span className="font-semibold">{egreso.fechaControl ? new Date(egreso.fechaControl).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' }) : 'No especificada'}</span>
                   </p>
                 </CardContent>
               </Card>

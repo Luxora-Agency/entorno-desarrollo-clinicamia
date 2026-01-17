@@ -122,7 +122,7 @@ export default function InspeccionesTab({ user }) {
                 inspecciones.map((insp) => (
                   <TableRow key={insp.id}>
                     <TableCell>
-                      {new Date(insp.fechaInspeccion).toLocaleDateString('es-CO')}
+                      {new Date(insp.fechaInspeccion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">{insp.tipoInspeccion}</Badge>

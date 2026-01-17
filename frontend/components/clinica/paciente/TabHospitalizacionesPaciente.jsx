@@ -57,6 +57,8 @@ export default function TabHospitalizacionesPaciente({ pacienteId }) {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
+    ,
+      timeZone: 'America/Bogota'
     });
   };
 

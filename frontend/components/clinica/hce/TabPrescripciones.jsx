@@ -102,6 +102,7 @@ export default function TabPrescripciones({ pacienteId }) {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'America/Bogota'
     });
   };
 
@@ -290,7 +291,7 @@ export default function TabPrescripciones({ pacienteId }) {
                                 </div>
                                 {item.precioUnitario && (
                                   <span className="text-orange-600 font-medium">
-                                    ${(item.precioUnitario * item.cantidad).toLocaleString('es-CO')}
+                                    ${(item.precioUnitario * item.cantidad).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                                   </span>
                                 )}
                               </div>
@@ -299,7 +300,7 @@ export default function TabPrescripciones({ pacienteId }) {
                           {orden.total && (
                             <div className="mt-2 pt-2 border-t flex justify-between text-sm font-semibold">
                               <span>Total:</span>
-                              <span className="text-orange-600">${orden.total.toLocaleString('es-CO')}</span>
+                              <span className="text-orange-600">${orden.total.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</span>
                             </div>
                           )}
                         </div>

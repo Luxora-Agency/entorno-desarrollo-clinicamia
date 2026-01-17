@@ -57,6 +57,7 @@ export default function GraficaTendencias() {
       month: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
+      timeZone: 'America/Bogota'
     }));
 
     const temperaturas = sortedData.map(d => d.temperatura);

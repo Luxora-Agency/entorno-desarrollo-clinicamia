@@ -820,7 +820,7 @@ export default function ReclutamientoTab({ user }) {
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-gray-500 uppercase">Fecha de Nacimiento</Label>
-                        <p className="font-medium">{viewingCandidato.birthDate ? new Date(viewingCandidato.birthDate).toLocaleDateString('es-CO') : 'No especificada'}</p>
+                        <p className="font-medium">{viewingCandidato.birthDate ? new Date(viewingCandidato.birthDate).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' }) : 'No especificada'}</p>
                       </div>
                       <div className="space-y-1">
                         <Label className="text-xs text-gray-500 uppercase">Género</Label>
@@ -1159,8 +1159,8 @@ export default function ReclutamientoTab({ user }) {
 
                   {/* Metadatos */}
                   <div className="text-xs text-gray-400 border-t pt-4 flex justify-between">
-                    <span>Fecha de aplicación: {viewingCandidato.createdAt ? new Date(viewingCandidato.createdAt).toLocaleString('es-CO') : 'N/A'}</span>
-                    <span>Última actualización: {viewingCandidato.updatedAt ? new Date(viewingCandidato.updatedAt).toLocaleString('es-CO') : 'N/A'}</span>
+                    <span>Fecha de aplicación: {viewingCandidato.createdAt ? new Date(viewingCandidato.createdAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'N/A'}</span>
+                    <span>Última actualización: {viewingCandidato.updatedAt ? new Date(viewingCandidato.updatedAt).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : 'N/A'}</span>
                   </div>
 
                   {/* Vacantes aplicadas (del sistema THCandidato) */}

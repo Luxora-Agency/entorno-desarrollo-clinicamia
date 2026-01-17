@@ -51,7 +51,9 @@ const formatDate = (dateStr) => {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
-  });
+  ,
+      timeZone: 'America/Bogota'
+    });
 };
 
 export default function AsientosContablesModule() {

@@ -69,6 +69,8 @@ export default function TabParaclinicos({ pacienteId, admisionId }) {
       year: 'numeric',
       month: 'short',
       day: 'numeric'
+    ,
+      timeZone: 'America/Bogota'
     });
   };
 

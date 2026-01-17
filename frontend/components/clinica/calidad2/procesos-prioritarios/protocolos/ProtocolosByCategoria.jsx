@@ -119,7 +119,7 @@ export default function ProtocolosByCategoria() {
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                         <span>Versión: {protocolo.version}</span>
                         <span>
-                          Vigencia: {new Date(protocolo.fechaVigencia).toLocaleDateString('es-CO')}
+                          Vigencia: {new Date(protocolo.fechaVigencia).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </span>
                         {protocolo.documentos && protocolo.documentos.length > 0 && (
                           <span>{protocolo.documentos.length} documentos</span>

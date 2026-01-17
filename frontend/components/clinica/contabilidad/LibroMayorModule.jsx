@@ -49,7 +49,9 @@ const formatDate = (dateStr) => {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
-  });
+  ,
+      timeZone: 'America/Bogota'
+    });
 };
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',

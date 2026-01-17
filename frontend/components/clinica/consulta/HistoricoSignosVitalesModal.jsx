@@ -100,7 +100,8 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
           fecha: new Date(item.fechaRegistro || item.createdAt).toLocaleDateString('es-CO', {
             day: '2-digit',
             month: 'short',
-          }),
+      timeZone: 'America/Bogota'
+    }),
           fechaCompleta: new Date(item.fechaRegistro || item.createdAt),
           imc: item.imc ? parseFloat(item.imc) : null,
           peso: item.peso ? parseFloat(item.peso) : null,
@@ -817,7 +818,9 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
               )}
               {lastUpdate && (
                 <span className="text-xs text-gray-400">
-                  Última: {lastUpdate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                  Última: {lastUpdate.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
+      timeZone: 'America/Bogota'
+    })}
                 </span>
               )}
               <Button

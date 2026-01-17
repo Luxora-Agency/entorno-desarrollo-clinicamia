@@ -161,11 +161,11 @@ export default function ExamenesMedicosTab({ user }) {
                     </TableCell>
                     <TableCell>{getTipoBadge(examen.tipoExamen)}</TableCell>
                     <TableCell>
-                      {new Date(examen.fechaProgramada).toLocaleDateString('es-CO')}
+                      {new Date(examen.fechaProgramada).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                     </TableCell>
                     <TableCell>
                       {examen.fechaRealizacion
-                        ? new Date(examen.fechaRealizacion).toLocaleDateString('es-CO')
+                        ? new Date(examen.fechaRealizacion).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })
                         : '-'}
                     </TableCell>
                     <TableCell>{examen.ipsRealizadora || '-'}</TableCell>
@@ -183,7 +183,7 @@ export default function ExamenesMedicosTab({ user }) {
                             ? 'text-red-500 font-medium'
                             : ''
                         }>
-                          {new Date(examen.fechaVencimiento).toLocaleDateString('es-CO')}
+                          {new Date(examen.fechaVencimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}
                         </span>
                       )}
                     </TableCell>

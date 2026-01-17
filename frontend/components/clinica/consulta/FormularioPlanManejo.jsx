@@ -163,7 +163,7 @@ Descripción: ${kit.descripcion}
 Medicamentos incluidos:
 ${medicamentosDescripcion}
 
-Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO')}`;
+Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`;
 
         try {
           // Crear orden médica de tipo Procedimiento (aplicación de medicamentos)
@@ -409,7 +409,7 @@ Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO')}`;
                         {kitsSeleccionados.length} kit(s)
                       </Badge>
                       <p className="text-xs text-green-700 mt-1 font-semibold">
-                        Total: ${totalOrden.toLocaleString('es-CO')}
+                        Total: ${totalOrden.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                       </p>
                     </div>
                   )}
@@ -502,7 +502,7 @@ Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO')}`;
                                   </span>
                                   <span className="text-sm font-bold text-green-700 flex items-center">
                                     <DollarSign className="h-3 w-3" />
-                                    {precioKit.toLocaleString('es-CO')}
+                                    {precioKit.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                                   </span>
                                 </div>
                             </div>
@@ -527,7 +527,7 @@ Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO')}`;
                           {' • '}
                           <span className="font-semibold">{kitsSeleccionados.reduce((acc, k) => acc + k.medicamentos.length, 0)}</span> medicamento(s)
                           {' • '}
-                          <span className="font-bold text-green-700">${totalOrden.toLocaleString('es-CO')}</span>
+                          <span className="font-bold text-green-700">${totalOrden.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</span>
                         </>
                       ) : (
                         'Seleccione kits para generar la orden'
@@ -638,7 +638,7 @@ Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO')}`;
                       <div className="text-right">
                         <Badge className="bg-blue-600">{kit.medicamentos.length} meds</Badge>
                         <p className="text-xs font-bold text-green-700 mt-1">
-                          ${precioKit.toLocaleString('es-CO')}
+                          ${precioKit.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                         </p>
                       </div>
                     </div>
@@ -653,7 +653,7 @@ Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO')}`;
                           <div className="flex items-center gap-2 text-xs">
                             <span className="font-mono text-gray-500">{med.codigoCum}</span>
                             <span className="text-gray-400">{med.via}</span>
-                            <span className="text-green-600">${(med.precio * med.cantidad).toLocaleString('es-CO')}</span>
+                            <span className="text-green-600">${(med.precio * med.cantidad).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}</span>
                           </div>
                         </li>
                       ))}
@@ -677,7 +677,7 @@ Total del kit: $${calcularPrecioKit(kit).toLocaleString('es-CO')}`;
                 <div className="text-right">
                   <p className="text-xs text-gray-600">Total Orden:</p>
                   <p className="text-lg font-bold text-green-700">
-                    ${totalOrden.toLocaleString('es-CO')}
+                    ${totalOrden.toLocaleString('es-CO', { timeZone: 'America/Bogota' })}
                   </p>
                 </div>
               </div>
