@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Dialog,
   DialogContent,
@@ -65,7 +66,7 @@ export default function SurgeryScheduler({ open, onOpenChange, onSuccess, user }
         indicacion: '',
         tipo: 'Mayor',
         quirofanoId: '',
-        fecha: new Date().toISOString().split('T')[0],
+        fecha: getTodayColombia(),
         hora: '08:00',
         duracion: 120,
       });

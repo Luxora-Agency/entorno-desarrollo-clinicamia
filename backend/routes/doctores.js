@@ -269,13 +269,14 @@ doctores.put('/mi-perfil', validate(updateDoctorSchema), async (c) => {
 
 doctores.get('/', async (c) => {
   try {
-    const { search = '', limit = '50', page = '1', activo, usuarioId } = c.req.query();
+    const { search = '', limit = '50', page = '1', activo, usuarioId, especialidadId } = c.req.query();
     const result = await doctorService.listar({
       search,
       limit: parseInt(limit),
       page: parseInt(page),
       activo: activo !== undefined ? activo === 'true' : undefined,
       usuarioId: usuarioId || '',
+      especialidadId: especialidadId || '',
     });
     return c.json({ success: true, data: result.doctores, pagination: result.pagination });
   } catch (err) {

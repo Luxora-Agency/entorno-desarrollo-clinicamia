@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Dialog,
   DialogContent,
@@ -48,7 +49,7 @@ export default function DocumentoHCForm({ documento, onSubmit, onCancel }) {
     archivoNombre: '',
     archivoTipo: 'PDF',
     archivoTamano: 0,
-    fechaEmision: new Date().toISOString().split('T')[0],
+    fechaEmision: getTodayColombia(),
     fechaVencimiento: '',
     elaboradoPor: '', // TODO: Get from auth context
     areaResponsable: '',
@@ -71,10 +72,10 @@ export default function DocumentoHCForm({ documento, onSubmit, onCancel }) {
         archivoTipo: documento.archivoTipo || 'PDF',
         archivoTamano: documento.archivoTamano || 0,
         fechaEmision: documento.fechaEmision
-          ? new Date(documento.fechaEmision).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0],
+          ? formatDateISO(new Date(documento.fechaEmision))
+          : getTodayColombia(),
         fechaVencimiento: documento.fechaVencimiento
-          ? new Date(documento.fechaVencimiento).toISOString().split('T')[0]
+          ? formatDateISO(new Date(documento.fechaVencimiento))
           : '',
         elaboradoPor: documento.elaboradoPor || '',
         areaResponsable: documento.areaResponsable || '',

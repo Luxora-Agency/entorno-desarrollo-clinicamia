@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,7 +25,7 @@ export default function TabCitas({ pacienteId, paciente, user }) {
     doctor_id: '',
     tipoServicio: '',
     servicioId: '',
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: getTodayColombia(),
     hora: '',
     motivo: '',
     notas: '',
@@ -163,7 +164,7 @@ export default function TabCitas({ pacienteId, paciente, user }) {
       doctor_id: '',
       tipoServicio: '',
       servicioId: '',
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getTodayColombia(),
       hora: '',
       motivo: '',
       notas: '',

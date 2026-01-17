@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { useCalidad2AuditoriasHC } from '@/hooks/useCalidad2AuditoriasHC';
 import { apiGet } from '@/services/api';
 import { Button } from '@/components/ui/button';
@@ -73,7 +74,7 @@ export default function HallazgoForm({ auditoriaId, hallazgo, onClose }) {
         accionCorrectiva: hallazgo.accionCorrectiva || '',
         responsable: hallazgo.responsable || 'unassigned',
         fechaLimite: hallazgo.fechaLimite
-          ? new Date(hallazgo.fechaLimite).toISOString().split('T')[0]
+          ? formatDateISO(new Date(hallazgo.fechaLimite))
           : '',
         estado: hallazgo.estado || 'ABIERTO',
       });

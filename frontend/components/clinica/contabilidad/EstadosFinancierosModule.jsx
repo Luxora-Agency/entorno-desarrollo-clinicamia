@@ -291,7 +291,7 @@ export default function EstadosFinancierosModule() {
                         <TableRow className="bg-blue-50 font-bold">
                           <TableCell colSpan={2}>ACTIVOS</TableCell>
                         </TableRow>
-                        {balanceGeneral?.activos?.map((cuenta, i) => (
+                        {Array.isArray(balanceGeneral?.activos) && balanceGeneral.activos.map((cuenta, i) => (
                           <TableRow key={i}>
                             <TableCell className="pl-6">{cuenta.nombre}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(cuenta.saldo)}</TableCell>
@@ -306,7 +306,7 @@ export default function EstadosFinancierosModule() {
                         <TableRow className="bg-red-50 font-bold">
                           <TableCell colSpan={2}>PASIVOS</TableCell>
                         </TableRow>
-                        {balanceGeneral?.pasivos?.map((cuenta, i) => (
+                        {Array.isArray(balanceGeneral?.pasivos) && balanceGeneral.pasivos.map((cuenta, i) => (
                           <TableRow key={i}>
                             <TableCell className="pl-6">{cuenta.nombre}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(cuenta.saldo)}</TableCell>
@@ -321,7 +321,7 @@ export default function EstadosFinancierosModule() {
                         <TableRow className="bg-green-50 font-bold">
                           <TableCell colSpan={2}>PATRIMONIO</TableCell>
                         </TableRow>
-                        {balanceGeneral?.patrimonio?.map((cuenta, i) => (
+                        {Array.isArray(balanceGeneral?.patrimonio) && balanceGeneral.patrimonio.map((cuenta, i) => (
                           <TableRow key={i}>
                             <TableCell className="pl-6">{cuenta.nombre}</TableCell>
                             <TableCell className="text-right font-mono">{formatCurrency(cuenta.saldo)}</TableCell>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -93,7 +94,7 @@ export default function TabInterconsultas({ admision, onReload }) {
           admision_id: admision.id, // Vincula con la admisión
           tipo_cita: 'Interconsulta',
           especialidad_id: interconsultaData.especialidad,
-          fecha: fechaHoy.toISOString().split('T')[0], // Fecha actual YYYY-MM-DD
+          fecha: formatDateISO(fechaHoy), // Fecha actual YYYY-MM-DD
           hora: '00:00:00', // Hora placeholder - recepción la define
           costo: parseFloat(costoInterconsulta), // Costo de la especialidad
           motivo: interconsultaData.motivo,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -224,7 +225,7 @@ export default function ValidacionDiagnosticoEspecial({
             type="date"
             value={datosValidacion.fechaDiagnosticoExacta}
             onChange={(e) => handleChange('fechaDiagnosticoExacta', e.target.value)}
-            max={new Date().toISOString().split('T')[0]}
+            max={getTodayColombia()}
             className="bg-white"
           />
           {!datosValidacion.fechaDiagnosticoExacta && (

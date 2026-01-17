@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -36,7 +37,7 @@ export default function FormularioCertificado({
     titulo: 'Constancia de Atención Médica',
     contenido: '',
     destinatario: '',
-    vigenciaDesde: new Date().toISOString().split('T')[0],
+    vigenciaDesde: getTodayColombia(),
     vigenciaHasta: '',
   });
 
@@ -167,7 +168,7 @@ export default function FormularioCertificado({
         titulo: 'Constancia de Atención Médica',
         contenido: '',
         destinatario: '',
-        vigenciaDesde: new Date().toISOString().split('T')[0],
+        vigenciaDesde: getTodayColombia(),
         vigenciaHasta: '',
       });
 

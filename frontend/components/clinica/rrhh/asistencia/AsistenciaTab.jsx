@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Clock, Calendar, Users, CheckCircle, XCircle,
   AlertTriangle, Plus, Search, Download, Palmtree,
@@ -38,7 +39,7 @@ const TIPOS_VACACION = [
 
 export default function AsistenciaTab({ user }) {
   const [activeSubTab, setActiveSubTab] = useState('hoy');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getTodayColombia());
   const [showVacacionModal, setShowVacacionModal] = useState(false);
   const [showPermisoModal, setShowPermisoModal] = useState(false);
   const [showAsistenciaModal, setShowAsistenciaModal] = useState(false);
@@ -718,7 +719,7 @@ export default function AsistenciaTab({ user }) {
                 <Label>Fecha</Label>
                 <Input
                   type="date"
-                  value={formData.fecha || new Date().toISOString().split('T')[0]}
+                  value={formData.fecha || getTodayColombia()}
                   onChange={(e) => setFormData({...formData, fecha: e.target.value})}
                 />
               </div>

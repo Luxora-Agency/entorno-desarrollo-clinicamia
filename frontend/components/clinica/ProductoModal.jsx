@@ -20,28 +20,49 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
   const [imagePreview, setImagePreview] = useState(null);
   
   const [formData, setFormData] = useState({
+    // Información Básica
     nombre: '',
     categoriaId: '',
     sku: '',
+    codigoBarras: '',
     laboratorio: '',
     descripcion: '',
     etiquetasIds: [],
+
+    // Información Farmacológica
     principioActivo: '',
     concentracion: '',
+    formaFarmaceutica: '',
+    unidadMedida: '',
     viaAdministracion: '',
     presentacion: '',
     codigoAtc: '',
     cum: '',
     registroSanitario: '',
-    temperaturaAlmacenamiento: '',
+
+    // Control y Regulación
     requiereReceta: false,
+    controlado: false,
+    tipoControlado: '',
+
+    // Almacenamiento
+    temperaturaAlmacenamiento: '',
+    requiereCadenaFrio: false,
+    ubicacionAlmacen: '',
+
+    // Inventario
     cantidadTotal: '',
     cantidadConsumida: '',
     cantidadMinAlerta: '',
+    cantidadMaxAlerta: '',
     lote: '',
     fechaVencimiento: '',
+
+    // Precios
     precioVenta: '',
     precioCompra: '',
+
+    // Estado
     activo: true,
     imagenUrl: '',
   });
@@ -66,6 +87,44 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
     'Lugar fresco y seco',
   ];
 
+  const formasFarmaceuticas = [
+    'Tableta',
+    'Cápsula',
+    'Comprimido',
+    'Jarabe',
+    'Suspensión',
+    'Solución',
+    'Inyectable',
+    'Ampolla',
+    'Crema',
+    'Gel',
+    'Ungüento',
+    'Pomada',
+    'Gotas',
+    'Spray',
+    'Parche',
+    'Supositorio',
+    'Óvulo',
+    'Polvo',
+    'Granulado',
+    'Inhalador',
+  ];
+
+  const unidadesMedida = [
+    'mg', 'g', 'kg',
+    'ml', 'L',
+    'UI', 'mcg',
+    '%', 'mg/ml',
+    'Unidad', 'Tableta', 'Cápsula',
+  ];
+
+  const tiposControlado = [
+    { value: 'I', label: 'Grupo I - Alto riesgo de abuso' },
+    { value: 'II', label: 'Grupo II - Riesgo medio-alto' },
+    { value: 'III', label: 'Grupo III - Riesgo moderado' },
+    { value: 'IV', label: 'Grupo IV - Riesgo bajo' },
+  ];
+
   useEffect(() => {
     if (isOpen) {
       loadCategorias();
@@ -73,28 +132,49 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
       
       if (editingProducto) {
         setFormData({
+          // Información Básica
           nombre: editingProducto.nombre || '',
           categoriaId: editingProducto.categoriaId || '',
           sku: editingProducto.sku || '',
+          codigoBarras: editingProducto.codigoBarras || '',
           laboratorio: editingProducto.laboratorio || '',
           descripcion: editingProducto.descripcion || '',
           etiquetasIds: editingProducto.etiquetas?.map(e => e.id) || [],
+
+          // Información Farmacológica
           principioActivo: editingProducto.principioActivo || '',
           concentracion: editingProducto.concentracion || '',
+          formaFarmaceutica: editingProducto.formaFarmaceutica || '',
+          unidadMedida: editingProducto.unidadMedida || '',
           viaAdministracion: editingProducto.viaAdministracion || '',
           presentacion: editingProducto.presentacion || '',
           codigoAtc: editingProducto.codigoAtc || '',
           cum: editingProducto.cum || '',
           registroSanitario: editingProducto.registroSanitario || '',
-          temperaturaAlmacenamiento: editingProducto.temperaturaAlmacenamiento || '',
+
+          // Control y Regulación
           requiereReceta: editingProducto.requiereReceta || false,
+          controlado: editingProducto.controlado || false,
+          tipoControlado: editingProducto.tipoControlado || '',
+
+          // Almacenamiento
+          temperaturaAlmacenamiento: editingProducto.temperaturaAlmacenamiento || '',
+          requiereCadenaFrio: editingProducto.requiereCadenaFrio || false,
+          ubicacionAlmacen: editingProducto.ubicacionAlmacen || '',
+
+          // Inventario
           cantidadTotal: editingProducto.cantidadTotal?.toString() || '',
           cantidadConsumida: editingProducto.cantidadConsumida?.toString() || '',
           cantidadMinAlerta: editingProducto.cantidadMinAlerta?.toString() || '',
+          cantidadMaxAlerta: editingProducto.cantidadMaxAlerta?.toString() || '',
           lote: editingProducto.lote || '',
           fechaVencimiento: editingProducto.fechaVencimiento ? editingProducto.fechaVencimiento.slice(0, 16) : '',
+
+          // Precios
           precioVenta: editingProducto.precioVenta?.toString() || '',
           precioCompra: editingProducto.precioCompra?.toString() || '',
+
+          // Estado
           activo: editingProducto.activo !== undefined ? editingProducto.activo : true,
           imagenUrl: editingProducto.imagenUrl || '',
         });
@@ -135,28 +215,49 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
 
   const resetForm = () => {
     setFormData({
+      // Información Básica
       nombre: '',
       categoriaId: '',
       sku: '',
+      codigoBarras: '',
       laboratorio: '',
       descripcion: '',
       etiquetasIds: [],
+
+      // Información Farmacológica
       principioActivo: '',
       concentracion: '',
+      formaFarmaceutica: '',
+      unidadMedida: '',
       viaAdministracion: '',
       presentacion: '',
       codigoAtc: '',
       cum: '',
       registroSanitario: '',
-      temperaturaAlmacenamiento: '',
+
+      // Control y Regulación
       requiereReceta: false,
+      controlado: false,
+      tipoControlado: '',
+
+      // Almacenamiento
+      temperaturaAlmacenamiento: '',
+      requiereCadenaFrio: false,
+      ubicacionAlmacen: '',
+
+      // Inventario
       cantidadTotal: '',
       cantidadConsumida: '',
       cantidadMinAlerta: '',
+      cantidadMaxAlerta: '',
       lote: '',
       fechaVencimiento: '',
+
+      // Precios
       precioVenta: '',
       precioCompra: '',
+
+      // Estado
       activo: true,
       imagenUrl: '',
     });
@@ -231,11 +332,18 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
       
       const payload = {
         ...formData,
-        cantidadTotal: parseInt(formData.cantidadTotal),
+        cantidadTotal: parseInt(formData.cantidadTotal) || 0,
         cantidadConsumida: parseInt(formData.cantidadConsumida) || 0,
-        cantidadMinAlerta: parseInt(formData.cantidadMinAlerta),
-        precioVenta: parseFloat(formData.precioVenta),
+        cantidadMinAlerta: parseInt(formData.cantidadMinAlerta) || 10,
+        cantidadMaxAlerta: formData.cantidadMaxAlerta ? parseInt(formData.cantidadMaxAlerta) : null,
+        precioVenta: parseFloat(formData.precioVenta) || 0,
         precioCompra: formData.precioCompra ? parseFloat(formData.precioCompra) : null,
+        // Limpiar campos vacíos para que el backend los maneje como null
+        codigoBarras: formData.codigoBarras || null,
+        formaFarmaceutica: formData.formaFarmaceutica || null,
+        unidadMedida: formData.unidadMedida || null,
+        tipoControlado: formData.tipoControlado || null,
+        ubicacionAlmacen: formData.ubicacionAlmacen || null,
       };
 
       const url = editingProducto
@@ -337,6 +445,15 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                 />
               </div>
               <div>
+                <Label className="text-sm font-semibold">Código de Barras</Label>
+                <Input
+                  value={formData.codigoBarras}
+                  onChange={(e) => setFormData({ ...formData, codigoBarras: e.target.value })}
+                  className="mt-2"
+                  placeholder="Ej: 7702057001234"
+                />
+              </div>
+              <div>
                 <Label className="text-sm font-semibold">Laboratorio</Label>
                 <Input
                   value={formData.laboratorio}
@@ -411,6 +528,32 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                 />
               </div>
               <div>
+                <Label className="text-sm font-semibold">Forma Farmacéutica</Label>
+                <Select value={formData.formaFarmaceutica} onValueChange={(value) => setFormData({ ...formData, formaFarmaceutica: value })}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {formasFarmaceuticas.map(forma => (
+                      <SelectItem key={forma} value={forma}>{forma}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Unidad de Medida</Label>
+                <Select value={formData.unidadMedida} onValueChange={(value) => setFormData({ ...formData, unidadMedida: value })}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unidadesMedida.map(unidad => (
+                      <SelectItem key={unidad} value={unidad}>{unidad}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
                 <Label className="text-sm font-semibold">Vía de Administración</Label>
                 <Select value={formData.viaAdministracion} onValueChange={(value) => setFormData({ ...formData, viaAdministracion: value })}>
                   <SelectTrigger className="mt-2">
@@ -472,18 +615,62 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                   </SelectContent>
                 </Select>
               </div>
-              <div className="md:col-span-2">
-                <div className="flex items-center space-x-2 mt-2">
+              <div>
+                <Label className="text-sm font-semibold">Ubicación en Almacén</Label>
+                <Input
+                  value={formData.ubicacionAlmacen}
+                  onChange={(e) => setFormData({ ...formData, ubicacionAlmacen: e.target.value })}
+                  className="mt-2"
+                  placeholder="Ej: Estante A3, Nivel 2"
+                />
+              </div>
+              <div className="md:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex items-center space-x-2">
                   <Checkbox
                     id="requiereReceta"
                     checked={formData.requiereReceta}
                     onCheckedChange={(checked) => setFormData({ ...formData, requiereReceta: checked })}
                   />
-                  <label htmlFor="requiereReceta" className="text-sm font-semibold cursor-pointer">
-                    Requiere Receta Médica
+                  <label htmlFor="requiereReceta" className="text-sm font-medium cursor-pointer">
+                    Requiere Receta
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="controlado"
+                    checked={formData.controlado}
+                    onCheckedChange={(checked) => setFormData({ ...formData, controlado: checked, tipoControlado: checked ? formData.tipoControlado : '' })}
+                  />
+                  <label htmlFor="controlado" className="text-sm font-medium cursor-pointer">
+                    Controlado
+                  </label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="requiereCadenaFrio"
+                    checked={formData.requiereCadenaFrio}
+                    onCheckedChange={(checked) => setFormData({ ...formData, requiereCadenaFrio: checked })}
+                  />
+                  <label htmlFor="requiereCadenaFrio" className="text-sm font-medium cursor-pointer">
+                    Cadena de Frío
                   </label>
                 </div>
               </div>
+              {formData.controlado && (
+                <div className="md:col-span-2">
+                  <Label className="text-sm font-semibold">Tipo de Control</Label>
+                  <Select value={formData.tipoControlado} onValueChange={(value) => setFormData({ ...formData, tipoControlado: value })}>
+                    <SelectTrigger className="mt-2">
+                      <SelectValue placeholder="Seleccionar grupo de control..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tiposControlado.map(tipo => (
+                        <SelectItem key={tipo.value} value={tipo.value}>{tipo.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
           </div>
 
@@ -514,13 +701,24 @@ export default function ProductoModal({ isOpen, onClose, editingProducto, onSucc
                 />
               </div>
               <div>
-                <Label className="text-sm font-semibold">Cantidad Mínima Alerta *</Label>
+                <Label className="text-sm font-semibold">Stock Mínimo (Alerta) *</Label>
                 <Input
                   type="number"
                   value={formData.cantidadMinAlerta}
                   onChange={(e) => setFormData({ ...formData, cantidadMinAlerta: e.target.value })}
                   className="mt-2"
                   placeholder="10"
+                  min="0"
+                />
+              </div>
+              <div>
+                <Label className="text-sm font-semibold">Stock Máximo (Exceso)</Label>
+                <Input
+                  type="number"
+                  value={formData.cantidadMaxAlerta}
+                  onChange={(e) => setFormData({ ...formData, cantidadMaxAlerta: e.target.value })}
+                  className="mt-2"
+                  placeholder="1000"
                   min="0"
                 />
               </div>

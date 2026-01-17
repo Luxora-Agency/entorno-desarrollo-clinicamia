@@ -182,7 +182,7 @@ class DoctorService {
     }
   }
 
-  async listar({ search = '', limit = 50, page = 1, usuarioId = '', activo = undefined }) {
+  async listar({ search = '', limit = 50, page = 1, usuarioId = '', activo = undefined, especialidadId = '' }) {
     const skip = (page - 1) * limit;
 
     const where = {};
@@ -190,6 +190,15 @@ class DoctorService {
     // Filtro por usuarioId
     if (usuarioId) {
       where.usuarioId = usuarioId;
+    }
+
+    // Filtro por especialidadId
+    if (especialidadId) {
+      where.especialidades = {
+        some: {
+          especialidadId: especialidadId
+        }
+      };
     }
 
     // Filtro por estado activo

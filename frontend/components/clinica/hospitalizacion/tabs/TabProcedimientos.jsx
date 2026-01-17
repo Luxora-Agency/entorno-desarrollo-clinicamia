@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -125,7 +126,7 @@ export default function TabProcedimientos({ admision, procedimientos, onReload }
           admision_id: admision.id, // Vincula con la admisión
           tipo_cita: ordenActual.tipo,
           examen_procedimiento_id: ordenActual.servicioId,
-          fecha: fechaHoy.toISOString().split('T')[0], // Fecha actual
+          fecha: formatDateISO(fechaHoy), // Fecha actual
           hora: '00:00:00', // Hora placeholder
           costo: costoFinal, // Usa el mismo costo que la OrdenMedica
           motivo: ordenActual.servicioNombre,

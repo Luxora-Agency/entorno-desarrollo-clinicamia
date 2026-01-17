@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -55,7 +56,7 @@ export default function FormularioIncapacidad({
 
   const [formData, setFormData] = useState({
     tipoIncapacidad: 'EnfermedadGeneral',
-    fechaInicio: new Date().toISOString().split('T')[0],
+    fechaInicio: getTodayColombia(),
     diasIncapacidad: 3,
     diagnosticoCIE10: diagnostico?.principal?.codigoCIE10 || '',
     descripcionDiagnostico: diagnostico?.principal?.descripcionCIE10 || '',
@@ -71,7 +72,7 @@ export default function FormularioIncapacidad({
     if (!formData.fechaInicio || !formData.diasIncapacidad) return '';
     const inicio = new Date(formData.fechaInicio);
     inicio.setDate(inicio.getDate() + parseInt(formData.diasIncapacidad) - 1);
-    return inicio.toISOString().split('T')[0];
+    return formatDateISO(inicio);
   }, [formData.fechaInicio, formData.diasIncapacidad]);
 
   // Información de pago
@@ -138,7 +139,7 @@ export default function FormularioIncapacidad({
       setShowForm(false);
       setFormData({
         tipoIncapacidad: 'EnfermedadGeneral',
-        fechaInicio: new Date().toISOString().split('T')[0],
+        fechaInicio: getTodayColombia(),
         diasIncapacidad: 3,
         diagnosticoCIE10: diagnostico?.principal?.codigoCIE10 || '',
         descripcionDiagnostico: diagnostico?.principal?.descripcionCIE10 || '',

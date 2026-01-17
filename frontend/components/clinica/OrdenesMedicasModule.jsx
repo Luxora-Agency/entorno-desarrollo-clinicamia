@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Plus,
   Search,
@@ -270,17 +271,17 @@ export default function OrdenesMedicasModule({ user }) {
 
     switch (tipo) {
       case 'hoy':
-        return hoy.toISOString().split('T')[0];
+        return formatDateISO(hoy);
       case 'ayer':
         const ayer = new Date(hoy);
         ayer.setDate(ayer.getDate() - 1);
-        return ayer.toISOString().split('T')[0];
+        return formatDateISO(ayer);
       case 'semana':
         const inicioSemana = new Date(hoy);
         inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay());
-        return inicioSemana.toISOString().split('T')[0];
+        return formatDateISO(inicioSemana);
       case 'mes':
-        return new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+        return formatDateISO(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
       default:
         return null;
     }

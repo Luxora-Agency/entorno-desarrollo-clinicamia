@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Search, Edit, Trash2, UserCog, Phone, Mail, Clock, Eye, GraduationCap, Award, Calendar, MapPin, Power, CalendarClock, Ban } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, UserCog, Phone, Mail, Clock, Eye, GraduationCap, Award, Calendar, MapPin, Power, CalendarClock, Ban, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import DoctorScheduleManager from './DoctorScheduleManager';
 import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
 import { useToast } from '@/hooks/use-toast';
@@ -21,6 +21,7 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
   const [editingHorarios, setEditingHorarios] = useState(null);
   const [horarios, setHorarios] = useState({});
   const [viewingDoctor, setViewingDoctor] = useState(null);
+  const [calendarWeekOffset, setCalendarWeekOffset] = useState(0);
   const [bloqueos, setBloqueos] = useState([]);
   const [activeTab, setActiveTab] = useState('horarios');
   const [scheduleRefreshKey, setScheduleRefreshKey] = useState(0);
@@ -62,7 +63,11 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
     for (let i = 0; i < 3; i++) {
       const fecha = new Date(hoy);
       fecha.setDate(hoy.getDate() + i);
-      const fechaStr = fecha.toISOString().split('T')[0];
+      // Usar formato local para evitar problemas de zona horaria
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, '0');
+      const day = String(fecha.getDate()).padStart(2, '0');
+      const fechaStr = `${year}-${month}-${day}`;
       const diaSemana = fecha.getDay().toString(); // "0" para Domingo, "1" para Lunes, etc.
 
       // Buscar primero por fecha específica, luego por día de semana
@@ -549,12 +554,12 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
       </Dialog>
 
       {/* Modal Ver Doctor */}
-      <Dialog open={!!viewingDoctor} onOpenChange={() => setViewingDoctor(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={!!viewingDoctor} onOpenChange={() => { setViewingDoctor(null); setCalendarWeekOffset(0); }}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl flex items-center gap-2">
               <UserCog className="w-5 h-5 text-emerald-600" />
-              Información del Doctor
+              Información Completa del Doctor
             </DialogTitle>
           </DialogHeader>
 
@@ -562,7 +567,7 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
             <div className="space-y-6">
               {/* Foto y datos básicos */}
               <div className="flex items-start gap-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-xl">
-                <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center border-4 border-emerald-200 overflow-hidden">
+                <div className="w-28 h-28 bg-white rounded-full flex items-center justify-center border-4 border-emerald-200 overflow-hidden shadow-lg">
                   {viewingDoctor.foto ? (
                     <img
                       src={viewingDoctor.foto.startsWith('http') ? viewingDoctor.foto : `${process.env.NEXT_PUBLIC_API_URL}${viewingDoctor.foto}`}
@@ -570,17 +575,24 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <UserCog className="w-12 h-12 text-emerald-400" />
+                    <UserCog className="w-14 h-14 text-emerald-400" />
                   )}
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold text-gray-900">
                     Dr. {viewingDoctor.nombre} {viewingDoctor.apellido}
                   </h3>
-                  <p className="text-gray-600">{viewingDoctor.cedula}</p>
-                  <Badge className={`mt-2 ${viewingDoctor.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {viewingDoctor.activo ? 'Activo' : 'Inactivo'}
-                  </Badge>
+                  <p className="text-gray-600 text-lg">C.C. {viewingDoctor.cedula}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge className={`${viewingDoctor.activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
+                      {viewingDoctor.activo ? 'Activo' : 'Inactivo'}
+                    </Badge>
+                    {viewingDoctor.licenciaMedica && (
+                      <Badge variant="outline" className="border-emerald-300 text-emerald-700">
+                        Lic. {viewingDoctor.licenciaMedica}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -592,90 +604,342 @@ export default function DoctoresModule({ user, onEdit, onAdd }) {
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {viewingDoctor.especialidades?.map((esp, idx) => (
-                    <Badge key={idx} className="bg-blue-100 text-blue-800 border-blue-200">
+                    <Badge key={idx} className="bg-blue-100 text-blue-800 border-blue-200 px-3 py-1">
                       {esp}
                     </Badge>
                   ))}
                   {(!viewingDoctor.especialidades || viewingDoctor.especialidades.length === 0) && (
-                    <span className="text-gray-500 text-sm">Sin especialidades asignadas</span>
+                    <span className="text-gray-500 text-sm italic">Sin especialidades asignadas</span>
                   )}
                 </div>
               </div>
 
-              {/* Información de contacto */}
+              {/* Información de contacto y profesional */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
-                  <h4 className="font-semibold text-gray-900">Contacto</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-blue-600" />
+                    Información de Contacto
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg">
                       <Mail className="w-4 h-4 text-gray-400" />
-                      <span>{viewingDoctor.email || 'No registrado'}</span>
+                      <div>
+                        <p className="text-xs text-gray-500">Correo Electrónico</p>
+                        <p className="font-medium">{viewingDoctor.email || 'No registrado'}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg">
                       <Phone className="w-4 h-4 text-gray-400" />
-                      <span>{viewingDoctor.telefono || 'No registrado'}</span>
+                      <div>
+                        <p className="text-xs text-gray-500">Teléfono</p>
+                        <p className="font-medium">{viewingDoctor.telefono || 'No registrado'}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-3 p-4 bg-gray-50 rounded-xl">
-                  <h4 className="font-semibold text-gray-900">Información Profesional</h4>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
+                  <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-purple-600" />
+                    Información Profesional
+                  </h4>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg">
                       <Award className="w-4 h-4 text-gray-400" />
-                      <span>Licencia: {viewingDoctor.licenciaMedica || 'No registrada'}</span>
+                      <div>
+                        <p className="text-xs text-gray-500">Licencia Médica</p>
+                        <p className="font-medium">{viewingDoctor.licenciaMedica || 'No registrada'}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg">
                       <GraduationCap className="w-4 h-4 text-gray-400" />
-                      <span>{viewingDoctor.universidad || 'Universidad no registrada'}</span>
+                      <div>
+                        <p className="text-xs text-gray-500">Universidad</p>
+                        <p className="font-medium">{viewingDoctor.universidad || 'No registrada'}</p>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3 p-2 bg-white rounded-lg">
                       <Calendar className="w-4 h-4 text-gray-400" />
-                      <span>{viewingDoctor.aniosExperiencia ? `${viewingDoctor.aniosExperiencia} años de experiencia` : 'Experiencia no registrada'}</span>
+                      <div>
+                        <p className="text-xs text-gray-500">Experiencia</p>
+                        <p className="font-medium">{viewingDoctor.aniosExperiencia ? `${viewingDoctor.aniosExperiencia} años` : 'No registrada'}</p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Biografía */}
-              {viewingDoctor.biografia && (
-                <div className="space-y-2">
-                  <h4 className="font-semibold text-gray-900">Biografía</h4>
-                  <p className="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl">
-                    {viewingDoctor.biografia}
-                  </p>
+              <div className="space-y-2">
+                <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-amber-600" />
+                  Biografía / Descripción
+                </h4>
+                <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl">
+                  {viewingDoctor.biografia || <span className="italic text-gray-400">Sin biografía registrada</span>}
                 </div>
-              )}
+              </div>
 
-              {/* Horarios */}
+              {/* Horarios de Atención - Calendario Visual Navegable */}
               <div className="space-y-2">
                 <h4 className="font-semibold text-gray-900 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-emerald-600" />
                   Horarios de Atención
                 </h4>
-                <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-xl">
-                  {getResumenHorarios(viewingDoctor.horarios)}
-                </div>
+                {(() => {
+                  // Calcular fechas de la semana
+                  const getWeekDates = (offset) => {
+                    const today = new Date();
+                    const currentDay = today.getDay();
+                    const sunday = new Date(today);
+                    sunday.setDate(today.getDate() - currentDay + (offset * 7));
+
+                    const weekDates = [];
+                    for (let i = 0; i < 7; i++) {
+                      const d = new Date(sunday);
+                      d.setDate(sunday.getDate() + i);
+                      weekDates.push(d);
+                    }
+                    return weekDates;
+                  };
+
+                  const weekDates = getWeekDates(calendarWeekOffset);
+                  const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                                      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+                  const dayNames = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+                  const startMonth = weekDates[0].getMonth();
+                  const endMonth = weekDates[6].getMonth();
+                  const year = weekDates[0].getFullYear();
+                  const monthLabel = startMonth === endMonth
+                    ? `${monthNames[startMonth]} ${year}`
+                    : `${monthNames[startMonth]} - ${monthNames[endMonth]} ${year}`;
+
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+
+                  return (
+                    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+                      {/* Navegación del calendario */}
+                      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-200">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCalendarWeekOffset(prev => prev - 1)}
+                          className="h-8 px-2 gap-1"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          <span className="text-xs hidden sm:inline">Anterior</span>
+                        </Button>
+                        <div className="text-center">
+                          <p className="font-semibold text-gray-800">{monthLabel}</p>
+                          <p className="text-xs text-gray-500">
+                            Semana del {weekDates[0].getDate()} al {weekDates[6].getDate()}
+                          </p>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCalendarWeekOffset(prev => prev + 1)}
+                          className="h-8 px-2 gap-1"
+                        >
+                          <span className="text-xs hidden sm:inline">Siguiente</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      </div>
+
+                      {/* Botón volver a hoy */}
+                      {calendarWeekOffset !== 0 && (
+                        <div className="flex justify-center py-1 bg-blue-50 border-b border-blue-100">
+                          <Button
+                            variant="link"
+                            size="sm"
+                            onClick={() => setCalendarWeekOffset(0)}
+                            className="text-xs text-blue-600 h-6"
+                          >
+                            Volver a esta semana
+                          </Button>
+                        </div>
+                      )}
+
+                      {/* Header del calendario con días */}
+                      <div className="grid grid-cols-7 bg-gradient-to-r from-emerald-600 to-teal-600 text-white">
+                        {weekDates.map((date, idx) => {
+                          const isToday = date.toDateString() === today.toDateString();
+                          return (
+                            <div
+                              key={idx}
+                              className={`py-2 text-center border-r border-emerald-500 last:border-r-0 ${isToday ? 'bg-emerald-700' : ''}`}
+                            >
+                              <p className="text-xs font-medium opacity-80">{dayNames[idx]}</p>
+                              <p className={`text-lg font-bold ${isToday ? 'bg-white text-emerald-600 rounded-full w-8 h-8 flex items-center justify-center mx-auto' : ''}`}>
+                                {date.getDate()}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Cuerpo del calendario */}
+                      <div className="grid grid-cols-7">
+                        {weekDates.map((date, idx) => {
+                          const dayIndex = date.getDay();
+                          // Usar formato local para evitar problemas de zona horaria
+                          const year = date.getFullYear();
+                          const month = String(date.getMonth() + 1).padStart(2, '0');
+                          const day = String(date.getDate()).padStart(2, '0');
+                          const dateStr = `${year}-${month}-${day}`;
+
+                          // Primero buscar por fecha específica, luego por día de semana
+                          let bloques = viewingDoctor.horarios?.[dateStr];
+                          if (!Array.isArray(bloques) || bloques.length === 0) {
+                            // Buscar por índice de día (como número o string)
+                            bloques = viewingDoctor.horarios?.[String(dayIndex)] || viewingDoctor.horarios?.[dayIndex];
+                          }
+
+                          const hasHorarios = Array.isArray(bloques) && bloques.length > 0;
+                          const isToday = date.toDateString() === today.toDateString();
+                          const isPast = date < today;
+
+                          return (
+                            <div
+                              key={idx}
+                              className={`min-h-[90px] p-1.5 border-r border-b border-gray-100 last:border-r-0 ${
+                                hasHorarios
+                                  ? isPast ? 'bg-gray-50' : 'bg-emerald-50'
+                                  : 'bg-gray-50'
+                              } ${isToday ? 'ring-2 ring-inset ring-emerald-400' : ''}`}
+                            >
+                              {hasHorarios ? (
+                                <div className="h-full flex flex-col gap-1">
+                                  {bloques.slice(0, 3).map((bloque, bidx) => (
+                                    <div
+                                      key={bidx}
+                                      className={`w-full rounded py-0.5 px-1 text-center text-white ${
+                                        isPast ? 'bg-gray-400' : 'bg-emerald-500'
+                                      }`}
+                                    >
+                                      <p className="text-[9px] font-medium leading-tight">
+                                        {bloque.inicio || bloque.start} - {bloque.fin || bloque.end}
+                                      </p>
+                                    </div>
+                                  ))}
+                                  {bloques.length > 3 && (
+                                    <p className="text-[8px] text-gray-500 text-center">
+                                      +{bloques.length - 3} más
+                                    </p>
+                                  )}
+                                </div>
+                              ) : (
+                                <div className="h-full flex items-center justify-center">
+                                  <p className="text-[9px] text-gray-400">—</p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Leyenda */}
+                      <div className="bg-gray-50 px-4 py-2 border-t border-gray-200 flex items-center justify-center gap-4 text-xs flex-wrap">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded bg-emerald-500"></div>
+                          <span className="text-gray-600">Disponible</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded bg-gray-400"></div>
+                          <span className="text-gray-600">Pasado</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded border-2 border-emerald-400 bg-white"></div>
+                          <span className="text-gray-600">Hoy</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+                {/* Mensaje si no hay horarios configurados */}
+                {(!viewingDoctor.horarios || Object.keys(viewingDoctor.horarios).length === 0) && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
+                    <p className="text-sm text-amber-700 text-center">
+                      Este doctor no tiene horarios configurados. Configure los horarios desde la pestaña "Horarios".
+                    </p>
+                  </div>
+                )}
               </div>
 
-              {/* Botones */}
-              <div className="flex gap-3 pt-4 border-t">
+              {/* Firma y Sello */}
+              {(viewingDoctor.firma || viewingDoctor.sello) && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-600" />
+                    Firma y Sello Digital
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Firma */}
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Firma Digital</p>
+                      {viewingDoctor.firma ? (
+                        <div className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-center min-h-[100px]">
+                          <img
+                            src={viewingDoctor.firma.startsWith('data:') ? viewingDoctor.firma : `data:image/png;base64,${viewingDoctor.firma}`}
+                            alt="Firma del Doctor"
+                            className="max-h-24 object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-dashed border-gray-300 rounded-lg p-4 flex items-center justify-center min-h-[100px]">
+                          <p className="text-sm text-gray-400 italic">Sin firma registrada</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Sello */}
+                    <div className="p-4 bg-gray-50 rounded-xl">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Sello Digital</p>
+                      {viewingDoctor.sello ? (
+                        <div className="bg-white border border-gray-200 rounded-lg p-3 flex items-center justify-center min-h-[100px]">
+                          <img
+                            src={viewingDoctor.sello.startsWith('data:') ? viewingDoctor.sello : `data:image/png;base64,${viewingDoctor.sello}`}
+                            alt="Sello del Doctor"
+                            className="max-h-24 object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="bg-white border border-dashed border-gray-300 rounded-lg p-4 flex items-center justify-center min-h-[100px]">
+                          <p className="text-sm text-gray-400 italic">Sin sello registrado</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Mostrar sección de firma/sello aunque estén vacíos para que el usuario sepa que existen */}
+              {!viewingDoctor.firma && !viewingDoctor.sello && (
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-indigo-600" />
+                    Firma y Sello Digital
+                  </h4>
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                    <p className="text-sm text-amber-700">
+                      Este doctor no tiene firma ni sello digital registrado.
+                      Puede agregarlos editando el perfil del doctor.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Botón Cerrar */}
+              <div className="flex justify-center pt-4 border-t">
                 <Button
-                  onClick={() => setViewingDoctor(null)}
+                  onClick={() => { setViewingDoctor(null); setCalendarWeekOffset(0); }}
                   variant="outline"
-                  className="flex-1"
+                  className="min-w-[200px]"
                 >
                   Cerrar
-                </Button>
-                <Button
-                  onClick={() => {
-                    setViewingDoctor(null);
-                    onEdit(viewingDoctor);
-                  }}
-                  className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600"
-                >
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar Doctor
                 </Button>
               </div>
             </div>

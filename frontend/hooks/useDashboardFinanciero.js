@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { apiGet } from '@/services/api';
 import { toast } from 'sonner';
 
@@ -40,8 +41,8 @@ export function useDashboardFinanciero() {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        fechaInicio: fechaInicio.toISOString().split('T')[0],
-        fechaFin: fechaFin.toISOString().split('T')[0]
+        fechaInicio: formatDateISO(fechaInicio),
+        fechaFin: formatDateISO(fechaFin)
       });
       const response = await apiGet(`/dashboard-financiero/kpis?${params.toString()}`);
       setKpis(response.data);
@@ -58,8 +59,8 @@ export function useDashboardFinanciero() {
   const fetchIngresos = useCallback(async (fechaInicio, fechaFin) => {
     try {
       const params = new URLSearchParams({
-        fechaInicio: fechaInicio.toISOString().split('T')[0],
-        fechaFin: fechaFin.toISOString().split('T')[0]
+        fechaInicio: formatDateISO(fechaInicio),
+        fechaFin: formatDateISO(fechaFin)
       });
       const response = await apiGet(`/dashboard-financiero/ingresos?${params.toString()}`);
       return response.data;
@@ -102,8 +103,8 @@ export function useDashboardFinanciero() {
   const fetchIngresosPorDepartamento = useCallback(async (fechaInicio, fechaFin) => {
     try {
       const params = new URLSearchParams({
-        fechaInicio: fechaInicio.toISOString().split('T')[0],
-        fechaFin: fechaFin.toISOString().split('T')[0]
+        fechaInicio: formatDateISO(fechaInicio),
+        fechaFin: formatDateISO(fechaFin)
       });
       const response = await apiGet(`/dashboard-financiero/ingresos-departamento?${params.toString()}`);
       return response.data;

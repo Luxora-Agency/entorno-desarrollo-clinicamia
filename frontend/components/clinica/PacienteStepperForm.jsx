@@ -81,7 +81,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
       arl: '',
       carnetPoliza: '',
       tipoUsuario: '',
-      discapacidad: 'No aplica',
+      discapacidad: 'Ninguna',
       tipoDiscapacidad: '',
       referidoPor: '',
       nombreRefiere: '',
@@ -305,7 +305,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
         arl: editingPaciente.arl || '',
         carnetPoliza: editingPaciente.carnetPoliza || '',
         tipoUsuario: editingPaciente.tipoUsuario || '',
-        discapacidad: editingPaciente.discapacidad || 'No aplica',
+        discapacidad: editingPaciente.discapacidad || 'Ninguna',
         tipoDiscapacidad: editingPaciente.tipoDiscapacidad || '',
         referidoPor: editingPaciente.referidoPor || '',
         nombreRefiere: editingPaciente.nombreRefiere || '',
@@ -728,7 +728,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         />
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Género Biológico *</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Sexo *</Label>
                         <Controller
                           name="genero"
                           control={control}
@@ -748,7 +748,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                         {errors.genero && <p className="text-xs text-red-500 mt-1">{errors.genero.message}</p>}
                       </div>
                       <div>
-                        <Label className="text-sm font-semibold text-gray-700">Identidad de Género *</Label>
+                        <Label className="text-sm font-semibold text-gray-700">Género *</Label>
                         <Controller
                           name="identidadGenero"
                           control={control}
@@ -773,7 +773,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                       {identidadGenero === 'Otro' && (
                         <div>
                           <Label className="text-sm font-semibold text-gray-700">Especifique Identidad *</Label>
-                          <Input {...register('otraIdentidadGenero')} className={`h-11 mt-2 ${errors.otraIdentidadGenero ? 'border-red-500' : ''}`} placeholder="Especifique su identidad de género" />
+                          <Input {...register('otraIdentidadGenero')} className={`h-11 mt-2 ${errors.otraIdentidadGenero ? 'border-red-500' : ''}`} placeholder="Especifique su género" />
                           {errors.otraIdentidadGenero && <p className="text-xs text-red-500 mt-1">{errors.otraIdentidadGenero.message}</p>}
                         </div>
                       )}
@@ -850,7 +850,7 @@ export default function PacienteStepperForm({ user, editingPaciente, onBack, onS
                                 <SelectValue placeholder="Seleccionar..." />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="No aplica">No aplica</SelectItem>
+                                <SelectItem value="Ninguna">Ninguna</SelectItem>
                                 <SelectItem value="Aplica">Aplica</SelectItem>
                               </SelectContent>
                             </Select>

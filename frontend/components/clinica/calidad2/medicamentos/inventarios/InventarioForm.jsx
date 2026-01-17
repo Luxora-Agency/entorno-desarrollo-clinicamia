@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,7 +78,7 @@ export default function InventarioForm({ item, tipo, onClose }) {
         laboratorio: item.laboratorio || '',
         fabricante: item.fabricante || '',
         lote: item.lote || '',
-        fechaVencimiento: item.fechaVencimiento ? new Date(item.fechaVencimiento).toISOString().split('T')[0] : '',
+        fechaVencimiento: item.fechaVencimiento ? formatDateISO(new Date(item.fechaVencimiento)) : '',
         cantidadActual: item.cantidadActual?.toString() || '',
         unidadMedida: item.unidadMedida || 'Unidad',
         stockMinimo: item.stockMinimo?.toString() || '',

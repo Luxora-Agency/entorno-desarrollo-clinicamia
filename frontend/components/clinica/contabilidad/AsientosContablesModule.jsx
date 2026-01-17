@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -74,7 +75,7 @@ export default function AsientosContablesModule() {
   });
 
   const [formData, setFormData] = useState({
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: getTodayColombia(),
     tipo: 'DIARIO',
     descripcion: '',
     lineas: [
@@ -229,7 +230,7 @@ export default function AsientosContablesModule() {
 
   const resetForm = () => {
     setFormData({
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getTodayColombia(),
       tipo: 'DIARIO',
       descripcion: '',
       lineas: [

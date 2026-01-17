@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   LayoutDashboard, Users, Calendar, X, Menu, Building2, ChevronDown, LogOut,
   Stethoscope, ClipboardList, Beaker, Pill, Tags,
@@ -57,7 +58,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
            return;
         }
 
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
         const res = await fetch(`${apiUrl}/roles/permisos/${userRole}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -104,7 +105,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
 
       try {
         const token = localStorage.getItem('token');
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
         const response = await fetch(`${apiUrl}/doctores?usuarioId=${user.id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -132,13 +133,18 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
 
       try {
         const token = localStorage.getItem('token');
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-        const today = new Date().toISOString().split('T')[0];
+        if (!token) return;
+
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const today = getTodayColombia();
 
         // Cargar citas del día del doctor
         const citasRes = await fetch(`${apiUrl}/citas?doctorId=${doctorId}&fecha=${today}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
+
+        if (!citasRes.ok) return;
+
         const citasData = await citasRes.json();
 
         if (citasData.success) {
@@ -151,8 +157,8 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
             pendientesEspera: pendientes
           }));
         }
-      } catch (error) {
-        console.error('Error cargando stats del doctor:', error);
+      } catch {
+        // Silenciar errores de red transitorios
       }
     };
 
@@ -782,112 +788,40 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                   </button>
                 )}
 
-                {/* Farmacia */}
-                {(hasAccess('farmacia') || hasAccess('ordenes-medicas') || hasAccess('categorias-productos') || hasAccess('etiquetas-productos') || hasAccess('ordenes-tienda')) && (
-                  <>
-                    <button
-                      onClick={() => setIsFarmaciaOpen(!isFarmaciaOpen)}
-                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Pill className="w-4 h-4" />
-                        <span>Farmacia</span>
-                      </div>
-                      <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${isFarmaciaOpen ? 'rotate-180' : ''}`} />
-                    </button>
-                    
-                    <div className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      isFarmaciaOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-                    }`}>
-                      <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-100 pl-4">
-                        {hasAccess('farmacia') && (
-                          <button
-                            onClick={() => {
-                              setActiveModule('farmacia');
-                              setIsOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                              activeModule === 'farmacia'
-                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                                : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                            <span>Inventario</span>
-                          </button>
-                        )}
+                {/* Farmacia Hospitalaria (Interna) */}
+                {(hasAccess('farmacia') || userRole === 'superadmin') && (
+                  <button
+                    onClick={() => {
+                      setActiveModule('farmacia');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'farmacia' || activeModule === 'farmacia-hospitalaria'
+                        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Pill className="w-4 h-4" />
+                    <span>Farmacia Hospitalaria</span>
+                  </button>
+                )}
 
-                        {/* Pedidos Tienda Online */}
-                        {hasAccess('ordenes-tienda') && (
-                          <button
-                            onClick={() => {
-                              setActiveModule('ordenes-tienda');
-                              setIsOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                              activeModule === 'ordenes-tienda'
-                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                                : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                            <span>Pedidos Tienda</span>
-                          </button>
-                        )}
-
-                        {/* Órdenes Médicas */}
-                        {hasAccess('ordenes-medicas') && (
-                          <button
-                            onClick={() => {
-                              setActiveModule('ordenes-medicas');
-                              setIsOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                              activeModule === 'ordenes-medicas'
-                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                                : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                            <span>Órdenes Médicas</span>
-                          </button>
-                        )}
-                        
-                        {hasAccess('categorias-productos') && (
-                          <button
-                            onClick={() => {
-                              setActiveModule('categorias-productos');
-                              setIsOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                              activeModule === 'categorias-productos'
-                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                                : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                            <span>Categorías</span>
-                          </button>
-                        )}
-                        {hasAccess('etiquetas-productos') && (
-                          <button
-                            onClick={() => {
-                              setActiveModule('etiquetas-productos');
-                              setIsOpen(false);
-                            }}
-                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-all ${
-                              activeModule === 'etiquetas-productos'
-                                ? 'bg-emerald-50 text-emerald-700 font-semibold'
-                                : 'text-gray-600 hover:bg-gray-50'
-                            }`}
-                          >
-                            <div className="w-1.5 h-1.5 rounded-full bg-current"></div>
-                            <span>Etiquetas</span>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </>
+                {/* Droguería - Venta al Público */}
+                {(hasAccess('drogueria') || hasAccess('ordenes-tienda') || userRole === 'superadmin') && (
+                  <button
+                    onClick={() => {
+                      setActiveModule('drogueria');
+                      setIsOpen(false);
+                    }}
+                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                      activeModule === 'drogueria' || activeModule === 'ordenes-tienda'
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Store className="w-4 h-4" />
+                    <span>Droguería (Ventas)</span>
+                  </button>
                 )}
 
                 {hasAccess('laboratorio') && (
@@ -1155,24 +1089,7 @@ export default function Sidebar({ user, activeModule, setActiveModule, onLogout 
                   </button>
                 )}
 
-                {/* Droguería Retail */}
-                {(hasAccess('drogueria') || userRole === 'superadmin') && (
-                  <button
-                    onClick={() => {
-                      setActiveModule('drogueria');
-                      setIsOpen(false);
-                    }}
-                    className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                      activeModule === 'drogueria'
-                        ? 'bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md'
-                        : 'text-gray-700 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Store className="w-4 h-4" />
-                    <span>Droguería (Retail)</span>
-                  </button>
-                )}
-              </div>
+                              </div>
 
               {/* CONTABILIDAD */}
               {(hasAccess('contabilidad') || userRole === 'superadmin' || userRole === 'admin') && (

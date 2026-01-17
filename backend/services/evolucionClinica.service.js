@@ -10,13 +10,14 @@ class EvolucionClinicaService {
   /**
    * Obtener todas las evoluciones con filtros
    */
-  async getAll({ page = 1, limit = 20, paciente_id, admision_id, doctor_id, fecha_desde, fecha_hasta }) {
+  async getAll({ page = 1, limit = 20, paciente_id, admision_id, doctor_id, cita_id, fecha_desde, fecha_hasta }) {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {};
     if (paciente_id) where.pacienteId = paciente_id;
     if (admision_id) where.admisionId = admision_id;
     if (doctor_id) where.doctorId = doctor_id;
+    if (cita_id) where.citaId = cita_id;
     
     if (fecha_desde || fecha_hasta) {
       where.fechaEvolucion = {};

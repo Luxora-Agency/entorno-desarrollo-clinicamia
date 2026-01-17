@@ -13,8 +13,8 @@ const baseCitaSchema = z.object({
   fecha: z.string().optional().nullable(), // Puede ser null si es PorAgendar
   hora: z.string().optional().nullable(), // HH:mm format expected
 
-  duracion_minutos: z.number().int().positive().default(30),
-  costo: z.number().min(0, { message: 'El costo no puede ser negativo' }),
+  duracion_minutos: z.coerce.number().int().positive().default(30),
+  costo: z.coerce.number().min(0, { message: 'El costo no puede ser negativo' }),
 
   motivo: z.string().optional().nullable(),
   notas: z.string().optional().nullable(),

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Calendar, Clock, User, ChevronRight,
   AlertCircle, Timer, Phone, RefreshCw, MapPin, Stethoscope
@@ -107,7 +108,7 @@ export default function ProximasCitasWidget({
         setLoading(true);
         const token = localStorage.getItem('token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayColombia();
 
         const response = await fetch(
           `${apiUrl}/citas?doctorId=${doctorId}&fecha=${today}&limit=${maxCitas * 2}`,
@@ -164,7 +165,7 @@ export default function ProximasCitasWidget({
     // Re-trigger the useEffect by updating doctorId dependency
     const token = localStorage.getItem('token');
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-    const today = new Date().toISOString().split('T')[0];
+    const today = getTodayColombia();
 
     try {
       const response = await fetch(

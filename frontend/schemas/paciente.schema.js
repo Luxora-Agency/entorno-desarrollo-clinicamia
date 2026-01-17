@@ -43,8 +43,8 @@ export const pacienteFormSchema = z.object({
     message: 'La fecha debe ser en el pasado',
   }),
   edad: z.number().optional(),
-  genero: z.string().min(1, 'El género biológico es requerido'),
-  identidadGenero: z.string().min(1, 'La identidad de género es requerida'),
+  genero: z.string().min(1, 'El sexo es requerido'),
+  identidadGenero: z.string().min(1, 'El género es requerido'),
   otraIdentidadGenero: z.string().optional(),
   etnia: z.string().min(1, 'La etnia es requerida'),
   preferenciaLlamado: z.string().min(1, 'La preferencia de llamado es requerida'),
@@ -82,7 +82,7 @@ export const pacienteFormSchema = z.object({
   tipoUsuario: z.string().optional(),
 
   // Discapacidad
-  discapacidad: z.string().optional().default('No aplica'),
+  discapacidad: z.string().optional().default('Ninguna'),
   tipoDiscapacidad: z.string().optional(),
 
   // Paso 4 (Médica)
@@ -98,22 +98,22 @@ export const pacienteFormSchema = z.object({
   medicamentosActuales: z.array(z.string()).default([]),
   antecedentesQuirurgicos: z.array(z.string()).default([]),
 }).refine((data) => {
-  // Validar que si género biológico es "Otro", se especifique
+  // Validar que si sexo es "Otro", se especifique
   if (data.genero === 'Otro' && !data.otroGenero) {
     return false;
   }
   return true;
 }, {
-  message: "Especifique el género",
+  message: "Especifique el sexo",
   path: ["otroGenero"],
 }).refine((data) => {
-  // Validar que si identidad de género es "Otro", se especifique
+  // Validar que si género es "Otro", se especifique
   if (data.identidadGenero === 'Otro' && !data.otraIdentidadGenero) {
     return false;
   }
   return true;
 }, {
-  message: "Especifique la identidad de género",
+  message: "Especifique el género",
   path: ["otraIdentidadGenero"],
 }).refine((data) => {
   // Para menores de edad, el contacto de emergencia es obligatorio

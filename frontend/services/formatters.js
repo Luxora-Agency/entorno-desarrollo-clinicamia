@@ -52,13 +52,36 @@ export const formatDateLong = (date) => {
 };
 
 /**
- * Formatear fecha en formato ISO (YYYY-MM-DD)
+ * Formatear fecha en formato ISO (YYYY-MM-DD) en zona horaria de Colombia
+ * IMPORTANTE: No usar toISOString() ya que convierte a UTC y causa desfase de fechas
  */
 export const formatDateISO = (date) => {
   if (!date) return '';
-  
+
   const d = new Date(date);
-  return d.toISOString().split('T')[0];
+  // Usar 'en-CA' locale que retorna formato YYYY-MM-DD
+  return d.toLocaleDateString('en-CA', {
+    timeZone: TIMEZONE_BOGOTA
+  });
+};
+
+/**
+ * Obtener la fecha de hoy en formato ISO (YYYY-MM-DD) en zona horaria de Colombia
+ * Usar esta función en lugar de new Date().toISOString().split('T')[0]
+ */
+export const getTodayColombia = () => {
+  return new Date().toLocaleDateString('en-CA', {
+    timeZone: TIMEZONE_BOGOTA
+  });
+};
+
+/**
+ * Obtener fecha y hora actual en Colombia
+ * @returns {Date} Fecha ajustada a Colombia
+ */
+export const getNowColombia = () => {
+  const now = new Date();
+  return new Date(now.toLocaleString('en-US', { timeZone: TIMEZONE_BOGOTA }));
 };
 
 /**

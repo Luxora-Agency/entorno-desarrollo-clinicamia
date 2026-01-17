@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Calendar, Clock, User, Activity, CheckCircle,
   AlertCircle, FileText, Stethoscope, Pill, ClipboardList,
@@ -94,7 +95,7 @@ const getPriorityConfig = (cita) => {
 
 export default function DashboardDoctor({ user, onChangeAttentionType, onNavigateModule, initialMode = 'dashboard' }) {
   const { toast } = useToast();
-  const getFechaHoy = () => new Date().toISOString().split('T')[0];
+  const getFechaHoy = () => getTodayColombia();
 
   const handleCambiarTipoAtencion = () => {
     clearAttentionTypePreference();
@@ -281,7 +282,7 @@ export default function DashboardDoctor({ user, onChangeAttentionType, onNavigat
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
         const yesterday = new Date();
         yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        const yesterdayStr = formatDateISO(yesterday);
 
         // Usar user.id (Usuario.id) para consultar citas
         const response = await fetch(

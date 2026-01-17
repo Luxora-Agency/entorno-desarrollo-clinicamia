@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { formatDateLong, formatTime } from '@/services/formatters';
+import { formatDateLong, formatTime , getTodayColombia, formatDateISO} from '@/services/formatters'
 import FormularioCita from './FormularioCita';
 
 export default function DashboardRecepcionistaNew({ user }) {
@@ -22,7 +22,7 @@ export default function DashboardRecepcionistaNew({ user }) {
   // Filtros
   const getFechaHoy = () => {
     const hoy = new Date();
-    return hoy.toISOString().split('T')[0];
+    return formatDateISO(hoy);
   };
   
   const [fechaSeleccionada, setFechaSeleccionada] = useState(getFechaHoy());

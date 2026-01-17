@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { X, TrendingUp, Activity, Heart, Thermometer, Wind, Scale, Droplet, TestTube, Sparkles, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -90,7 +91,7 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
       // Calcular fecha desde según diasAtras
       const fechaDesde = new Date();
       fechaDesde.setDate(fechaDesde.getDate() - diasAtras);
-      const fechaDesdeISO = fechaDesde.toISOString().split('T')[0];
+      const fechaDesdeISO = formatDateISO(fechaDesde);
 
       // Usar el endpoint existente de signos vitales con filtro de fecha
       const response = await apiGet(`/signos-vitales?paciente_id=${pacienteId}&fecha_desde=${fechaDesdeISO}&limit=100`);

@@ -93,8 +93,25 @@ function nowColombia() {
  * @returns {string} - Fecha en formato YYYY-MM-DD
  */
 function todayString() {
-  const colombia = nowColombia();
-  return colombia.toISOString().split('T')[0];
+  // Usar toLocaleDateString con locale en-CA que retorna YYYY-MM-DD
+  return new Date().toLocaleDateString('en-CA', {
+    timeZone: TIMEZONE_COLOMBIA
+  });
+}
+
+/**
+ * Formatea una fecha a formato ISO (YYYY-MM-DD) en zona horaria de Colombia
+ * @param {Date|string} date - Fecha a formatear
+ * @returns {string} - Fecha en formato YYYY-MM-DD
+ */
+function formatDateISOColombia(date) {
+  if (!date) return '';
+  const d = safeDate(date);
+  if (!d) return '';
+
+  return d.toLocaleDateString('en-CA', {
+    timeZone: TIMEZONE_COLOMBIA
+  });
 }
 
 /**
@@ -238,6 +255,7 @@ module.exports = {
   formatDateTimeColombia,
   formatDateLongColombia,
   formatTimeColombia,
+  formatDateISOColombia,
   TIMEZONE_COLOMBIA,
   TIMEZONE_OFFSET_HOURS
 };

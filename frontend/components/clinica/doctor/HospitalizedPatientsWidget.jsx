@@ -190,8 +190,10 @@ export default function HospitalizedPatientsWidget({
                         {necesitaRonda && (
                           <TooltipProvider>
                             <Tooltip>
-                              <TooltipTrigger>
-                                <Stethoscope className="h-4 w-4 text-amber-500" />
+                              <TooltipTrigger asChild>
+                                <span className="cursor-pointer">
+                                  <Stethoscope className="h-4 w-4 text-amber-500" />
+                                </span>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>Pendiente ronda médica</p>

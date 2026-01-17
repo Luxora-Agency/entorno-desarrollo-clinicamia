@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Stethoscope, BedDouble, Users, Clock, Activity,
   Sparkles, ArrowRight, Calendar, Heart, Timer,
@@ -54,7 +55,7 @@ export default function AttentionTypeSelector({ user, onSelect, skipSavedPrefere
         }
 
         // También cargar citas del día para obtener próxima cita
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayColombia();
         const citasRes = await fetch(`${apiUrl}/citas?doctorId=${user.id}&fecha=${today}&limit=10`, {
           headers: { Authorization: `Bearer ${token}` },
         });

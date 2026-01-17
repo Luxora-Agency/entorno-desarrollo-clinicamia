@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { formatDateLong, formatTime } from '@/services/formatters';
+import { formatDateLong, formatTime , getTodayColombia, formatDateISO} from '@/services/formatters'
 import FormularioCita from './FormularioCita';
 
 export default function CitasModule() {
@@ -24,7 +24,7 @@ export default function CitasModule() {
   // Estados para filtros
   const [doctores, setDoctores] = useState([]);
   const [filtros, setFiltros] = useState({
-    fecha: new Date().toISOString().split('T')[0], // Default: hoy
+    fecha: getTodayColombia(), // Default: hoy
     estado: 'todos',
     doctorId: 'todos',
   });
@@ -117,7 +117,7 @@ export default function CitasModule() {
 
   const limpiarFiltros = () => {
     setFiltros({
-      fecha: new Date().toISOString().split('T')[0],
+      fecha: getTodayColombia(),
       estado: 'todos',
       doctorId: 'todos',
     });
@@ -134,7 +134,7 @@ export default function CitasModule() {
 
     // Si la cita creada/editada es para una fecha diferente, actualizar el filtro
     if (citaData?.cita?.fecha) {
-      const fechaCita = new Date(citaData.cita.fecha).toISOString().split('T')[0];
+      const fechaCita = formatDateISO(new Date(citaData.cita.fecha));
       if (fechaCita !== filtros.fecha) {
         // Cambiar filtro a la fecha de la cita creada (esto dispara cargarCitas automáticamente)
         setFiltros(prev => ({ ...prev, fecha: fechaCita }));

@@ -26,9 +26,21 @@ const validateRequired = (fields, data) => {
   return missing.length > 0 ? missing : null;
 };
 
+/**
+ * Normaliza un texto removiendo acentos/tildes
+ * Útil para búsquedas que deben ignorar acentos
+ * @param {string} str - Texto a normalizar
+ * @returns {string} Texto sin acentos
+ */
+const removeAccents = (str) => {
+  if (!str || typeof str !== 'string') return str;
+  return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+};
+
 module.exports = {
   isValidEmail,
   isValidPassword,
   isValidUUID,
   validateRequired,
+  removeAccents,
 };

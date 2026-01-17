@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,12 +46,12 @@ export default function ProtocoloForm({ protocolo, onClose }) {
         nombre: protocolo.nombre || '',
         tipo: protocolo.tipo || 'PROTOCOLO',
         version: protocolo.version || '1.0',
-        fechaEmision: protocolo.fechaEmision ? new Date(protocolo.fechaEmision).toISOString().split('T')[0] : '',
-        fechaVigencia: protocolo.fechaVigencia ? new Date(protocolo.fechaVigencia).toISOString().split('T')[0] : '',
+        fechaEmision: protocolo.fechaEmision ? formatDateISO(new Date(protocolo.fechaEmision)) : '',
+        fechaVigencia: protocolo.fechaVigencia ? formatDateISO(new Date(protocolo.fechaVigencia)) : '',
         descripcion: protocolo.descripcion || '',
         alcance: protocolo.alcance || '',
         responsable: protocolo.responsable || '',
-        proximaRevision: protocolo.proximaRevision ? new Date(protocolo.proximaRevision).toISOString().split('T')[0] : '',
+        proximaRevision: protocolo.proximaRevision ? formatDateISO(new Date(protocolo.proximaRevision)) : '',
       });
     }
   }, [protocolo]);

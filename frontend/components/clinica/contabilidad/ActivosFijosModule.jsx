@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { useActivosFijos } from '@/hooks/useActivosFijos';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -700,7 +701,7 @@ function MantenimientoForm({ activo, onSubmit, onCancel, loading }) {
     tipo: '',
     descripcion: '',
     costo: '',
-    fecha: new Date().toISOString().split('T')[0]
+    fecha: getTodayColombia()
   });
 
   const handleSubmit = () => {

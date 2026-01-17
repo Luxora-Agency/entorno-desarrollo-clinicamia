@@ -43,6 +43,30 @@ router.get('/proveedores', async (c) => {
   }
 });
 
+// Stats de proveedores (DEBE ir antes de /:id)
+router.get('/proveedores/stats', async (c) => {
+  try {
+    const [total, activos, porTipo] = await Promise.all([
+      prisma.proveedor.count(),
+      prisma.proveedor.count({ where: { activo: true } }),
+      prisma.proveedor.groupBy({
+        by: ['tipoProveedor'],
+        _count: true,
+        where: { activo: true }
+      })
+    ]);
+
+    return c.json(success({
+      total,
+      activos,
+      inactivos: total - activos,
+      porTipo: porTipo.map(p => ({ tipo: p.tipoProveedor || 'Sin tipo', count: p._count }))
+    }));
+  } catch (err) {
+    return c.json(error(err.message), 500);
+  }
+});
+
 router.get('/proveedores/:id', async (c) => {
   try {
     const proveedor = await prisma.proveedor.findUnique({
@@ -101,6 +125,54 @@ router.get('/ordenes', async (c) => {
     ]);
 
     return c.json(paginated(ordenes, { page, limit, total, totalPages: Math.ceil(total / limit) }));
+  } catch (err) {
+    return c.json(error(err.message), 500);
+  }
+});
+
+// Stats de ordenes de compra
+router.get('/ordenes/stats', async (c) => {
+  try {
+    const now = new Date();
+    const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
+    const hace6Meses = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    const [total, porEstado, totalMes, comprasPorMes] = await Promise.all([
+      prisma.ordenCompra.count(),
+      prisma.ordenCompra.groupBy({
+        by: ['estado'],
+        _count: true
+      }),
+      prisma.ordenCompra.aggregate({
+        where: { createdAt: { gte: inicioMes } },
+        _sum: { total: true },
+        _count: true
+      }),
+      prisma.$queryRaw`
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', "created_at"), 'YYYY-MM') as mes,
+          SUM(total) as total,
+          COUNT(*) as cantidad
+        FROM "ordenes_compra"
+        WHERE "created_at" >= ${hace6Meses}
+        GROUP BY DATE_TRUNC('month', "created_at")
+        ORDER BY mes ASC
+      `
+    ]);
+
+    return c.json(success({
+      total,
+      porEstado: porEstado.map(e => ({ estado: e.estado, count: e._count })),
+      mesActual: {
+        ordenes: totalMes._count,
+        monto: totalMes._sum.total || 0
+      },
+      comprasPorMes: comprasPorMes.map(m => ({
+        mes: m.mes,
+        total: parseFloat(m.total) || 0,
+        cantidad: parseInt(m.cantidad)
+      }))
+    }));
   } catch (err) {
     return c.json(error(err.message), 500);
   }

@@ -3,6 +3,8 @@
  */
 const { Hono } = require('hono');
 const citaService = require('../services/cita.service');
+const emailService = require('../services/email.service');
+const prisma = require('../db/prisma');
 const { authMiddleware, permissionMiddleware } = require('../middleware/auth');
 const { success, error, paginated } = require('../utils/response');
 const { ZodError } = require('zod');
@@ -267,9 +269,11 @@ citas.get('/:id', async (c) => {
 citas.post('/', async (c) => {
   try {
     const data = await c.req.json();
+    console.log('[Citas POST] Datos recibidos:', JSON.stringify(data, null, 2));
     const cita = await citaService.create(data);
     return c.json(success({ cita }, 'Cita creada exitosamente'), 201);
   } catch (err) {
+    console.error('[Citas POST] Error:', err.message);
     return handleError(c, err);
   }
 });
@@ -354,6 +358,44 @@ citas.post('/estado/:id', validateCitaOwnership, async (c) => {
     const { id } = c.req.param();
     const data = await c.req.json();
     const cita = await citaService.update(id, data);
+
+    // Si el nuevo estado es NoAsistio, enviar email de notificación
+    if (data.estado === 'NoAsistio') {
+      try {
+        // Obtener datos completos de la cita para el email
+        const citaCompleta = await prisma.cita.findUnique({
+          where: { id },
+          include: {
+            paciente: { select: { nombre: true, apellido: true, email: true } },
+            doctor: { select: { nombre: true, apellido: true } },
+            especialidad: { select: { titulo: true } }
+          }
+        });
+
+        if (citaCompleta?.paciente?.email) {
+          await emailService.sendNoShowEmail({
+            to: citaCompleta.paciente.email,
+            paciente: {
+              nombre: citaCompleta.paciente.nombre,
+              apellido: citaCompleta.paciente.apellido
+            },
+            cita: {
+              fecha: citaCompleta.fecha,
+              hora: citaCompleta.hora
+            },
+            doctor: citaCompleta.doctor ? {
+              nombre: citaCompleta.doctor.nombre,
+              apellido: citaCompleta.doctor.apellido
+            } : null,
+            especialidad: citaCompleta.especialidad?.titulo || 'Consulta General'
+          });
+          console.log('[Citas] Email de No Asistió enviado a:', citaCompleta.paciente.email);
+        }
+      } catch (emailError) {
+        console.error('[Citas] Error enviando email de No Asistió:', emailError.message);
+      }
+    }
+
     return c.json(success({ cita }, 'Cita actualizada exitosamente'));
   } catch (err) {
     return handleError(c, err);
@@ -390,6 +432,112 @@ citas.delete('/:id', validateCitaOwnership, async (c) => {
     await citaService.cancel(id);
     return c.json(success(null, 'Cita cancelada correctamente'));
   } catch (err) {
+    return handleError(c, err);
+  }
+});
+
+/**
+ * @swagger
+ * /citas/notificar-reagendamiento:
+ *   post:
+ *     summary: Enviar notificación de cita re-agendada por email
+ *     tags: [Citas]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - citaAnteriorId
+ *               - citaNuevaId
+ *             properties:
+ *               citaAnteriorId:
+ *                 type: string
+ *                 format: uuid
+ *               citaNuevaId:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       200:
+ *         description: Notificación enviada
+ *       404:
+ *         description: Cita no encontrada
+ *       500:
+ *         description: Error del servidor
+ */
+citas.post('/notificar-reagendamiento', async (c) => {
+  try {
+    const { citaAnteriorId, citaNuevaId } = await c.req.json();
+
+    if (!citaAnteriorId || !citaNuevaId) {
+      return c.json(error('Se requieren citaAnteriorId y citaNuevaId'), 400);
+    }
+
+    // Obtener la cita anterior con paciente
+    const citaAnterior = await prisma.cita.findUnique({
+      where: { id: citaAnteriorId },
+      include: {
+        paciente: true,
+        especialidad: true
+      }
+    });
+
+    if (!citaAnterior) {
+      return c.json(error('Cita anterior no encontrada'), 404);
+    }
+
+    // Obtener la nueva cita con doctor y especialidad
+    const citaNueva = await prisma.cita.findUnique({
+      where: { id: citaNuevaId },
+      include: {
+        doctor: true,
+        especialidad: true
+      }
+    });
+
+    if (!citaNueva) {
+      return c.json(error('Nueva cita no encontrada'), 404);
+    }
+
+    // Verificar que el paciente tenga email
+    if (!citaAnterior.paciente?.email) {
+      console.warn('[Citas] Paciente sin email, no se puede enviar notificación');
+      return c.json(success({ emailSent: false, reason: 'Paciente sin email' }, 'No se envió email: paciente sin correo'));
+    }
+
+    // Enviar email de notificación
+    const emailResult = await emailService.sendRescheduleEmail({
+      to: citaAnterior.paciente.email,
+      paciente: {
+        nombre: citaAnterior.paciente.nombre,
+        apellido: citaAnterior.paciente.apellido
+      },
+      citaAnterior: {
+        fecha: citaAnterior.fecha,
+        hora: citaAnterior.hora
+      },
+      citaNueva: {
+        fecha: citaNueva.fecha,
+        hora: citaNueva.hora
+      },
+      doctor: citaNueva.doctor ? {
+        nombre: citaNueva.doctor.nombre,
+        apellido: citaNueva.doctor.apellido
+      } : null,
+      especialidad: citaNueva.especialidad?.titulo || citaAnterior.especialidad?.titulo || 'Consulta General'
+    });
+
+    console.log('[Citas] Email de re-agendamiento enviado:', emailResult);
+
+    return c.json(success({
+      emailSent: emailResult.success,
+      emailId: emailResult.id
+    }, emailResult.success ? 'Notificación enviada exitosamente' : 'Error al enviar notificación'));
+  } catch (err) {
+    console.error('[Citas] Error enviando notificación:', err);
     return handleError(c, err);
   }
 });

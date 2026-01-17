@@ -1,6 +1,7 @@
 'use client';
 
 import { useSearchParams, useRouter } from 'next/navigation';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { useEffect, useState } from 'react';
 import BuscadorPacientesHCE from './hce/BuscadorPacientesHCE';
 import PanelPacienteHCE from './hce/PanelPacienteHCE';
@@ -54,8 +55,8 @@ export default function HCEModule({ user }) {
     const hace1Anio = new Date();
     hace1Anio.setFullYear(hace1Anio.getFullYear() - 1);
 
-    setFechaHasta(hoy.toISOString().split('T')[0]);
-    setFechaDesde(hace1Anio.toISOString().split('T')[0]);
+    setFechaHasta(formatDateISO(hoy));
+    setFechaDesde(formatDateISO(hace1Anio));
     setTipoDescarga('completa');
     setShowDownloadModal(true);
   };
@@ -418,7 +419,7 @@ export default function HCEModule({ user }) {
                         value={fechaHasta}
                         onChange={(e) => setFechaHasta(e.target.value)}
                         min={fechaDesde || undefined}
-                        max={new Date().toISOString().split('T')[0]}
+                        max={getTodayColombia()}
                         className="w-full"
                       />
                     </div>

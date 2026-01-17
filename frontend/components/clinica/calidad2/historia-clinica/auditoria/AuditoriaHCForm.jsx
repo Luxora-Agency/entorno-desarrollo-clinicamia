@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { useCalidad2AuditoriasHC } from '@/hooks/useCalidad2AuditoriasHC';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,7 @@ export default function AuditoriaHCForm({ auditoria, onClose }) {
       setFormData({
         tipo: auditoria.tipo || 'INTERNA',
         fechaAuditoria: auditoria.fechaAuditoria
-          ? new Date(auditoria.fechaAuditoria).toISOString().split('T')[0]
+          ? formatDateISO(new Date(auditoria.fechaAuditoria))
           : '',
         auditor: auditoria.auditor || user?.id || '',
         areaAuditada: auditoria.areaAuditada || '',
@@ -57,7 +58,7 @@ export default function AuditoriaHCForm({ auditoria, onClose }) {
       // Para nuevas auditorías, usar fecha actual
       setFormData(prev => ({
         ...prev,
-        fechaAuditoria: new Date().toISOString().split('T')[0]
+        fechaAuditoria: getTodayColombia()
       }));
     }
   }, [auditoria, user]);

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { 
   Calendar, Clock, User, CheckCircle, XCircle, 
   AlertCircle, UserCheck, Users, ClipboardList,
@@ -32,7 +33,7 @@ export default function DashboardRecepcionista({ user }) {
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      const hoy = new Date().toISOString().split('T')[0];
+      const hoy = getTodayColombia();
       
       // Cargar todas las citas de hoy
       const response = await fetch(`${apiUrl}/citas?fecha=${hoy}&limit=100`, {

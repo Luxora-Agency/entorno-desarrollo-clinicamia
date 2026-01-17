@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Activity, Clock, User, AlertTriangle, CheckCircle,
   Pill, ClipboardList, Calendar, TrendingUp, Users,
@@ -124,7 +125,7 @@ export default function DashboardEnfermera({ user }) {
 
       if (pacientesIds.length > 0) {
         // 1. Cargar medicamentos (filtrar por pacientes asignados client-side)
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = getTodayColombia();
         const medicamentosRes = await fetch(`${apiUrl}/administraciones?fecha=${hoy}&estado=Programada&limit=100`, {
           headers: { Authorization: `Bearer ${token}` },
         });

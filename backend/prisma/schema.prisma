@@ -213,6 +213,10 @@ model Usuario {
   ventasMiaPass                    MiaPassSuscripcion[]  @relation("VendedorMiaPass")
   comisionesMiaPass                MiaPassComision[]
 
+  // Turnos de Caja Relations
+  turnosAbiertos                   TurnoCaja[]           @relation("TurnoUsuario")
+  turnosRecibidos                  TurnoCaja[]           @relation("TurnoResponsable")
+
   @@map("usuarios")
 }
 
@@ -560,28 +564,54 @@ model Producto {
   nombre                     String
   categoriaId                String                    @map("categoria_id")
   sku                        String                    @unique
+  codigoBarras               String?                   @map("codigo_barras")
   laboratorio                String?
   descripcion                String?
+
+  // Información Farmacológica
   principioActivo            String?                   @map("principio_activo")
   concentracion              String?
+  formaFarmaceutica          String?                   @map("forma_farmaceutica")
+  unidadMedida               String?                   @map("unidad_medida")
   viaAdministracion          String?                   @map("via_administracion")
   presentacion               String?
   codigoAtc                  String?                   @map("codigo_atc")
   cum                        String?                   @map("cum")
   registroSanitario          String?                   @map("registro_sanitario")
-  temperaturaAlmacenamiento  String?                   @map("temperatura_almacenamiento")
+
+  // Control y Regulación
   requiereReceta             Boolean                   @default(false) @map("requiere_receta")
-  cantidadTotal              Int                       @map("cantidad_total")
+  controlado                 Boolean                   @default(false)
+  tipoControlado             String?                   @map("tipo_controlado")
+
+  // Almacenamiento
+  temperaturaAlmacenamiento  String?                   @map("temperatura_almacenamiento")
+  requiereCadenaFrio         Boolean                   @default(false) @map("requiere_cadena_frio")
+  ubicacionAlmacen           String?                   @map("ubicacion_almacen")
+
+  // Inventario
+  cantidadTotal              Int                       @default(0) @map("cantidad_total")
   cantidadConsumida          Int                       @default(0) @map("cantidad_consumida")
-  cantidadMinAlerta          Int                       @map("cantidad_min_alerta")
+  cantidadMinAlerta          Int                       @default(10) @map("cantidad_min_alerta")
+  cantidadMaxAlerta          Int?                      @map("cantidad_max_alerta")
   lote                       String?
   fechaVencimiento           DateTime?                 @map("fecha_vencimiento")
-  precioVenta                Float                     @map("precio_venta")
+
+  // Precios
+  precioVenta                Float                     @default(0) @map("precio_venta")
   precioCompra               Float?                    @map("precio_compra")
+  costoPromedio              Float?                    @map("costo_promedio")
+  margenGanancia             Float?                    @map("margen_ganancia")
+
+  // Estado e Integración
   activo                     Boolean                   @default(true)
   imagenUrl                  String?                   @map("imagen_url")
+  siigoId                    String?                   @map("siigo_id")
+
   createdAt                  DateTime                  @default(now()) @map("created_at")
   updatedAt                  DateTime                  @updatedAt @map("updated_at")
+
+  // Relaciones
   ordenesItems               OrdenMedicamentoItem[]
   prescripcionesMedicamentos PrescripcionMedicamento[] @relation("PrescripcionProducto")
   categoria                  CategoriaProducto         @relation(fields: [categoriaId], references: [id])
@@ -589,6 +619,8 @@ model Producto {
   ordenesTiendaItems         OrdenTiendaItem[]
   drogueriaItems             DrogueriaProducto[]
   ordenCompraItems           OrdenCompraItem[]
+  lotes                      LoteProducto[]
+  presentaciones             ProductoPresentacion[]
 
   @@map("productos")
 }
@@ -603,6 +635,94 @@ model ProductoEtiqueta {
 
   @@unique([productoId, etiquetaId])
   @@map("productos_etiquetas")
+}
+
+model LoteProducto {
+  id               String    @id @default(uuid())
+  productoId       String    @map("producto_id")
+  numero           String    @map("numero_lote")
+  fechaFabricacion DateTime? @map("fecha_fabricacion")
+  fechaVencimiento DateTime  @map("fecha_vencimiento")
+  cantidadInicial  Int       @map("cantidad_inicial")
+  cantidadActual   Int       @map("cantidad_actual")
+  precioCompra     Float?    @map("precio_compra")
+  proveedor        String?
+  ubicacion        String?
+  estado           String    @default("activo")
+  observaciones    String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  producto         Producto  @relation(fields: [productoId], references: [id], onDelete: Cascade)
+
+  @@unique([productoId, numero])
+  @@map("lotes_productos")
+}
+
+// Presentaciones/Variaciones de productos con stock y precios independientes
+model ProductoPresentacion {
+  id                  String   @id @default(uuid())
+  productoId          String   @map("producto_id")
+  nombre              String   // Ej: "Tabletas x 10", "Jarabe x 120ml", "Ampolla x 1"
+  concentracion       String   // Ej: "500 mg", "650 mg", "150 mg/5ml"
+  unidadMedida        String?  @map("unidad_medida")
+  cantidadUnidades    Int      @default(1) @map("cantidad_unidades") // Unidades por presentación
+  formaFarmaceutica   String?  @map("forma_farmaceutica")
+  descripcion         String?
+
+  // Códigos únicos por presentación
+  sku                 String   @unique
+  codigoBarras        String?  @map("codigo_barras")
+  cum                 String?
+  registroSanitario   String?  @map("registro_sanitario")
+
+  // Inventario separado
+  cantidadTotal       Int      @default(0) @map("cantidad_total")
+  cantidadMinimaAlerta Int     @default(10) @map("cantidad_minima_alerta")
+  cantidadMaximaAlerta Int?    @map("cantidad_maxima_alerta")
+
+  // Precios separados
+  precioCompra        Float?   @map("precio_compra")
+  precioVenta         Float    @default(0) @map("precio_venta")
+  costoPromedio       Float?   @map("costo_promedio")
+  margenGanancia      Float?   @map("margen_ganancia")
+
+  // Estado
+  activo              Boolean  @default(true)
+  esPredeterminada    Boolean  @default(false) @map("es_predeterminada")
+
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relaciones
+  producto            Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  lotes               LotePresentacion[]
+
+  @@index([productoId])
+  @@index([concentracion])
+  @@map("producto_presentaciones")
+}
+
+// Lotes por presentación con fecha de vencimiento independiente
+model LotePresentacion {
+  id               String               @id @default(uuid())
+  presentacionId   String               @map("presentacion_id")
+  numeroLote       String               @map("numero_lote")
+  fechaFabricacion DateTime?            @map("fecha_fabricacion")
+  fechaVencimiento DateTime             @map("fecha_vencimiento")
+  cantidadInicial  Int                  @map("cantidad_inicial")
+  cantidadActual   Int                  @map("cantidad_actual")
+  precioCompra     Float?               @map("precio_compra")
+  proveedor        String?
+  ubicacion        String?
+  estado           String               @default("activo")
+  observaciones    String?
+  createdAt        DateTime             @default(now()) @map("created_at")
+  updatedAt        DateTime             @updatedAt @map("updated_at")
+
+  presentacion     ProductoPresentacion @relation(fields: [presentacionId], references: [id], onDelete: Cascade)
+
+  @@unique([presentacionId, numeroLote])
+  @@map("lotes_presentaciones")
 }
 
 model DocumentoPaciente {
@@ -11490,4 +11610,86 @@ model TipoUsuarioConvenio {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   @@map("tipos_usuario_convenio")
+}
+
+// =====================
+// TURNOS DE CAJA (POS)
+// =====================
+
+model TurnoCaja {
+  id                  String    @id @default(uuid())
+  numero              String    @unique // TURNO-2026-00001
+
+  // Usuario que abre el turno
+  usuarioId           String    @map("usuario_id") @db.Uuid
+  usuario             Usuario   @relation("TurnoUsuario", fields: [usuarioId], references: [id])
+
+  // Fechas
+  fechaApertura       DateTime  @default(now()) @map("fecha_apertura")
+  fechaCierre         DateTime? @map("fecha_cierre")
+
+  // Estado: ABIERTO, CERRADO, ANULADO
+  estado              String    @default("ABIERTO")
+
+  // Monto inicial (base de caja)
+  montoInicial        Decimal   @map("monto_inicial") @db.Decimal(12, 2)
+
+  // Totales por método de pago (se calculan al cierre)
+  totalEfectivo       Decimal   @default(0) @map("total_efectivo") @db.Decimal(12, 2)
+  totalTarjeta        Decimal   @default(0) @map("total_tarjeta") @db.Decimal(12, 2)
+  totalTransferencia  Decimal   @default(0) @map("total_transferencia") @db.Decimal(12, 2)
+  totalEPS            Decimal   @default(0) @map("total_eps") @db.Decimal(12, 2)
+  totalOtros          Decimal   @default(0) @map("total_otros") @db.Decimal(12, 2)
+
+  // Total general
+  totalVentas         Decimal   @default(0) @map("total_ventas") @db.Decimal(12, 2)
+
+  // Cantidad de transacciones
+  cantidadTransacciones Int     @default(0) @map("cantidad_transacciones")
+
+  // Datos de cierre
+  montoEfectivoCierre  Decimal?  @map("monto_efectivo_cierre") @db.Decimal(12, 2)
+  diferencia           Decimal?  @db.Decimal(12, 2) // Diferencia entre esperado y real
+
+  // Responsable que recibe el dinero al cierre
+  responsableCierreId  String?   @map("responsable_cierre_id") @db.Uuid
+  responsableCierre    Usuario?  @relation("TurnoResponsable", fields: [responsableCierreId], references: [id])
+  nombreResponsable    String?   @map("nombre_responsable") // Por si no está en sistema
+
+  // Observaciones
+  observacionesApertura String?  @map("observaciones_apertura")
+  observacionesCierre   String?  @map("observaciones_cierre")
+
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  // Relación con pagos registrados durante el turno
+  pagos               PagoTurno[]
+
+  @@index([usuarioId])
+  @@index([estado])
+  @@index([fechaApertura])
+  @@map("turnos_caja")
+}
+
+model PagoTurno {
+  id            String     @id @default(uuid())
+  turnoId       String     @map("turno_id")
+  turno         TurnoCaja  @relation(fields: [turnoId], references: [id])
+
+  facturaId     String?    @map("factura_id")
+  pagoId        String?    @map("pago_id") // Referencia al pago original
+
+  monto         Decimal    @db.Decimal(12, 2)
+  metodoPago    String     @map("metodo_pago") // Efectivo, Tarjeta, Transferencia, EPS
+
+  // Datos adicionales
+  referencia    String?
+  bancoDestino  String?    @map("banco_destino")
+  descripcion   String?
+
+  fechaRegistro DateTime   @default(now()) @map("fecha_registro")
+
+  @@index([turnoId])
+  @@map("pagos_turno")
 }

@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import FormularioCita from './FormularioCita';
-import { formatDate, formatTime, formatDateLong } from '@/services/formatters';
+import { formatDate, formatTime, formatDateLong , getTodayColombia, formatDateISO} from '@/services/formatters'
 
 export default function AdmisionesModule({ user }) {
   const { toast } = useToast();
@@ -97,7 +97,7 @@ export default function AdmisionesModule({ user }) {
         setPacienteEncontrado(paciente);
 
         // Cargar citas, facturas y canceladas EN PARALELO (optimización de rendimiento)
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = getTodayColombia();
 
         const [citasResponse, facturasResponse, canceladasResponse] = await Promise.all([
           // Citas de hoy y futuras
@@ -1148,8 +1148,8 @@ export default function AdmisionesModule({ user }) {
   };
 
   const esHoy = (fecha) => {
-    const hoy = new Date().toISOString().split('T')[0];
-    const fechaCita = new Date(fecha).toISOString().split('T')[0];
+    const hoy = getTodayColombia();
+    const fechaCita = formatDateISO(new Date(fecha));
     return hoy === fechaCita;
   };
 
@@ -2403,7 +2403,7 @@ export default function AdmisionesModule({ user }) {
                       {[0, 1, 2, 3, 7].map((days) => {
                         const date = new Date();
                         date.setDate(date.getDate() + days);
-                        const dateStr = date.toISOString().split('T')[0];
+                        const dateStr = formatDateISO(date);
                         const dayName = days === 0 ? 'Hoy' : days === 1 ? 'Mañana' : days === 7 ? 'En 1 semana' : date.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric',
       timeZone: 'America/Bogota'
     });
@@ -2429,7 +2429,7 @@ export default function AdmisionesModule({ user }) {
                       type="date"
                       value={reagendarData.fecha}
                       onChange={(e) => handleFechaReagendar(e.target.value)}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={getTodayColombia()}
                       disabled={!reagendarData.doctorId}
                       className="h-12 text-base border-2 bg-white text-gray-900 [&::-webkit-calendar-picker-indicator]:opacity-100"
                     />

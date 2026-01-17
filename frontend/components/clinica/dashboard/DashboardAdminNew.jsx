@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Users, Calendar, Activity, TrendingUp, DollarSign,
   Bed, FileText, Download, RefreshCw, AlertTriangle,
@@ -21,8 +22,8 @@ export default function DashboardAdminNew({ user }) {
   const [stats, setStats] = useState(null);
   const [period, setPeriod] = useState('month');
   const [customRange, setCustomRange] = useState({
-    start: new Date().toISOString().split('T')[0],
-    end: new Date().toISOString().split('T')[0]
+    start: getTodayColombia(),
+    end: getTodayColombia()
   });
 
   const fetchStats = async () => {
@@ -102,7 +103,7 @@ export default function DashboardAdminNew({ user }) {
     XLSX.utils.book_append_sheet(wb, wsInv, 'Inventario');
 
     // Generar archivo
-    const fileName = `Reporte_Clinica_Mia_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `Reporte_Clinica_Mia_${getTodayColombia()}.xlsx`;
     XLSX.writeFile(wb, fileName);
     toast.success('Reporte exportado exitosamente');
   };

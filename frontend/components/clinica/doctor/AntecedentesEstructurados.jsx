@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -786,7 +787,7 @@ export default function AntecedentesEstructurados({ pacienteId, pacienteGenero, 
                           <Label>FUM</Label>
                           <Input
                             type="date"
-                            value={ginecoObstetrico?.fum ? new Date(ginecoObstetrico.fum).toISOString().split('T')[0] : ''}
+                            value={ginecoObstetrico?.fum ? formatDateISO(new Date(ginecoObstetrico.fum)) : ''}
                             onChange={(e) => setGinecoObstetrico({ ...ginecoObstetrico, fum: e.target.value ? new Date(e.target.value) : null })}
                           />
                         </div>

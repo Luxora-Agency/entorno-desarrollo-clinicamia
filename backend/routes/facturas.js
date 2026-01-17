@@ -15,6 +15,8 @@ const {
   cancelFacturaSchema,
 } = require('../validators/factura.schema');
 const facturaPDFService = require('../services/factura-pdf.service');
+const emailService = require('../services/email.service');
+const prisma = require('../db/prisma');
 
 const facturas = new Hono();
 
@@ -744,6 +746,122 @@ facturas.post('/:id/enviar-email', async (c) => {
     const result = await facturaService.reenviarFacturaEmail(id, body.email);
     return c.json(success(result));
   } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+/**
+ * @swagger
+ * /facturas/{id}/notificar-pago:
+ *   post:
+ *     summary: Enviar notificación de pago al paciente
+ *     tags: [Facturas]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         required: true
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               metodoPago:
+ *                 type: string
+ *               numeroReferencia:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Notificación de pago enviada
+ *       404:
+ *         description: Factura no encontrada
+ */
+facturas.post('/:id/notificar-pago', async (c) => {
+  try {
+    const { id } = c.req.param();
+    const body = await c.req.json();
+
+    // Obtener factura con datos del paciente y cita
+    const factura = await prisma.factura.findUnique({
+      where: { id },
+      include: {
+        paciente: {
+          select: {
+            id: true,
+            nombre: true,
+            apellido: true,
+            email: true
+          }
+        },
+        items: {
+          include: {
+            cita: {
+              select: {
+                id: true,
+                fecha: true,
+                hora: true,
+                especialidad: {
+                  select: { titulo: true, nombre: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!factura) {
+      return c.json(error('Factura no encontrada'), 404);
+    }
+
+    if (!factura.paciente?.email) {
+      return c.json(success({
+        emailSent: false,
+        reason: 'Paciente sin email registrado'
+      }, 'No se pudo enviar email: paciente sin correo'));
+    }
+
+    // Obtener la cita asociada (primera cita de los items)
+    const citaAsociada = factura.items?.find(item => item.cita)?.cita;
+    const especialidad = citaAsociada?.especialidad?.titulo || citaAsociada?.especialidad?.nombre || 'Consulta General';
+
+    // Enviar email de confirmación de pago
+    const emailResult = await emailService.sendPaymentConfirmation({
+      to: factura.paciente.email,
+      paciente: {
+        nombre: factura.paciente.nombre,
+        apellido: factura.paciente.apellido
+      },
+      factura: {
+        id: factura.id,
+        total: factura.total,
+        metodoPago: body.metodoPago || factura.metodoPago || 'No especificado',
+        numeroReferencia: body.numeroReferencia || null,
+        bancoDestino: body.bancoDestino || null
+      },
+      cita: citaAsociada ? {
+        fecha: citaAsociada.fecha,
+        hora: citaAsociada.hora
+      } : {
+        fecha: new Date(),
+        hora: null
+      },
+      especialidad
+    });
+
+    console.log('[Facturas] Email de confirmación de pago enviado:', emailResult);
+
+    return c.json(success({
+      emailSent: emailResult.success,
+      emailId: emailResult.id
+    }, emailResult.success ? 'Notificación de pago enviada' : 'Error al enviar notificación'));
+  } catch (err) {
+    console.error('[Facturas] Error enviando notificación de pago:', err);
     return c.json(error(err.message), err.statusCode || 500);
   }
 });

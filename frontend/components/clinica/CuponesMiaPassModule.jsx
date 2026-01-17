@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Plus, Search, Edit2, Trash2, Copy, Percent, Calendar, Users, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,7 +76,7 @@ export default function CuponesMiaPassModule() {
       descripcion: '',
       tipo_descuento: 'porcentaje',
       valor_descuento: '',
-      fecha_inicio: new Date().toISOString().split('T')[0],
+      fecha_inicio: getTodayColombia(),
       fecha_fin: '',
       usos_maximos: '',
       activo: true,
@@ -91,8 +92,8 @@ export default function CuponesMiaPassModule() {
       descripcion: cupon.descripcion || '',
       tipo_descuento: cupon.tipoDescuento,
       valor_descuento: cupon.valorDescuento,
-      fecha_inicio: new Date(cupon.fechaInicio).toISOString().split('T')[0],
-      fecha_fin: new Date(cupon.fechaFin).toISOString().split('T')[0],
+      fecha_inicio: formatDateISO(new Date(cupon.fechaInicio)),
+      fecha_fin: formatDateISO(new Date(cupon.fechaFin)),
       usos_maximos: cupon.usosMaximos,
       activo: cupon.activo,
       planes_ids: cupon.miaPlanes ? cupon.miaPlanes.map(p => p.id) : []

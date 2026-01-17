@@ -31,6 +31,7 @@ const unidad = require('./routes/unidad');
 const habitacion = require('./routes/habitacion');
 const cama = require('./routes/cama');
 const admision = require('./routes/admision');
+const turnoCaja = require('./routes/turno-caja');
 const movimiento = require('./routes/movimiento');
 // Rutas de facturación y órdenes
 const ordenesMedicas = require('./routes/ordenesMedicas');
@@ -292,6 +293,7 @@ app.route('/unidades', unidad);
 app.route('/habitaciones', habitacion);
 app.route('/camas', cama);
 app.route('/admisiones', admision);
+app.route('/turno-caja', turnoCaja);
 app.route('/movimientos', movimiento);
 // Rutas de facturación y órdenes
 app.route('/ordenes-medicas', ordenesMedicas);

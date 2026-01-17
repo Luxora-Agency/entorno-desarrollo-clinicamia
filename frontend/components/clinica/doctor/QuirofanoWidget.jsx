@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Activity, Clock, User, ChevronRight,
   RefreshCw, AlertCircle, Calendar, Play, MapPin
@@ -76,7 +77,7 @@ export default function QuirofanoWidget({
       try {
         const token = localStorage.getItem('token');
         const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayColombia();
 
         const response = await fetch(
           `${apiUrl}/procedimientos?medicoResponsableId=${effectiveDoctorId}&fechaDesde=${today}&limit=${maxItems + 2}`,

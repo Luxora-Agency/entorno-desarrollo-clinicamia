@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -195,7 +196,7 @@ export default function PacientesModule({ user }) {
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `pacientes_${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `pacientes_${getTodayColombia()}.csv`;
     link.click();
   }, [pacientesFiltrados]);
 

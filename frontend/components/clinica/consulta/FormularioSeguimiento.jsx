@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -138,8 +139,8 @@ export default function FormularioSeguimiento({
   const handleAgendarCita = (seguimiento) => {
     // Calcular la fecha sugerida del seguimiento
     const fechaCita = seguimiento.fechaSugerida
-      ? new Date(seguimiento.fechaSugerida).toISOString().split('T')[0]
-      : new Date(Date.now() + seguimiento.diasParaControl * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      ? formatDateISO(new Date(seguimiento.fechaSugerida))
+      : formatDateISO(new Date(Date.now() + seguimiento.diasParaControl * 24 * 60 * 60 * 1000));
 
     // Construir el motivo con el tipo de seguimiento
     const tipoLabel = TIPOS_SEGUIMIENTO.find(t => t.value === seguimiento.tipoSeguimiento)?.label || seguimiento.tipoSeguimiento;

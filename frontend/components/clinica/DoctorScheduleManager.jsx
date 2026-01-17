@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Calendar, dateFnsLocalizer, Views } from 'react-big-calendar';
 import withDragAndDrop from 'react-big-calendar/lib/addons/dragAndDrop';
 import format from 'date-fns/format';
@@ -199,7 +200,7 @@ export default function DoctorScheduleManager({ doctorId, initialHorarios, onCha
         start: e.start.toISOString(),
         isSpecific: e.isSpecificDate
       })),
-      semanaInicio: currentStartOfWeek.toISOString().split('T')[0],
+      semanaInicio: formatDateISO(currentStartOfWeek),
       calendarVersion
     });
     setEvents(newEvents);

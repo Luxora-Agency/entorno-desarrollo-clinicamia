@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,7 +49,7 @@ export function ActaForm({ open, onClose, onSubmit, acta }) {
         tiposReunion: acta.tiposReunion || [],
         tipoOtro: acta.tipoOtro || '',
         objetivo: acta.objetivo || '',
-        fecha: acta.fecha ? new Date(acta.fecha).toISOString().split('T')[0] : '',
+        fecha: acta.fecha ? formatDateISO(new Date(acta.fecha)) : '',
         horaInicio: acta.horaInicio || '08:00',
         horaFin: acta.horaFin || '10:00',
         lugar: acta.lugar || '',

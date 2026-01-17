@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Calendar, Clock, User, Phone, FileText, CheckCircle,
   XCircle, PlayCircle, Loader2, RefreshCw, Filter,
@@ -152,7 +153,7 @@ export default function MisCitasDelDiaView({ user }) {
 
     try {
       const token = localStorage.getItem('token');
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayColombia();
       const url = `${apiUrl}/citas?doctorId=${doctorId}&fecha=${today}&limit=100`;
 
       console.log('[MisCitasDelDia] Cargando citas:', { doctorId, fecha: today, url });

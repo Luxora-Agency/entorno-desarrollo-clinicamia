@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -57,7 +58,7 @@ export default function AdmisionesModule({ user }) {
   const [citaForm, setCitaForm] = useState({
     tipoServicio: '', // 'especialidad', 'examen', 'procedimiento'
     servicioId: '',
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: getTodayColombia(),
     hora: '',
     duracion: '',
     costo: '',
@@ -82,7 +83,7 @@ export default function AdmisionesModule({ user }) {
         const paciente = data.data[0];
         setSearchResult(paciente);
         
-        const today = new Date().toISOString().split('T')[0];
+        const today = getTodayColombia();
         const citasRes = await fetch(`${apiUrl}/citas?fecha=${today}&limit=100`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -254,7 +255,7 @@ export default function AdmisionesModule({ user }) {
         setCitaForm({
           tipoServicio: '',
           servicioId: '',
-          fecha: new Date().toISOString().split('T')[0],
+          fecha: getTodayColombia(),
           hora: '',
           duracion: '',
           costo: '',

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import HistoricoSignosVitalesModal from './HistoricoSignosVitalesModal';
 import CurvasCrecimientoOMS from './CurvasCrecimientoOMS';
 import IndicesNutricionales from './IndicesNutricionales';
@@ -196,7 +197,7 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
 
   // Funciones para manejar múltiples paraclínicos personalizados
   const agregarParaclinico = () => {
-    const nuevoParaclinico = { id: Date.now(), nombre: '', valor: '' };
+    const nuevoParaclinico = { id: Date.now(), tipo: 'estructurado', nombre: '', valor: '', textoLibre: '' };
     const nuevosParaclinicos = [...(formData.otrosParaclinicos || []), nuevoParaclinico];
     handleChange('otrosParaclinicos', nuevosParaclinicos);
   };
@@ -609,36 +610,68 @@ export default function FormularioSignosVitalesConsulta({ onChange, data, pacien
                 </div>
               ) : (
                 (formData.otrosParaclinicos || []).map((paraclinico, index) => (
-                  <div key={paraclinico.id} className="col-span-2 md:col-span-4 grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-2 items-end bg-blue-50/50 p-3 rounded-lg border border-blue-100">
-                    <div>
-                      <Label className="text-xs text-blue-700">Nombre del Examen #{index + 1}</Label>
-                      <Input
-                        type="text"
-                        value={paraclinico.nombre}
-                        onChange={(e) => actualizarParaclinico(paraclinico.id, 'nombre', e.target.value)}
-                        placeholder="Ej: Vitamina D, PTH, Cortisol..."
-                        className="mt-1"
-                      />
+                  <div key={paraclinico.id} className="col-span-2 md:col-span-4 bg-blue-50/50 p-3 rounded-lg border border-blue-100">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-semibold text-blue-700">Paraclínico #{index + 1}</span>
+                        <Select
+                          value={paraclinico.tipo || 'estructurado'}
+                          onValueChange={(value) => actualizarParaclinico(paraclinico.id, 'tipo', value)}
+                        >
+                          <SelectTrigger className="w-[180px] h-8 text-xs">
+                            <SelectValue placeholder="Tipo de entrada" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="estructurado">Nombre y Resultado</SelectItem>
+                            <SelectItem value="texto">Solo Texto</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => eliminarParaclinico(paraclinico.id)}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div>
-                      <Label className="text-xs text-blue-700">Valor/Resultado</Label>
-                      <Input
-                        type="text"
-                        value={paraclinico.valor}
-                        onChange={(e) => actualizarParaclinico(paraclinico.id, 'valor', e.target.value)}
-                        placeholder="Resultado con unidad"
-                        className="mt-1"
-                      />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => eliminarParaclinico(paraclinico.id)}
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 h-9"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
+
+                    {(paraclinico.tipo || 'estructurado') === 'estructurado' ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs text-blue-700">Nombre del Examen</Label>
+                          <Input
+                            type="text"
+                            value={paraclinico.nombre}
+                            onChange={(e) => actualizarParaclinico(paraclinico.id, 'nombre', e.target.value)}
+                            placeholder="Ej: Vitamina D, PTH, Cortisol..."
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs text-blue-700">Valor/Resultado</Label>
+                          <Input
+                            type="text"
+                            value={paraclinico.valor}
+                            onChange={(e) => actualizarParaclinico(paraclinico.id, 'valor', e.target.value)}
+                            placeholder="Resultado con unidad"
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <Label className="text-xs text-blue-700">Descripción del Paraclínico</Label>
+                        <Textarea
+                          value={paraclinico.textoLibre || ''}
+                          onChange={(e) => actualizarParaclinico(paraclinico.id, 'textoLibre', e.target.value)}
+                          placeholder="Escriba la información del paraclínico aquí..."
+                          className="mt-1 min-h-[80px]"
+                        />
+                      </div>
+                    )}
                   </div>
                 ))
               )}

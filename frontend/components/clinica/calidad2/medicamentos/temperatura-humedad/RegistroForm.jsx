@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,7 +55,7 @@ export default function RegistroForm({ registro, onClose }) {
     if (registro) {
       const fechaObj = new Date(registro.fecha);
       setFormData({
-        fecha: fechaObj.toISOString().split('T')[0],
+        fecha: formatDateISO(fechaObj),
         hora: fechaObj.getHours(),
         area: registro.area || 'FARMACIA',
         temperatura: registro.temperatura,
@@ -68,7 +69,7 @@ export default function RegistroForm({ registro, onClose }) {
       });
     } else {
       // Set default to today
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayColombia();
       setFormData(prev => ({ ...prev, fecha: today }));
     }
   }, [registro]);

@@ -46,8 +46,8 @@ const createPacienteSchema = z.object({
 
   // Datos Personales (requeridos)
   fecha_nacimiento: z.string().min(1, 'La fecha de nacimiento es requerida').transform(parseDate),
-  genero: z.string().min(1, 'El género biológico es requerido'),
-  identidad_genero: z.string().min(1, 'La identidad de género es requerida'),
+  genero: z.string().min(1, 'El sexo es requerido'),
+  identidad_genero: z.string().min(1, 'El género es requerido'),
   etnia: z.string().min(1, 'La etnia es requerida'),
   preferencia_llamado: z.string().min(1, 'La preferencia de llamado es requerida'),
   estado_civil: z.string().min(1, 'El estado civil es requerido'),

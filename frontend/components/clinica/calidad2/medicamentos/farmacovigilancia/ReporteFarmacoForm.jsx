@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,10 +69,10 @@ export default function ReporteFarmacoForm({ reporte, onClose }) {
         tipoReporte: reporte.tipoReporte || 'Sospecha de Reacción Adversa',
         medicamento: reporte.medicamento || '',
         lote: reporte.lote || '',
-        fechaVencimiento: reporte.fechaVencimiento ? new Date(reporte.fechaVencimiento).toISOString().split('T')[0] : '',
+        fechaVencimiento: reporte.fechaVencimiento ? formatDateISO(new Date(reporte.fechaVencimiento)) : '',
         laboratorio: reporte.laboratorio || '',
         indicacion: reporte.indicacion || '',
-        fechaEvento: reporte.fechaEvento ? new Date(reporte.fechaEvento).toISOString().split('T')[0] : '',
+        fechaEvento: reporte.fechaEvento ? formatDateISO(new Date(reporte.fechaEvento)) : '',
         descripcionReaccion: reporte.descripcionReaccion || '',
         gravedadReaccion: reporte.gravedadReaccion || 'Leve',
         causalidad: reporte.causalidad || 'POSIBLE',

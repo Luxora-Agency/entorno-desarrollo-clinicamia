@@ -14,6 +14,7 @@ import DoctorForm from './DoctorForm';
 import ExamenesModule from './ExamenesModule';
 import CategoriasExamenesModule from './CategoriasExamenesModule';
 import FarmaciaModule from './FarmaciaModule';
+import FarmaciaHospitalariaModule from './farmacia/FarmaciaHospitalariaModule';
 import CategoriasProductosModule from './CategoriasProductosModule';
 import EtiquetasProductosModule from './EtiquetasProductosModule';
 import AdmisionesView from './AdmisionesView';
@@ -361,6 +362,9 @@ export default function Dashboard({ user, onLogout }) {
         }} />;
       // Módulos de Farmacia
       case 'farmacia':
+      case 'farmacia-hospitalaria':
+        return <FarmaciaHospitalariaModule user={user} />;
+      case 'farmacia-inventario':
         return <FarmaciaModule user={user} />;
       case 'ordenes-tienda':
         return <OrdenesTiendaModule user={user} />;

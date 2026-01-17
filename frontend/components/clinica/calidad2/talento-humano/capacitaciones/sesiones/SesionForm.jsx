@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,7 @@ export default function SesionForm({ open, onClose, onSubmit, sesion }) {
   useEffect(() => {
     if (sesion) {
       setFormData({
-        fechaProgramada: sesion.fechaProgramada ? new Date(sesion.fechaProgramada).toISOString().split('T')[0] : '',
+        fechaProgramada: sesion.fechaProgramada ? formatDateISO(new Date(sesion.fechaProgramada)) : '',
         horaInicio: sesion.horaInicio || '',
         horaFin: sesion.horaFin || '',
         lugar: sesion.lugar || '',

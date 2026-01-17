@@ -245,9 +245,14 @@ export default function PlantillasDoctorModule({ user }) {
       if (response.ok) {
         const result = await response.json();
         setProductos(result.data || []);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        console.error('Error buscando productos:', err);
+        toast.error(err.message || 'Error al buscar medicamentos');
       }
     } catch (error) {
       console.error('Error buscando productos:', error);
+      toast.error('Error de conexión al buscar medicamentos');
     } finally {
       setLoadingProductos(false);
     }
@@ -265,9 +270,14 @@ export default function PlantillasDoctorModule({ user }) {
       if (response.ok) {
         const result = await response.json();
         setExamenes(result.data || []);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        console.error('Error buscando exámenes:', err);
+        toast.error(err.message || 'Error al buscar exámenes');
       }
     } catch (error) {
       console.error('Error buscando exámenes:', error);
+      toast.error('Error de conexión al buscar exámenes');
     } finally {
       setLoadingExamenes(false);
     }
@@ -918,11 +928,12 @@ export default function PlantillasDoctorModule({ user }) {
 
           {/* Resultados de búsqueda */}
           {productos.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {productos.map((producto) => (
                 <div
                   key={producto.id}
                   className="p-2 hover:bg-cyan-50 cursor-pointer border-b last:border-b-0"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => seleccionarProducto(producto)}
                 >
                   <p className="font-medium text-sm">{producto.nombre}</p>
@@ -1130,11 +1141,12 @@ export default function PlantillasDoctorModule({ user }) {
 
           {/* Resultados de búsqueda */}
           {examenes.length > 0 && (
-            <div className="absolute z-10 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+            <div className="absolute z-50 mt-1 w-full bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto">
               {examenes.map((examen) => (
                 <div
                   key={examen.id}
                   className="p-2 hover:bg-indigo-50 cursor-pointer border-b last:border-b-0"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => seleccionarExamen(examen)}
                 >
                   <p className="font-medium text-sm">{examen.nombre}</p>

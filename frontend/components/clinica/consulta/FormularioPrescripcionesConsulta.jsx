@@ -701,8 +701,15 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
                         };
                         const tomasPorDia = frecuenciasPorDia[medicamentoActual.frecuencia] || 1;
                         const dias = parseInt(medicamentoActual.duracionDias) || 0;
-                        const total = tomasPorDia * dias;
-                        return `${total} ${medicamentoActual.frecuencia === 'Unica' ? 'dosis' : 'unidades'}`;
+                        // Extraer valor numérico de la dosis (ej: "2 tabletas" → 2, "10ml" → 10)
+                        const dosisMatch = medicamentoActual.dosis.match(/^(\d+(?:\.\d+)?)/);
+                        const cantidadPorToma = dosisMatch ? parseFloat(dosisMatch[1]) : 1;
+                        const totalTomas = tomasPorDia * dias;
+                        const total = Math.ceil(cantidadPorToma * totalTomas);
+                        // Detectar unidad de la dosis
+                        const unidadMatch = medicamentoActual.dosis.match(/\d+(?:\.\d+)?\s*(.+)/);
+                        const unidad = unidadMatch ? unidadMatch[1].trim() : 'unidades';
+                        return `${total} ${unidad}`;
                       })()}
                     </span>
                   </div>
@@ -718,7 +725,10 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
                         'PRN': 3,
                       };
                       const tomasPorDia = frecuenciasPorDia[medicamentoActual.frecuencia] || 1;
-                      return `${tomasPorDia} toma(s) por día × ${medicamentoActual.duracionDias} días`;
+                      // Extraer valor numérico de la dosis
+                      const dosisMatch = medicamentoActual.dosis.match(/^(\d+(?:\.\d+)?)/);
+                      const cantidadPorToma = dosisMatch ? parseFloat(dosisMatch[1]) : 1;
+                      return `${cantidadPorToma} × ${tomasPorDia} toma(s)/día × ${medicamentoActual.duracionDias} días`;
                     })()}
                   </p>
                 </div>

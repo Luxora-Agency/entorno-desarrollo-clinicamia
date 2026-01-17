@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,7 +78,7 @@ export default function ReporteTecnoForm({ reporte, onClose }) {
         registroSanitario: reporte.registroSanitario || '',
         clasificacion: reporte.clasificacion || 'INCIDENTE',
         tipoEvento: reporte.tipoEvento || 'FALLA_DISPOSITIVO',
-        fechaEvento: reporte.fechaEvento ? new Date(reporte.fechaEvento).toISOString().split('T')[0] : '',
+        fechaEvento: reporte.fechaEvento ? formatDateISO(new Date(reporte.fechaEvento)) : '',
         descripcionEvento: reporte.descripcionEvento || '',
         gravedadEvento: reporte.gravedadEvento || 'LEVE',
         desenlace: reporte.desenlace || '',

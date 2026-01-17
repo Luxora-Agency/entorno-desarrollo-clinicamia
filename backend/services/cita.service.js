@@ -439,6 +439,43 @@ class CitaService {
         return cita;
       });
 
+      // Enviar correo de confirmación de cita (fuera de la transacción)
+      try {
+        // Obtener datos completos para el email
+        const citaCompleta = await prisma.cita.findUnique({
+          where: { id: resultado.id },
+          include: {
+            paciente: { select: { id: true, nombre: true, apellido: true, email: true } },
+            doctor: { select: { id: true, nombre: true, apellido: true } },
+            especialidad: { select: { id: true, titulo: true } },
+          }
+        });
+
+        if (citaCompleta?.paciente?.email) {
+          await emailService.sendAppointmentConfirmation({
+            to: citaCompleta.paciente.email,
+            paciente: {
+              nombre: citaCompleta.paciente.nombre,
+              apellido: citaCompleta.paciente.apellido
+            },
+            cita: {
+              fecha: citaCompleta.fecha,
+              hora: validatedData.hora,
+              motivo: citaCompleta.motivo
+            },
+            doctor: citaCompleta.doctor ? {
+              nombre: citaCompleta.doctor.nombre,
+              apellido: citaCompleta.doctor.apellido
+            } : null,
+            especialidad: citaCompleta.especialidad?.titulo || 'Consulta General'
+          });
+          console.log(`[Cita] Email de confirmación enviado a ${citaCompleta.paciente.email}`);
+        }
+      } catch (emailError) {
+        // No lanzar error si falla el email, la cita ya se creó
+        console.error('[Cita] Error enviando email de confirmación:', emailError.message);
+      }
+
       return resultado;
     } catch (error) {
       // Manejar error de constraint único (doble-reservación detectada por la BD)

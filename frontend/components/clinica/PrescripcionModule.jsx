@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { 
   Search, Plus, AlertTriangle, CheckCircle, Clock, Calendar,
   Pill, Calculator, Activity, User, FileText, Eye, Edit, Trash2,
@@ -263,7 +264,7 @@ export default function PrescripcionModule({ user, pacienteId, citaId }) {
       prescriptor: `${user.nombre} ${user.apellido}`,
       administradas: 0,
       total: datos.duracion * (24 / parseInt(datos.frecuencia)),
-      fechaInicio: new Date().toISOString().split('T')[0],
+      fechaInicio: getTodayColombia(),
     };
 
     setPrescripcionesActivas([...prescripcionesActivas, nueva]);

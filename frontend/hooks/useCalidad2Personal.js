@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { useToast } from '@/hooks/use-toast';
 import { apiGet, apiPost, apiPut, apiDelete, getAuthToken } from '@/services/api';
 
@@ -341,7 +342,7 @@ export function useCalidad2Personal() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `personal_calidad2_${new Date().toISOString().split('T')[0]}.csv`;
+      a.download = `personal_calidad2_${getTodayColombia()}.csv`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

@@ -1,14 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { 
-  Store, ShoppingCart, Package, History, 
+import {
+  Store, ShoppingCart, Package, History,
   Wallet, TrendingUp, AlertTriangle, Search,
-  Plus, ArrowLeft, CheckCircle2
+  Plus, ArrowLeft, CheckCircle2, Globe
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useDrogueria } from '@/hooks/useDrogueria';
+import { useOrdenesTienda } from '@/hooks/useOrdenesTienda';
 
 // Sub-components
 import POS from './POS';
@@ -16,10 +18,17 @@ import InventarioDrogueria from './InventarioDrogueria';
 import VentasHistory from './VentasHistory';
 import CajaManager from './CajaManager';
 import DashboardDrogueria from './DashboardDrogueria';
+import OrdenesTiendaModule from '../OrdenesTiendaModule';
 
 export default function DrogueriaModule({ user }) {
   const [activeTab, setActiveTab] = useState('dashboard');
   const { cajaActiva, fetchCajaActiva, fetchDashboardStats, loading } = useDrogueria();
+  const { ordenes } = useOrdenesTienda();
+
+  // Contar pedidos pendientes de la tienda online
+  const pedidosPendientes = ordenes?.filter(o =>
+    ['PendientePago', 'Pagada', 'Procesando'].includes(o.estado)
+  ).length || 0;
 
   useEffect(() => {
     fetchCajaActiva();
@@ -74,6 +83,14 @@ export default function DrogueriaModule({ user }) {
             <TabsTrigger value="caja" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700 rounded-lg px-6 font-semibold">
               <Wallet className="w-4 h-4 mr-2" /> Arqueo de Caja
             </TabsTrigger>
+            <TabsTrigger value="pedidos-online" className="data-[state=active]:bg-purple-50 data-[state=active]:text-purple-700 rounded-lg px-6 font-semibold relative">
+              <Globe className="w-4 h-4 mr-2" /> Pedidos Online
+              {pedidosPendientes > 0 && (
+                <Badge className="ml-2 bg-purple-500 text-white text-xs px-1.5 py-0.5 animate-pulse">
+                  {pedidosPendientes}
+                </Badge>
+              )}
+            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -92,6 +109,9 @@ export default function DrogueriaModule({ user }) {
           </TabsContent>
           <TabsContent value="caja" className="m-0 h-full p-6">
             <CajaManager user={user} />
+          </TabsContent>
+          <TabsContent value="pedidos-online" className="m-0 h-full overflow-auto">
+            <OrdenesTiendaModule user={user} embedded={true} />
           </TabsContent>
         </div>
       </Tabs>

@@ -5,7 +5,7 @@ import { Search, UserPlus, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
 export default function BuscadorPacientesHCE({ onSelectPaciente }) {
@@ -63,8 +63,17 @@ export default function BuscadorPacientesHCE({ onSelectPaciente }) {
     return `${edad} años`;
   };
 
+  // Helper para obtener URL de foto del paciente
+  const getPatientPhotoUrl = (fotoUrl) => {
+    if (!fotoUrl) return null;
+    if (fotoUrl.startsWith('data:image')) return fotoUrl;
+    if (fotoUrl.startsWith('http')) return fotoUrl;
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    return `${apiUrl}${fotoUrl.startsWith('/') ? '' : '/'}${fotoUrl}`;
+  };
+
   const handleCreateNew = () => {
-    window.location.href = '/?module=pacientes';
+    window.location.href = '/?module=agregar-paciente';
   };
 
   return (
@@ -115,6 +124,13 @@ export default function BuscadorPacientesHCE({ onSelectPaciente }) {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
                       <Avatar className="h-14 w-14 bg-gradient-to-br from-blue-500 to-indigo-600 border-2 border-white shadow-sm">
+                        {paciente.fotoUrl && (
+                          <AvatarImage
+                            src={getPatientPhotoUrl(paciente.fotoUrl)}
+                            alt={`${paciente.nombre} ${paciente.apellido}`}
+                            className="object-cover"
+                          />
+                        )}
                         <AvatarFallback className="text-white font-semibold">
                           {paciente.nombre?.[0]}{paciente.apellido?.[0]}
                         </AvatarFallback>

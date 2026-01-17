@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +28,7 @@ export default function InstanciaForm({ instancia, preselectedFormato, onClose }
   const [formData, setFormData] = useState({
     formatoId: '',
     periodo: '',
-    fechaLlenado: new Date().toISOString().split('T')[0],
+    fechaLlenado: getTodayColombia(),
     observaciones: '',
     archivoUrl: '',
     archivoNombre: '',
@@ -51,8 +52,8 @@ export default function InstanciaForm({ instancia, preselectedFormato, onClose }
         formatoId: instancia.formatoId || '',
         periodo: instancia.periodo || '',
         fechaLlenado: instancia.fechaLlenado
-          ? new Date(instancia.fechaLlenado).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0],
+          ? formatDateISO(new Date(instancia.fechaLlenado))
+          : getTodayColombia(),
         observaciones: instancia.observaciones || '',
         archivoUrl: instancia.archivoUrl || '',
         archivoNombre: instancia.archivoNombre || '',

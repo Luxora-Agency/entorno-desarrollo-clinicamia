@@ -380,13 +380,13 @@ Responde en JSON:
         select: {
           id: true,
           nombre: true,
-          principioActivo: true,
+          descripcion: true,
           concentracion: true,
-          formaFarmaceutica: true,
           presentacion: true,
           precioVenta: true,
           unidadMedida: true,
           requiereReceta: true,
+          viaAdministracion: true,
         }
       });
       return producto;

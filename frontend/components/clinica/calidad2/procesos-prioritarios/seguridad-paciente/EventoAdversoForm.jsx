@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Dialog,
   DialogContent,
@@ -47,7 +48,7 @@ export default function EventoAdversoForm({ evento, open, onClose, onSuccess }) 
   useEffect(() => {
     if (evento) {
       setFormData({
-        fechaEvento: evento.fechaEvento ? new Date(evento.fechaEvento).toISOString().split('T')[0] : '',
+        fechaEvento: evento.fechaEvento ? formatDateISO(new Date(evento.fechaEvento)) : '',
         horaEvento: evento.horaEvento || '',
         lugarEvento: evento.lugarEvento || '',
         nombrePaciente: evento.nombrePaciente || '',
@@ -62,7 +63,7 @@ export default function EventoAdversoForm({ evento, open, onClose, onSuccess }) 
       });
     } else {
       // Set default date to today
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayColombia();
       setFormData(prev => ({ ...prev, fechaEvento: today }));
     }
   }, [evento]);

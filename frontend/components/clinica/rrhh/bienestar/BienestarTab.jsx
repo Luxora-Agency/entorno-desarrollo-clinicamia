@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Heart, Gift, ClipboardList, Calendar, Star,
   Plus, Users, TrendingUp, Smile, Edit, Trash2, Eye, Send
@@ -114,7 +115,7 @@ export default function BienestarTab({ user }) {
     tipo: '',
     titulo: '',
     descripcion: '',
-    fecha: new Date().toISOString().split('T')[0],
+    fecha: getTodayColombia(),
     valorAsociado: '',
     esPublico: true
   });
@@ -149,7 +150,7 @@ export default function BienestarTab({ user }) {
         break;
       case 'reconocimientos':
         setReconocimientoForm({
-          empleadoId: '', tipo: '', titulo: '', descripcion: '', fecha: new Date().toISOString().split('T')[0], valorAsociado: '', esPublico: true
+          empleadoId: '', tipo: '', titulo: '', descripcion: '', fecha: getTodayColombia(), valorAsociado: '', esPublico: true
         });
         setShowReconocimientoModal(true);
         break;
