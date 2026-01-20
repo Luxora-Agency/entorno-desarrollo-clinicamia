@@ -7,22 +7,13 @@ import { z } from 'zod';
 import {
   FileText, Stethoscope, TestTube, Activity, AlertTriangle,
   User, Calendar, Clock, CreditCard, MessageSquare, Search,
-  CheckCircle, ChevronRight, DollarSign, Building2, BadgeCheck,
-  Receipt, XCircle, Upload
+  CheckCircle, ChevronRight, DollarSign, Building2, BadgeCheck
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import useDisponibilidadRealtime from '@/hooks/useDisponibilidadRealtime';
@@ -54,10 +45,6 @@ const citaSchema = z.object({
   cubiertoPorEPS: z.boolean().optional(),
   esEmergencia: z.boolean().optional(),
   motivoEmergencia: z.string().optional(),
-  // Campos para transferencia bancaria
-  bancoDestino: z.string().optional(),
-  otroBanco: z.string().optional(),
-  numeroReferencia: z.string().optional(),
 }).refine(data => {
   if (data.esEmergencia && !data.motivoEmergencia) {
     return false;
@@ -189,10 +176,6 @@ export default function FormularioCita({
   const [servicioSeleccionado, setServicioSeleccionado] = useState(null);
   const [pacienteSeleccionado, setPacienteSeleccionado] = useState(null);
 
-  // Estado para comprobante de transferencia
-  const [comprobanteFile, setComprobanteFile] = useState(null);
-  const [comprobantePreview, setComprobantePreview] = useState(null);
-
   const { control, register, handleSubmit, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(citaSchema),
     defaultValues: {
@@ -211,10 +194,6 @@ export default function FormularioCita({
       cubiertoPorEPS: false,
       esEmergencia: false,
       motivoEmergencia: '',
-      // Campos para transferencia
-      bancoDestino: '',
-      otroBanco: '',
-      numeroReferencia: '',
       ...initialData
     }
   });
@@ -229,7 +208,6 @@ export default function FormularioCita({
   const esEmergencia = watch('esEmergencia');
   const duracionMinutos = watch('duracionMinutos');
   const costo = watch('costo');
-  const bancoDestino = watch('bancoDestino');
 
   // Referencia para la función de recarga
   const cargarBloquesRef = useRef(null);
@@ -541,13 +519,6 @@ export default function FormularioCita({
         es_emergencia: data.esEmergencia || false,
         motivo_emergencia: data.motivoEmergencia || null,
       };
-
-      // Agregar datos de transferencia si el método de pago es Transferencia
-      if (data.metodoPago === 'Transferencia') {
-        payload.banco_destino = data.bancoDestino === 'otro' ? data.otroBanco : data.bancoDestino;
-        payload.numero_referencia = data.numeroReferencia || null;
-        // El comprobante se maneja por separado si es necesario
-      }
 
       if (data.tipoCita === 'Especialidad') {
         payload.especialidad_id = data.servicioId;
@@ -981,7 +952,7 @@ export default function FormularioCita({
       {/* ===== SECCIÓN 5: INFORMACIÓN DE PAGO ===== */}
       <FormSection icon={CreditCard} title="Información de Pago">
         <div className="grid grid-cols-2 gap-4">
-          {/* Duración - Solo lectura, se establece automáticamente según el servicio */}
+          {/* Duración */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Duración (minutos)
@@ -990,14 +961,12 @@ export default function FormularioCita({
               type="number"
               {...register('duracionMinutos')}
               min="1"
-              readOnly
               disabled={loading}
-              className="py-3 rounded-xl bg-gray-50 cursor-not-allowed"
+              className="py-3 rounded-xl"
             />
-            <p className="text-xs text-gray-500 mt-1">Establecido por el servicio seleccionado</p>
           </div>
 
-          {/* Costo - Solo lectura, se establece automáticamente según el servicio */}
+          {/* Costo */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Costo (COP)
@@ -1008,12 +977,10 @@ export default function FormularioCita({
                 type="number"
                 {...register('costo')}
                 min="0"
-                readOnly
                 disabled={loading}
-                className="pl-10 py-3 rounded-xl bg-gray-50 cursor-not-allowed"
+                className="pl-10 py-3 rounded-xl"
               />
             </div>
-            <p className="text-xs text-gray-500 mt-1">Establecido por el servicio seleccionado</p>
           </div>
 
           {/* Método de Pago */}
@@ -1056,135 +1023,6 @@ export default function FormularioCita({
             <span className="text-sm text-blue-800">
               Este servicio será facturado a la EPS del paciente
             </span>
-          </div>
-        )}
-
-        {/* Campos adicionales para Transferencia */}
-        {metodoPago === 'Transferencia' && (
-          <div className="mt-4 space-y-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <p className="text-sm font-medium text-amber-800 flex items-center gap-2">
-              <Receipt className="h-4 w-4" />
-              Datos de la Transferencia
-            </p>
-
-            {/* Banco / Cuenta destino */}
-            <div>
-              <Label htmlFor="bancoDestino">Banco / Cuenta Destino *</Label>
-              <Controller
-                name="bancoDestino"
-                control={control}
-                render={({ field }) => (
-                  <Select value={field.value} onValueChange={field.onChange}>
-                    <SelectTrigger className="mt-1">
-                      <SelectValue placeholder="Seleccione el banco o cuenta" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Bancolombia - Ahorros 123456789">Bancolombia - Ahorros 123456789</SelectItem>
-                      <SelectItem value="Davivienda - Corriente 987654321">Davivienda - Corriente 987654321</SelectItem>
-                      <SelectItem value="Banco de Bogotá - Ahorros 555666777">Banco de Bogotá - Ahorros 555666777</SelectItem>
-                      <SelectItem value="Nequi - 3001234567">Nequi - 3001234567</SelectItem>
-                      <SelectItem value="Daviplata - 3009876543">Daviplata - 3009876543</SelectItem>
-                      <SelectItem value="otro">Otro (especificar)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            {/* Campo para especificar otro banco */}
-            {bancoDestino === 'otro' && (
-              <div>
-                <Label htmlFor="otroBanco">Especifique el banco/cuenta</Label>
-                <Input
-                  id="otroBanco"
-                  {...register('otroBanco')}
-                  placeholder="Ej: BBVA - Ahorros 111222333"
-                  className="mt-1"
-                />
-              </div>
-            )}
-
-            {/* Número de Referencia */}
-            <div>
-              <Label htmlFor="numeroReferencia">Número de Referencia / Comprobante</Label>
-              <Input
-                id="numeroReferencia"
-                {...register('numeroReferencia')}
-                placeholder="Ej: 12345678"
-                className="mt-1"
-              />
-            </div>
-
-            {/* Upload Comprobante */}
-            <div>
-              <Label>Comprobante de Pago (Imagen o PDF)</Label>
-              <div className="mt-2">
-                {comprobantePreview ? (
-                  <div className="relative">
-                    <img
-                      src={comprobantePreview}
-                      alt="Preview comprobante"
-                      className="w-full h-40 object-contain rounded-lg border border-gray-200 bg-white"
-                    />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={() => {
-                        setComprobanteFile(null);
-                        setComprobantePreview(null);
-                      }}
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : comprobanteFile ? (
-                  <div className="flex items-center gap-2 p-3 bg-white rounded-lg border border-gray-200">
-                    <FileText className="h-8 w-8 text-red-500" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{comprobanteFile.name}</p>
-                      <p className="text-xs text-gray-500">{(comprobanteFile.size / 1024).toFixed(1)} KB</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setComprobanteFile(null);
-                        setComprobantePreview(null);
-                      }}
-                    >
-                      <XCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-amber-300 rounded-lg cursor-pointer bg-white hover:bg-amber-50 transition-colors">
-                    <Upload className="h-8 w-8 text-amber-500 mb-2" />
-                    <span className="text-sm text-amber-700">Click para subir comprobante</span>
-                    <span className="text-xs text-gray-500 mt-1">JPG, PNG o PDF</span>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*,.pdf"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          setComprobanteFile(file);
-                          if (file.type.startsWith('image/')) {
-                            const reader = new FileReader();
-                            reader.onload = (ev) => setComprobantePreview(ev.target?.result);
-                            reader.readAsDataURL(file);
-                          } else {
-                            setComprobantePreview(null);
-                          }
-                        }
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-            </div>
           </div>
         )}
 

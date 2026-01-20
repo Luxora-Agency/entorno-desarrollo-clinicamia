@@ -14,68 +14,33 @@ app.use('*', authMiddleware);
 
 // ============ CAJA ============
 
-// Abrir nueva caja
 app.post('/caja/abrir', async (c) => {
   try {
     const user = c.get('user');
-    const { montoInicial, nombreCaja } = await c.req.json();
-    const result = await service.abrirCaja(user.id, montoInicial, nombreCaja);
+    const { montoInicial } = await c.req.json();
+    const result = await service.abrirCaja(user.id, montoInicial);
     return c.json(success(result, 'Caja abierta correctamente'));
   } catch (err) {
     return c.json(error(err.message), 400);
   }
 });
 
-// Cerrar caja con desglose
 app.post('/caja/cerrar/:id', async (c) => {
   try {
     const { id } = c.req.param();
-    const { montoFinal, observaciones } = await c.req.json();
-    const result = await service.cerrarCaja(id, montoFinal, observaciones);
+    const { montoFinal } = await c.req.json();
+    const result = await service.cerrarCaja(id, montoFinal);
     return c.json(success(result, 'Caja cerrada correctamente'));
   } catch (err) {
     return c.json(error(err.message), 400);
   }
 });
 
-// Obtener caja activa del usuario actual
 app.get('/caja/activa', async (c) => {
   try {
     const user = c.get('user');
     const result = await service.getCajaActiva(user.id);
     return c.json(success(result));
-  } catch (err) {
-    return c.json(error(err.message), 500);
-  }
-});
-
-// Obtener todas las cajas abiertas (supervisores)
-app.get('/caja/abiertas', async (c) => {
-  try {
-    const result = await service.getCajasAbiertas();
-    return c.json(success(result));
-  } catch (err) {
-    return c.json(error(err.message), 500);
-  }
-});
-
-// Obtener detalle de una caja específica
-app.get('/caja/:id/detalle', async (c) => {
-  try {
-    const { id } = c.req.param();
-    const result = await service.getCajaDetalle(id);
-    return c.json(success(result));
-  } catch (err) {
-    return c.json(error(err.message), err.statusCode || 500);
-  }
-});
-
-// Historial de cajas cerradas
-app.get('/caja/historial', async (c) => {
-  try {
-    const query = c.req.query();
-    const result = await service.getHistorialCajas(query);
-    return c.json(paginated(result.data, result.pagination));
   } catch (err) {
     return c.json(error(err.message), 500);
   }
@@ -90,54 +55,7 @@ app.get('/dashboard/stats', async (c) => {
   }
 });
 
-// ============ CATEGORÍAS ============
-
-app.get('/categorias', async (c) => {
-  try {
-    const result = await service.getCategorias();
-    return c.json(success(result));
-  } catch (err) {
-    return c.json(error(err.message), 500);
-  }
-});
-
-// ============ PRODUCTOS FARMACIA (para importar) ============
-
-app.get('/farmacia/productos', async (c) => {
-  try {
-    const query = c.req.query();
-    const result = await service.getProductosFarmaciaDisponibles(query);
-    return c.json(paginated(result.data, result.pagination));
-  } catch (err) {
-    return c.json(error(err.message), 500);
-  }
-});
-
-// ============ CLIENTES ============
-
-// Buscar cliente por cédula
-app.get('/clientes/buscar/:cedula', async (c) => {
-  try {
-    const { cedula } = c.req.param();
-    const result = await service.buscarClientePorCedula(cedula);
-    return c.json(success(result));
-  } catch (err) {
-    return c.json(error(err.message), err.statusCode || 500);
-  }
-});
-
-// Crear nuevo cliente
-app.post('/clientes', async (c) => {
-  try {
-    const data = await c.req.json();
-    const result = await service.crearCliente(data);
-    return c.json(success(result, 'Cliente creado correctamente'), 201);
-  } catch (err) {
-    return c.json(error(err.message), err.statusCode || 400);
-  }
-});
-
-// ============ PRODUCTOS DROGUERÍA ============
+// ============ PRODUCTOS ============
 
 app.get('/productos', async (c) => {
   try {
@@ -159,22 +77,11 @@ app.post('/productos', async (c) => {
   }
 });
 
-// Importar productos seleccionados
 app.post('/productos/importar', async (c) => {
   try {
     const { productoIds } = await c.req.json();
     const result = await service.importarDesdeFarmacia(productoIds);
     return c.json(success(result, `${result.length} productos importados`));
-  } catch (err) {
-    return c.json(error(err.message), 400);
-  }
-});
-
-// Importar TODOS los productos PBS de una vez
-app.post('/productos/importar-todos', async (c) => {
-  try {
-    const result = await service.importarTodosPBS();
-    return c.json(success(result, `Importación completa: ${result.productos} productos y ${result.presentaciones} presentaciones`));
   } catch (err) {
     return c.json(error(err.message), 400);
   }

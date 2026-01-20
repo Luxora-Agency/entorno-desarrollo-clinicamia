@@ -17,6 +17,7 @@ import PatientContextBar from './PatientContextBar';
 import { useConsultationTimer } from './ConsultationTimer';
 import AnamnesisForm from './AnamnesisForm';
 import FormularioMotivoConsulta from '../consulta/FormularioMotivoConsulta';
+import FormularioSOAPConsulta from '../consulta/FormularioSOAPConsulta';
 import FormularioSignosVitalesConsulta from '../consulta/FormularioSignosVitalesConsulta';
 import FormularioDiagnosticoConsulta from '../consulta/FormularioDiagnosticoConsulta';
 import FormularioPrescripcionesConsulta from '../consulta/FormularioPrescripcionesConsulta';
@@ -101,8 +102,7 @@ export default function ClinicalWorkspace({
   onFinish
 }) {
   const { toast } = useToast();
-  const [activeStep, setActiveStep] = useState('motivo');
-  const [stepInitialized, setStepInitialized] = useState(false);
+  const [activeStep, setActiveStep] = useState('anamnesis');
   const [loading, setLoading] = useState(false);
   const [aiPanelOpen, setAIPanelOpen] = useState(false);
   const [showConfirmFinish, setShowConfirmFinish] = useState(false);
@@ -160,11 +160,13 @@ export default function ClinicalWorkspace({
     motivoConsulta: '',
     enfermedadActual: '',
     esPrimeraConsulta: false,
+    soap: null, // SOAP para consultas de control
   });
 
   // Validación de pasos
   const [stepsValid, setStepsValid] = useState({
     motivo: false,   // Obligatorio
+    soap: true,      // Obligatorio solo para controles (se valida dinámicamente)
     anamnesis: true, // Opcional
     revisionSistemas: true, // Opcional
     vitales: true,   // Opcional (pero recomendado)
@@ -204,6 +206,12 @@ export default function ClinicalWorkspace({
       enfermedadActual: data.enfermedadActual
     }));
     setStepsValid(prev => ({ ...prev, motivo: isValid }));
+  }, []);
+
+  // Handler para SOAP (consultas de control)
+  const handleSoapChange = useCallback((data, isValid) => {
+    setConsultaData(prev => ({ ...prev, soap: data }));
+    setStepsValid(prev => ({ ...prev, soap: isValid }));
   }, []);
 
   const handleRevisionSistemasChange = useCallback((data, isValid) => {
@@ -271,10 +279,7 @@ export default function ClinicalWorkspace({
 
           if (shouldRestore) {
             setConsultaData(data);
-            if (step) {
-              setActiveStep(step);
-              setStepInitialized(true); // Marcar como inicializado para no resetear
-            }
+            if (step) setActiveStep(step);
             if (stepsValidState) setStepsValid(stepsValidState);
             toast({
               title: 'Borrador recuperado',
@@ -293,75 +298,6 @@ export default function ClinicalWorkspace({
       localStorage.removeItem(draftKey);
     }
   }, [cita?.id]);
-
-  // Cargar últimos signos vitales del paciente al iniciar la consulta
-  useEffect(() => {
-    const cargarUltimosVitales = async () => {
-      if (!cita?.pacienteId) return;
-
-      // Si ya hay vitales cargados (del borrador), no cargar
-      if (consultaData.vitales) return;
-
-      try {
-        const response = await apiGet(`/signos-vitales?paciente_id=${cita.pacienteId}&limit=1`);
-        // La API usa paginated() que retorna { success: true, data: [...], pagination: {...} }
-        const signosArray = response.data || response.signos || [];
-        if (response.success && signosArray.length > 0) {
-          const ultimosVitales = signosArray[0];
-
-          // Calcular IMC si hay peso y talla
-          let imcData = null;
-          if (ultimosVitales.peso && ultimosVitales.talla) {
-            const pesoNum = parseFloat(ultimosVitales.peso);
-            const tallaMetros = parseFloat(ultimosVitales.talla) / 100;
-            if (pesoNum > 0 && tallaMetros > 0) {
-              const imcValue = (pesoNum / (tallaMetros * tallaMetros)).toFixed(1);
-              let categoria = 'Normal';
-              if (imcValue < 18.5) categoria = 'Bajo peso';
-              else if (imcValue < 25) categoria = 'Normal';
-              else if (imcValue < 30) categoria = 'Sobrepeso';
-              else categoria = 'Obesidad';
-              imcData = { value: imcValue, categoria };
-            }
-          }
-
-          // Pre-poblar peso, talla e IMC (valores que persisten entre consultas)
-          const vitalesIniciales = {
-            peso: ultimosVitales.peso || '',
-            talla: ultimosVitales.talla || '',
-            imc: imcData,
-            // No pre-poblar valores que pueden cambiar significativamente
-            temperatura: '',
-            presionSistolica: '',
-            presionDiastolica: '',
-            frecuenciaCardiaca: '',
-            frecuenciaRespiratoria: '',
-            saturacionOxigeno: '',
-            perimetroAbdominal: ultimosVitales.perimetroAbdominal || '',
-            perimetroCefalico: ultimosVitales.perimetroCefalico || '',
-            perimetroBraquial: ultimosVitales.perimetroBraquial || '',
-          };
-
-          setConsultaData(prev => ({
-            ...prev,
-            vitales: vitalesIniciales
-          }));
-
-          console.log('[ClinicalWorkspace] Vitales anteriores cargados:', {
-            peso: vitalesIniciales.peso,
-            talla: vitalesIniciales.talla,
-            imc: imcData?.value
-          });
-        }
-      } catch (error) {
-        console.error('[ClinicalWorkspace] Error cargando vitales anteriores:', error);
-      }
-    };
-
-    // Pequeño delay para permitir que el borrador se cargue primero
-    const timer = setTimeout(cargarUltimosVitales, 500);
-    return () => clearTimeout(timer);
-  }, [cita?.pacienteId]);
 
   // Auto-guardar cada 30 segundos cuando hay cambios
   useEffect(() => {
@@ -529,6 +465,8 @@ export default function ClinicalWorkspace({
           duration: 5000,
         });
       } else {
+        // Para consultas de control, SOAP es obligatorio - iniciar como inválido
+        setStepsValid(prev => ({ ...prev, soap: false }));
         toast({
           title: 'Consulta de control',
           description: data.mensaje,
@@ -571,6 +509,16 @@ export default function ClinicalWorkspace({
 
     // Preparar datos a copiar
     const datosACopiar = {};
+
+    // Copiar SOAP si existe
+    if (evolucion.subjetivo || evolucion.objetivo || evolucion.analisis || evolucion.plan) {
+      datosACopiar.soap = {
+        subjetivo: evolucion.subjetivo || '',
+        objetivo: evolucion.objetivo || '',
+        analisis: evolucion.analisis || '',
+        plan: evolucion.plan || '',
+      };
+    }
 
     // Copiar motivo de consulta (del subjetivo)
     if (evolucion.subjetivo) {
@@ -670,13 +618,12 @@ export default function ClinicalWorkspace({
     return { percentage, currentStep: currentIndex + 1, totalSteps: steps.length };
   }, [steps, activeStep]);
 
-  // Actualizar step activo cuando cambia el tipo de consulta (solo si no fue inicializado por borrador)
+  // Actualizar step activo cuando cambia el tipo de consulta
   useEffect(() => {
-    if (!cargandoTipo && steps.length > 0 && !stepInitialized) {
+    if (!cargandoTipo && steps.length > 0) {
       setActiveStep(steps[0].id);
-      setStepInitialized(true);
     }
-  }, [cargandoTipo, tipoConsulta, stepInitialized]);
+  }, [cargandoTipo, tipoConsulta]);
 
   const handleNext = () => {
     const currentIndex = steps.findIndex(s => s.id === activeStep);
@@ -771,6 +718,16 @@ export default function ClinicalWorkspace({
       return;
     }
 
+    // SOAP es obligatorio para consultas de control
+    if (tipoConsulta === 'control' && !stepsValid.soap) {
+      toast({
+        variant: 'destructive',
+        title: 'SOAP obligatorio',
+        description: 'Debe completar la nota SOAP (Subjetivo, Objetivo, Análisis y Plan) para finalizar la consulta de control.'
+      });
+      return;
+    }
+
     // Mostrar diálogo de confirmación
     setShowConfirmFinish(true);
   };
@@ -780,13 +737,17 @@ export default function ClinicalWorkspace({
     setShowConfirmFinish(false);
     setLoading(true);
     try {
-      // Construir objeto SOAP estructurado desde los datos de la consulta
-      // S = Motivo de consulta + Enfermedad actual + Anamnesis
-      // O = Examen físico + Signos vitales + Revisión por sistemas
-      // A = Análisis clínico
-      // P = Plan de manejo + Prescripciones + Órdenes
-      const soapData = {
-        subjetivo: `
+      // Para consultas de control, usar SOAP del formulario
+      // Para primera consulta, construir SOAP desde los datos recopilados
+      let soapData;
+
+      if (tipoConsulta === 'control' && consultaData.soap) {
+        // Usar SOAP del formulario directamente
+        soapData = consultaData.soap;
+      } else {
+        // Construir objeto SOAP estructurado desde los datos de la consulta
+        soapData = {
+          subjetivo: `
 MOTIVO DE CONSULTA:
 ${consultaData.motivoConsulta || 'No registrado'}
 
@@ -798,9 +759,9 @@ ${consultaData.anamnesis ? JSON.stringify(consultaData.anamnesis, null, 2) : 'Si
 
 REVISIÓN POR SISTEMAS:
 ${consultaData.revisionSistemas ? JSON.stringify(consultaData.revisionSistemas, null, 2) : 'Sin hallazgos'}
-        `.trim(),
+          `.trim(),
 
-        objetivo: `
+          objetivo: `
 SIGNOS VITALES Y EXAMEN FÍSICO:
 Temperatura: ${consultaData.vitales?.temperatura || '--'} °C
 PA: ${consultaData.vitales?.presionSistolica || '--'}/${consultaData.vitales?.presionDiastolica || '--'} mmHg
@@ -813,11 +774,11 @@ IMC: ${consultaData.vitales?.imc?.value || '--'}
 
 HALLAZGOS ADICIONALES:
 ${consultaData.vitales?.hallazgos || 'Sin hallazgos adicionales'}
-        `.trim(),
+          `.trim(),
 
-        analisis: consultaData.analisis || 'Sin análisis registrado',
+          analisis: consultaData.analisis || 'Sin análisis registrado',
 
-        plan: `
+          plan: `
 PLAN DE MANEJO:
 ${consultaData.planManejo ? JSON.stringify(consultaData.planManejo, null, 2) : 'Ver prescripciones y órdenes'}
 
@@ -831,8 +792,9 @@ REMISIONES:
 ${consultaData.remisiones && consultaData.remisiones.length > 0
   ? consultaData.remisiones.map(r => `- ${r.especialidadNombre}: ${r.motivoConsulta}`).join('\n')
   : 'Ninguna'}
-        `.trim()
-      };
+          `.trim()
+        };
+      }
 
       // Combinar procedimientos y remisiones en un solo array para el backend
       // El backend procesa items con tipo 'Interconsulta' de forma especial
@@ -844,7 +806,7 @@ ${consultaData.remisiones && consultaData.remisiones.length > 0
       await onFinish({
         ...consultaData,
         procedimientos: procedimientosConRemisiones.length > 0 ? procedimientosConRemisiones : null,
-        soap: soapData, // SOAP construido automáticamente desde los datos de consulta
+        soap: soapData, // SOAP del formulario (control) o construido (primera)
         citaId: cita.id,
         pacienteId: cita.pacienteId,
         doctorId: user.id,
@@ -1330,6 +1292,14 @@ ${consultaData.remisiones && consultaData.remisiones.length > 0
                             }}
                             onChange={handleMotivoChange}
                         />
+
+                        {/* SOAP para consultas de control */}
+                        {tipoConsulta === 'control' && (
+                            <FormularioSOAPConsulta
+                                data={consultaData.soap}
+                                onChange={handleSoapChange}
+                            />
+                        )}
                     </div>
                 )}
 
@@ -1578,6 +1548,15 @@ ${consultaData.remisiones && consultaData.remisiones.length > 0
               }
             }));
             toast({ title: 'Sugerencia aplicada', description: 'Diagnóstico actualizado con la sugerencia de IA' });
+          } else if (type === 'soap' && data) {
+            setConsultaData(prev => ({
+              ...prev,
+              soap: {
+                ...prev.soap,
+                ...data
+              }
+            }));
+            toast({ title: 'Sugerencia aplicada', description: 'Nota SOAP actualizada con la sugerencia de IA' });
           }
         }}
       />

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import {
-  History, Search, Eye, FileText, Trash2,
+import { 
+  History, Search, Eye, FileText, 
   Calendar, User, ArrowUpRight, Filter, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -117,7 +117,7 @@ export default function VentasHistory({ user }) {
             ))}
             {ventas.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="h-32 text-center text-gray-400">
+                <TableCell colSpan={7} className="h-32 text-center text-gray-400">
                   <History className="w-8 h-8 mx-auto mb-2 opacity-20" />
                   No hay registros de ventas
                 </TableCell>

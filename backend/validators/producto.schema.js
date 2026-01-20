@@ -22,34 +22,20 @@ const createProductoSchema = z.object({
   cum: z.string().optional().or(z.null()),
   registroSanitario: z.string().optional().or(z.null()),
 
-  // Información Clínica
-  posologiaRecomendada: z.string().optional().or(z.null()),
-  indicaciones: z.string().optional().or(z.null()),
-  contraindicaciones: z.string().optional().or(z.null()),
-  efectosAdversos: z.string().optional().or(z.null()),
-  interacciones: z.string().optional().or(z.null()),
-  riesgoEmbarazo: z.string().optional().or(z.null()),
-
   // Control y Regulación
   requiereReceta: z.boolean().default(false),
   controlado: z.boolean().default(false),
   tipoControlado: z.string().optional().or(z.null()),
-  medicamentoAltoRiesgo: z.boolean().default(false),
-  medicamentoLASA: z.boolean().default(false),
 
   // Almacenamiento
   temperaturaAlmacenamiento: z.string().optional().or(z.null()),
   requiereCadenaFrio: z.boolean().default(false),
-  protegerLuz: z.boolean().default(false),
-  protegerHumedad: z.boolean().default(false),
   ubicacionAlmacen: z.string().optional().or(z.null()),
-  condicionesEspeciales: z.string().optional().or(z.null()),
 
   // Inventario
   cantidadTotal: z.number().int().min(0, 'La cantidad no puede ser negativa').default(0),
   cantidadMinAlerta: z.number().int().min(0, 'La cantidad mínima no puede ser negativa').default(10),
   cantidadMaxAlerta: z.number().int().min(0, 'La cantidad máxima no puede ser negativa').optional().or(z.null()),
-  puntoReorden: z.number().int().min(0).optional().or(z.null()),
   lote: z.string().optional().or(z.null()),
   fechaVencimiento: z.string().optional().or(z.null()).transform((val) => val ? new Date(val) : null),
 

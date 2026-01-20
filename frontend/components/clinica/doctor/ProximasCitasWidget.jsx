@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getTodayColombia, formatDateISO, getNowColombia } from '@/services/formatters';
+import { getTodayColombia, formatDateISO } from '@/services/formatters';
 import {
   Calendar, Clock, User, ChevronRight,
   AlertCircle, Timer, Phone, RefreshCw, MapPin, Stethoscope
@@ -9,7 +9,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -23,29 +23,26 @@ const formatHora = (hora) => {
   return hora.substring(0, 5);
 };
 
-// Calcular tiempo hasta la cita (usando hora de Colombia)
+// Calcular tiempo hasta la cita
 const getTimeUntil = (fecha, hora) => {
   if (!fecha || !hora) return null;
 
-  // Obtener hora actual en Colombia
-  const now = getNowColombia();
-  const nowHours = now.getHours();
-  const nowMinutes = now.getMinutes();
-  const nowTotalMinutes = nowHours * 60 + nowMinutes;
+  const fechaHora = new Date(fecha);
+  const [hours, minutes] = formatHora(hora).split(':');
+  fechaHora.setHours(parseInt(hours), parseInt(minutes), 0, 0);
 
-  // Obtener hora de la cita
-  const [citaHours, citaMinutes] = formatHora(hora).split(':').map(Number);
-  const citaTotalMinutes = citaHours * 60 + citaMinutes;
+  const now = new Date();
+  const diffMs = fechaHora - now;
 
-  // Calcular diferencia en minutos
-  const diffMins = citaTotalMinutes - nowTotalMinutes;
+  if (diffMs < 0) return { text: 'Ya pasó', isOverdue: true };
 
-  if (diffMins < 0) return { text: 'Ya pasó', isOverdue: true };
-
+  const diffMins = Math.floor(diffMs / 60000);
   if (diffMins < 60) return { text: `En ${diffMins} min`, isUrgent: diffMins <= 15 };
 
   const diffHours = Math.floor(diffMins / 60);
-  return { text: `En ${diffHours}h ${diffMins % 60}m`, isUrgent: false };
+  if (diffHours < 24) return { text: `En ${diffHours}h ${diffMins % 60}m`, isUrgent: false };
+
+  return { text: `En ${Math.floor(diffHours / 24)} días`, isUrgent: false };
 };
 
 // Obtener iniciales del paciente
@@ -123,55 +120,29 @@ export default function ProximasCitasWidget({
         if (data.status === 'success' || data.success) {
           const citasData = data.citas || data.data || [];
 
-          // Obtener hora actual en Colombia
-          const now = getNowColombia();
-          const nowHours = now.getHours();
-          const nowMinutes = now.getMinutes();
-          const nowTotalMinutes = nowHours * 60 + nowMinutes;
-
-          // Filtrar solo citas PRÓXIMAS (que aún no han pasado)
-          // Excluir completadas y canceladas
-          // Incluir EnEspera aunque la hora haya pasado (paciente está esperando)
-          const citasProximas = citasData
-            .filter(c => {
-              // Solo estados pendientes de atención
-              if (!['Pendiente', 'Confirmada', 'EnEspera'].includes(c.estado)) {
-                return false;
-              }
-
-              // Si está EnEspera, siempre mostrar (paciente ya llegó)
-              if (c.estado === 'EnEspera') {
-                return true;
-              }
-
-              // Para otras citas, verificar que la hora no haya pasado
-              if (c.hora) {
-                const [citaHours, citaMinutes] = formatHora(c.hora).split(':').map(Number);
-                const citaTotalMinutes = citaHours * 60 + citaMinutes;
-
-                // Dar 30 minutos de gracia después de la hora de la cita
-                const limiteGraciaMinutes = citaTotalMinutes + 30;
-                return nowTotalMinutes <= limiteGraciaMinutes;
-              }
-
-              return true;
-            })
+          // Filtrar citas del día y ordenar por cola de atención
+          // 1. Primero: pacientes por atender (EnEspera, Confirmada, Pendiente) ordenados por hora
+          // 2. Último: pacientes ya atendidos (Completada) van al final
+          const citasOrdenadas = citasData
+            .filter(c => ['Pendiente', 'Confirmada', 'EnEspera', 'Completada'].includes(c.estado))
             .sort((a, b) => {
-              // EnEspera va primero (pacientes que ya llegaron)
-              const aEnEspera = a.estado === 'EnEspera';
-              const bEnEspera = b.estado === 'EnEspera';
+              // Los completados van al final
+              const aCompletada = a.estado === 'Completada';
+              const bCompletada = b.estado === 'Completada';
 
-              if (aEnEspera && !bEnEspera) return -1;
-              if (!aEnEspera && bEnEspera) return 1;
+              if (aCompletada && !bCompletada) return 1;  // a va después
+              if (!aCompletada && bCompletada) return -1; // b va después
 
-              // Ordenar por hora de cita
+              // Dentro de cada grupo, ordenar por hora de cita
               const horaA = formatHora(a.hora);
               const horaB = formatHora(b.hora);
               return horaA.localeCompare(horaB);
             })
             .slice(0, maxCitas);
 
-          setCitas(citasProximas);
+          const citasPendientes = citasOrdenadas;
+
+          setCitas(citasPendientes);
         }
         setError(null);
       } catch (err) {
@@ -206,52 +177,22 @@ export default function ProximasCitasWidget({
 
       if (data.status === 'success' || data.success) {
         const citasData = data.citas || data.data || [];
-
-        // Obtener hora actual en Colombia
-        const now = getNowColombia();
-        const nowHours = now.getHours();
-        const nowMinutes = now.getMinutes();
-        const nowTotalMinutes = nowHours * 60 + nowMinutes;
-
-        // Filtrar solo citas PRÓXIMAS (que aún no han pasado)
-        const citasProximas = citasData
-          .filter(c => {
-            // Solo estados pendientes de atención
-            if (!['Pendiente', 'Confirmada', 'EnEspera'].includes(c.estado)) {
-              return false;
-            }
-
-            // Si está EnEspera, siempre mostrar (paciente ya llegó)
-            if (c.estado === 'EnEspera') {
-              return true;
-            }
-
-            // Para otras citas, verificar que la hora no haya pasado
-            if (c.hora) {
-              const [citaHours, citaMinutes] = formatHora(c.hora).split(':').map(Number);
-              const citaTotalMinutes = citaHours * 60 + citaMinutes;
-
-              // Dar 30 minutos de gracia después de la hora de la cita
-              const limiteGraciaMinutes = citaTotalMinutes + 30;
-              return nowTotalMinutes <= limiteGraciaMinutes;
-            }
-
-            return true;
-          })
+        const citasOrdenadas = citasData
+          .filter(c => ['Pendiente', 'Confirmada', 'EnEspera', 'Completada'].includes(c.estado))
           .sort((a, b) => {
-            // EnEspera va primero (pacientes que ya llegaron)
-            const aEnEspera = a.estado === 'EnEspera';
-            const bEnEspera = b.estado === 'EnEspera';
+            // Los completados van al final
+            const aCompletada = a.estado === 'Completada';
+            const bCompletada = b.estado === 'Completada';
 
-            if (aEnEspera && !bEnEspera) return -1;
-            if (!aEnEspera && bEnEspera) return 1;
+            if (aCompletada && !bCompletada) return 1;
+            if (!aCompletada && bCompletada) return -1;
 
-            // Ordenar por hora de cita
+            // Dentro de cada grupo, ordenar por hora
             return formatHora(a.hora).localeCompare(formatHora(b.hora));
           })
           .slice(0, maxCitas);
 
-        setCitas(citasProximas);
+        setCitas(citasOrdenadas);
       }
     } catch (err) {
       console.error('Error refreshing citas:', err);
@@ -355,13 +296,6 @@ export default function ProximasCitasWidget({
                       >
                         {/* Avatar */}
                         <Avatar className={`h-10 w-10 ${isFirst ? 'ring-2 ring-blue-400 ring-offset-1' : ''}`}>
-                          {paciente.fotoUrl && (
-                            <AvatarImage
-                              src={paciente.fotoUrl}
-                              alt={`${paciente.nombre} ${paciente.apellido}`}
-                              className="object-cover"
-                            />
-                          )}
                           <AvatarFallback className={isFirst ? 'bg-blue-500 text-white' : 'bg-gray-200'}>
                             {getInitials(paciente.nombre, paciente.apellido)}
                           </AvatarFallback>

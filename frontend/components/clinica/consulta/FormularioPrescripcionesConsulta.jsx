@@ -7,218 +7,15 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Pill, Plus, X, AlertCircle, Trash2, History, Sparkles, Calculator, Package, Pencil } from 'lucide-react';
+import { Pill, Plus, X, AlertCircle, Trash2, History, Sparkles, Calculator, Brain, Loader2, CheckCircle2, AlertTriangle, Package } from 'lucide-react';
 import TemplateSelector from '../templates/TemplateSelector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { apiGet } from '@/services/api';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Check, ChevronsUpDown } from 'lucide-react';
-
-// Función para normalizar texto: quitar tildes y convertir a minúsculas
-const normalizeText = (text) => {
-  if (!text) return '';
-  return text
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
-};
-
-// Función para calcular cantidad total a entregar según forma farmacéutica y vía
-const calcularCantidadTotal = (dosis, frecuencia, duracionDias, formaFarmaceutica, concentracion, viaAdministracion) => {
-  const frecuenciasPorDia = {
-    'Unica': 1,
-    'Cada4Horas': 6,
-    'Cada6Horas': 4,
-    'Cada8Horas': 3,
-    'Cada12Horas': 2,
-    'Cada24Horas': 1,
-    'PRN': 3, // Estimado promedio
-  };
-
-  const tomasPorDia = frecuenciasPorDia[frecuencia] || 1;
-  const dias = parseInt(duracionDias) || 0;
-  const totalTomas = frecuencia === 'Unica' ? 1 : tomasPorDia * dias;
-
-  // Extraer valor numérico y unidad de la dosis
-  const dosisMatch = dosis.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/);
-  const cantidadPorToma = dosisMatch ? parseFloat(dosisMatch[1].replace(',', '.')) : 1;
-  const unidadDosis = dosisMatch && dosisMatch[2] ? dosisMatch[2].trim().toLowerCase() : '';
-
-  // Normalizar forma farmacéutica y vía
-  const formaNorm = normalizeText(formaFarmaceutica || '');
-  const viaNorm = normalizeText(viaAdministracion || '');
-
-  // Determinar tipo de medicamento y calcular según forma farmacéutica
-  let cantidadTotal = 0;
-  let unidadEntrega = '';
-  let descripcionCalculo = '';
-  let tipoMedicamento = '';
-  let colorTipo = 'gray';
-
-  // INYECTABLES: Detectar por vía o forma
-  if (viaNorm.includes('intravenosa') || viaNorm.includes('intramuscular') ||
-      viaNorm.includes('subcutanea') || viaNorm.includes('iv') || viaNorm.includes('im') ||
-      formaNorm.includes('ampolla') || formaNorm.includes('vial') ||
-      formaNorm.includes('inyectable') || formaNorm.includes('inyeccion') ||
-      unidadDosis.includes('ampolla') || unidadDosis.includes('vial')) {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-    unidadEntrega = cantidadTotal === 1 ? 'ampolla' : 'ampollas';
-    tipoMedicamento = 'Inyectable';
-    colorTipo = 'red';
-    descripcionCalculo = `${cantidadPorToma} ampolla × ${totalTomas} aplicaciones`;
-    if (concentracion) {
-      descripcionCalculo += ` (${concentracion})`;
-    }
-  }
-  // SOLUCIÓN ORAL: Jarabe, Suspensión, Solución oral
-  else if ((formaNorm.includes('jarabe') || formaNorm.includes('suspension') ||
-           formaNorm.includes('solucion') || formaNorm.includes('elixir') ||
-           formaNorm.includes('liquido') || formaNorm.includes('oral') ||
-           unidadDosis.includes('ml') || unidadDosis.includes('cc') ||
-           unidadDosis.includes('cucharada')) &&
-           (viaNorm.includes('oral') || viaNorm === '')) {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-    unidadEntrega = 'ml';
-    tipoMedicamento = 'Solución Oral';
-    colorTipo = 'blue';
-    // Estimar frascos (frasco típico: 120ml)
-    const frascos = Math.ceil(cantidadTotal / 120);
-    descripcionCalculo = `${cantidadPorToma} ml × ${totalTomas} tomas = ${cantidadTotal} ml`;
-    if (frascos >= 1) {
-      descripcionCalculo += ` (${frascos} frasco${frascos > 1 ? 's' : ''} de 120ml)`;
-    }
-  }
-  // TABLETAS/CÁPSULAS: Sólidos orales
-  else if (formaNorm.includes('tableta') || formaNorm.includes('capsula') ||
-      formaNorm.includes('comprimido') || formaNorm.includes('gragea') ||
-      formaNorm.includes('pastilla') || formaNorm.includes('tab') ||
-      unidadDosis.includes('tableta') || unidadDosis.includes('capsula') ||
-      unidadDosis.includes('comprimido') || unidadDosis.includes('tab') ||
-      (viaNorm.includes('oral') && !formaNorm)) {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-
-    if (formaNorm.includes('capsula') || unidadDosis.includes('capsula')) {
-      unidadEntrega = cantidadTotal === 1 ? 'cápsula' : 'cápsulas';
-      tipoMedicamento = 'Cápsulas';
-    } else {
-      unidadEntrega = cantidadTotal === 1 ? 'tableta' : 'tabletas';
-      tipoMedicamento = 'Tabletas';
-    }
-    colorTipo = 'green';
-    descripcionCalculo = `${cantidadPorToma} ${unidadEntrega} × ${totalTomas} tomas`;
-    if (concentracion) {
-      descripcionCalculo += ` (${concentracion})`;
-    }
-  }
-  // GOTAS: Oftálmicas, óticas, nasales, orales
-  else if (formaNorm.includes('gota') || unidadDosis.includes('gota')) {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-    unidadEntrega = cantidadTotal === 1 ? 'gota' : 'gotas';
-
-    if (viaNorm.includes('oftalm')) {
-      tipoMedicamento = 'Gotas Oftálmicas';
-    } else if (viaNorm.includes('otica')) {
-      tipoMedicamento = 'Gotas Óticas';
-    } else if (viaNorm.includes('nasal')) {
-      tipoMedicamento = 'Gotas Nasales';
-    } else {
-      tipoMedicamento = 'Gotas';
-    }
-    colorTipo = 'purple';
-    // Aproximado: 1 frasco = ~200 gotas (20 gotas/ml × 10ml)
-    const frascos = Math.ceil(cantidadTotal / 200);
-    descripcionCalculo = `${cantidadTotal} gotas totales (${frascos} frasco${frascos > 1 ? 's' : ''})`;
-  }
-  // TÓPICOS: Crema, Ungüento, Gel, Pomada
-  else if (formaNorm.includes('crema') || formaNorm.includes('unguento') ||
-           formaNorm.includes('gel') || formaNorm.includes('pomada') ||
-           formaNorm.includes('locion') || viaNorm.includes('topica') ||
-           unidadDosis.includes('g') || unidadDosis.includes('aplicacion')) {
-    // Para tópicos, estimar cantidad en gramos
-    const gramosPorAplicacion = cantidadPorToma || 2; // 2g por aplicación por defecto
-    cantidadTotal = Math.ceil(gramosPorAplicacion * totalTomas);
-    unidadEntrega = 'gramos';
-    tipoMedicamento = 'Tópico';
-    colorTipo = 'amber';
-    // Tubo típico: 30-40g
-    const tubos = Math.ceil(cantidadTotal / 30);
-    descripcionCalculo = `${gramosPorAplicacion}g × ${totalTomas} aplicaciones (${tubos} tubo${tubos > 1 ? 's' : ''} de 30g)`;
-  }
-  // SUPOSITORIOS/ÓVULOS
-  else if (formaNorm.includes('supositorio') || formaNorm.includes('ovulo') ||
-           viaNorm.includes('rectal') || viaNorm.includes('vaginal')) {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-    if (formaNorm.includes('ovulo') || viaNorm.includes('vaginal')) {
-      unidadEntrega = cantidadTotal === 1 ? 'óvulo' : 'óvulos';
-      tipoMedicamento = 'Óvulos Vaginales';
-    } else {
-      unidadEntrega = cantidadTotal === 1 ? 'supositorio' : 'supositorios';
-      tipoMedicamento = 'Supositorios';
-    }
-    colorTipo = 'pink';
-    descripcionCalculo = `${cantidadPorToma} ${unidadEntrega} × ${totalTomas} aplicaciones`;
-  }
-  // INHALADORES
-  else if (formaNorm.includes('inhalador') || formaNorm.includes('aerosol') ||
-           formaNorm.includes('spray') || viaNorm.includes('inhalat') ||
-           unidadDosis.includes('puff') || unidadDosis.includes('inhalacion')) {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-    unidadEntrega = cantidadTotal === 1 ? 'inhalación' : 'inhalaciones';
-    tipoMedicamento = 'Inhalador';
-    colorTipo = 'cyan';
-    // Inhalador típico: 200 dosis
-    const inhaladores = Math.ceil(cantidadTotal / 200);
-    descripcionCalculo = `${cantidadTotal} inhalaciones (${inhaladores} inhalador${inhaladores > 1 ? 'es' : ''})`;
-  }
-  // PARCHES TRANSDÉRMICOS
-  else if (formaNorm.includes('parche')) {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-    unidadEntrega = cantidadTotal === 1 ? 'parche' : 'parches';
-    tipoMedicamento = 'Parches';
-    colorTipo = 'indigo';
-    descripcionCalculo = `${cantidadPorToma} parche × ${totalTomas} aplicaciones`;
-  }
-  // SOBRES/POLVO para reconstituir
-  else if (formaNorm.includes('sobre') || formaNorm.includes('polvo') ||
-           formaNorm.includes('granulado') || unidadDosis.includes('sobre')) {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-    unidadEntrega = cantidadTotal === 1 ? 'sobre' : 'sobres';
-    tipoMedicamento = 'Sobres/Polvo';
-    colorTipo = 'orange';
-    descripcionCalculo = `${cantidadPorToma} sobre × ${totalTomas} tomas`;
-  }
-  // DEFAULT: Usar unidad de la dosis o "unidades"
-  else {
-    cantidadTotal = Math.ceil(cantidadPorToma * totalTomas);
-    tipoMedicamento = 'Medicamento';
-    colorTipo = 'gray';
-    // Intentar detectar unidad de la dosis ingresada
-    if (unidadDosis) {
-      unidadEntrega = unidadDosis;
-    } else {
-      unidadEntrega = cantidadTotal === 1 ? 'unidad' : 'unidades';
-    }
-    descripcionCalculo = `${cantidadPorToma} × ${totalTomas} tomas`;
-  }
-
-  return {
-    cantidadTotal,
-    unidadEntrega,
-    descripcionCalculo,
-    totalTomas,
-    tomasPorDia,
-    dias,
-    tipoMedicamento,
-    colorTipo
-  };
-};
 
 export default function FormularioPrescripcionesConsulta({ onChange, data, diagnosticoConsulta, pacienteId, planManejoData }) {
   const { toast } = useToast();
   const [quiereAgregar, setQuiereAgregar] = useState(data !== null && data !== undefined);
-  const [editandoIndex, setEditandoIndex] = useState(null); // Índice del medicamento en edición
   const [formData, setFormData] = useState(data || {
     diagnostico: '',
     medicamentos: [],
@@ -300,55 +97,112 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
     frecuencia: 'Cada8Horas',
     duracionDias: '',
     instrucciones: '',
-    // Información adicional del producto
-    concentracion: '',
-    formaFarmaceutica: '',
-    presentacion: '',
-    presentaciones: [],
   });
   const [productos, setProductos] = useState([]);
   const [productosFiltrados, setProductosFiltrados] = useState([]);
   const [busquedaProducto, setBusquedaProducto] = useState('');
   const [loadingProductos, setLoadingProductos] = useState(false);
 
-  // Estado para Combobox de medicamentos
-  const [comboboxOpen, setComboboxOpen] = useState(false);
-  const [comboboxSearch, setComboboxSearch] = useState('');
-
-  // Filtrar productos en Combobox (insensible a mayúsculas y tildes)
-  const productosCombobox = comboboxSearch.trim().length >= 1
-    ? productosFiltrados.filter((producto) => {
-        const searchNorm = normalizeText(comboboxSearch);
-        const nombreNorm = normalizeText(producto.nombre);
-        const principioNorm = normalizeText(producto.principioActivo || '');
-        return nombreNorm.includes(searchNorm) || principioNorm.includes(searchNorm);
-      })
-    : productosFiltrados;
-
-  // Buscar en servidor cuando cambia busquedaProducto (principio activo) con debounce
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (busquedaProducto.trim().length >= 2) {
-        buscarProductosEnServidor(busquedaProducto.trim());
-      } else if (busquedaProducto.trim() === '') {
-        cargarProductosIniciales();
-      }
-    }, 300);
-    return () => clearTimeout(timeoutId);
-  }, [busquedaProducto]);
-
   // Medicamentos frecuentes del paciente
   const [medicamentosFrecuentes, setMedicamentosFrecuentes] = useState([]);
   const [loadingFrecuentes, setLoadingFrecuentes] = useState(false);
 
+  // Estado para cálculo con IA
+  const [calculoIA, setCalculoIA] = useState(null);
+  const [loadingCalculoIA, setLoadingCalculoIA] = useState(false);
+  const [iaDisponible, setIaDisponible] = useState(false);
+
   useEffect(() => {
     if (quiereAgregar) {
       cargarProductos();
+      verificarIADisponible();
       if (pacienteId) {
         cargarMedicamentosFrecuentes();
       }
     }
   }, [quiereAgregar, pacienteId]);
+
+  // Verificar si la IA está disponible
+  const verificarIADisponible = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+      const response = await fetch(`${apiUrl}/prescripciones/ia-status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setIaDisponible(result.data?.configurado || false);
+      }
+    } catch (error) {
+      console.error('Error verificando IA:', error);
+      setIaDisponible(false);
+    }
+  };
+
+  // Calcular cantidad con IA
+  const calcularConIA = async () => {
+    if (!medicamentoActual.productoId || !medicamentoActual.dosis || !medicamentoActual.frecuencia || !medicamentoActual.duracionDias) {
+      toast({
+        variant: 'destructive',
+        title: 'Datos incompletos',
+        description: 'Complete medicamento, dosis, frecuencia y duración para calcular'
+      });
+      return;
+    }
+
+    setLoadingCalculoIA(true);
+    setCalculoIA(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
+
+      const producto = productos.find(p => p.id === medicamentoActual.productoId);
+
+      const response = await fetch(`${apiUrl}/prescripciones/calcular-cantidad`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          productoId: medicamentoActual.productoId,
+          medicamento: medicamentoActual.nombre,
+          principioActivo: producto?.principioActivo,
+          concentracion: producto?.concentracion,
+          formaFarmaceutica: producto?.formaFarmaceutica,
+          dosis: medicamentoActual.dosis,
+          via: medicamentoActual.via,
+          frecuencia: medicamentoActual.frecuencia,
+          duracionDias: medicamentoActual.duracionDias,
+          instrucciones: medicamentoActual.instrucciones,
+          pacienteId: pacienteId,
+          usarIA: true
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setCalculoIA(result.data);
+        toast({
+          title: 'Cálculo realizado',
+          description: result.data?.metodo === 'ia' ? 'Análisis con IA completado' : 'Cálculo algorítmico completado'
+        });
+      } else {
+        throw new Error('Error en el cálculo');
+      }
+    } catch (error) {
+      console.error('Error calculando con IA:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'No se pudo realizar el cálculo'
+      });
+    } finally {
+      setLoadingCalculoIA(false);
+    }
+  };
 
   const cargarMedicamentosFrecuentes = async () => {
     if (!pacienteId) return;
@@ -365,7 +219,7 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
     }
   };
 
-  // Agregar medicamento frecuente directamente a la lista (editable)
+  // Agregar medicamento frecuente rápidamente
   const agregarMedicamentoFrecuente = (frecuente) => {
     if (!frecuente.producto) return;
 
@@ -374,15 +228,10 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
       nombre: frecuente.producto.nombre,
       precio: frecuente.producto.precioVenta || 0,
       dosis: frecuente.ultimaDosis?.dosis || '',
-      via: frecuente.ultimaDosis?.via || frecuente.producto.viaAdministracion || 'Oral',
+      via: frecuente.ultimaDosis?.via || 'Oral',
       frecuencia: frecuente.ultimaDosis?.frecuencia || 'Cada8Horas',
-      duracionDias: frecuente.ultimaDosis?.duracion ? String(frecuente.ultimaDosis.duracion).replace(/\D/g, '') : '',
+      duracionDias: frecuente.ultimaDosis?.duracion || '',
       instrucciones: frecuente.ultimaDosis?.instrucciones || '',
-      // Información adicional del producto
-      concentracion: frecuente.producto.concentracion || '',
-      formaFarmaceutica: frecuente.producto.formaFarmaceutica || '',
-      presentacion: frecuente.producto.presentacion || '',
-      esDeFrecuente: true, // Marcar que viene de frecuentes para hacerlo editable
     };
 
     const newMedicamentos = [...formData.medicamentos, nuevoMedicamento];
@@ -392,9 +241,23 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
 
     toast({
       title: 'Medicamento agregado',
-      description: `${frecuente.producto.nombre} - Puede editar dosis, frecuencia y duración`,
+      description: `${frecuente.producto.nombre} agregado con la dosis anterior`,
     });
   };
+
+  // Búsqueda en servidor con debounce
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (busquedaProducto.trim().length >= 2) {
+        buscarProductosEnServidor(busquedaProducto.trim());
+      } else if (busquedaProducto.trim() === '') {
+        // Si está vacío, cargar los primeros productos
+        cargarProductosIniciales();
+      }
+    }, 300); // Debounce de 300ms
+
+    return () => clearTimeout(timeoutId);
+  }, [busquedaProducto]);
 
   const buscarProductosEnServidor = async (termino) => {
     setLoadingProductos(true);
@@ -472,16 +335,7 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
         productoId: producto.id,
         nombre: producto.nombre,
         precio: producto.precioVenta,
-        // Información adicional del producto
-        concentracion: producto.concentracion || '',
-        formaFarmaceutica: producto.formaFarmaceutica || '',
-        presentacion: producto.presentacion || '',
-        presentaciones: producto.presentaciones || [],
-        // Si el producto tiene vía de administración, usarla
-        via: producto.viaAdministracion || medicamentoActual.via,
       });
-      setComboboxOpen(false);
-      setComboboxSearch('');
     }
   };
 
@@ -506,24 +360,11 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
       frecuencia: 'Cada8Horas',
       duracionDias: '',
       instrucciones: '',
-      concentracion: '',
-      formaFarmaceutica: '',
-      presentacion: '',
-      presentaciones: [],
     });
   };
 
   const eliminarMedicamento = (index) => {
     const newMedicamentos = formData.medicamentos.filter((_, i) => i !== index);
-    const newData = { ...formData, medicamentos: newMedicamentos };
-    setFormData(newData);
-    onChange(newData, isComplete(newData));
-  };
-
-  // Función para actualizar un campo específico de un medicamento
-  const actualizarMedicamento = (index, field, value) => {
-    const newMedicamentos = [...formData.medicamentos];
-    newMedicamentos[index] = { ...newMedicamentos[index], [field]: value };
     const newData = { ...formData, medicamentos: newMedicamentos };
     setFormData(newData);
     onChange(newData, isComplete(newData));
@@ -585,7 +426,7 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
               <History className="h-4 w-4 text-amber-600" />
               <span className="text-sm font-semibold text-amber-800">Medicamentos Frecuentes del Paciente</span>
               <Badge variant="outline" className="text-xs bg-amber-100 text-amber-700 border-amber-300">
-                Click para agregar con dosis anterior
+                Click para agregar
               </Badge>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -600,14 +441,14 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
                     disabled={yaAgregado}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm transition-all ${
                       yaAgregado
-                        ? 'bg-green-100 text-green-700 border border-green-300 cursor-not-allowed'
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                         : 'bg-white hover:bg-amber-100 text-amber-800 border border-amber-200 hover:border-amber-400 cursor-pointer shadow-sm hover:shadow'
                     }`}
                   >
                     <Pill className="h-3 w-3" />
                     <span className="font-medium">{frecuente.producto?.nombre}</span>
                     <span className="text-xs text-gray-500">({frecuente.vecesRecetado}x)</span>
-                    {yaAgregado && <Sparkles className="h-3 w-3 text-green-600" />}
+                    {yaAgregado && <Sparkles className="h-3 w-3 text-green-500" />}
                   </button>
                 );
               })}
@@ -648,168 +489,33 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
         {formData.medicamentos.length > 0 && (
           <div className="space-y-2">
             <Label>Medicamentos Prescritos ({formData.medicamentos.length})</Label>
-            {formData.medicamentos.map((med, index) => {
-              // Determinar estilo según origen del medicamento
-              const esEditable = med.esDeKit || med.esDeFrecuente;
-              const estaEditando = editandoIndex === index;
-              const colorClass = med.esDeKit
-                ? 'bg-orange-50 border-orange-200'
-                : med.esDeFrecuente
-                ? 'bg-amber-50 border-amber-200'
-                : 'bg-teal-50 border-teal-200';
-              const badgeClass = med.esDeKit
-                ? 'bg-orange-600'
-                : med.esDeFrecuente
-                ? 'bg-amber-600'
-                : 'bg-teal-600';
-              const textClass = med.esDeKit
-                ? 'text-orange-900'
-                : med.esDeFrecuente
-                ? 'text-amber-900'
-                : 'text-teal-900';
-              const labelClass = med.esDeKit
-                ? 'text-orange-700'
-                : med.esDeFrecuente
-                ? 'text-amber-700'
-                : 'text-teal-700';
-              const inputBorderClass = med.esDeKit
-                ? 'border-orange-300 focus:border-orange-500'
-                : 'border-amber-300 focus:border-amber-500';
-
-              // Formatear frecuencia para mostrar
-              const frecuenciaTexto = {
-                'Unica': 'Dosis única',
-                'Cada4Horas': 'c/4h',
-                'Cada6Horas': 'c/6h',
-                'Cada8Horas': 'c/8h',
-                'Cada12Horas': 'c/12h',
-                'Cada24Horas': 'c/24h',
-                'PRN': 'PRN'
-              }[med.frecuencia] || med.frecuencia;
-
-              // Calcular cantidad a entregar para este medicamento
-              const calculoMed = calcularCantidadTotal(
-                med.dosis || '1',
-                med.frecuencia || 'Cada8Horas',
-                med.duracionDias || med.duracion?.replace(/\D/g, '') || '1',
-                med.formaFarmaceutica || '',
-                med.concentracion || '',
-                med.via || 'Oral'
-              );
-
-              return (
-                <div key={index} className={`${colorClass} border rounded-md p-2 flex items-center justify-between gap-2`}>
-                  <div className="flex-1 min-w-0">
-                    {/* Vista condensada (siempre visible) */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge className={`${badgeClass} text-xs`}>
-                        {med.esDeKit ? 'Kit' : med.esDeFrecuente ? 'Frecuente' : 'Rx'}
-                      </Badge>
-                      <span className={`font-medium text-sm ${textClass} truncate`}>{med.nombre}</span>
-                      {med.concentracion && (
-                        <span className="text-xs px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded">
-                          {med.concentracion}
-                        </span>
-                      )}
-                      {med.formaFarmaceutica && (
-                        <span className="text-xs px-1.5 py-0.5 bg-purple-100 text-purple-700 rounded">
-                          {med.formaFarmaceutica}
-                        </span>
-                      )}
-                    </div>
-                    {/* Detalles de dosificación y cantidad */}
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className="text-xs text-gray-600">
-                        {med.dosis} | {med.via} | {frecuenciaTexto} | {med.duracionDias || med.duracion || '-'} días
-                      </span>
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${
-                        calculoMed.colorTipo === 'green' ? 'bg-green-100 text-green-800 border-green-300' :
-                        calculoMed.colorTipo === 'blue' ? 'bg-blue-100 text-blue-800 border-blue-300' :
-                        calculoMed.colorTipo === 'red' ? 'bg-red-100 text-red-800 border-red-300' :
-                        calculoMed.colorTipo === 'purple' ? 'bg-purple-100 text-purple-800 border-purple-300' :
-                        calculoMed.colorTipo === 'amber' ? 'bg-amber-100 text-amber-800 border-amber-300' :
-                        'bg-gray-100 text-gray-800 border-gray-300'
-                      }`}>
-                        {calculoMed.tipoMedicamento}: {calculoMed.cantidadTotal} {calculoMed.unidadEntrega}
-                      </span>
-                    </div>
-
-                    {/* Campos editables (solo si está editando) */}
-                    {esEditable && estaEditando && (
-                      <div className="mt-3 space-y-2 border-t pt-2">
-                        <div className="grid grid-cols-3 gap-2">
-                          <div>
-                            <Label className={`text-xs ${labelClass}`}>Dosis</Label>
-                            <Input
-                              value={med.dosis || ''}
-                              onChange={(e) => actualizarMedicamento(index, 'dosis', e.target.value)}
-                              placeholder="Ej: 1 tableta..."
-                              className={`h-8 text-sm bg-white ${inputBorderClass}`}
-                            />
-                          </div>
-                          <div>
-                            <Label className={`text-xs ${labelClass}`}>Frecuencia</Label>
-                            <Select
-                              value={med.frecuencia || 'Cada8Horas'}
-                              onValueChange={(value) => actualizarMedicamento(index, 'frecuencia', value)}
-                            >
-                              <SelectTrigger className={`h-8 text-sm bg-white ${inputBorderClass}`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Unica">Dosis única</SelectItem>
-                                <SelectItem value="Cada4Horas">Cada 4 horas (6/día)</SelectItem>
-                                <SelectItem value="Cada6Horas">Cada 6 horas (4/día)</SelectItem>
-                                <SelectItem value="Cada8Horas">Cada 8 horas (3/día)</SelectItem>
-                                <SelectItem value="Cada12Horas">Cada 12 horas (2/día)</SelectItem>
-                                <SelectItem value="Cada24Horas">Cada 24 horas (1/día)</SelectItem>
-                                <SelectItem value="PRN">PRN (según necesidad)</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label className={`text-xs ${labelClass}`}>Duración (días)</Label>
-                            <Input
-                              value={med.duracionDias || med.duracion || ''}
-                              onChange={(e) => actualizarMedicamento(index, 'duracionDias', e.target.value)}
-                              placeholder="Ej: 5"
-                              className={`h-8 text-sm bg-white ${inputBorderClass}`}
-                            />
-                          </div>
-                        </div>
-                        {med.instrucciones && <p className="text-xs text-gray-500">{med.instrucciones}</p>}
-                        {med.esDeKit && <p className="text-xs text-orange-600">Kit: {med.kitOrigen}</p>}
-                        {med.esDeFrecuente && <p className="text-xs text-amber-600 flex items-center gap-1"><History className="h-3 w-3" /> Del historial</p>}
-                      </div>
-                    )}
+            {formData.medicamentos.map((med, index) => (
+              <div key={index} className={`${med.esDeKit ? 'bg-orange-50 border-orange-200' : 'bg-teal-50 border-teal-200'} border rounded-md p-3 flex items-start justify-between`}>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge className={med.esDeKit ? 'bg-orange-600' : 'bg-teal-600'}>
+                      {med.esDeKit ? 'Kit' : 'Medicamento'}
+                    </Badge>
+                    <p className={`font-semibold ${med.esDeKit ? 'text-orange-900' : 'text-teal-900'}`}>{med.nombre}</p>
                   </div>
-
-                  {/* Botones de acción */}
-                  <div className="flex items-center gap-1">
-                    {esEditable && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setEditandoIndex(estaEditando ? null : index)}
-                        className={`h-8 w-8 p-0 ${estaEditando ? 'text-blue-600 bg-blue-100' : 'text-gray-500 hover:text-blue-600'}`}
-                        title={estaEditando ? 'Cerrar edición' : 'Editar dosis'}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => eliminarMedicamento(index)}
-                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <p className="text-sm text-gray-600">
+                    Dosis: {med.dosis} | Vía: {med.via} | {med.frecuencia}
+                  </p>
+                  {med.duracionDias && <p className="text-sm text-gray-600">Duración: {med.duracionDias} días</p>}
+                  {med.duracion && !med.duracionDias && <p className="text-sm text-gray-600">Duración: {med.duracion}</p>}
+                  {med.instrucciones && <p className="text-xs text-gray-500 mt-1">{med.instrucciones}</p>}
+                  {med.esDeKit && <p className="text-xs text-orange-600 mt-1">Aplicado desde: {med.kitOrigen}</p>}
                 </div>
-              );
-            })}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => eliminarMedicamento(index)}
+                  className="text-red-600 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
           </div>
         )}
 
@@ -822,14 +528,13 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
 
           {/* Card de búsqueda y selección */}
           <div className="bg-gradient-to-br from-teal-50 to-emerald-50 border border-teal-200 rounded-lg p-4 space-y-3">
-            {/* Buscador por principio activo */}
             <div>
-              <Label htmlFor="busquedaMed" className="text-sm font-medium text-teal-800">Buscar por Principio Activo</Label>
+              <Label htmlFor="busquedaMed" className="text-sm font-medium text-teal-800">Buscar Medicamento</Label>
               <Input
                 id="busquedaMed"
                 value={busquedaProducto}
                 onChange={(e) => setBusquedaProducto(e.target.value)}
-                placeholder="Escriba el principio activo (ej: Acetaminofén, Ibuprofeno...)"
+                placeholder="Escriba el nombre del medicamento..."
                 className="mt-1 bg-white border-teal-300 focus:border-teal-500"
               />
               {loadingProductos && (
@@ -844,117 +549,57 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
               )}
             </div>
 
-            {/* Selector de medicamento */}
             <div>
               <Label htmlFor="productoMed" className="text-sm font-medium text-teal-800">Seleccionar Medicamento</Label>
               {loadingProductos ? (
-                <div className="mt-2 p-3 bg-white rounded border border-teal-200 text-sm text-gray-500 text-center flex items-center justify-center gap-2">
-                  <span className="animate-spin">⏳</span> Cargando...
+                <div className="mt-2 p-3 bg-white rounded border border-teal-200 text-sm text-gray-500 text-center">
+                  Cargando catálogo...
                 </div>
               ) : (
-                <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={comboboxOpen}
-                      className="mt-1 w-full justify-between bg-white border-teal-300 h-auto min-h-[44px] hover:bg-gray-50 font-normal"
-                    >
-                      {medicamentoActual.productoId ? (
-                        <span className="truncate">{medicamentoActual.nombre}</span>
-                      ) : (
-                        <span className="text-muted-foreground">Escriba para buscar medicamento...</span>
-                      )}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                    <Command shouldFilter={false}>
-                      <CommandInput
-                        placeholder="Buscar por nombre o principio activo..."
-                        value={comboboxSearch}
-                        onValueChange={setComboboxSearch}
-                      />
-                      <CommandList className="max-h-[300px]">
-                        <CommandEmpty>
-                          {comboboxSearch.length > 0 ? 'No se encontraron medicamentos' : 'Escriba para buscar...'}
-                        </CommandEmpty>
-                        <CommandGroup>
-                          {productosCombobox.slice(0, 50).map((producto) => (
-                            <CommandItem
-                              key={producto.id}
-                              value={producto.id}
-                              onSelect={() => handleProductoChange(producto.id)}
-                              className="py-2 cursor-pointer"
-                            >
-                              <Check
-                                className={`mr-2 h-4 w-4 ${medicamentoActual.productoId === producto.id ? 'opacity-100' : 'opacity-0'}`}
-                              />
-                              <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                                <span className="font-semibold text-gray-900 truncate">{producto.nombre}</span>
-                                <span className="text-xs text-gray-600">
-                                  {producto.principioActivo && <span className="text-teal-600">{producto.principioActivo}</span>}
-                                  {producto.principioActivo && ' • '}
-                                  <span className="font-medium">${producto.precioVenta?.toLocaleString()}</span>
-                                  {producto.requiereReceta && <span className="text-amber-600 ml-1">• Receta</span>}
-                                </span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <Select
+                  value={medicamentoActual.productoId}
+                  onValueChange={handleProductoChange}
+                >
+                  <SelectTrigger className="mt-1 bg-white border-teal-300 h-auto min-h-[44px]">
+                    <SelectValue placeholder="Seleccione un medicamento del catálogo" />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[350px]">
+                    {productosFiltrados.length === 0 ? (
+                      <div className="p-4 text-sm text-gray-500 text-center">
+                        No se encontraron medicamentos
+                      </div>
+                    ) : (
+                      productosFiltrados.map((producto) => (
+                        <SelectItem
+                          key={producto.id}
+                          value={producto.id}
+                          className="py-2"
+                          textValue={producto.nombre}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-semibold text-gray-900">{producto.nombre}</span>
+                            <span className="text-xs text-gray-600">
+                              {producto.principioActivo && <span className="text-teal-600">{producto.principioActivo}</span>}
+                              {producto.principioActivo && ' • '}
+                              <span className="font-medium">${producto.precioVenta?.toLocaleString()}</span>
+                              {producto.requiereReceta && <span className="text-amber-600 ml-1">• Receta</span>}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
               )}
             </div>
 
             {/* Medicamento seleccionado */}
             {medicamentoActual.productoId && (
-              <div className="bg-white rounded-lg border border-teal-300 p-3 space-y-2">
-                {/* Nombre y precio */}
+              <div className="bg-white rounded-lg border border-teal-300 p-3">
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-teal-900">{medicamentoActual.nombre}</span>
                   <Badge className="bg-teal-600">${medicamentoActual.precio?.toLocaleString()}</Badge>
                 </div>
-
-                {/* Concentración y forma farmacéutica */}
-                {(medicamentoActual.concentracion || medicamentoActual.formaFarmaceutica || medicamentoActual.presentacion) && (
-                  <div className="flex flex-wrap gap-1.5 text-xs">
-                    {medicamentoActual.concentracion && (
-                      <span className="px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full">
-                        {medicamentoActual.concentracion}
-                      </span>
-                    )}
-                    {medicamentoActual.formaFarmaceutica && (
-                      <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full">
-                        {medicamentoActual.formaFarmaceutica}
-                      </span>
-                    )}
-                    {medicamentoActual.presentacion && (
-                      <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded-full">
-                        {medicamentoActual.presentacion}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Presentaciones disponibles */}
-                {medicamentoActual.presentaciones && medicamentoActual.presentaciones.length > 0 && (
-                  <div className="pt-1 border-t border-teal-100">
-                    <p className="text-xs text-gray-500 mb-1">Presentaciones disponibles:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {medicamentoActual.presentaciones.map((pres, idx) => (
-                        <span
-                          key={idx}
-                          className="text-xs px-2 py-0.5 bg-gray-100 text-gray-600 rounded"
-                        >
-                          {pres.nombre}{pres.concentracion && ` - ${pres.concentracion}`}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -1033,98 +678,185 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
               </div>
             </div>
 
-            {/* Cantidad Total a Entregar - Cálculo Inteligente */}
+            {/* Cálculo de cantidad - Básico + IA */}
             {medicamentoActual.dosis && medicamentoActual.frecuencia && medicamentoActual.duracionDias && (
               <div className="space-y-3 mt-3">
-                {/* Cálculo inteligente según forma farmacéutica y vía */}
-                {(() => {
-                  const calculo = calcularCantidadTotal(
-                    medicamentoActual.dosis,
-                    medicamentoActual.frecuencia,
-                    medicamentoActual.duracionDias,
-                    medicamentoActual.formaFarmaceutica,
-                    medicamentoActual.concentracion,
-                    medicamentoActual.via
-                  );
+                {/* Cálculo básico */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-blue-800 flex items-center gap-2">
+                      <Calculator className="h-4 w-4" />
+                      <strong>Cálculo Básico:</strong>
+                    </span>
+                    <span className="text-lg font-bold text-blue-900">
+                      {(() => {
+                        const frecuenciasPorDia = {
+                          'Unica': 1,
+                          'Cada4Horas': 6,
+                          'Cada6Horas': 4,
+                          'Cada8Horas': 3,
+                          'Cada12Horas': 2,
+                          'Cada24Horas': 1,
+                          'PRN': 3,
+                        };
+                        const tomasPorDia = frecuenciasPorDia[medicamentoActual.frecuencia] || 1;
+                        const dias = parseInt(medicamentoActual.duracionDias) || 0;
+                        // Extraer valor numérico de la dosis (ej: "2 tabletas" → 2, "10ml" → 10)
+                        const dosisMatch = medicamentoActual.dosis.match(/^(\d+(?:\.\d+)?)/);
+                        const cantidadPorToma = dosisMatch ? parseFloat(dosisMatch[1]) : 1;
+                        const totalTomas = tomasPorDia * dias;
+                        const total = Math.ceil(cantidadPorToma * totalTomas);
+                        // Detectar unidad de la dosis
+                        const unidadMatch = medicamentoActual.dosis.match(/\d+(?:\.\d+)?\s*(.+)/);
+                        const unidad = unidadMatch ? unidadMatch[1].trim() : 'unidades';
+                        return `${total} ${unidad}`;
+                      })()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {(() => {
+                      const frecuenciasPorDia = {
+                        'Unica': 1,
+                        'Cada4Horas': 6,
+                        'Cada6Horas': 4,
+                        'Cada8Horas': 3,
+                        'Cada12Horas': 2,
+                        'Cada24Horas': 1,
+                        'PRN': 3,
+                      };
+                      const tomasPorDia = frecuenciasPorDia[medicamentoActual.frecuencia] || 1;
+                      // Extraer valor numérico de la dosis
+                      const dosisMatch = medicamentoActual.dosis.match(/^(\d+(?:\.\d+)?)/);
+                      const cantidadPorToma = dosisMatch ? parseFloat(dosisMatch[1]) : 1;
+                      return `${cantidadPorToma} × ${tomasPorDia} toma(s)/día × ${medicamentoActual.duracionDias} días`;
+                    })()}
+                  </p>
+                </div>
 
-                  // Colores dinámicos según tipo
-                  const colorClasses = {
-                    red: 'from-red-50 to-rose-50 border-red-300',
-                    blue: 'from-blue-50 to-sky-50 border-blue-300',
-                    green: 'from-green-50 to-emerald-50 border-green-300',
-                    purple: 'from-purple-50 to-violet-50 border-purple-300',
-                    amber: 'from-amber-50 to-yellow-50 border-amber-300',
-                    pink: 'from-pink-50 to-rose-50 border-pink-300',
-                    cyan: 'from-cyan-50 to-teal-50 border-cyan-300',
-                    indigo: 'from-indigo-50 to-blue-50 border-indigo-300',
-                    orange: 'from-orange-50 to-amber-50 border-orange-300',
-                    gray: 'from-gray-50 to-slate-50 border-gray-300',
-                  };
+                {/* Botón de cálculo con IA */}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={calcularConIA}
+                  disabled={loadingCalculoIA}
+                  className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 h-10"
+                >
+                  {loadingCalculoIA ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Analizando con IA...
+                    </>
+                  ) : (
+                    <>
+                      <Brain className="h-4 w-4 mr-2" />
+                      Calcular con IA {!iaDisponible && '(Algorítmico)'}
+                    </>
+                  )}
+                </Button>
 
-                  const badgeColors = {
-                    red: 'bg-red-100 text-red-800 border-red-300',
-                    blue: 'bg-blue-100 text-blue-800 border-blue-300',
-                    green: 'bg-green-100 text-green-800 border-green-300',
-                    purple: 'bg-purple-100 text-purple-800 border-purple-300',
-                    amber: 'bg-amber-100 text-amber-800 border-amber-300',
-                    pink: 'bg-pink-100 text-pink-800 border-pink-300',
-                    cyan: 'bg-cyan-100 text-cyan-800 border-cyan-300',
-                    indigo: 'bg-indigo-100 text-indigo-800 border-indigo-300',
-                    orange: 'bg-orange-100 text-orange-800 border-orange-300',
-                    gray: 'bg-gray-100 text-gray-800 border-gray-300',
-                  };
+                {/* Resultado del cálculo con IA */}
+                {calculoIA && (
+                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-purple-800 flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Análisis {calculoIA.metodo === 'ia' ? 'con IA' : 'Algorítmico'}
+                      </span>
+                      {calculoIA.metodo === 'ia' && (
+                        <Badge className="bg-purple-600 text-xs">GPT</Badge>
+                      )}
+                    </div>
 
-                  const bgClass = colorClasses[calculo.colorTipo] || colorClasses.gray;
-                  const badgeClass = badgeColors[calculo.colorTipo] || badgeColors.gray;
-
-                  return (
-                    <div className={`bg-gradient-to-r ${bgClass} border rounded-lg p-4`}>
-                      {/* Tipo de medicamento */}
-                      <div className="flex items-center justify-between mb-3">
-                        <span className={`text-xs font-semibold px-2 py-1 rounded-full border ${badgeClass}`}>
-                          {calculo.tipoMedicamento}
-                        </span>
-                        <span className="text-xl font-bold text-gray-900">
-                          {calculo.cantidadTotal} {calculo.unidadEntrega}
-                        </span>
-                      </div>
-
-                      {/* Cantidad a entregar */}
-                      <div className="flex items-center gap-2 mb-2">
-                        <Package className="h-4 w-4 text-gray-600" />
-                        <span className="text-sm font-medium text-gray-700">Cantidad Total a Entregar</span>
-                      </div>
-
-                      {/* Detalle del cálculo */}
-                      <div className="bg-white/60 rounded-md p-2 space-y-1">
-                        <p className="text-xs text-gray-700 flex items-center gap-1">
-                          <Calculator className="h-3 w-3" />
-                          <span>{calculo.descripcionCalculo}</span>
+                    {/* Cantidad total y presentación */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-white rounded-lg p-3 border border-purple-200">
+                        <p className="text-xs text-gray-500">Cantidad Total</p>
+                        <p className="text-xl font-bold text-purple-900">
+                          {calculoIA.cantidadTotal} {calculoIA.unidadCantidad}
                         </p>
-                        <p className="text-xs text-gray-600">
-                          {calculo.tomasPorDia} toma(s)/día × {calculo.dias} día(s) = {calculo.totalTomas} tomas totales
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-purple-200">
+                        <p className="text-xs text-gray-500">Envases Sugeridos</p>
+                        <p className="text-xl font-bold text-purple-900 flex items-center gap-1">
+                          <Package className="h-4 w-4" />
+                          {calculoIA.cantidadEnvases || 1}
                         </p>
-                        <div className="flex flex-wrap gap-2 mt-1">
-                          {medicamentoActual.via && (
-                            <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                              Vía: {medicamentoActual.via}
-                            </span>
+                        {calculoIA.presentacionSugerida && (
+                          <p className="text-xs text-gray-600">{calculoIA.presentacionSugerida}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Detalle del cálculo */}
+                    {calculoIA.calculoDetallado && (
+                      <div className="bg-white/50 rounded p-2 text-xs text-gray-600">
+                        <strong>Detalle:</strong> {calculoIA.calculoDetallado}
+                      </div>
+                    )}
+
+                    {/* Validación de dosis */}
+                    {calculoIA.dosisValidacion && (
+                      <div className={`rounded-lg p-3 flex items-start gap-2 ${
+                        calculoIA.dosisValidacion.esCorrecta
+                          ? 'bg-green-50 border border-green-200'
+                          : 'bg-red-50 border border-red-200'
+                      }`}>
+                        {calculoIA.dosisValidacion.esCorrecta ? (
+                          <CheckCircle2 className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertTriangle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <p className={`text-sm font-medium ${
+                            calculoIA.dosisValidacion.esCorrecta ? 'text-green-800' : 'text-red-800'
+                          }`}>
+                            {calculoIA.dosisValidacion.esCorrecta ? 'Dosis dentro del rango normal' : 'Alerta de dosificación'}
+                          </p>
+                          {calculoIA.dosisValidacion.mensaje && (
+                            <p className="text-xs text-gray-600 mt-0.5">{calculoIA.dosisValidacion.mensaje}</p>
                           )}
-                          {medicamentoActual.formaFarmaceutica && (
-                            <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                              Forma: {medicamentoActual.formaFarmaceutica}
-                            </span>
-                          )}
-                          {medicamentoActual.concentracion && (
-                            <span className="text-xs px-1.5 py-0.5 bg-gray-100 text-gray-600 rounded">
-                              Conc: {medicamentoActual.concentracion}
-                            </span>
+                          {calculoIA.dosisValidacion.rangoNormal && (
+                            <p className="text-xs text-gray-500">Rango normal: {calculoIA.dosisValidacion.rangoNormal}</p>
                           )}
                         </div>
                       </div>
-                    </div>
-                  );
-                })()}
+                    )}
+
+                    {/* Alertas */}
+                    {calculoIA.alertas && calculoIA.alertas.length > 0 && (
+                      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <p className="text-sm font-medium text-amber-800 flex items-center gap-1 mb-2">
+                          <AlertCircle className="h-4 w-4" />
+                          Alertas
+                        </p>
+                        <ul className="text-xs text-amber-700 space-y-1">
+                          {calculoIA.alertas.map((alerta, idx) => (
+                            <li key={idx} className="flex items-start gap-1">
+                              <span>•</span> {alerta}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Recomendaciones */}
+                    {calculoIA.recomendaciones && calculoIA.recomendaciones.length > 0 && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <p className="text-sm font-medium text-blue-800 flex items-center gap-1 mb-2">
+                          <Sparkles className="h-4 w-4" />
+                          Recomendaciones
+                        </p>
+                        <ul className="text-xs text-blue-700 space-y-1">
+                          {calculoIA.recomendaciones.map((rec, idx) => (
+                            <li key={idx} className="flex items-start gap-1">
+                              <span>✓</span> {rec}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 

@@ -188,16 +188,9 @@ export default function Dashboard({ user, onLogout }) {
   };
 
   // Función para cambiar de módulo y actualizar URL
-  const changeModule = (module, params = {}) => {
+  const changeModule = (module) => {
     setActiveModule(module);
-    // Construir query string con parámetros adicionales
-    const queryParams = new URLSearchParams({ module });
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null) {
-        queryParams.set(key, value);
-      }
-    });
-    router.push(`/?${queryParams.toString()}`, { scroll: false });
+    router.push(`/?module=${module}`, { scroll: false });
   };
 
   const renderModule = () => {
