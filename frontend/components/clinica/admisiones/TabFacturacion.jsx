@@ -9,14 +9,21 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { 
-  Receipt, 
-  DollarSign, 
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Receipt,
+  DollarSign,
   TrendingUp,
   CreditCard,
   Plus,
   Eye,
-  FileText
+  FileText,
+  Landmark,
+  Hash,
+  Upload,
+  X,
+  Banknote,
+  Wallet
 } from 'lucide-react';
 
 export default function TabFacturacion({ pacienteId, paciente }) {
@@ -29,6 +36,16 @@ export default function TabFacturacion({ pacienteId, paciente }) {
     monto: '',
     metodo_pago: 'Efectivo',
     referencia: '',
+    banco: '',
+    comprobante: null,
+    observaciones: '',
+    // Campos para pago combinado
+    pagoCombinado: {
+      efectivo: '',
+      tarjeta: '',
+      transferencia: '',
+      eps: ''
+    }
   });
 
   useEffect(() => {
@@ -93,7 +110,15 @@ export default function TabFacturacion({ pacienteId, paciente }) {
 
       if (response.ok) {
         setDialogPago(false);
-        setPagoForm({ monto: '', metodo_pago: 'Efectivo', referencia: '' });
+        setPagoForm({
+          monto: '',
+          metodo_pago: 'Efectivo',
+          referencia: '',
+          banco: '',
+          comprobante: null,
+          observaciones: '',
+          pagoCombinado: { efectivo: '', tarjeta: '', transferencia: '', eps: '' }
+        });
         loadFacturas();
         loadFacturaDetalle(facturaSeleccionada.id);
       } else {
@@ -393,11 +418,15 @@ export default function TabFacturacion({ pacienteId, paciente }) {
 
       {/* Dialog Registrar Pago */}
       <Dialog open={dialogPago} onOpenChange={setDialogPago}>
-        <DialogContent>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Registrar Pago</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-600" />
+              Registrar Pago
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleRegistrarPago} className="space-y-4">
+            {/* Monto */}
             <div>
               <Label>Monto a Pagar *</Label>
               <Input
@@ -405,13 +434,16 @@ export default function TabFacturacion({ pacienteId, paciente }) {
                 step="0.01"
                 value={pagoForm.monto}
                 onChange={(e) => setPagoForm({ ...pagoForm, monto: e.target.value })}
-                required
+                required={pagoForm.metodo_pago !== 'Combinado'}
+                disabled={pagoForm.metodo_pago === 'Combinado'}
+                placeholder={pagoForm.metodo_pago === 'Combinado' ? 'Se calcula automáticamente' : ''}
               />
               <p className="text-xs text-gray-500 mt-1">
                 Saldo pendiente: {formatCurrency(facturaSeleccionada?.saldoPendiente || 0)}
               </p>
             </div>
 
+            {/* Método de Pago */}
             <div>
               <Label>Método de Pago *</Label>
               <Select
@@ -422,21 +454,254 @@ export default function TabFacturacion({ pacienteId, paciente }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Efectivo">Efectivo</SelectItem>
-                  <SelectItem value="Tarjeta">Tarjeta</SelectItem>
-                  <SelectItem value="Transferencia">Transferencia</SelectItem>
-                  <SelectItem value="EPS">EPS</SelectItem>
-                  <SelectItem value="Otro">Otro</SelectItem>
+                  <SelectItem value="Efectivo">
+                    <span className="flex items-center gap-2"><Banknote className="w-4 h-4" /> Efectivo</span>
+                  </SelectItem>
+                  <SelectItem value="Tarjeta">
+                    <span className="flex items-center gap-2"><CreditCard className="w-4 h-4" /> Tarjeta</span>
+                  </SelectItem>
+                  <SelectItem value="Transferencia">
+                    <span className="flex items-center gap-2"><Landmark className="w-4 h-4" /> Transferencia</span>
+                  </SelectItem>
+                  <SelectItem value="EPS">
+                    <span className="flex items-center gap-2"><FileText className="w-4 h-4" /> EPS</span>
+                  </SelectItem>
+                  <SelectItem value="Combinado">
+                    <span className="flex items-center gap-2"><Wallet className="w-4 h-4" /> Pago Combinado</span>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Campos para Transferencia */}
+            {pagoForm.metodo_pago === 'Transferencia' && (
+              <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg space-y-4">
+                <div className="flex items-center gap-2 text-purple-700 font-medium">
+                  <Landmark className="w-4 h-4" />
+                  Datos de Transferencia
+                </div>
+
+                <div>
+                  <Label>Banco / Cuenta Destino</Label>
+                  <Select
+                    value={pagoForm.banco}
+                    onValueChange={(value) => setPagoForm({ ...pagoForm, banco: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar cuenta..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bancolombia_ahorros">Bancolombia Ahorros - **** 4521</SelectItem>
+                      <SelectItem value="bancolombia_corriente">Bancolombia Corriente - **** 7832</SelectItem>
+                      <SelectItem value="davivienda_ahorros">Davivienda Ahorros - **** 3456</SelectItem>
+                      <SelectItem value="nequi">Nequi - 324 333 8555</SelectItem>
+                      <SelectItem value="daviplata">Daviplata - 324 333 8555</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Número de Referencia *</Label>
+                  <div className="relative">
+                    <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <Input
+                      value={pagoForm.referencia}
+                      onChange={(e) => setPagoForm({ ...pagoForm, referencia: e.target.value })}
+                      placeholder="Número de comprobante"
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Comprobante de Transferencia</Label>
+                  <div className="mt-1">
+                    {!pagoForm.comprobante ? (
+                      <label className="flex items-center justify-center gap-2 p-4 border-2 border-dashed border-purple-300 rounded-lg cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition-colors">
+                        <Upload className="w-5 h-5 text-purple-500" />
+                        <span className="text-sm text-purple-700">Subir imagen del comprobante</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setPagoForm({ ...pagoForm, comprobante: reader.result });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    ) : (
+                      <div className="relative inline-block">
+                        <img
+                          src={pagoForm.comprobante}
+                          alt="Comprobante"
+                          className="h-32 rounded-lg border border-purple-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setPagoForm({ ...pagoForm, comprobante: null })}
+                          className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Campos para Pago Combinado */}
+            {pagoForm.metodo_pago === 'Combinado' && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-700 font-medium">
+                    <Wallet className="w-4 h-4" />
+                    Dividir Pago
+                  </div>
+                  <span className="text-xs text-amber-600">
+                    Saldo: {formatCurrency(facturaSeleccionada?.saldoPendiente || 0)}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-xs flex items-center gap-1">
+                      <Banknote className="w-3 h-3" /> Efectivo
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={pagoForm.pagoCombinado.efectivo}
+                      onChange={(e) => setPagoForm({
+                        ...pagoForm,
+                        pagoCombinado: { ...pagoForm.pagoCombinado, efectivo: e.target.value }
+                      })}
+                      placeholder="$0"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs flex items-center gap-1">
+                      <CreditCard className="w-3 h-3" /> Tarjeta
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={pagoForm.pagoCombinado.tarjeta}
+                      onChange={(e) => setPagoForm({
+                        ...pagoForm,
+                        pagoCombinado: { ...pagoForm.pagoCombinado, tarjeta: e.target.value }
+                      })}
+                      placeholder="$0"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs flex items-center gap-1">
+                      <Landmark className="w-3 h-3" /> Transferencia
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={pagoForm.pagoCombinado.transferencia}
+                      onChange={(e) => setPagoForm({
+                        ...pagoForm,
+                        pagoCombinado: { ...pagoForm.pagoCombinado, transferencia: e.target.value }
+                      })}
+                      placeholder="$0"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs flex items-center gap-1">
+                      <FileText className="w-3 h-3" /> EPS
+                    </Label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={pagoForm.pagoCombinado.eps}
+                      onChange={(e) => setPagoForm({
+                        ...pagoForm,
+                        pagoCombinado: { ...pagoForm.pagoCombinado, eps: e.target.value }
+                      })}
+                      placeholder="$0"
+                    />
+                  </div>
+                </div>
+
+                {/* Total combinado */}
+                <div className="pt-2 border-t border-amber-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-amber-700">Total a pagar:</span>
+                    <span className="font-bold text-amber-800">
+                      {formatCurrency(
+                        (parseFloat(pagoForm.pagoCombinado.efectivo) || 0) +
+                        (parseFloat(pagoForm.pagoCombinado.tarjeta) || 0) +
+                        (parseFloat(pagoForm.pagoCombinado.transferencia) || 0) +
+                        (parseFloat(pagoForm.pagoCombinado.eps) || 0)
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Si hay transferencia en combinado, mostrar campos adicionales */}
+                {(parseFloat(pagoForm.pagoCombinado.transferencia) || 0) > 0 && (
+                  <div className="pt-3 border-t border-amber-200 space-y-3">
+                    <Label className="text-xs text-amber-700">Datos de la transferencia:</Label>
+                    <Select
+                      value={pagoForm.banco}
+                      onValueChange={(value) => setPagoForm({ ...pagoForm, banco: value })}
+                    >
+                      <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Seleccionar banco..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="bancolombia_ahorros">Bancolombia Ahorros</SelectItem>
+                        <SelectItem value="bancolombia_corriente">Bancolombia Corriente</SelectItem>
+                        <SelectItem value="nequi">Nequi</SelectItem>
+                        <SelectItem value="daviplata">Daviplata</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      value={pagoForm.referencia}
+                      onChange={(e) => setPagoForm({ ...pagoForm, referencia: e.target.value })}
+                      placeholder="No. referencia transferencia"
+                      className="text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Referencia para Tarjeta/EPS */}
+            {(pagoForm.metodo_pago === 'Tarjeta' || pagoForm.metodo_pago === 'EPS') && (
+              <div>
+                <Label>Referencia / No. Transacción</Label>
+                <Input
+                  value={pagoForm.referencia}
+                  onChange={(e) => setPagoForm({ ...pagoForm, referencia: e.target.value })}
+                  placeholder="Número de transacción"
+                />
+              </div>
+            )}
+
+            {/* Observaciones */}
             <div>
-              <Label>Referencia / Comprobante</Label>
-              <Input
-                value={pagoForm.referencia}
-                onChange={(e) => setPagoForm({ ...pagoForm, referencia: e.target.value })}
-                placeholder="Número de transacción, cheque, etc."
+              <Label>Observaciones</Label>
+              <Textarea
+                value={pagoForm.observaciones}
+                onChange={(e) => setPagoForm({ ...pagoForm, observaciones: e.target.value })}
+                placeholder="Notas adicionales del pago..."
+                rows={2}
               />
             </div>
 
