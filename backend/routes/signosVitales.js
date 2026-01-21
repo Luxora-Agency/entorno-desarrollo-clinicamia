@@ -107,9 +107,12 @@ signosVitales.use('*', authMiddleware);
 signosVitales.get('/', async (c) => {
   try {
     const query = c.req.query();
+    console.log('[SignosVitales] GET / - Query params:', JSON.stringify(query));
     const result = await signosVitalesService.getAll(query);
+    console.log('[SignosVitales] GET / - Resultados:', result.signos?.length || 0, 'registros');
     return c.json(paginated(result.signos, result.pagination));
   } catch (err) {
+    console.error('[SignosVitales] GET / - Error:', err.message);
     return c.json(error(err.message), err.statusCode || 500);
   }
 });

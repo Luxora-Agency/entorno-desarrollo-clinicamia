@@ -6,7 +6,6 @@ export { default as DashboardDoctorHospitalizacion } from './DashboardDoctorHosp
 export { default as DoctorSettingsModule } from './DoctorSettingsModule';
 
 // Widgets y acciones rápidas
-export { default as ProximasCitasWidget } from './ProximasCitasWidget';
 export { default as DoctorQuickActions } from './DoctorQuickActions';
 export { default as QuickActionsWidget } from './QuickActionsWidget';
 export { default as DoctorNotifications, NotificationsCard, NotificationsFullView } from './DoctorNotifications';

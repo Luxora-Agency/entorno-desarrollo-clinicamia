@@ -15,12 +15,14 @@ class SignosVitalesService {
     const where = {};
     if (paciente_id) where.pacienteId = paciente_id;
     if (admision_id) where.admisionId = admision_id;
-    
+
     if (fecha_desde || fecha_hasta) {
       where.fechaRegistro = {};
       if (fecha_desde) where.fechaRegistro.gte = new Date(fecha_desde);
       if (fecha_hasta) where.fechaRegistro.lte = new Date(fecha_hasta);
     }
+
+    console.log('[SignosVitales.service] getAll - Where clause:', JSON.stringify(where, null, 2));
 
     const [signos, total] = await Promise.all([
       prisma.signoVital.findMany({

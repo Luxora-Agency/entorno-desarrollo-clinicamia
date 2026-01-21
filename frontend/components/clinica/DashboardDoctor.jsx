@@ -35,7 +35,6 @@ import DoctorScheduleManager from './DoctorScheduleManager';
 import AnalizadorHCE from './doctor/AnalizadorHCE';
 import DashboardDoctorQuirofano from './doctor/quirofano/DashboardDoctorQuirofano';
 import BloqueoAgendaManager from './doctor/BloqueoAgendaManager';
-import ProximasCitasWidget from './doctor/ProximasCitasWidget';
 import DoctorNotifications, { NotificationsFullView } from './doctor/DoctorNotifications';
 import DoctorCommandPalette, { useDoctorCommandPalette } from './doctor/DoctorCommandPalette';
 import HospitalizedPatientsWidget from './doctor/HospitalizedPatientsWidget';
@@ -1303,16 +1302,6 @@ export default function DashboardDoctor({ user, onChangeAttentionType, onNavigat
                         </CardContent>
                       </Card>
                     ) : null;
-
-                  case 'proximas-citas':
-                    return (
-                      <ProximasCitasWidget
-                        doctorId={user?.id}
-                        maxCitas={4}
-                        onSelectCita={(cita) => iniciarConsulta(cita)}
-                        className="border-0 shadow-sm"
-                      />
-                    );
 
                   case 'hospitalizados':
                     return (

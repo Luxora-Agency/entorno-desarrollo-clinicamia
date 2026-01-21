@@ -45,14 +45,18 @@ consultasRouter.get('/historial/:pacienteId', async (c) => {
     const { pacienteId } = c.req.param();
     const limit = parseInt(c.req.query('limit')) || 10;
 
+    console.log('[Consultas] GET /historial - pacienteId:', pacienteId, 'limit:', limit);
+
     const historial = await consultaService.obtenerHistorialConsultas(pacienteId, limit);
+
+    console.log('[Consultas] GET /historial - Resultados:', historial?.length || 0);
 
     return c.json({
       success: true,
       data: historial
     });
   } catch (error) {
-    console.error('Error al obtener historial de consultas:', error);
+    console.error('[Consultas] GET /historial - Error:', error);
     return c.json({
       success: false,
       message: 'Error al obtener historial de consultas',

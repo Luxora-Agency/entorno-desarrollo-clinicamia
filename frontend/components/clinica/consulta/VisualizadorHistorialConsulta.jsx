@@ -22,16 +22,21 @@ export default function VisualizadorHistorialConsulta({ pacienteId, onClose }) {
   const cargarHistorial = async () => {
     setLoading(true);
     try {
+      console.log('[VisualizadorHistorial] Cargando historial para paciente:', pacienteId);
       const response = await apiGet(`/consultas/historial/${pacienteId}?limit=50`);
+      console.log('[VisualizadorHistorial] Respuesta:', response);
       if (response.success && response.data) {
+        console.log('[VisualizadorHistorial] Consultas encontradas:', response.data.length);
         setConsultas(response.data);
         // Seleccionar la primera consulta por defecto
         if (response.data.length > 0) {
           setConsultaSeleccionada(response.data[0]);
         }
+      } else {
+        console.log('[VisualizadorHistorial] Respuesta sin data:', response);
       }
     } catch (error) {
-      console.error('Error cargando historial:', error);
+      console.error('[VisualizadorHistorial] Error cargando historial:', error);
     } finally {
       setLoading(false);
     }
@@ -246,7 +251,7 @@ export default function VisualizadorHistorialConsulta({ pacienteId, onClose }) {
               </Card>
             )}
 
-            {/* Signos Vitales (si existieran en la data, se podrían mostrar aquí) */}
+            {/* Signos Vitales */}
             {consultaSeleccionada.vitales && (
               <Card className="mb-6">
                 <CardHeader className="py-3 bg-teal-50">
@@ -273,14 +278,38 @@ export default function VisualizadorHistorialConsulta({ pacienteId, onClose }) {
                     )}
                     {consultaSeleccionada.vitales.frecuenciaCardiaca && (
                       <div className="text-center p-3 bg-gray-50 rounded-lg">
-                        <p className="text-xs text-gray-500">FC</p>
+                        <p className="text-xs text-gray-500">Frec. Cardíaca</p>
                         <p className="font-bold text-teal-600">{consultaSeleccionada.vitales.frecuenciaCardiaca} lpm</p>
+                      </div>
+                    )}
+                    {consultaSeleccionada.vitales.frecuenciaRespiratoria && (
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <p className="text-xs text-gray-500">Frec. Respiratoria</p>
+                        <p className="font-bold text-teal-600">{consultaSeleccionada.vitales.frecuenciaRespiratoria} rpm</p>
+                      </div>
+                    )}
+                    {consultaSeleccionada.vitales.saturacionOxigeno && (
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <p className="text-xs text-gray-500">Sat. O₂</p>
+                        <p className="font-bold text-teal-600">{consultaSeleccionada.vitales.saturacionOxigeno}%</p>
                       </div>
                     )}
                     {consultaSeleccionada.vitales.peso && (
                       <div className="text-center p-3 bg-gray-50 rounded-lg">
                         <p className="text-xs text-gray-500">Peso</p>
                         <p className="font-bold text-teal-600">{consultaSeleccionada.vitales.peso} kg</p>
+                      </div>
+                    )}
+                    {consultaSeleccionada.vitales.talla && (
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <p className="text-xs text-gray-500">Talla</p>
+                        <p className="font-bold text-teal-600">{consultaSeleccionada.vitales.talla} cm</p>
+                      </div>
+                    )}
+                    {consultaSeleccionada.vitales.imc && (
+                      <div className="text-center p-3 bg-gray-50 rounded-lg">
+                        <p className="text-xs text-gray-500">IMC</p>
+                        <p className="font-bold text-teal-600">{consultaSeleccionada.vitales.imc}</p>
                       </div>
                     )}
                   </div>

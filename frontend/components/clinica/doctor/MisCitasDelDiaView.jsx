@@ -1097,34 +1097,45 @@ function CitaCard({ cita, onCambiarEstado, isExpanded, onToggleExpand, compact =
 }
 
 // Helper functions
+// IMPORTANTE: Los campos @db.Time de Prisma vienen como "1970-01-01T11:00:00.000Z"
+// donde la hora (11:00) representa la hora LOCAL, no UTC.
+// Por eso extraemos la hora directamente del string sin conversión de timezone.
 function formatHora(hora) {
   if (!hora) return '--:--';
   try {
     if (typeof hora === 'string' && hora.includes('T')) {
-      return new Date(hora).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' ,
-      timeZone: 'America/Bogota'
-    });
+      // Extraer HH:MM directamente del string ISO sin conversión
+      const timePart = hora.split('T')[1];
+      if (timePart) {
+        return timePart.substring(0, 5); // "11:00"
+      }
     }
-    return hora.substring(0, 5);
+    // Si ya es formato HH:MM
+    if (typeof hora === 'string') {
+      return hora.substring(0, 5);
+    }
+    return '--:--';
   } catch {
-    return hora;
+    return '--:--';
   }
 }
 
 function formatHoraToMinutes(hora) {
   if (!hora) return 0;
   try {
-    let hours, minutes;
+    let horaStr = '';
     if (typeof hora === 'string' && hora.includes('T')) {
-      const date = new Date(hora);
-      hours = date.getHours();
-      minutes = date.getMinutes();
-    } else {
-      const parts = hora.split(':');
-      hours = parseInt(parts[0]) || 0;
-      minutes = parseInt(parts[1]) || 0;
+      // Extraer HH:MM directamente del string ISO sin conversión
+      const timePart = hora.split('T')[1];
+      if (timePart) {
+        horaStr = timePart.substring(0, 5);
+      }
+    } else if (typeof hora === 'string') {
+      horaStr = hora.substring(0, 5);
     }
-    return hours * 60 + minutes;
+
+    const [hours, minutes] = horaStr.split(':').map(Number);
+    return (hours || 0) * 60 + (minutes || 0);
   } catch {
     return 0;
   }

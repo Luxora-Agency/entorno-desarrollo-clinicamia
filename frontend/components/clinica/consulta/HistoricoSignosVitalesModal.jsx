@@ -93,8 +93,11 @@ export default function HistoricoSignosVitalesModal({ pacienteId, onClose }) {
       fechaDesde.setDate(fechaDesde.getDate() - diasAtras);
       const fechaDesdeISO = formatDateISO(fechaDesde);
 
+      console.log('[HistoricoSignosVitales] Fetching data:', { pacienteId, fechaDesdeISO, diasAtras });
+
       // Usar el endpoint existente de signos vitales con filtro de fecha
       const response = await apiGet(`/signos-vitales?paciente_id=${pacienteId}&fecha_desde=${fechaDesdeISO}&limit=100`);
+      console.log('[HistoricoSignosVitales] Response:', { success: response.success, dataLength: response.data?.length, pagination: response.pagination });
       if (response.success && response.data) {
         // Procesar datos para los gráficos
         const processed = response.data.map((item) => ({

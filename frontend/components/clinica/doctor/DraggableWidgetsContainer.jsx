@@ -19,7 +19,6 @@ const STORAGE_KEY_PREFIX = 'doctor_widget_layout_';
 // Configuración por defecto de widgets
 const DEFAULT_WIDGETS = [
   { id: 'proxima-cita', title: 'Próximo Paciente', visible: true, locked: false },
-  { id: 'proximas-citas', title: 'Próximas Citas', visible: true, locked: false },
   { id: 'hospitalizados', title: 'Pacientes Hospitalizados', visible: true, locked: false },
   { id: 'quirofano', title: 'Cirugías del Día', visible: true, locked: false },
   { id: 'pacientes-recientes', title: 'Pacientes Recientes', visible: true, locked: false },

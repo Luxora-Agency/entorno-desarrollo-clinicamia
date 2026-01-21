@@ -82,9 +82,10 @@ class ConsultaService {
    * Obtiene el historial de consultas del paciente
    * @param {string} pacienteId - ID del paciente
    * @param {number} limit - Límite de consultas a retornar
-   * @returns {Promise<array>} - Array de evoluciones clínicas
+   * @returns {Promise<array>} - Array de evoluciones clínicas con signos vitales
    */
   async obtenerHistorialConsultas(pacienteId, limit = 10) {
+    console.log('[ConsultaService] obtenerHistorialConsultas - pacienteId:', pacienteId, 'limit:', limit);
     const consultas = await prisma.evolucionClinica.findMany({
       where: { pacienteId },
       orderBy: { fechaEvolucion: 'desc' },
@@ -105,9 +106,20 @@ class ConsultaService {
             }
           }
         },
-        diagnosticos: true
+        diagnosticos: true,
+        cita: {
+          select: {
+            id: true,
+            signosVitales: {
+              orderBy: { fechaRegistro: 'desc' },
+              take: 1
+            }
+          }
+        }
       }
     });
+
+    console.log('[ConsultaService] obtenerHistorialConsultas - Encontradas:', consultas.length, 'consultas');
 
     return consultas.map(consulta => {
       if (consulta.doctor) {
@@ -118,6 +130,11 @@ class ConsultaService {
         consulta.doctor.especialidad = especialidad;
         delete consulta.doctor.doctor;
       }
+      // Extraer signos vitales del primer registro de la cita
+      if (consulta.cita?.signosVitales?.length > 0) {
+        consulta.vitales = consulta.cita.signosVitales[0];
+      }
+      delete consulta.cita; // Limpiar la relación después de extraer vitales
       return consulta;
     });
   }
