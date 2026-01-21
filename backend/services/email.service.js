@@ -2968,18 +2968,12 @@ Agendar nueva cita: ${frontendUrl}/mis-citas
                 ` : ''}
                 ${factura.numeroReferencia ? `
                 <tr>
-                  <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">
+                  <td style="padding: 10px 0;">
                     <span style="color: #6b7280; font-size: 13px;">📝 NÚMERO DE REFERENCIA</span><br>
                     <span style="color: #1f2937; font-size: 16px; font-weight: 600; font-family: monospace;">${factura.numeroReferencia}</span>
                   </td>
                 </tr>
                 ` : ''}
-                <tr>
-                  <td style="padding: 10px 0;">
-                    <span style="color: #6b7280; font-size: 13px;">🧾 NO. FACTURA</span><br>
-                    <span style="color: #1f2937; font-size: 14px; font-family: monospace;">${factura.id.substring(0, 8).toUpperCase()}</span>
-                  </td>
-                </tr>
               </table>
             </td>
           </tr>
