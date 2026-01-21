@@ -12,6 +12,7 @@ const validate = (schema) => async (c, next) => {
         path: err.path,
         message: err.message,
       }));
+      console.log('[Validation Error]', c.req.path, JSON.stringify(formattedErrors, null, 2));
       return c.json(error('Error de validación', formattedErrors), 400);
     }
     c.req.validData = result.data;

@@ -7,7 +7,8 @@ import { z } from 'zod';
 import {
   FileText, Stethoscope, TestTube, Activity, AlertTriangle,
   User, Calendar, Clock, CreditCard, MessageSquare, Search,
-  CheckCircle, ChevronRight, DollarSign, Building2, BadgeCheck
+  CheckCircle, ChevronRight, DollarSign, Building2, BadgeCheck,
+  Upload, Landmark, Hash, Image as ImageIcon, X, Banknote, CreditCard as CardIcon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,11 +41,22 @@ const citaSchema = z.object({
   costo: z.coerce.number().min(0, 'El costo no puede ser negativo'),
   motivo: z.string().optional(),
   notas: z.string().optional(),
-  metodoPago: z.enum(['Efectivo', 'Tarjeta', 'Transferencia', 'EPS']),
+  metodoPago: z.enum(['Efectivo', 'Tarjeta', 'Transferencia', 'EPS', 'Combinado']),
   estadoPago: z.enum(['Pendiente', 'Pagado', 'Parcial']),
   cubiertoPorEPS: z.boolean().optional(),
   esEmergencia: z.boolean().optional(),
   motivoEmergencia: z.string().optional(),
+  // Campos para transferencia
+  cuentaBancaria: z.string().optional(),
+  numeroReferencia: z.string().optional(),
+  comprobanteTransferencia: z.string().optional(),
+  // Campos para pago combinado
+  pagoCombinado: z.object({
+    efectivo: z.coerce.number().min(0).optional(),
+    tarjeta: z.coerce.number().min(0).optional(),
+    transferencia: z.coerce.number().min(0).optional(),
+    eps: z.coerce.number().min(0).optional(),
+  }).optional(),
 }).refine(data => {
   if (data.esEmergencia && !data.motivoEmergencia) {
     return false;
@@ -952,7 +964,7 @@ export default function FormularioCita({
       {/* ===== SECCIÓN 5: INFORMACIÓN DE PAGO ===== */}
       <FormSection icon={CreditCard} title="Información de Pago">
         <div className="grid grid-cols-2 gap-4">
-          {/* Duración */}
+          {/* Duración - Solo lectura */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Duración (minutos)
@@ -960,13 +972,14 @@ export default function FormularioCita({
             <Input
               type="number"
               {...register('duracionMinutos')}
-              min="1"
-              disabled={loading}
-              className="py-3 rounded-xl"
+              readOnly
+              disabled
+              className="py-3 rounded-xl bg-gray-50 text-gray-600 cursor-not-allowed"
             />
+            <p className="text-xs text-gray-500 mt-1">Definido por el servicio</p>
           </div>
 
-          {/* Costo */}
+          {/* Costo - Solo lectura */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Costo (COP)
@@ -974,13 +987,15 @@ export default function FormularioCita({
             <div className="relative">
               <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <Input
-                type="number"
-                {...register('costo')}
-                min="0"
-                disabled={loading}
-                className="pl-10 py-3 rounded-xl"
+                type="text"
+                value={costo ? formatCurrency(parseFloat(costo)) : ''}
+                readOnly
+                disabled
+                className="pl-10 py-3 rounded-xl bg-gray-50 text-gray-600 cursor-not-allowed"
               />
+              <input type="hidden" {...register('costo')} />
             </div>
+            <p className="text-xs text-gray-500 mt-1">Definido por el servicio</p>
           </div>
 
           {/* Método de Pago */}
@@ -997,6 +1012,7 @@ export default function FormularioCita({
               <option value="Tarjeta">Tarjeta</option>
               <option value="Transferencia">Transferencia</option>
               <option value="EPS">EPS</option>
+              <option value="Combinado">Pago Combinado</option>
             </select>
           </div>
 
@@ -1016,6 +1032,232 @@ export default function FormularioCita({
             </select>
           </div>
         </div>
+
+        {/* Campos adicionales para Transferencia */}
+        {metodoPago === 'Transferencia' && (
+          <div className="mt-4 p-4 bg-purple-50 border border-purple-200 rounded-xl space-y-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Landmark className="w-5 h-5 text-purple-600" />
+              <span className="font-medium text-purple-800">Datos de Transferencia</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Cuenta Bancaria */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cuenta Destino
+                </label>
+                <select
+                  {...register('cuentaBancaria')}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                  disabled={loading}
+                >
+                  <option value="">Seleccionar cuenta...</option>
+                  <option value="bancolombia_ahorros">Bancolombia Ahorros - **** 4521</option>
+                  <option value="bancolombia_corriente">Bancolombia Corriente - **** 7832</option>
+                  <option value="davivienda_ahorros">Davivienda Ahorros - **** 3456</option>
+                  <option value="nequi">Nequi - 324 333 8555</option>
+                  <option value="daviplata">Daviplata - 324 333 8555</option>
+                </select>
+              </div>
+
+              {/* Número de Referencia */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de Referencia / Comprobante
+                </label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                  <Input
+                    {...register('numeroReferencia')}
+                    placeholder="Ej: 123456789"
+                    className="pl-10 py-3 rounded-xl"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Subir Comprobante */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Comprobante de Transferencia
+              </label>
+              <div className="flex items-center gap-3">
+                <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer hover:border-purple-500 hover:bg-purple-50 transition-colors">
+                  <Upload className="w-5 h-5 text-purple-500" />
+                  <span className="text-sm text-purple-700">Subir imagen del comprobante</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setValue('comprobanteTransferencia', reader.result);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                    disabled={loading}
+                  />
+                </label>
+              </div>
+              {watch('comprobanteTransferencia') && (
+                <div className="mt-3 relative inline-block">
+                  <img
+                    src={watch('comprobanteTransferencia')}
+                    alt="Comprobante"
+                    className="h-24 rounded-lg border border-purple-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setValue('comprobanteTransferencia', '')}
+                    className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Campos para Pago Combinado */}
+        {metodoPago === 'Combinado' && (
+          <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-4">
+            <div className="flex items-center gap-2 mb-3">
+              <CreditCard className="w-5 h-5 text-amber-600" />
+              <span className="font-medium text-amber-800">Dividir Pago</span>
+              <span className="text-xs text-amber-600 ml-auto">
+                Total: {formatCurrency(parseFloat(costo) || 0)}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              {/* Efectivo */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <Banknote className="w-4 h-4 text-green-600" />
+                  Efectivo
+                </label>
+                <Input
+                  type="number"
+                  {...register('pagoCombinado.efectivo')}
+                  min="0"
+                  placeholder="$ 0"
+                  className="py-3 rounded-xl"
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Tarjeta */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <CardIcon className="w-4 h-4 text-blue-600" />
+                  Tarjeta
+                </label>
+                <Input
+                  type="number"
+                  {...register('pagoCombinado.tarjeta')}
+                  min="0"
+                  placeholder="$ 0"
+                  className="py-3 rounded-xl"
+                  disabled={loading}
+                />
+              </div>
+
+              {/* Transferencia */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <Landmark className="w-4 h-4 text-purple-600" />
+                  Transferencia
+                </label>
+                <Input
+                  type="number"
+                  {...register('pagoCombinado.transferencia')}
+                  min="0"
+                  placeholder="$ 0"
+                  className="py-3 rounded-xl"
+                  disabled={loading}
+                />
+              </div>
+
+              {/* EPS */}
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-2">
+                  <Building2 className="w-4 h-4 text-teal-600" />
+                  EPS
+                </label>
+                <Input
+                  type="number"
+                  {...register('pagoCombinado.eps')}
+                  min="0"
+                  placeholder="$ 0"
+                  className="py-3 rounded-xl"
+                  disabled={loading}
+                />
+              </div>
+            </div>
+
+            {/* Validación de suma */}
+            {(() => {
+              const pagos = watch('pagoCombinado') || {};
+              const suma = (parseFloat(pagos.efectivo) || 0) +
+                          (parseFloat(pagos.tarjeta) || 0) +
+                          (parseFloat(pagos.transferencia) || 0) +
+                          (parseFloat(pagos.eps) || 0);
+              const total = parseFloat(costo) || 0;
+              const diferencia = total - suma;
+
+              return suma > 0 && (
+                <div className={`mt-3 p-3 rounded-xl flex items-center justify-between ${
+                  Math.abs(diferencia) < 1 ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'
+                }`}>
+                  <span className="text-sm">
+                    Suma de pagos: <strong>{formatCurrency(suma)}</strong>
+                  </span>
+                  {Math.abs(diferencia) < 1 ? (
+                    <span className="text-green-700 text-sm flex items-center gap-1">
+                      <CheckCircle className="w-4 h-4" /> Correcto
+                    </span>
+                  ) : (
+                    <span className="text-red-700 text-sm">
+                      {diferencia > 0 ? `Faltan ${formatCurrency(diferencia)}` : `Excede ${formatCurrency(Math.abs(diferencia))}`}
+                    </span>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* Si hay transferencia en combinado, mostrar campos adicionales */}
+            {(parseFloat(watch('pagoCombinado.transferencia')) || 0) > 0 && (
+              <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-3">
+                <span className="text-sm font-medium text-purple-800">Datos de la transferencia:</span>
+                <div className="grid grid-cols-2 gap-3">
+                  <select
+                    {...register('cuentaBancaria')}
+                    className="px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white"
+                    disabled={loading}
+                  >
+                    <option value="">Cuenta destino...</option>
+                    <option value="bancolombia_ahorros">Bancolombia Ahorros</option>
+                    <option value="nequi">Nequi</option>
+                    <option value="daviplata">Daviplata</option>
+                  </select>
+                  <Input
+                    {...register('numeroReferencia')}
+                    placeholder="# Referencia"
+                    className="py-2 text-sm rounded-lg"
+                    disabled={loading}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {metodoPago === 'EPS' && (
           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center gap-2">

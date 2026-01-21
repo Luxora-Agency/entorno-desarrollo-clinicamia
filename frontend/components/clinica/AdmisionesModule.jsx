@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import FormularioCita from './FormularioCita';
-import { formatDate, formatTime, formatDateLong , getTodayColombia, formatDateISO} from '@/services/formatters'
+import { formatDate, formatTime, formatDateLong , getTodayColombia, formatDateISO, formatDateOnly} from '@/services/formatters'
 
 export default function AdmisionesModule({ user }) {
   const { toast } = useToast();
@@ -1149,7 +1149,8 @@ export default function AdmisionesModule({ user }) {
 
   const esHoy = (fecha) => {
     const hoy = getTodayColombia();
-    const fechaCita = formatDateISO(new Date(fecha));
+    // Extraer solo la parte de fecha sin conversión de timezone (para campos @db.Date)
+    const fechaCita = formatDateOnly(fecha, 'iso');
     return hoy === fechaCita;
   };
 
@@ -1699,7 +1700,7 @@ export default function AdmisionesModule({ user }) {
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
                                   <Calendar className="h-4 w-4 text-gray-500" />
-                                  <span className="font-semibold">{formatDate(cita.fecha)}</span>
+                                  <span className="font-semibold">{formatDateOnly(cita.fecha)}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Clock className="h-4 w-4 text-gray-500" />
@@ -1769,7 +1770,7 @@ export default function AdmisionesModule({ user }) {
                               <div className="flex items-center gap-4">
                                 <div className="flex items-center gap-2">
                                   <Calendar className="h-4 w-4 text-gray-500" />
-                                  <span className="font-semibold">{formatDate(cita.fecha)}</span>
+                                  <span className="font-semibold">{formatDateOnly(cita.fecha)}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <Clock className="h-4 w-4 text-gray-500" />
@@ -1848,7 +1849,7 @@ export default function AdmisionesModule({ user }) {
             {citaSeleccionada && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
                 <p className="text-sm text-blue-900">
-                  <strong>Cita:</strong> {formatDate(citaSeleccionada.fecha)} a las {formatTime(citaSeleccionada.hora)}
+                  <strong>Cita:</strong> {formatDateOnly(citaSeleccionada.fecha)} a las {formatTime(citaSeleccionada.hora)}
                 </p>
                 <p className="text-sm text-blue-900">
                   <strong>Especialidad:</strong> {citaSeleccionada.especialidad?.nombre}
@@ -1921,7 +1922,7 @@ export default function AdmisionesModule({ user }) {
                   </span>
                 </div>
                 <p className="text-sm text-blue-800">
-                  {pagoEditando.especialidad} - {formatDate(pagoEditando.fecha)} {formatTime(pagoEditando.hora)}
+                  {pagoEditando.especialidad} - {formatDateOnly(pagoEditando.fecha)} {formatTime(pagoEditando.hora)}
                 </p>
               </div>
 
@@ -2170,7 +2171,7 @@ export default function AdmisionesModule({ user }) {
               </p>
               {citaNoAsistio && (
                 <div className="text-sm text-red-800 space-y-1">
-                  <p><strong>Fecha:</strong> {formatDate(citaNoAsistio.fecha)}</p>
+                  <p><strong>Fecha:</strong> {formatDateOnly(citaNoAsistio.fecha)}</p>
                   <p><strong>Hora:</strong> {formatTime(citaNoAsistio.hora)}</p>
                   {citaNoAsistio.doctor && (
                     <p><strong>Doctor:</strong> Dr. {citaNoAsistio.doctor.nombre} {citaNoAsistio.doctor.apellido}</p>
@@ -2250,7 +2251,7 @@ export default function AdmisionesModule({ user }) {
                   <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Cita a cancelar</p>
                   <div className="flex items-center gap-2 text-gray-700">
                     <Calendar className="h-4 w-4 text-red-500" />
-                    <span className="font-medium">{formatDate(citaReagendar.fecha)}</span>
+                    <span className="font-medium">{formatDateOnly(citaReagendar.fecha)}</span>
                     <Clock className="h-4 w-4 text-red-500 ml-2" />
                     <span className="font-medium">{formatTime(citaReagendar.hora)}</span>
                   </div>
@@ -2547,7 +2548,7 @@ export default function AdmisionesModule({ user }) {
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                     <div>
                       <p className="text-gray-500">Fecha</p>
-                      <p className="font-semibold text-gray-900">{formatDate(reagendarData.fecha)}</p>
+                      <p className="font-semibold text-gray-900">{formatDateOnly(reagendarData.fecha)}</p>
                     </div>
                     <div>
                       <p className="text-gray-500">Hora</p>
@@ -2673,7 +2674,7 @@ export default function AdmisionesModule({ user }) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-gray-500" />
-                    <span>{formatDate(pagoConfirmado.fecha)} - {formatTime(pagoConfirmado.hora)}</span>
+                    <span>{formatDateOnly(pagoConfirmado.fecha)} - {formatTime(pagoConfirmado.hora)}</span>
                   </div>
                 </div>
               </div>

@@ -35,12 +35,13 @@ function safeDate(value) {
  * Convierte una fecha string (YYYY-MM-DD) a Date sin conversión de timezone
  * Útil para fechas que deben mantenerse exactas (sin ajuste de zona horaria)
  * @param {string} dateString - Fecha en formato YYYY-MM-DD
- * @returns {Date|null} - Fecha en UTC a medianoche
+ * @returns {Date|null} - Fecha en UTC a mediodía (evita problemas de cambio de día por timezone)
  */
 function parseSimpleDate(dateString) {
   if (!dateString) return null;
-  // Crear fecha a medianoche UTC
-  const date = new Date(dateString + 'T00:00:00.000Z');
+  // Crear fecha a mediodía UTC para evitar problemas de timezone
+  // Mediodía UTC = 7:00 AM Colombia, seguro para evitar cambio de día
+  const date = new Date(dateString + 'T12:00:00.000Z');
   return isNaN(date.getTime()) ? null : date;
 }
 

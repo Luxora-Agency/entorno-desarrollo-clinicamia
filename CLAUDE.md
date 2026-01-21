@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Hospital management system (Clínica Mía) with a Next.js 16 frontend and Hono.js backend, using PostgreSQL with Prisma ORM. Pure JavaScript throughout (no TypeScript).
+Hospital management system (Clínica Mía) with a Next.js 16 frontend and Hono.js backend, using PostgreSQL with Prisma ORM. Pure JavaScript throughout (no TypeScript). Timezone is America/Bogota (Colombia).
 
 ## Commands
 
@@ -203,27 +203,11 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 
 ## AI Medical Assistant
 
-The system includes an optional AI-powered medical assistant for doctors (requires OpenAI API key):
+Optional AI-powered medical assistant for doctors (requires OpenAI API key). Features CIE-10 diagnosis suggestions, drug interaction detection, vital signs analysis, and SOAP note generation.
 
-**Features:**
-- CIE-10 diagnosis suggestions via GPT function calling
-- Drug interaction detection
-- Vital signs analysis with alerts
-- SOAP note generation
-- Medical chat assistant
-
-**Endpoints:**
-- `GET /ai-assistant/status` - Check if AI is configured
-- `POST /ai-assistant/chat` - Chat with medical assistant
-- `POST /ai-assistant/diagnosis-suggestions` - Get diagnosis suggestions
-- `POST /ai-assistant/check-prescription` - Verify drug interactions
-- `POST /ai-assistant/analyze-vitals` - Analyze vital signs
-- `POST /ai-assistant/generate-soap` - Generate SOAP notes
-
-**Frontend Components:**
-- `/components/clinica/doctor/AIMedicalAssistant.jsx` - Chat panel
-- `/components/clinica/consulta/AIInlineSuggestions.jsx` - Inline suggestions
-- `/hooks/useAIAssistant.js` - API integration hook
+**Backend**: `/routes/ai-assistant.js`, `/services/openai.service.js`
+**Frontend**: `/components/clinica/doctor/AIMedicalAssistant.jsx`, `/hooks/useAIAssistant.js`
+**Endpoints**: `/ai-assistant/status`, `/chat`, `/diagnosis-suggestions`, `/check-prescription`, `/analyze-vitals`, `/generate-soap`
 
 ## API Documentation
 
@@ -248,51 +232,24 @@ All other routes require `authMiddleware` and optionally `permissionMiddleware` 
 
 ## Module Domains
 
-Backend has 84+ route/service pairs:
-- **Auth/Users**: auth, usuarios, roles, doctores, permissions, audit
-- **Clinical**: pacientes, citas, agenda, departamentos, especialidades, consultas, disponibilidad, interconsultas, antecedentes
+Backend has 84+ route/service pairs organized by domain. Check `backend/server.js` for the complete route mounting. Main domains:
+- **Clinical**: pacientes, citas, agenda, consultas, departamentos, especialidades, disponibilidad, interconsultas
 - **Hospitalization**: unidades, habitaciones, camas, admisiones, movimientos, egresos
-- **Medical Records (HCE)**: evoluciones, signos-vitales, diagnosticos, alertas, auditoria, hce, hce-analyzer (AI document analysis)
-- **Orders**: ordenes-medicas, ordenes-medicamentos, procedimientos, prescripciones, administraciones
-- **Billing**: facturas, productos, categorias-productos, paquetes-hospitalizacion
-- **Emergency/Nursing**: urgencias, notas-enfermeria, glucometrias, balance-liquidos, transfusiones, asignaciones-enfermeria, plantillas-notas
-- **Diagnostic**: imagenologia, examenes-procedimientos, categorias-examenes, laboratorio
-- **Surgery**: quirofano (operating rooms, surgical procedures)
-- **Quality (IPS Colombia)**:
-  - **Legacy**: habilitacion, acreditacion, pamec, eventos-adversos, seguridad-paciente, indicadores-sic, pqrs, comites, vigilancia-salud, documentos-calidad, planes-accion
-  - **Calidad 2.0**: Comprehensive quality management with submodules for Historia Clínica, Medicamentos, Procesos Prioritarios, and Talento Humano (see `/routes/calidad2/` directory)
-- **HR/Talent Management**: talento-humano (candidates, capacitaciones, evaluaciones, induccion, certificates)
-- **SST** (Occupational Health & Safety): Multiple submodules for workplace safety compliance
-- **MiaPass**: mia-pass, formulario-mia-pass (subscription/loyalty program)
-- **E-commerce**: ordenes-tienda (shop orders), payments (ePayco integration)
-- **Reports**: reportes, dashboard
-- **Siigo/Accounting**: siigo (config), compras (proveedores, ordenes-compra), contabilidad (asientos, centros-costo), bancos (cuentas, conciliacion, tributario), activos-fijos (depreciacion, mantenimientos), dashboard-financiero (KPIs)
-- **Other**: publicaciones (blog/posts), tickets (support), catalogos (CUPS/CIE-11), mcp (Model Context Protocol server for AI agents), ai-assistant
+- **Medical Records (HCE)**: evoluciones, signos-vitales, diagnosticos, alertas, auditoria, hce, hce-analyzer
+- **Nursing/Emergency**: urgencias, notas-enfermeria, glucometrias, balance-liquidos, transfusiones
+- **Diagnostic**: imagenologia, laboratorio, examenes-procedimientos
+- **Pharmacy/Billing**: facturas, productos, ordenes-medicamentos, prescripciones, administraciones
+- **Quality (IPS Colombia)**: habilitacion, acreditacion, pamec, eventos-adversos, calidad2 (comprehensive module)
+- **Siigo/Accounting**: siigo, compras, contabilidad, bancos, activos-fijos, dashboard-financiero
+- **Other**: ai-assistant, mcp, quirofano, ordenes-tienda, mia-pass, publicaciones, tickets
 
 ## Siigo Integration (Facturación Electrónica DIAN)
 
-Integración con Siigo Nube para contabilidad y facturación electrónica colombiana.
+Integración con Siigo Nube para contabilidad y facturación electrónica colombiana. Services in `/backend/services/siigo/` handle invoicing, credit notes, customer/product sync, accounting entries, and Colombian tax withholdings (UVT 2026: $52,263).
 
-**Servicios Siigo** (`/backend/services/siigo/`):
-- `siigo.service.js` - SDK initialization, authentication
-- `invoice.siigo.service.js` - Electronic invoicing DIAN (CUFE)
-- `creditNote.siigo.service.js` - Electronic credit notes
-- `customer.siigo.service.js` - Patient/client sync
-- `product.siigo.service.js` - Pharmacy product sync
-- `journal.siigo.service.js` - Accounting entries
-- `tax.siigo.service.js` - Colombian withholdings (UVT 2026: $52,263)
+**Routes**: `/siigo`, `/compras`, `/contabilidad`, `/bancos`, `/activos-fijos`, `/dashboard-financiero`
 
-**Routes:**
-- `/siigo` - Configuration and credentials
-- `/compras` - Suppliers, purchase orders
-- `/contabilidad` - Accounting entries, chart of accounts
-- `/bancos` - Bank accounts, reconciliation, tax
-- `/activos-fijos` - Medical equipment, depreciation
-- `/dashboard-financiero` - Executive KPIs
-
-**Cron Jobs** (`/backend/cron/`):
-- `depreciacion.js` - Monthly depreciation (day 1, 2:00 AM)
-- `siigoSync.js` - Siigo sync with retries, DIAN verification
+**Cron Jobs** (`/backend/cron/`): `depreciacion.js` (monthly), `siigoSync.js` (sync with retries)
 
 **Environment Variables:**
 ```
@@ -309,65 +266,32 @@ SIIGO_ENVIRONMENT=sandbox  # or production
 
 ## Key Libraries
 
-**Backend:**
-- `hono` - Fast HTTP framework
-- `@prisma/client` - Database ORM
-- `pdfkit` - PDF generation (invoices, medical records, reports)
-- `exceljs` - Excel export for reports
-- `xmlbuilder2` - XML generation for integrations
-- `date-fns` - Date manipulation
-- `zod` / `joi` - Request validation (prefer zod for new code)
-- `openai` - AI Medical Assistant integration
-- `node-cron` - Scheduled task management
+**Backend:** `hono` (HTTP), `@prisma/client` (ORM), `zod`/`joi` (validation - prefer zod), `pdfkit`/`exceljs` (exports), `date-fns`, `openai`, `node-cron`
 
-**Frontend:**
-- `next` 16 - React framework
-- `react-big-calendar` - Calendar/agenda views
-- `echarts-for-react` / `recharts` - Charts and dashboards
-- `react-hook-form` + `zod` - Form handling with validation
-- `swr` - Data fetching and caching
-- `sonner` - Toast notifications
-- `cmdk` - Command palette
-- `xlsx` - Excel export
-- `react-markdown` - Markdown rendering
-- `next-themes` - Dark mode support
-- `@radix-ui/*` - shadcn/ui primitives
+**Frontend:** `next` 16, `react-big-calendar`, `echarts-for-react`/`recharts`, `react-hook-form` + `zod`, `swr`, `sonner` (toasts), `cmdk`, `@radix-ui/*` (shadcn/ui)
 
 ## Important Notes
 
 ### Route Mounting Order (Hono.js)
-When adding new routes to `server.js`, specific routes MUST come before dynamic parameter routes:
+**CRITICAL**: Specific routes MUST come before dynamic parameter routes in `server.js`:
 ```javascript
-// CORRECT ORDER:
-app.route('/pacientes/stats', statsRoute);     // Specific first
-app.route('/pacientes/:id/history', history);  // Specific with params
-app.route('/pacientes/:id', byId);             // Dynamic last
-
-// WRONG: /:id before /stats would match "stats" as an id
+// CORRECT: /stats before /:id
+app.route('/pacientes/stats', statsRoute);
+app.route('/pacientes/:id', byId);
+// WRONG: /:id would match "stats" as an id
 ```
 
 ### Cron Jobs
-Backend includes scheduled tasks (`backend/cron/`) managed by `node-cron`. Jobs are registered in `server.js` and run automatically when server starts.
+Scheduled tasks in `backend/cron/` managed by `node-cron`, registered in `server.js`.
 
 ### Model Context Protocol (MCP)
-The backend includes an MCP server (`backend/mcp/index.js`) that exposes AI-friendly tools for medical data access. Start with `npm run mcp` to enable AI agent integrations.
+MCP server (`backend/mcp/index.js`) exposes AI-friendly tools for medical data access. Start with `npm run mcp`.
 
 ### Catalogs Integration
-System integrates with Colombian healthcare catalogs:
-- **CUPS** (Clasificación Única de Procedimientos en Salud): Medical procedures catalog
-- **CIE-10/CIE-11**: International disease classification
-- Catalog search components available in `frontend/components/ui/CatalogSearch.jsx`
+Colombian healthcare catalogs: **CUPS** (procedures), **CIE-10/CIE-11** (diagnoses). Search components in `frontend/components/ui/CatalogSearch.jsx`.
 
 ### Quality Management (Calidad 2.0)
-Comprehensive quality management system compliant with Colombian IPS regulations, organized into four main modules:
-1. **Historia Clínica** (Medical Records Quality): Audits, certifications, consents, document management
-2. **Medicamentos** (Medications): Farmacovigilancia, tecnovigilancia, inventory, alerts
-3. **Procesos Prioritarios** (Priority Processes): Protocols, indicators, checklists, capacity management
-4. **Talento Humano** (Human Resources): Personnel training, certifications, induction
+Colombian IPS compliance system with modules for: Historia Clínica (audits, consents), Medicamentos (farmacovigilancia), Procesos Prioritarios (protocols, indicators), Talento Humano (training, certifications). See `/routes/calidad2/`.
 
 ### Frontend Token Refresh
-The `api.js` service implements automatic token refresh with a queue mechanism:
-- When a request fails with 401, refresh is triggered automatically
-- During refresh, all failed requests are queued
-- Once new token is obtained, all queued requests retry automatically
-- This prevents multiple simultaneous refresh attempts and ensures zero interruption
+`api.js` implements automatic token refresh with request queuing - failed 401 requests are queued during refresh and retried automatically.

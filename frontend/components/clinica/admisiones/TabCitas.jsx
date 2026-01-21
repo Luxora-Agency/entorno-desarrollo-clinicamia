@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getTodayColombia, formatDateISO } from '@/services/formatters';
+import { getTodayColombia, formatDateISO, formatDateOnly } from '@/services/formatters';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -173,11 +173,8 @@ export default function TabCitas({ pacienteId, paciente, user }) {
 
   const formatFecha = (fecha) => {
     if (!fecha) return '-';
-    return new Date(fecha).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
+    // Usar formatDateOnly para evitar problemas de timezone con fechas @db.Date
+    return formatDateOnly(fecha, 'medium');
   };
 
   const getEstadoBadge = (estado) => {

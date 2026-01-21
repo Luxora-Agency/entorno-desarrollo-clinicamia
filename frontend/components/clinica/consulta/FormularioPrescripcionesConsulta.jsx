@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Pill, Plus, X, AlertCircle, Trash2, History, Sparkles, Calculator, Brain, Loader2, CheckCircle2, AlertTriangle, Package } from 'lucide-react';
+import { Pill, Plus, X, AlertCircle, Trash2, History, Sparkles, Calculator, Brain, Loader2, CheckCircle2, AlertTriangle, Package, Pencil } from 'lucide-react';
 import TemplateSelector from '../templates/TemplateSelector';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -111,6 +111,16 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
   const [calculoIA, setCalculoIA] = useState(null);
   const [loadingCalculoIA, setLoadingCalculoIA] = useState(false);
   const [iaDisponible, setIaDisponible] = useState(false);
+
+  // Estado para edición de medicamentos inline
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingData, setEditingData] = useState({
+    dosis: '',
+    via: 'Oral',
+    frecuencia: 'Cada8Horas',
+    duracionDias: '',
+    instrucciones: '',
+  });
 
   useEffect(() => {
     if (quiereAgregar) {
@@ -344,17 +354,58 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
       toast({ description: 'Seleccione un medicamento y complete la dosis' });
       return;
     }
-    
+
     const newMedicamentos = [...formData.medicamentos, { ...medicamentoActual }];
     const newData = { ...formData, medicamentos: newMedicamentos };
     setFormData(newData);
     onChange(newData, isComplete(newData));
-    
+
     // Reset medicamento actual
     setMedicamentoActual({
       productoId: '',
       nombre: '',
       precio: 0,
+      dosis: '',
+      via: 'Oral',
+      frecuencia: 'Cada8Horas',
+      duracionDias: '',
+      instrucciones: '',
+    });
+    setCalculoIA(null);
+  };
+
+  const editarMedicamento = (index) => {
+    const med = formData.medicamentos[index];
+    setEditingData({
+      dosis: med.dosis || '',
+      via: med.via || 'Oral',
+      frecuencia: med.frecuencia || 'Cada8Horas',
+      duracionDias: med.duracionDias || med.duracion?.replace(/\D/g, '') || '',
+      instrucciones: med.instrucciones || '',
+    });
+    setEditingIndex(index);
+  };
+
+  const guardarEdicionInline = (index) => {
+    const newMedicamentos = [...formData.medicamentos];
+    newMedicamentos[index] = {
+      ...newMedicamentos[index],
+      dosis: editingData.dosis,
+      via: editingData.via,
+      frecuencia: editingData.frecuencia,
+      duracionDias: editingData.duracionDias,
+      instrucciones: editingData.instrucciones,
+    };
+    const newData = { ...formData, medicamentos: newMedicamentos };
+    setFormData(newData);
+    onChange(newData, isComplete(newData));
+    setEditingIndex(null);
+    toast({ description: 'Medicamento actualizado' });
+  };
+
+  const cancelarEdicion = () => {
+    setEditingIndex(null);
+    setEditingData({
       dosis: '',
       via: 'Oral',
       frecuencia: 'Cada8Horas',
@@ -490,30 +541,160 @@ export default function FormularioPrescripcionesConsulta({ onChange, data, diagn
           <div className="space-y-2">
             <Label>Medicamentos Prescritos ({formData.medicamentos.length})</Label>
             {formData.medicamentos.map((med, index) => (
-              <div key={index} className={`${med.esDeKit ? 'bg-orange-50 border-orange-200' : 'bg-teal-50 border-teal-200'} border rounded-md p-3 flex items-start justify-between`}>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge className={med.esDeKit ? 'bg-orange-600' : 'bg-teal-600'}>
-                      {med.esDeKit ? 'Kit' : 'Medicamento'}
-                    </Badge>
-                    <p className={`font-semibold ${med.esDeKit ? 'text-orange-900' : 'text-teal-900'}`}>{med.nombre}</p>
+              <div key={index} className={`${
+                editingIndex === index
+                  ? 'bg-blue-50 border-blue-400 ring-2 ring-blue-200'
+                  : med.esDeKit
+                    ? 'bg-orange-50 border-orange-200'
+                    : 'bg-teal-50 border-teal-200'
+              } border rounded-md p-3 transition-all`}>
+                {editingIndex === index ? (
+                  /* Modo edición inline */
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-blue-600">Editando</Badge>
+                        <p className="font-semibold text-blue-900">{med.nombre}</p>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => guardarEdicionInline(index)}
+                          className="text-green-600 hover:text-green-700 hover:bg-green-100"
+                          title="Guardar cambios"
+                        >
+                          <CheckCircle2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={cancelarEdicion}
+                          className="text-gray-600 hover:text-gray-700 hover:bg-gray-100"
+                          title="Cancelar"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs text-gray-600">Dosis</Label>
+                        <Input
+                          value={editingData.dosis}
+                          onChange={(e) => setEditingData({ ...editingData, dosis: e.target.value })}
+                          placeholder="Ej: 1 tableta, 500mg..."
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-600">Vía</Label>
+                        <Select
+                          value={editingData.via}
+                          onValueChange={(value) => setEditingData({ ...editingData, via: value })}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Oral">Oral</SelectItem>
+                            <SelectItem value="Intravenosa">Intravenosa</SelectItem>
+                            <SelectItem value="Intramuscular">Intramuscular</SelectItem>
+                            <SelectItem value="Subcutanea">Subcutánea</SelectItem>
+                            <SelectItem value="Topica">Tópica</SelectItem>
+                            <SelectItem value="Oftalmica">Oftálmica</SelectItem>
+                            <SelectItem value="Otica">Ótica</SelectItem>
+                            <SelectItem value="Nasal">Nasal</SelectItem>
+                            <SelectItem value="Inhalatoria">Inhalatoria</SelectItem>
+                            <SelectItem value="Rectal">Rectal</SelectItem>
+                            <SelectItem value="Vaginal">Vaginal</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs text-gray-600">Frecuencia</Label>
+                        <Select
+                          value={editingData.frecuencia}
+                          onValueChange={(value) => setEditingData({ ...editingData, frecuencia: value })}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Unica">Dosis única</SelectItem>
+                            <SelectItem value="Cada4Horas">Cada 4 horas</SelectItem>
+                            <SelectItem value="Cada6Horas">Cada 6 horas</SelectItem>
+                            <SelectItem value="Cada8Horas">Cada 8 horas</SelectItem>
+                            <SelectItem value="Cada12Horas">Cada 12 horas</SelectItem>
+                            <SelectItem value="Cada24Horas">Cada 24 horas</SelectItem>
+                            <SelectItem value="PRN">PRN (según necesidad)</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-gray-600">Duración (días)</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={editingData.duracionDias}
+                          onChange={(e) => setEditingData({ ...editingData, duracionDias: e.target.value })}
+                          placeholder="7"
+                          className="h-8 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-gray-600">Instrucciones adicionales</Label>
+                      <Input
+                        value={editingData.instrucciones}
+                        onChange={(e) => setEditingData({ ...editingData, instrucciones: e.target.value })}
+                        placeholder="Ej: Tomar con alimentos..."
+                        className="h-8 text-sm"
+                      />
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600">
-                    Dosis: {med.dosis} | Vía: {med.via} | {med.frecuencia}
-                  </p>
-                  {med.duracionDias && <p className="text-sm text-gray-600">Duración: {med.duracionDias} días</p>}
-                  {med.duracion && !med.duracionDias && <p className="text-sm text-gray-600">Duración: {med.duracion}</p>}
-                  {med.instrucciones && <p className="text-xs text-gray-500 mt-1">{med.instrucciones}</p>}
-                  {med.esDeKit && <p className="text-xs text-orange-600 mt-1">Aplicado desde: {med.kitOrigen}</p>}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => eliminarMedicamento(index)}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                ) : (
+                  /* Modo visualización */
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge className={med.esDeKit ? 'bg-orange-600' : 'bg-teal-600'}>
+                          {med.esDeKit ? 'Kit' : 'Medicamento'}
+                        </Badge>
+                        <p className={`font-semibold ${med.esDeKit ? 'text-orange-900' : 'text-teal-900'}`}>{med.nombre}</p>
+                      </div>
+                      <p className="text-sm text-gray-600">
+                        Dosis: {med.dosis} | Vía: {med.via} | {med.frecuencia}
+                      </p>
+                      {med.duracionDias && <p className="text-sm text-gray-600">Duración: {med.duracionDias} días</p>}
+                      {med.duracion && !med.duracionDias && <p className="text-sm text-gray-600">Duración: {med.duracion}</p>}
+                      {med.instrucciones && <p className="text-xs text-gray-500 mt-1">{med.instrucciones}</p>}
+                      {med.esDeKit && <p className="text-xs text-orange-600 mt-1">Aplicado desde: {med.kitOrigen}</p>}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => editarMedicamento(index)}
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                        title="Editar medicamento"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => eliminarMedicamento(index)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-100"
+                        title="Eliminar medicamento"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

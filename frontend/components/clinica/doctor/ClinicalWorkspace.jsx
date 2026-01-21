@@ -22,7 +22,6 @@ import FormularioSignosVitalesConsulta from '../consulta/FormularioSignosVitales
 import FormularioDiagnosticoConsulta from '../consulta/FormularioDiagnosticoConsulta';
 import FormularioPrescripcionesConsulta from '../consulta/FormularioPrescripcionesConsulta';
 import FormularioProcedimientosExamenesConsulta from '../consulta/FormularioProcedimientosExamenesConsulta';
-import FormularioRemisiones from '../consulta/FormularioRemisiones';
 import FormularioRevisionSistemas from '../consulta/FormularioRevisionSistemas';
 import FormularioPlanManejo from '../consulta/FormularioPlanManejo';
 import FormularioRecomendaciones from '../consulta/FormularioRecomendaciones';
@@ -154,7 +153,6 @@ export default function ClinicalWorkspace({
     diagnostico: null,
     procedimientos: null,
     prescripciones: null,
-    remisiones: null,
     planManejo: null,
     recomendaciones: null,
     motivoConsulta: '',
@@ -174,7 +172,6 @@ export default function ClinicalWorkspace({
     diagnostico: true, // Opcional
     prescripciones: true,
     procedimientos: true,
-    remisiones: true, // Opcional
     planManejo: true, // Opcional
     recomendaciones: true, // Opcional
   });
@@ -232,11 +229,6 @@ export default function ClinicalWorkspace({
   const handleProcedimientosChange = useCallback((data, isValid) => {
     setConsultaData(prev => ({ ...prev, procedimientos: data }));
     setStepsValid(prev => ({ ...prev, procedimientos: isValid }));
-  }, []);
-
-  const handleRemisionesChange = useCallback((data, isValid) => {
-    setConsultaData(prev => ({ ...prev, remisiones: data }));
-    setStepsValid(prev => ({ ...prev, remisiones: isValid }));
   }, []);
 
   const handlePlanManejoChange = useCallback((data) => {
@@ -785,27 +777,14 @@ ${consultaData.planManejo ? JSON.stringify(consultaData.planManejo, null, 2) : '
 PRESCRIPCIONES:
 ${consultaData.prescripciones ? 'Se han generado recetas médicas.' : 'Ninguna'}
 
-PROCEDIMIENTOS/ÓRDENES:
+PROCEDIMIENTOS/ÓRDENES/INTERCONSULTAS:
 ${consultaData.procedimientos ? 'Se han generado órdenes médicas.' : 'Ninguna'}
-
-REMISIONES:
-${consultaData.remisiones && consultaData.remisiones.length > 0
-  ? consultaData.remisiones.map(r => `- ${r.especialidadNombre}: ${r.motivoConsulta}`).join('\n')
-  : 'Ninguna'}
           `.trim()
         };
       }
 
-      // Combinar procedimientos y remisiones en un solo array para el backend
-      // El backend procesa items con tipo 'Interconsulta' de forma especial
-      const procedimientosConRemisiones = [
-        ...(consultaData.procedimientos || []),
-        ...(consultaData.remisiones || [])
-      ];
-
       await onFinish({
         ...consultaData,
-        procedimientos: procedimientosConRemisiones.length > 0 ? procedimientosConRemisiones : null,
         soap: soapData, // SOAP del formulario (control) o construido (primera)
         citaId: cita.id,
         pacienteId: cita.pacienteId,
@@ -1412,18 +1391,10 @@ ${consultaData.remisiones && consultaData.remisiones.length > 0
                         </div>
 
                         <div className="border-t pt-8">
-                             <h3 className="text-lg font-bold mb-4">Órdenes y Procedimientos</h3>
+                             <h3 className="text-lg font-bold mb-4">Órdenes, Procedimientos e Interconsultas</h3>
                              <FormularioProcedimientosExamenesConsulta
                                 data={consultaData.procedimientos}
                                 onChange={handleProcedimientosChange}
-                             />
-                        </div>
-
-                        <div className="border-t pt-8">
-                             <FormularioRemisiones
-                                data={consultaData.remisiones}
-                                diagnosticoConsulta={consultaData.diagnostico}
-                                onChange={handleRemisionesChange}
                              />
                         </div>
 

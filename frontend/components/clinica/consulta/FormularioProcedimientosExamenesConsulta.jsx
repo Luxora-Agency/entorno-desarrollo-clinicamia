@@ -7,8 +7,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Stethoscope, Plus, X, AlertCircle, Trash2, TestTube, FileStack } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Stethoscope, Plus, X, AlertCircle, Trash2, TestTube, FileStack, ChevronsUpDown, Check } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 import PlantillasOrdenesModal from './PlantillasOrdenesModal';
 
 export default function FormularioProcedimientosExamenesConsulta({ onChange, data }) {
@@ -25,6 +28,7 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
   const [servicios, setServicios] = useState([]);
   const [loadingServicios, setLoadingServicios] = useState(false);
   const [showPlantillasModal, setShowPlantillasModal] = useState(false);
+  const [openServicioCombobox, setOpenServicioCombobox] = useState(false);
 
   useEffect(() => {
     if (quiereAgregar && ordenActual.tipo) {
@@ -37,14 +41,34 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
     try {
       const token = localStorage.getItem('token');
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || '/api';
-      
-      const response = await fetch(`${apiUrl}/examenes-procedimientos?tipo=${tipo}&estado=Activo&limit=100`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setServicios(data.data || []);
+
+      // Para Interconsulta, cargar especialidades en lugar de exámenes/procedimientos
+      if (tipo === 'Interconsulta') {
+        const response = await fetch(`${apiUrl}/especialidades?activo=true&limit=100`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          // Mapear especialidades al formato esperado
+          const especialidades = (data.data || []).map(esp => ({
+            id: esp.id,
+            nombre: `Interconsulta a ${esp.titulo || esp.nombre}`,
+            codigoCUPS: null,
+            costoBase: 0
+          }));
+          setServicios(especialidades);
+        }
+      } else {
+        // Para Examen y Procedimiento, cargar de examenes-procedimientos
+        const response = await fetch(`${apiUrl}/examenes-procedimientos?tipo=${tipo}&estado=Activo&limit=100`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setServicios(data.data || []);
+        }
       }
     } catch (error) {
       console.error('Error cargando servicios:', error);
@@ -250,21 +274,52 @@ export default function FormularioProcedimientosExamenesConsulta({ onChange, dat
             {loadingServicios ? (
               <p className="text-sm text-gray-500 mt-2">Cargando servicios...</p>
             ) : (
-              <Select
-                value={ordenActual.servicioId}
-                onValueChange={handleServicioChange}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Seleccione un servicio" />
-                </SelectTrigger>
-                <SelectContent>
-                  {servicios.map((servicio) => (
-                    <SelectItem key={servicio.id} value={servicio.id}>
-                      {servicio.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={openServicioCombobox} onOpenChange={setOpenServicioCombobox}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={openServicioCombobox}
+                    className="w-full justify-between mt-1 font-normal"
+                  >
+                    {ordenActual.servicioId
+                      ? servicios.find(s => s.id === ordenActual.servicioId)?.nombre || "Seleccione..."
+                      : "Buscar o seleccionar servicio..."}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[400px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Escriba para buscar..." />
+                    <CommandList>
+                      <CommandEmpty>No se encontraron resultados.</CommandEmpty>
+                      <CommandGroup>
+                        {servicios.map((servicio) => (
+                          <CommandItem
+                            key={servicio.id}
+                            value={servicio.nombre}
+                            onSelect={() => {
+                              handleServicioChange(servicio.id);
+                              setOpenServicioCombobox(false);
+                            }}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                ordenActual.servicioId === servicio.id ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="truncate">{servicio.nombre}</span>
+                            {servicio.codigoCUPS && (
+                              <span className="ml-2 text-xs text-gray-500">CUPS: {servicio.codigoCUPS}</span>
+                            )}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
 

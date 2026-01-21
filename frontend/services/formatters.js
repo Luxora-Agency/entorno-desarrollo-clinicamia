@@ -22,6 +22,8 @@ export const formatCurrency = (value) => {
 
 /**
  * Formatear fecha en formato corto (DD/MM/YYYY)
+ * NOTA: Esta función convierte a zona horaria de Colombia.
+ * Para fechas de tipo DATE (sin hora) usar formatDateOnly() en su lugar.
  */
 export const formatDate = (date) => {
   if (!date) return '';
@@ -33,6 +35,45 @@ export const formatDate = (date) => {
     year: 'numeric',
     timeZone: TIMEZONE_BOGOTA
   });
+};
+
+/**
+ * Formatear fecha de tipo DATE (sin componente de hora)
+ * IMPORTANTE: Usar esta función para fechas que vienen de campos @db.Date de Prisma.
+ * Estas fechas se almacenan como medianoche UTC y esta función extrae solo
+ * la parte de fecha sin conversión de timezone.
+ * @param {string|Date} date - Fecha en formato ISO o Date object
+ * @param {string} format - Formato: 'short' (DD/MM/YYYY), 'medium' (DD mes YYYY), 'iso' (YYYY-MM-DD)
+ * @returns {string} Fecha formateada
+ */
+export const formatDateOnly = (date, format = 'short') => {
+  if (!date) return '';
+
+  // Extraer la parte de fecha del string ISO (YYYY-MM-DD)
+  let dateStr;
+  if (typeof date === 'string') {
+    // Si es ISO string, tomar solo la parte de fecha
+    dateStr = date.split('T')[0];
+  } else if (date instanceof Date) {
+    // Si es Date object, convertir a ISO y tomar la parte de fecha
+    dateStr = date.toISOString().split('T')[0];
+  } else {
+    return '';
+  }
+
+  const [year, month, day] = dateStr.split('-');
+  if (!year || !month || !day) return '';
+
+  switch (format) {
+    case 'iso':
+      return dateStr; // YYYY-MM-DD
+    case 'medium':
+      const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+      return `${parseInt(day)} ${meses[parseInt(month) - 1]} ${year}`; // 21 ene 2026
+    case 'short':
+    default:
+      return `${day}/${month}/${year}`; // DD/MM/YYYY
+  }
 };
 
 /**
@@ -103,18 +144,31 @@ export const formatDateTime = (date) => {
 };
 
 /**
- * Formatear hora (HH:MM) en zona horaria de Bogotá
+ * Formatear hora (HH:MM)
+ * IMPORTANTE: Para campos @db.Time de Prisma, extraer la hora del string ISO
+ * sin conversión de timezone (similar a formatDateOnly para fechas).
  */
 export const formatTime = (time) => {
   if (!time) return '';
 
   // Si ya es un string en formato HH:MM simple, retornarlo
-  if (typeof time === 'string' && /^\d{2}:\d{2}/.test(time)) {
+  if (typeof time === 'string' && /^\d{2}:\d{2}(:\d{2})?$/.test(time)) {
     return time.substring(0, 5);
   }
 
-  // Si es un timestamp ISO o cualquier otro formato, convertir a hora Bogotá
+  // Si es un string ISO (ej: "1970-01-01T08:00:00.000Z" de campo @db.Time)
+  // Extraer la parte de hora sin conversión de timezone
+  if (typeof time === 'string' && time.includes('T')) {
+    const timePart = time.split('T')[1];
+    if (timePart) {
+      // Tomar solo HH:MM
+      return timePart.substring(0, 5);
+    }
+  }
+
+  // Fallback: usar conversión con timezone
   const d = new Date(time);
+  if (isNaN(d.getTime())) return '';
   return d.toLocaleTimeString('es-CO', {
     hour: '2-digit',
     minute: '2-digit',

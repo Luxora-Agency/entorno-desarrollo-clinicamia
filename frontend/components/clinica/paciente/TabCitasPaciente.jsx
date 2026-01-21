@@ -69,17 +69,40 @@ export default function TabCitasPaciente({ pacienteId }) {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      timeZone: 'America/Bogota'
-    });
+    // Extraer solo la parte de fecha sin conversión de timezone
+    // para campos @db.Date que vienen como "2026-01-21T00:00:00.000Z"
+    let datePart;
+    if (typeof dateString === 'string') {
+      datePart = dateString.split('T')[0];
+    } else if (dateString instanceof Date) {
+      datePart = dateString.toISOString().split('T')[0];
+    } else {
+      return 'N/A';
+    }
+    const [year, month, day] = datePart.split('-');
+    if (!year || !month || !day) return 'N/A';
+    const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                   'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+    return `${parseInt(day)} de ${meses[parseInt(month) - 1]} de ${year}`;
   };
 
   const formatTime = (timeString) => {
     if (!timeString) return 'N/A';
+    // Si ya es formato HH:MM simple
+    if (typeof timeString === 'string' && /^\d{2}:\d{2}(:\d{2})?$/.test(timeString)) {
+      return timeString.substring(0, 5);
+    }
+    // Si es string ISO (ej: "1970-01-01T08:00:00.000Z" de campo @db.Time)
+    // Extraer la parte de hora sin conversión de timezone
+    if (typeof timeString === 'string' && timeString.includes('T')) {
+      const timePart = timeString.split('T')[1];
+      if (timePart) {
+        return timePart.substring(0, 5);
+      }
+    }
+    // Fallback
     const date = new Date(timeString);
+    if (isNaN(date.getTime())) return 'N/A';
     return date.toLocaleTimeString('es-CO', {
       hour: '2-digit',
       minute: '2-digit',

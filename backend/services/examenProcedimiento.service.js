@@ -9,7 +9,7 @@ class ExamenProcedimientoService {
   /**
    * Obtener todos los exámenes y procedimientos
    */
-  async getAll({ page = 1, limit = 100, search = '', tipo = '' }) {
+  async getAll({ page = 1, limit = 100, search = '', tipo = '', estado = '' }) {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const where = {
@@ -21,6 +21,7 @@ class ExamenProcedimientoService {
         ],
       }),
       ...(tipo && tipo !== 'todos' && { tipo }),
+      ...(estado && { estado }),
     };
 
     const [items, total] = await Promise.all([

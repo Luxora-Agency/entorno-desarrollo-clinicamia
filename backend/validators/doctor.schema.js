@@ -14,10 +14,16 @@ const dayScheduleSchema = z.object({
   slots: z.array(slotSchema).default([]),
 }).optional();
 
-// Schema para horarios completos (objeto con claves "0"-"6" para cada día de la semana)
+// Schema para horarios completos
+// Acepta claves de día de semana ("0"-"6") o fechas específicas ("YYYY-MM-DD")
 const horariosSchema = z.record(
-  z.string().regex(/^[0-6]$/, 'Clave de día inválida (debe ser 0-6)'),
-  dayScheduleSchema
+  z.string().regex(/^([0-6]|\d{4}-\d{2}-\d{2})$/, 'Clave inválida (debe ser 0-6 o fecha YYYY-MM-DD)'),
+  z.array(z.object({
+    inicio: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato de hora inválido (HH:MM)').optional(),
+    fin: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato de hora inválido (HH:MM)').optional(),
+    start: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato de hora inválido (HH:MM)').optional(),
+    end: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/, 'Formato de hora inválido (HH:MM)').optional(),
+  })).optional()
 ).optional().nullable();
 
 const doctorSchema = z.object({

@@ -106,39 +106,40 @@ export default function CitaForm({
         </div>
       )}
 
-      {/* Duración y Costo */}
+      {/* Duración y Costo - Solo lectura (vienen de la especialidad) */}
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="duracion_minutos" className="text-sm font-semibold text-gray-700 mb-2 block">
-            Duración (min) *
+            Duración (min)
           </Label>
           <Input
             id="duracion_minutos"
             type="number"
-            min="1"
-            value={formData.duracion_minutos}
-            onChange={(e) => handleInputChange('duracion_minutos', e.target.value)}
-            className="h-11 border-gray-300"
-            required
-            placeholder="30"
+            value={formData.duracion_minutos || ''}
+            readOnly
+            disabled
+            className="h-11 border-gray-200 bg-gray-50 text-gray-600 cursor-not-allowed"
+            placeholder="Seleccione especialidad"
           />
+          <p className="text-xs text-gray-500 mt-1">Definido por la especialidad</p>
         </div>
 
         <div>
           <Label htmlFor="costo" className="text-sm font-semibold text-gray-700 mb-2 block">
-            Costo (COP) *
+            Costo (COP)
           </Label>
-          <Input
-            id="costo"
-            type="number"
-            min="0"
-            step="1000"
-            value={formData.costo}
-            onChange={(e) => handleInputChange('costo', e.target.value)}
-            className="h-11 border-gray-300"
-            required
-            placeholder="0"
-          />
+          <div className="relative">
+            <Input
+              id="costo"
+              type="text"
+              value={formData.costo ? formatCurrency(formData.costo) : ''}
+              readOnly
+              disabled
+              className="h-11 border-gray-200 bg-gray-50 text-gray-600 cursor-not-allowed"
+              placeholder="Seleccione especialidad"
+            />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Definido por la especialidad</p>
         </div>
       </div>
 

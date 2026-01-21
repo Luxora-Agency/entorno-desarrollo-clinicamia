@@ -660,6 +660,8 @@ consultasRouter.post('/finalizar', async (c) => {
     // Ejecutamos esto fuera de la transacción para no bloquear la respuesta
     (async () => {
       try {
+        console.log(`[Encuesta] Iniciando proceso de encuesta para cita ${citaId}`);
+
         // Obtener datos completos para el email
         const citaConDatos = await prisma.cita.findUnique({
           where: { id: citaId },
@@ -670,30 +672,47 @@ consultasRouter.post('/finalizar', async (c) => {
           }
         });
 
-        if (citaConDatos?.paciente?.email) {
-          // Crear encuesta y obtener token
-          const encuesta = await encuestaSatisfaccionService.crearEncuestaPostConsulta({
-            citaId,
-            pacienteId: citaConDatos.pacienteId,
-            doctorId: citaConDatos.doctorId,
-            especialidad: citaConDatos.especialidad?.titulo
-          });
+        if (!citaConDatos) {
+          console.log(`[Encuesta] Cita ${citaId} no encontrada`);
+          return;
+        }
 
-          // Enviar email de encuesta de satisfacción
-          await emailService.sendSatisfactionSurvey({
-            to: citaConDatos.paciente.email,
-            paciente: citaConDatos.paciente,
-            doctor: citaConDatos.doctor,
-            cita: citaConDatos,
-            especialidad: citaConDatos.especialidad?.titulo,
-            surveyToken: encuesta.token
-          });
+        if (!citaConDatos.paciente?.email) {
+          console.log(`[Encuesta] Paciente sin email registrado. Paciente: ${citaConDatos.paciente?.nombre} ${citaConDatos.paciente?.apellido}`);
+          return;
+        }
 
-          console.log(`[Encuesta] Email de satisfacción enviado a ${citaConDatos.paciente.email} para cita ${citaId}`);
+        console.log(`[Encuesta] Creando encuesta para paciente: ${citaConDatos.paciente.email}`);
+
+        // Crear encuesta y obtener token
+        const encuesta = await encuestaSatisfaccionService.crearEncuestaPostConsulta({
+          citaId,
+          pacienteId: citaConDatos.pacienteId,
+          doctorId: citaConDatos.doctorId,
+          especialidad: citaConDatos.especialidad?.titulo
+        });
+
+        console.log(`[Encuesta] Encuesta creada con token: ${encuesta.token?.substring(0, 10)}...`);
+
+        // Enviar email de encuesta de satisfacción
+        const emailResult = await emailService.sendSatisfactionSurvey({
+          to: citaConDatos.paciente.email,
+          paciente: citaConDatos.paciente,
+          doctor: citaConDatos.doctor,
+          cita: citaConDatos,
+          especialidad: citaConDatos.especialidad?.titulo,
+          surveyToken: encuesta.token
+        });
+
+        if (emailResult?.success) {
+          console.log(`[Encuesta] ✓ Email de satisfacción enviado a ${citaConDatos.paciente.email} para cita ${citaId}`);
+        } else {
+          console.log(`[Encuesta] ✗ Error enviando email: ${emailResult?.error || 'Error desconocido'}`);
         }
       } catch (emailError) {
         // No bloqueamos la respuesta si falla el envío del email
         console.error('[Encuesta] Error al enviar email de satisfacción:', emailError.message);
+        console.error('[Encuesta] Stack:', emailError.stack);
       }
     })();
 

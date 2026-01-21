@@ -65,13 +65,20 @@ export default function TabParaclinicos({ pacienteId, admisionId }) {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('es-CO', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    ,
-      timeZone: 'America/Bogota'
-    });
+    // Extraer solo la parte de fecha sin conversión de timezone
+    let datePart;
+    if (typeof dateString === 'string') {
+      datePart = dateString.split('T')[0];
+    } else if (dateString instanceof Date) {
+      datePart = dateString.toISOString().split('T')[0];
+    } else {
+      return 'N/A';
+    }
+    const [year, month, day] = datePart.split('-');
+    if (!year || !month || !day) return 'N/A';
+    const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun',
+                   'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return `${parseInt(day)} ${meses[parseInt(month) - 1]} ${year}`;
   };
 
   const getStatusBadge = (estado) => {

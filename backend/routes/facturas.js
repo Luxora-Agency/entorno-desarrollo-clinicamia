@@ -806,7 +806,7 @@ facturas.post('/:id/notificar-pago', async (c) => {
                 fecha: true,
                 hora: true,
                 especialidad: {
-                  select: { titulo: true, nombre: true }
+                  select: { titulo: true }
                 }
               }
             }
@@ -828,7 +828,7 @@ facturas.post('/:id/notificar-pago', async (c) => {
 
     // Obtener la cita asociada (primera cita de los items)
     const citaAsociada = factura.items?.find(item => item.cita)?.cita;
-    const especialidad = citaAsociada?.especialidad?.titulo || citaAsociada?.especialidad?.nombre || 'Consulta General';
+    const especialidad = citaAsociada?.especialidad?.titulo || 'Consulta General';
 
     // Enviar email de confirmación de pago
     const emailResult = await emailService.sendPaymentConfirmation({
