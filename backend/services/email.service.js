@@ -8,6 +8,64 @@ const { Resend } = require('resend');
 // Zona horaria de Colombia para formateo de fechas
 const TIMEZONE_BOGOTA = 'America/Bogota';
 
+/**
+ * Formatear fecha de campos @db.Date de Prisma sin conversión de timezone.
+ * Prisma retorna fechas DATE como medianoche UTC ("2026-01-21T00:00:00.000Z"),
+ * lo cual al convertir a Colombia (UTC-5) muestra el día anterior.
+ * Esta función extrae la fecha directamente del string ISO.
+ * @param {string|Date} fecha - Fecha en formato ISO o Date object
+ * @param {boolean} includeWeekday - Incluir día de la semana
+ * @returns {string} Fecha formateada
+ */
+function formatDateFromPrisma(fecha, includeWeekday = true) {
+  if (!fecha) return 'Por confirmar';
+
+  let datePart;
+  if (typeof fecha === 'string') {
+    datePart = fecha.split('T')[0];
+  } else if (fecha instanceof Date) {
+    datePart = fecha.toISOString().split('T')[0];
+  }
+
+  if (!datePart) return 'Por confirmar';
+
+  const [year, month, day] = datePart.split('-');
+  const dias = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+                 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+  // Crear fecha para obtener día de la semana (usar mediodía para evitar issues de timezone)
+  const tempDate = new Date(`${datePart}T12:00:00`);
+  const diaSemana = dias[tempDate.getDay()];
+
+  if (includeWeekday) {
+    return `${diaSemana}, ${parseInt(day)} de ${meses[parseInt(month) - 1]} de ${year}`;
+  }
+  return `${parseInt(day)} de ${meses[parseInt(month) - 1]} de ${year}`;
+}
+
+/**
+ * Formatear hora de campos @db.Time de Prisma sin conversión de timezone.
+ * @param {string|Date} hora - Hora en formato ISO o Date object
+ * @returns {string} Hora formateada (HH:MM)
+ */
+function formatTimeFromPrisma(hora) {
+  if (!hora) return 'Por confirmar';
+
+  let timePart;
+  if (typeof hora === 'string' && hora.includes('T')) {
+    // Formato ISO: "1970-01-01T08:00:00.000Z"
+    timePart = hora.split('T')[1]?.substring(0, 5);
+  } else if (typeof hora === 'string') {
+    // Formato HH:MM o HH:MM:SS
+    timePart = hora.substring(0, 5);
+  } else if (hora instanceof Date) {
+    timePart = hora.toISOString().split('T')[1]?.substring(0, 5);
+  }
+
+  return timePart || 'Por confirmar';
+}
+
 class EmailService {
   constructor() {
     this.resend = null;
@@ -426,21 +484,9 @@ Contáctanos:
     const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por asignar';
     const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-    // Formatear fecha
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Formatear hora
-    let horaFormateada = 'Por confirmar';
-    if (cita.hora) {
-      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
-      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
-    }
+    // Formatear fecha y hora usando helpers para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
+    const horaFormateada = formatTimeFromPrisma(cita.hora);
 
     const html = `
 <!DOCTYPE html>
@@ -619,14 +665,8 @@ Recordatorios:
     const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por asignar';
     const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-    // Formatear fecha
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    // Formatear fecha usando helper para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
 
     const monto = cita.costo || especialidad?.costoCOP || 0;
 
@@ -785,14 +825,8 @@ ${paymentUrl ? `Completa tu pago aquí: ${paymentUrl}` : ''}
     const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
     const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por asignar';
 
-    // Formatear fecha
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    // Formatear fecha usando helper para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
 
     const html = `
 <!DOCTYPE html>
@@ -1192,21 +1226,9 @@ Clínica Mía
     const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por confirmar';
     const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-    // Formatear fecha
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Formatear hora
-    let horaFormateada = 'Por confirmar';
-    if (cita.hora) {
-      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
-      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
-    }
+    // Formatear fecha y hora usando helpers para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
+    const horaFormateada = formatTimeFromPrisma(cita.hora);
 
     // Configurar mensaje según tipo de recordatorio
     let headerColor, headerIcon, headerTitle, headerSubtitle, urgencyMessage;
@@ -1435,37 +1457,16 @@ Ver tus citas: ${frontendUrl}/perfil/citas
     const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por confirmar';
     const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-    // Formatear fecha nueva
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Formatear hora nueva
-    let horaFormateada = 'Por confirmar';
-    if (cita.hora) {
-      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
-      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
-    }
+    // Formatear fecha y hora usando helpers para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
+    const horaFormateada = formatTimeFromPrisma(cita.hora);
 
     // Formatear fecha y hora anterior si existen
     let fechaAnteriorFormateada = '';
     let horaAnteriorFormateada = '';
     if (citaAnterior) {
-      const fechaAnt = new Date(citaAnterior.fecha);
-      fechaAnteriorFormateada = fechaAnt.toLocaleDateString('es-CO', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      if (citaAnterior.hora) {
-        const horaAnt = citaAnterior.hora instanceof Date ? citaAnterior.hora : new Date(`1970-01-01T${citaAnterior.hora}`);
-        horaAnteriorFormateada = horaAnt.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
-      }
+      fechaAnteriorFormateada = formatDateFromPrisma(citaAnterior.fecha);
+      horaAnteriorFormateada = formatTimeFromPrisma(citaAnterior.hora);
     }
 
     const html = `
@@ -1891,14 +1892,8 @@ Este es un mensaje confidencial. Por favor no comparta sus credenciales.
     const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
     const nombreDoctor = doctor ? `Dr(a). ${doctor.nombre} ${doctor.apellido}`.trim() : 'el equipo médico';
 
-    // Formatear fecha de la cita
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    // Formatear fecha usando helper para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
 
     // URL de la encuesta con el token
     const fullSurveyUrl = surveyUrl || `${process.env.FRONTEND_URL || 'http://localhost:3000'}/encuesta/${surveyToken}`;
@@ -2120,20 +2115,9 @@ Solo toma 2 minutos completar la encuesta.
     const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
     const nombreDoctor = doctor ? `Dr(a). ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por asignar';
 
-    // Formatear fecha y hora de la cita
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    const horaFormateada = cita.hora ? new Date(`2000-01-01T${cita.hora}`).toLocaleTimeString('es-CO', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }) : 'Por confirmar';
+    // Formatear fecha y hora usando helpers para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
+    const horaFormateada = formatTimeFromPrisma(cita.hora);
 
     const portalUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
 
@@ -2471,37 +2455,11 @@ Tel: 324 333 8555
     const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'Por asignar';
     const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-    // Formatear fecha anterior
-    const fechaAnteriorObj = new Date(citaAnterior.fecha);
-    const fechaAnteriorFormateada = fechaAnteriorObj.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Formatear fecha nueva
-    const fechaNuevaObj = new Date(citaNueva.fecha);
-    const fechaNuevaFormateada = fechaNuevaObj.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Formatear horas
-    const formatHora = (hora) => {
-      if (!hora) return 'Por confirmar';
-      try {
-        const h = hora instanceof Date ? hora : new Date(`1970-01-01T${hora}`);
-        return h.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: TIMEZONE_BOGOTA });
-      } catch {
-        return hora;
-      }
-    };
-
-    const horaAnteriorFormateada = formatHora(citaAnterior.hora);
-    const horaNuevaFormateada = formatHora(citaNueva.hora);
+    // Formatear fechas y horas usando helpers para evitar issues de timezone
+    const fechaAnteriorFormateada = formatDateFromPrisma(citaAnterior.fecha);
+    const fechaNuevaFormateada = formatDateFromPrisma(citaNueva.fecha);
+    const horaAnteriorFormateada = formatTimeFromPrisma(citaAnterior.hora);
+    const horaNuevaFormateada = formatTimeFromPrisma(citaNueva.hora);
 
     const html = `
 <!DOCTYPE html>
@@ -2730,21 +2688,9 @@ Ver mis citas: ${frontendUrl}/mis-citas
     const nombreDoctor = doctor ? `Dr. ${doctor.nombre} ${doctor.apellido}`.trim() : 'No asignado';
     const frontendUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3001';
 
-    // Formatear fecha
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Formatear hora
-    let horaFormateada = 'No especificada';
-    if (cita.hora) {
-      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
-      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
-    }
+    // Formatear fecha y hora usando helpers para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
+    const horaFormateada = formatTimeFromPrisma(cita.hora) || 'No especificada';
 
     const html = `
 <!DOCTYPE html>
@@ -2928,21 +2874,9 @@ Agendar nueva cita: ${frontendUrl}/mis-citas
 
     const nombrePaciente = `${paciente.nombre} ${paciente.apellido}`.trim();
 
-    // Formatear fecha
-    const fechaCita = new Date(cita.fecha);
-    const fechaFormateada = fechaCita.toLocaleDateString('es-CO', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-
-    // Formatear hora
-    let horaFormateada = 'Por confirmar';
-    if (cita.hora) {
-      const hora = cita.hora instanceof Date ? cita.hora : new Date(`1970-01-01T${cita.hora}`);
-      horaFormateada = hora.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: TIMEZONE_BOGOTA });
-    }
+    // Formatear fecha y hora usando helpers para evitar issues de timezone
+    const fechaFormateada = formatDateFromPrisma(cita.fecha);
+    const horaFormateada = formatTimeFromPrisma(cita.hora);
 
     // Formatear total
     const totalFormateado = parseFloat(factura.total).toLocaleString('es-CO');
