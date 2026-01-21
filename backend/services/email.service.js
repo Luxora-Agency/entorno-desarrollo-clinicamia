@@ -98,7 +98,7 @@ class EmailService {
   /**
    * Envía un email simple
    */
-  async send({ to, subject, html, text, replyTo }) {
+  async send({ to, subject, html, text, replyTo, fromName }) {
     if (!this.isEnabled()) {
       console.warn('[Email] Servicio deshabilitado. Email no enviado:', subject);
       return { success: false, error: 'Servicio de email no configurado' };
@@ -106,9 +106,10 @@ class EmailService {
 
     try {
       const recipients = Array.isArray(to) ? to : [to];
+      const senderName = fromName || this.fromName;
 
       const result = await this.resend.emails.send({
-        from: `${this.fromName} <${this.fromEmail}>`,
+        from: `${senderName} <${this.fromEmail}>`,
         to: recipients,
         subject,
         html,
@@ -2328,7 +2329,7 @@ Recibirás recordatorios automáticos 7 días, 4 días y 3 horas antes de tu cit
     <tr>
       <td style="padding: 40px 30px;">
         <div style="text-align: center; margin-bottom: 30px;">
-          <div style="width: 80px; height: 80px; background: linear-gradient(135deg, #53B896 0%, #144F79 100%); border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;">
+          <div style="width: 80px; height: 80px; background-color: #53B896; border-radius: 50%; margin: 0 auto 20px; text-align: center; line-height: 80px;">
             <span style="font-size: 40px; color: white;">&#10003;</span>
           </div>
           <h2 style="color: #144F79; margin: 0; font-size: 24px;">Gracias por postularte, ${nombreCompleto}!</h2>
@@ -2374,7 +2375,7 @@ Recibirás recordatorios automáticos 7 días, 4 días y 3 horas antes de tu cit
 
         <p style="color: #888; font-size: 14px; line-height: 1.6; text-align: center; margin: 20px 0 0;">
           Si tienes alguna pregunta, no dudes en contactarnos a<br>
-          <a href="mailto:talentohumano@clinicamiacolombia.com" style="color: #144F79; text-decoration: none;">talentohumano@clinicamiacolombia.com</a>
+          <a href="mailto:talentohumano@clinicamia.co" style="color: #144F79; text-decoration: none;">talentohumano@clinicamia.co</a>
         </p>
       </td>
     </tr>
@@ -2417,7 +2418,7 @@ QUE SIGUE?
 1. Revisaremos tu aplicacion en los proximos dias habiles.
 2. Si cumples con el perfil, te contactaremos para agendar una entrevista.
 
-Si tienes alguna pregunta, contactanos a: talentohumano@clinicamiacolombia.com
+Si tienes alguna pregunta, contactanos a: talentohumano@clinicamia.co
 
 ---
 Clinica Mia
@@ -2431,7 +2432,8 @@ Tel: 324 333 8555
       to,
       subject: `Gracias por tu postulacion - ${vacanteTitulo} | Clinica Mia`,
       html,
-      text
+      text,
+      fromName: 'Clinica Mia - Talento Humano'
     });
   }
 
