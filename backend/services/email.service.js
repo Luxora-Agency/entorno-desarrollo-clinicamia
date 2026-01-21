@@ -3032,7 +3032,7 @@ Agendar nueva cita: ${frontendUrl}/mis-citas
           ¿Tienes preguntas? Contáctanos
         </p>
         <p style="color: rgba(255,255,255,0.7); font-size: 13px; margin: 0;">
-          📞 (1) 234-5678 | ✉️ info@clinicamia.com
+          📞 324 333 8555 | ✉️ info@clinicamiacolombia.com
         </p>
         <p style="color: rgba(255,255,255,0.5); font-size: 11px; margin: 15px 0 0;">
           © ${new Date().getFullYear()} Clínica Mía - Todos los derechos reservados
@@ -3056,7 +3056,6 @@ DETALLES DEL PAGO:
 - Método: ${factura.metodoPago}
 ${factura.bancoDestino ? `- Banco/Cuenta: ${factura.bancoDestino}` : ''}
 ${factura.numeroReferencia ? `- Referencia: ${factura.numeroReferencia}` : ''}
-- No. Factura: ${factura.id.substring(0, 8).toUpperCase()}
 
 CONSULTA ASOCIADA:
 - Fecha: ${fechaFormateada}
@@ -3065,7 +3064,7 @@ CONSULTA ASOCIADA:
 
 Recuerda llegar 15 minutos antes de tu cita para el proceso de admisión.
 
-¿Preguntas? Contáctanos al (1) 234-5678 o info@clinicamia.com
+¿Preguntas? Contáctanos al 324 333 8555 o info@clinicamiacolombia.com
 
 © ${new Date().getFullYear()} Clínica Mía
     `;
