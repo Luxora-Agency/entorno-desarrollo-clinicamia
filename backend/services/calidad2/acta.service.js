@@ -37,6 +37,17 @@ const COLORS = {
   danger: '#ef4444',
 };
 
+// Labels para Orientado A
+const ORIENTADO_A_LABELS = {
+  'PERSONAL_ADMINISTRATIVO': 'Personal Administrativo',
+  'PERSONAL_ASISTENCIAL': 'Personal Asistencial',
+  'MEDICOS': 'Médicos',
+  'ENFERMERIA': 'Enfermería',
+  'TODOS': 'Todo el personal',
+  'AUXILIARES': 'Auxiliares',
+  'DIRECTIVOS': 'Directivos'
+};
+
 // Información institucional
 const CLINICA_INFO = {
   nombre: 'CLINICA MIA MEDICINA INTEGRAL SAS',
@@ -422,6 +433,7 @@ class ActaService {
         const pageWidth = doc.page.width - 100;
         const marginLeft = 50;
 
+
         // === PÁGINA 1: INFORMACIÓN DEL ACTA ===
         doc.y = this.drawHeader(doc, `ACTA DE REUNIÓN N° ${acta.numero}`,
           acta.fecha ? new Date(acta.fecha).toLocaleDateString('es-CO') : '');
@@ -494,11 +506,14 @@ class ActaService {
             doc.moveDown(0.5);
           }
 
-          // Orientado a
+          // Orientado a (formatear labels)
           if (cap.orientadoA) {
+            const orientadoLabels = cap.orientadoA.split(',')
+              .map(o => ORIENTADO_A_LABELS[o.trim()] || o.trim())
+              .join(', ');
             doc.fillColor(COLORS.text).fontSize(9).font('Helvetica-Bold')
                .text('Orientado a: ', marginLeft, doc.y, { continued: true });
-            doc.font('Helvetica').text(cap.orientadoA, { width: pageWidth - 70 });
+            doc.font('Helvetica').text(orientadoLabels, { width: pageWidth - 70 });
             doc.moveDown(0.8);
           }
         }
@@ -627,22 +642,6 @@ class ActaService {
           doc.moveDown(0.8);
         }
 
-        // === COMPROMISOS PRÓXIMA ACTA ===
-        if (acta.compromisosSiguientes && acta.compromisosSiguientes.length > 0) {
-          if (doc.y > doc.page.height - 100) {
-            doc.addPage();
-            doc.y = 50;
-          }
-          doc.y = this.drawSectionTitle(doc, 'COMPROMISOS PRÓXIMA ACTA', doc.y);
-          acta.compromisosSiguientes.forEach((comp, i) => {
-            doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
-               .text(`${i + 1}. ${comp.descripcion}`, marginLeft + 8, doc.y, { width: pageWidth - 16 });
-            doc.fillColor(COLORS.textMuted).fontSize(8)
-               .text(`   Encargado: ${comp.encargado || 'N/A'} | Fecha: ${comp.fechaEntrega || 'N/A'}`, marginLeft + 8, doc.y);
-            doc.moveDown(0.3);
-          });
-        }
-
         // === PÁGINA DE ASISTENTES ===
         if (acta.asistentes && acta.asistentes.length > 0) {
           doc.addPage();
@@ -681,84 +680,161 @@ class ActaService {
 
             tableY += rowHeight;
           }
+          doc.y = tableY; // Update doc.y after asistentes table
         }
 
-        // === PÁGINA DE ANÁLISIS DE ADHERENCIA (IA) ===
+        // === ANÁLISIS DE ADHERENCIA (IA) - En la misma página si hay espacio ===
         if (acta.informeAdherencia) {
-          doc.addPage();
-          doc.y = this.drawHeader(doc, `ACTA N° ${acta.numero} - ANÁLISIS DE ADHERENCIA`, 'Generado con IA');
+          // Calcular espacio necesario para el análisis
+          const contenido = acta.informeAdherencia.replace(/<[^>]*>/g, '').trim();
+          const analisisHeight = 180; // Espacio aproximado para métricas + análisis
 
-          // Metadatos
+          // Solo crear nueva página si no hay suficiente espacio
+          if (doc.y > doc.page.height - analisisHeight) {
+            doc.addPage();
+            doc.y = 50;
+          }
+
+          doc.y = this.drawSectionTitle(doc, 'ANÁLISIS DE ADHERENCIA (IA)', doc.y);
+
+          // Metadatos en línea
           if (acta.analisisEvaluacion?.fechaGeneracion) {
             doc.fillColor(COLORS.textMuted).fontSize(7);
             doc.text(`Generado: ${new Date(acta.analisisEvaluacion.fechaGeneracion).toLocaleString('es-CO')} | Modelo: ${acta.analisisEvaluacion.modelo || 'IA'}`, marginLeft, doc.y, { width: pageWidth, align: 'right' });
-            doc.moveDown(0.8);
+            doc.moveDown(0.5);
           }
 
-          // Resumen de métricas
+          // Resumen de métricas con nivel de adherencia
           if (acta.analisisEvaluacion?.datosAnalizados) {
             const datos = acta.analisisEvaluacion.datosAnalizados;
-            const boxWidth = (pageWidth - 30) / 4;
+            const boxWidth = (pageWidth - 40) / 5;
             const boxY = doc.y;
-            const boxHeight = 40;
+            const boxHeight = 38;
+
+            // Nivel de Adherencia (primero y más destacado)
+            const nivelColor = datos.nivelAdherencia === 'Excelente' ? '#10b981' :
+                              datos.nivelAdherencia === 'Bueno' ? '#3b82f6' :
+                              datos.nivelAdherencia === 'Aceptable' ? '#f59e0b' : '#ef4444';
+            const nivelBg = datos.nivelAdherencia === 'Excelente' ? '#ecfdf5' :
+                           datos.nivelAdherencia === 'Bueno' ? '#eff6ff' :
+                           datos.nivelAdherencia === 'Aceptable' ? '#fef3c7' : '#fef2f2';
+            doc.rect(marginLeft, boxY, boxWidth, boxHeight).fill(nivelBg);
+            doc.fillColor(nivelColor).fontSize(10).font('Helvetica-Bold')
+               .text(datos.nivelAdherencia || 'N/A', marginLeft, boxY + 8, { width: boxWidth, align: 'center' });
+            doc.fillColor(nivelColor).fontSize(6).font('Helvetica')
+               .text('NIVEL', marginLeft, boxY + 26, { width: boxWidth, align: 'center' });
 
             // Pre-Test
-            doc.rect(marginLeft, boxY, boxWidth, boxHeight).fill('#eff6ff');
-            doc.fillColor('#2563eb').fontSize(14).font('Helvetica-Bold')
-               .text(`${datos.promedioPreTest}%`, marginLeft, boxY + 8, { width: boxWidth, align: 'center' });
-            doc.fillColor('#3b82f6').fontSize(7).font('Helvetica')
-               .text('Pre-Test', marginLeft, boxY + 26, { width: boxWidth, align: 'center' });
+            doc.rect(marginLeft + boxWidth + 10, boxY, boxWidth, boxHeight).fill('#eff6ff');
+            doc.fillColor('#2563eb').fontSize(12).font('Helvetica-Bold')
+               .text(`${datos.promedioPreTest}%`, marginLeft + boxWidth + 10, boxY + 8, { width: boxWidth, align: 'center' });
+            doc.fillColor('#3b82f6').fontSize(6).font('Helvetica')
+               .text('Pre-Test', marginLeft + boxWidth + 10, boxY + 26, { width: boxWidth, align: 'center' });
 
             // Post-Test
-            doc.rect(marginLeft + boxWidth + 10, boxY, boxWidth, boxHeight).fill('#f0fdf4');
-            doc.fillColor('#16a34a').fontSize(14).font('Helvetica-Bold')
-               .text(`${datos.promedioPostTest}%`, marginLeft + boxWidth + 10, boxY + 8, { width: boxWidth, align: 'center' });
-            doc.fillColor('#22c55e').fontSize(7).font('Helvetica')
-               .text('Post-Test', marginLeft + boxWidth + 10, boxY + 26, { width: boxWidth, align: 'center' });
+            doc.rect(marginLeft + (boxWidth + 10) * 2, boxY, boxWidth, boxHeight).fill('#f0fdf4');
+            doc.fillColor('#16a34a').fontSize(12).font('Helvetica-Bold')
+               .text(`${datos.promedioPostTest}%`, marginLeft + (boxWidth + 10) * 2, boxY + 8, { width: boxWidth, align: 'center' });
+            doc.fillColor('#22c55e').fontSize(6).font('Helvetica')
+               .text('Post-Test', marginLeft + (boxWidth + 10) * 2, boxY + 26, { width: boxWidth, align: 'center' });
 
             // Mejora
             const mejoraColor = datos.mejoraPorcentual > 0 ? '#10b981' : datos.mejoraPorcentual < 0 ? '#ef4444' : '#6b7280';
             const mejoraBg = datos.mejoraPorcentual > 0 ? '#ecfdf5' : datos.mejoraPorcentual < 0 ? '#fef2f2' : '#f9fafb';
-            doc.rect(marginLeft + (boxWidth + 10) * 2, boxY, boxWidth, boxHeight).fill(mejoraBg);
-            doc.fillColor(mejoraColor).fontSize(14).font('Helvetica-Bold')
-               .text(`${datos.mejoraPorcentual > 0 ? '+' : ''}${datos.mejoraPorcentual}%`, marginLeft + (boxWidth + 10) * 2, boxY + 8, { width: boxWidth, align: 'center' });
-            doc.fillColor(mejoraColor).fontSize(7).font('Helvetica')
-               .text('Mejora', marginLeft + (boxWidth + 10) * 2, boxY + 26, { width: boxWidth, align: 'center' });
+            doc.rect(marginLeft + (boxWidth + 10) * 3, boxY, boxWidth, boxHeight).fill(mejoraBg);
+            doc.fillColor(mejoraColor).fontSize(12).font('Helvetica-Bold')
+               .text(`${datos.mejoraPorcentual > 0 ? '+' : ''}${datos.mejoraPorcentual}%`, marginLeft + (boxWidth + 10) * 3, boxY + 8, { width: boxWidth, align: 'center' });
+            doc.fillColor(mejoraColor).fontSize(6).font('Helvetica')
+               .text('Mejora', marginLeft + (boxWidth + 10) * 3, boxY + 26, { width: boxWidth, align: 'center' });
 
             // Evaluados
-            doc.rect(marginLeft + (boxWidth + 10) * 3, boxY, boxWidth, boxHeight).fill('#f5f3ff');
-            doc.fillColor('#7c3aed').fontSize(14).font('Helvetica-Bold')
-               .text(`${datos.totalParticipantes}`, marginLeft + (boxWidth + 10) * 3, boxY + 8, { width: boxWidth, align: 'center' });
-            doc.fillColor('#8b5cf6').fontSize(7).font('Helvetica')
-               .text('Evaluados', marginLeft + (boxWidth + 10) * 3, boxY + 26, { width: boxWidth, align: 'center' });
+            doc.rect(marginLeft + (boxWidth + 10) * 4, boxY, boxWidth, boxHeight).fill('#f5f3ff');
+            doc.fillColor('#7c3aed').fontSize(12).font('Helvetica-Bold')
+               .text(`${datos.totalParticipantes}`, marginLeft + (boxWidth + 10) * 4, boxY + 8, { width: boxWidth, align: 'center' });
+            doc.fillColor('#8b5cf6').fontSize(6).font('Helvetica')
+               .text('Evaluados', marginLeft + (boxWidth + 10) * 4, boxY + 26, { width: boxWidth, align: 'center' });
 
-            doc.y = boxY + boxHeight + 15;
+            doc.y = boxY + boxHeight + 10;
           }
 
-          // Título del análisis
-          doc.y = this.drawSectionTitle(doc, 'ANÁLISIS DE ADHERENCIA', doc.y);
+          // Contenido del análisis (altura dinámica)
+          const textHeight = doc.heightOfString(contenido, { width: pageWidth - 24, fontSize: 9, lineGap: 2 });
+          const boxHeight = Math.max(textHeight + 20, 50);
 
-          // Contenido del análisis (párrafo conciso)
-          doc.rect(marginLeft, doc.y, pageWidth, 60).fill('#f5f3ff');
-          doc.rect(marginLeft, doc.y, 3, 60).fill(COLORS.primary);
+          // Verificar si necesitamos nueva página para el análisis
+          if (doc.y + boxHeight > doc.page.height - 60) {
+            doc.addPage();
+            doc.y = 50;
+          }
 
-          const contenido = acta.informeAdherencia.replace(/<[^>]*>/g, '').trim();
+          const analysisStartY = doc.y;
+          doc.rect(marginLeft, analysisStartY, pageWidth, boxHeight).fill('#f5f3ff');
+          doc.rect(marginLeft, analysisStartY, 3, boxHeight).fill(COLORS.primary);
+
           doc.fillColor(COLORS.text).fontSize(9).font('Helvetica')
-             .text(contenido, marginLeft + 12, doc.y + 10, { width: pageWidth - 24, lineGap: 2 });
+             .text(contenido, marginLeft + 12, analysisStartY + 10, { width: pageWidth - 24, lineGap: 2 });
 
-          doc.y = doc.y + 70;
+          doc.y = analysisStartY + boxHeight + 10;
+        }
+
+        // === COMPROMISOS PRÓXIMA ACTA (mejorado) ===
+        if (acta.compromisosSiguientes && acta.compromisosSiguientes.length > 0) {
+          const compromisosHeight = 30 + (acta.compromisosSiguientes.length * 45);
+          if (doc.y > doc.page.height - compromisosHeight) {
+            doc.addPage();
+            doc.y = 50;
+          }
+
+          // Badge si fueron generados por IA
+          const esGeneradoPorIA = acta.informeAdherencia && acta.analisisEvaluacion;
+          doc.y = this.drawSectionTitle(doc, esGeneradoPorIA ? 'COMPROMISOS DE MEJORA (Generados por IA)' : 'COMPROMISOS PRÓXIMA ACTA', doc.y);
+
+          acta.compromisosSiguientes.forEach((comp, i) => {
+            // Calcular altura real del compromiso (descripción puede tener múltiples líneas)
+            const descHeight = doc.heightOfString(comp.descripcion, { width: pageWidth - 35, fontSize: 8 });
+            const compHeight = Math.max(38, descHeight + 25); // Mínimo 38, o más si el texto es largo
+
+            // Verificar espacio antes de dibujar
+            if (doc.y + compHeight > doc.page.height - 60) {
+              doc.addPage();
+              doc.y = 50;
+            }
+
+            // Caja para cada compromiso
+            doc.rect(marginLeft, doc.y, pageWidth, compHeight).fill(i % 2 === 0 ? '#faf5ff' : '#f5f3ff');
+            doc.rect(marginLeft, doc.y, 3, compHeight).fill('#8b5cf6');
+
+            // Número
+            const startY = doc.y;
+            doc.fillColor('#7c3aed').fontSize(10).font('Helvetica-Bold')
+               .text(`${i + 1}.`, marginLeft + 8, startY + 5);
+
+            // Descripción (posición fija, no modifica doc.y)
+            doc.fillColor(COLORS.text).fontSize(8).font('Helvetica')
+               .text(comp.descripcion, marginLeft + 25, startY + 5, { width: pageWidth - 35, lineBreak: true });
+
+            // Encargado y Fecha (al final de la caja)
+            doc.fillColor(COLORS.textMuted).fontSize(7)
+               .text(`Encargado: ${comp.encargado || 'N/A'}  |  Plazo: ${comp.fechaEntrega || 'N/A'}`, marginLeft + 25, startY + compHeight - 12);
+
+            doc.y = startY + compHeight + 3;
+          });
         }
 
         // === FOOTER EN TODAS LAS PÁGINAS ===
         const pages = doc.bufferedPageRange();
-        for (let i = 0; i < pages.count; i++) {
+        const totalPages = pages.count;
+
+        for (let i = 0; i < totalPages; i++) {
           doc.switchToPage(i);
+          // Dibujar footer sin crear nueva página
+          const footerY = doc.page.height - 35;
+          const footerText = `${CLINICA_INFO.nombre} | Página ${i + 1} de ${totalPages}`;
+          const textWidth = doc.widthOfString(footerText, { fontSize: 7 });
+          const textX = marginLeft + (pageWidth - textWidth) / 2;
           doc.fillColor(COLORS.textMuted).fontSize(7);
-          doc.text(
-            `${CLINICA_INFO.nombre} | Página ${i + 1} de ${pages.count}`,
-            marginLeft, doc.page.height - 35,
-            { align: 'center', width: pageWidth }
-          );
+          // Usar text con posición absoluta sin afectar el flujo de documento
+          doc.text(footerText, textX, footerY, { lineBreak: false, continued: false });
         }
 
         doc.end();
