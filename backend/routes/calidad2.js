@@ -2,6 +2,7 @@ const { Hono } = require('hono');
 const { authMiddleware, permissionMiddleware } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
 const { success, error, paginated } = require('../utils/response');
+const prisma = require('../db/prisma');
 const {
   carpetaService,
   documentoService,
@@ -119,7 +120,150 @@ const {
 
 const calidad2 = new Hono();
 
-// Aplicar auth a todas las rutas
+// ==========================================
+// RUTAS PÚBLICAS PARA PARTICIPANTES (KAHOOT)
+// No requieren autenticación - Solo funcionan con sesiones EN_CURSO
+// IMPORTANTE: Deben estar ANTES del middleware de auth
+// ==========================================
+
+// Buscar sesión por código (público)
+calidad2.get('/capacitaciones/sesiones/por-codigo/:codigo', async (c) => {
+  try {
+    const { codigo } = c.req.param();
+    const sesion = await sesionService.findByCode(codigo);
+    return c.json(success({ sesion }));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// Obtener evaluación para responder (público)
+calidad2.get('/capacitaciones/sesiones/public/:sesionId/evaluacion/:tipo', async (c) => {
+  try {
+    const { sesionId, tipo } = c.req.param();
+    const sesion = await prisma.sesionCapacitacion.findUnique({
+      where: { id: sesionId }
+    });
+    if (!sesion || sesion.estado !== 'EN_CURSO') {
+      return c.json(error('Sesión no activa'), 403);
+    }
+    const evaluacion = await evaluacionService.getEvaluacionParaResponder(sesionId, tipo);
+    return c.json(success({ evaluacion }));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// Registrar respuesta (público)
+calidad2.post('/capacitaciones/sesiones/public/:sesionId/respuestas', async (c) => {
+  try {
+    const { sesionId } = c.req.param();
+    const sesion = await prisma.sesionCapacitacion.findUnique({
+      where: { id: sesionId }
+    });
+    if (!sesion || sesion.estado !== 'EN_CURSO') {
+      return c.json(error('Sesión no activa'), 403);
+    }
+    const data = await c.req.json();
+    const respuesta = await evaluacionService.registrarRespuesta(sesionId, data);
+    return c.json(success({ respuesta }, 'Respuesta registrada'), 201);
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// Obtener ranking (público)
+calidad2.get('/capacitaciones/sesiones/public/:sesionId/ranking', async (c) => {
+  try {
+    const { sesionId } = c.req.param();
+    const ranking = await evaluacionService.getRankingParticipantes(sesionId);
+    return c.json(success({ ranking }));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// Verificar estado de evaluaciones de un participante (público)
+calidad2.get('/capacitaciones/sesiones/public/:sesionId/participante-status', async (c) => {
+  try {
+    const { sesionId } = c.req.param();
+    const nombreParticipante = c.req.query('nombre');
+
+    if (!nombreParticipante) {
+      return c.json(error('Nombre de participante requerido'), 400);
+    }
+
+    // Obtener las evaluaciones de la capacitación
+    const sesion = await prisma.sesionCapacitacion.findUnique({
+      where: { id: sesionId },
+      include: {
+        capacitacion: {
+          include: {
+            evaluaciones: {
+              where: { activo: true },
+              select: { id: true, tipo: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!sesion) {
+      return c.json(error('Sesión no encontrada'), 404);
+    }
+
+    // Verificar qué evaluaciones ha respondido este participante
+    const respuestas = await prisma.respuestaEvaluacion.findMany({
+      where: {
+        sesionId,
+        nombreParticipante
+      },
+      include: {
+        pregunta: {
+          include: {
+            evaluacion: {
+              select: { tipo: true }
+            }
+          }
+        }
+      }
+    });
+
+    // Agrupar respuestas por tipo de evaluación
+    const tiposRespondidos = new Set(respuestas.map(r => r.pregunta.evaluacion.tipo));
+
+    // Contar preguntas por evaluación para saber si completó todo
+    const evaluacionesStatus = {};
+    for (const ev of sesion.capacitacion.evaluaciones) {
+      const preguntasEvaluacion = await prisma.preguntaEvaluacion.count({
+        where: { evaluacionId: ev.id, activo: true }
+      });
+      const respuestasEvaluacion = respuestas.filter(
+        r => r.pregunta.evaluacion.tipo === ev.tipo
+      ).length;
+
+      evaluacionesStatus[ev.tipo] = {
+        disponible: true,
+        iniciada: respuestasEvaluacion > 0,
+        completada: respuestasEvaluacion >= preguntasEvaluacion && preguntasEvaluacion > 0,
+        preguntasTotal: preguntasEvaluacion,
+        preguntasRespondidas: respuestasEvaluacion
+      };
+    }
+
+    return c.json(success({
+      participante: nombreParticipante,
+      evaluaciones: evaluacionesStatus
+    }));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// ==========================================
+// MIDDLEWARE DE AUTENTICACIÓN
+// Todas las rutas después de esta línea requieren auth
+// ==========================================
 calidad2.use('*', authMiddleware);
 
 // ==========================================
@@ -936,6 +1080,16 @@ calidad2.post('/capacitaciones/:id/sesiones', permissionMiddleware('calidad2'), 
   }
 });
 
+calidad2.get('/capacitaciones/sesiones/:sesionId/codigo', permissionMiddleware('calidad2'), async (c) => {
+  try {
+    const { sesionId } = c.req.param();
+    const codigo = sesionService.getSessionCode(sesionId);
+    return c.json(success({ codigo, sesionId }));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
 calidad2.get('/capacitaciones/sesiones/:sesionId', permissionMiddleware('calidad2'), async (c) => {
   try {
     const { sesionId } = c.req.param();
@@ -1230,6 +1384,97 @@ calidad2.get('/capacitaciones/sesiones/:sesionId/ranking', permissionMiddleware(
   }
 });
 
+// Obtener todos los resultados de evaluaciones de una capacitación (todas las sesiones)
+calidad2.get('/capacitaciones/:id/resultados-evaluaciones', permissionMiddleware('calidad2'), async (c) => {
+  try {
+    const { id } = c.req.param();
+
+    // Obtener todas las sesiones de la capacitación
+    const sesiones = await prisma.sesionCapacitacion.findMany({
+      where: { capacitacionId: id },
+      include: {
+        respuestasEvaluacion: {
+          include: {
+            pregunta: {
+              include: {
+                evaluacion: { select: { tipo: true, nombre: true } },
+                opciones: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Agregar todas las respuestas de todas las sesiones
+    const participantesMap = {};
+
+    for (const sesion of sesiones) {
+      for (const respuesta of sesion.respuestasEvaluacion) {
+        const key = respuesta.nombreParticipante || respuesta.participanteId;
+        if (!key) continue;
+
+        if (!participantesMap[key]) {
+          participantesMap[key] = {
+            nombre: respuesta.nombreParticipante,
+            participanteId: respuesta.participanteId,
+            sesionId: sesion.id,
+            sesionFecha: sesion.fechaProgramada,
+            preTest: { correctas: 0, total: 0, puntaje: 0 },
+            postTest: { correctas: 0, total: 0, puntaje: 0 }
+          };
+        }
+
+        const tipo = respuesta.pregunta.evaluacion.tipo === 'PRE_TEST' ? 'preTest' : 'postTest';
+        participantesMap[key][tipo].total++;
+        if (respuesta.esCorrecta) {
+          participantesMap[key][tipo].correctas++;
+          participantesMap[key][tipo].puntaje += respuesta.puntaje || 0;
+        }
+      }
+    }
+
+    // Calcular porcentajes y mejora
+    const participantes = Object.values(participantesMap).map(p => ({
+      ...p,
+      preTest: {
+        ...p.preTest,
+        porcentaje: p.preTest.total > 0 ? Math.round((p.preTest.correctas / p.preTest.total) * 100) : 0
+      },
+      postTest: {
+        ...p.postTest,
+        porcentaje: p.postTest.total > 0 ? Math.round((p.postTest.correctas / p.postTest.total) * 100) : 0
+      },
+      mejora: p.postTest.total > 0 && p.preTest.total > 0
+        ? Math.round((p.postTest.correctas / p.postTest.total) * 100) - Math.round((p.preTest.correctas / p.preTest.total) * 100)
+        : null,
+      puntajeTotal: p.preTest.puntaje + p.postTest.puntaje
+    }));
+
+    // Ordenar por puntaje total
+    participantes.sort((a, b) => b.puntajeTotal - a.puntajeTotal);
+
+    // Estadísticas generales
+    const stats = {
+      totalParticipantes: participantes.length,
+      conPreTest: participantes.filter(p => p.preTest.total > 0).length,
+      conPostTest: participantes.filter(p => p.postTest.total > 0).length,
+      conAmbos: participantes.filter(p => p.preTest.total > 0 && p.postTest.total > 0).length,
+      promedioPreTest: participantes.filter(p => p.preTest.total > 0).length > 0
+        ? Math.round(participantes.filter(p => p.preTest.total > 0).reduce((acc, p) => acc + p.preTest.porcentaje, 0) / participantes.filter(p => p.preTest.total > 0).length)
+        : 0,
+      promedioPostTest: participantes.filter(p => p.postTest.total > 0).length > 0
+        ? Math.round(participantes.filter(p => p.postTest.total > 0).reduce((acc, p) => acc + p.postTest.porcentaje, 0) / participantes.filter(p => p.postTest.total > 0).length)
+        : 0
+    };
+    stats.mejoraPromedio = stats.promedioPostTest - stats.promedioPreTest;
+
+    return c.json(success({ participantes, stats }));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
 // ==========================================
 // ACTAS DE REUNIÓN
 // ==========================================
@@ -1315,6 +1560,26 @@ calidad2.get('/actas/:id/pdf', permissionMiddleware('calidad2'), async (c) => {
         'Content-Disposition': `attachment; filename="acta-${id}.pdf"`
       }
     });
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+// Actas - Análisis de IA
+calidad2.get('/actas/ia/status', permissionMiddleware('calidad2'), async (c) => {
+  try {
+    const configured = actaService.isIAConfigured();
+    return c.json(success({ configured }, configured ? 'Servicio de IA disponible' : 'Servicio de IA no configurado'));
+  } catch (err) {
+    return c.json(error(err.message), err.statusCode || 500);
+  }
+});
+
+calidad2.post('/actas/:id/generar-analisis-ia', permissionMiddleware('calidad2'), async (c) => {
+  try {
+    const { id } = c.req.param();
+    const resultado = await actaService.generarAnalisisIA(id);
+    return c.json(success(resultado, 'Análisis de adherencia generado correctamente'));
   } catch (err) {
     return c.json(error(err.message), err.statusCode || 500);
   }

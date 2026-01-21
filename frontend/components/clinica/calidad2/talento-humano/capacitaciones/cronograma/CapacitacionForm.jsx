@@ -1,13 +1,17 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2 } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Loader2, ChevronsUpDown, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { apiGet } from '@/services/api';
 
 const MESES = [
   { key: 'programadoEne', label: 'Enero' },
@@ -35,13 +39,22 @@ const PERIODICIDADES = [
   { value: 'ANUAL', label: 'Anual' },
 ];
 
+const ORIENTADO_A = [
+  { value: 'PERSONAL_ADMINISTRATIVO', label: 'Personal Administrativo' },
+  { value: 'PERSONAL_ASISTENCIAL', label: 'Personal Asistencial' },
+];
+
 export default function CapacitacionForm({ open, onClose, onSubmit, capacitacion, categorias, anio }) {
   const [loading, setLoading] = useState(false);
+  const [usuarios, setUsuarios] = useState([]);
+  const [loadingUsuarios, setLoadingUsuarios] = useState(false);
+  const [responsableOpen, setResponsableOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const [formData, setFormData] = useState({
     categoriaId: '',
     tema: '',
     actividad: '',
-    orientadoA: '',
+    orientadoA: [],
     responsableId: '',
     duracionMinutos: '',
     periodicidad: 'UNICA',
@@ -59,13 +72,58 @@ export default function CapacitacionForm({ open, onClose, onSubmit, capacitacion
     programadoDic: false,
   });
 
+  // Cargar usuarios al abrir el diálogo
+  useEffect(() => {
+    if (open && usuarios.length === 0) {
+      const fetchUsuarios = async () => {
+        setLoadingUsuarios(true);
+        try {
+          const response = await apiGet('/usuarios?limit=500');
+          if (response.success && response.data) {
+            setUsuarios(response.data);
+          }
+        } catch (error) {
+          console.error('Error cargando usuarios:', error);
+        } finally {
+          setLoadingUsuarios(false);
+        }
+      };
+      fetchUsuarios();
+    }
+  }, [open]);
+
+  // Filtrar usuarios según búsqueda
+  const usuariosFiltrados = useMemo(() => {
+    if (!searchTerm) return usuarios;
+    const term = searchTerm.toLowerCase();
+    return usuarios.filter(u =>
+      u.nombre?.toLowerCase().includes(term) ||
+      u.apellido?.toLowerCase().includes(term) ||
+      u.email?.toLowerCase().includes(term) ||
+      `${u.nombre} ${u.apellido}`.toLowerCase().includes(term)
+    );
+  }, [usuarios, searchTerm]);
+
+  // Obtener nombre del responsable seleccionado
+  const responsableSeleccionado = useMemo(() => {
+    if (!formData.responsableId) return null;
+    return usuarios.find(u => u.id === formData.responsableId);
+  }, [formData.responsableId, usuarios]);
+
+  // Convertir orientadoA de string a array
+  const parseOrientadoA = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    return value.split(',').map(v => v.trim()).filter(Boolean);
+  };
+
   useEffect(() => {
     if (capacitacion) {
       setFormData({
         categoriaId: capacitacion.categoriaId || capacitacion.categoria?.id || '',
         tema: capacitacion.tema || '',
         actividad: capacitacion.actividad || '',
-        orientadoA: capacitacion.orientadoA || '',
+        orientadoA: parseOrientadoA(capacitacion.orientadoA),
         responsableId: capacitacion.responsableId || '',
         duracionMinutos: capacitacion.duracionMinutos?.toString() || '',
         periodicidad: capacitacion.periodicidad || 'UNICA',
@@ -87,7 +145,8 @@ export default function CapacitacionForm({ open, onClose, onSubmit, capacitacion
         categoriaId: '',
         tema: '',
         actividad: '',
-        orientadoA: '',
+        orientadoA: [],
+        responsableId: '',
         duracionMinutos: '',
         periodicidad: 'UNICA',
         programadoEne: false,
@@ -110,6 +169,15 @@ export default function CapacitacionForm({ open, onClose, onSubmit, capacitacion
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleOrientadoAChange = (value, checked) => {
+    setFormData(prev => ({
+      ...prev,
+      orientadoA: checked
+        ? [...prev.orientadoA, value]
+        : prev.orientadoA.filter(v => v !== value)
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -118,6 +186,7 @@ export default function CapacitacionForm({ open, onClose, onSubmit, capacitacion
         ...formData,
         anio,
         duracionMinutos: formData.duracionMinutos ? parseInt(formData.duracionMinutos) : null,
+        orientadoA: formData.orientadoA.join(','),
       };
       await onSubmit(data);
     } finally {
@@ -210,32 +279,96 @@ export default function CapacitacionForm({ open, onClose, onSubmit, capacitacion
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="orientadoA">Orientado a</Label>
-            <Input
-              id="orientadoA"
-              value={formData.orientadoA}
-              onChange={(e) => handleChange('orientadoA', e.target.value)}
-              placeholder="Ej: Todo el personal, Enfermería, Médicos..."
-            />
+            <Label>Orientado a *</Label>
+            <div className="flex flex-wrap gap-4 p-3 border rounded-lg">
+              {ORIENTADO_A.map(tipo => (
+                <div key={tipo.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={tipo.value}
+                    checked={formData.orientadoA.includes(tipo.value)}
+                    onCheckedChange={(checked) => handleOrientadoAChange(tipo.value, checked)}
+                  />
+                  <Label htmlFor={tipo.value} className="text-sm font-normal cursor-pointer">
+                    {tipo.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+            {formData.orientadoA.length === 0 && (
+              <p className="text-sm text-destructive">Debe seleccionar al menos una opción</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="responsableId">Responsable *</Label>
-            <Input
-              id="responsableId"
-              value={formData.responsableId}
-              onChange={(e) => handleChange('responsableId', e.target.value)}
-              placeholder="ID del responsable"
-              required
-            />
-            <p className="text-xs text-gray-500">
-              Ingrese el ID del personal responsable de la capacitación
-            </p>
+            <Label>Responsable *</Label>
+            <Popover open={responsableOpen} onOpenChange={setResponsableOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={responsableOpen}
+                  className="w-full justify-between font-normal"
+                >
+                  {responsableSeleccionado ? (
+                    <span className="truncate">
+                      {responsableSeleccionado.nombre} {responsableSeleccionado.apellido}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">Seleccionar responsable...</span>
+                  )}
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[300px] p-0" align="start">
+                <Command shouldFilter={false}>
+                  <CommandInput
+                    placeholder="Buscar por nombre o correo..."
+                    value={searchTerm}
+                    onValueChange={setSearchTerm}
+                  />
+                  <CommandList>
+                    {loadingUsuarios ? (
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="ml-2 text-sm text-muted-foreground">Cargando usuarios...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <CommandEmpty>No se encontraron usuarios.</CommandEmpty>
+                        <CommandGroup className="max-h-[300px] overflow-y-auto">
+                          {usuariosFiltrados.map((usuario) => {
+                            const isSelected = formData.responsableId === usuario.id;
+                            return (
+                              <CommandItem
+                                key={usuario.id}
+                                value={usuario.id}
+                                onSelect={() => {
+                                  handleChange('responsableId', usuario.id);
+                                  setResponsableOpen(false);
+                                  setSearchTerm('');
+                                }}
+                                className="cursor-pointer"
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{usuario.nombre} {usuario.apellido}</span>
+                                  <span className="text-xs text-muted-foreground">{usuario.email} • {usuario.rol}</span>
+                                </div>
+                              </CommandItem>
+                            );
+                          })}
+                        </CommandGroup>
+                      </>
+                    )}
+                  </CommandList>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
           <div className="space-y-2">
             <Label>Meses Programados * ({selectedMonths} seleccionados)</Label>
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-2 p-3 border rounded-lg">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 p-3 border rounded-lg">
               {MESES.map(mes => (
                 <div key={mes.key} className="flex items-center space-x-2">
                   <Checkbox
@@ -258,7 +391,7 @@ export default function CapacitacionForm({ open, onClose, onSubmit, capacitacion
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" disabled={loading || !formData.categoriaId || !formData.tema || selectedMonths === 0}>
+            <Button type="submit" disabled={loading || !formData.categoriaId || !formData.tema || formData.orientadoA.length === 0 || !formData.responsableId || selectedMonths === 0}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {capacitacion ? 'Actualizar' : 'Crear'}
             </Button>

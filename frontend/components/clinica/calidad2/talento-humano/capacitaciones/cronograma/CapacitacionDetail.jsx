@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar, Edit, Trash2, Plus, Play, Users, FileText, BookOpen, ClipboardList } from 'lucide-react';
+import { Calendar, Edit, Trash2, Plus, Play, Users, FileText, BookOpen, ClipboardList, Link2, Copy, ExternalLink } from 'lucide-react';
+import { toast } from 'sonner';
 import { useCapacitaciones } from '@/hooks/useCapacitaciones';
 import { useSesionesCapacitacion } from '@/hooks/useSesionesCapacitacion';
 import { useEvaluaciones } from '@/hooks/useEvaluaciones';
 import SesionesLista from '../sesiones/SesionesLista';
 import EvaluacionBuilder from '../evaluaciones/EvaluacionBuilder';
+import ResultadosEvaluaciones from '../evaluaciones/ResultadosEvaluaciones';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 const ESTADO_BADGE = {
@@ -38,6 +40,50 @@ export default function CapacitacionDetail({ open, onClose, capacitacion: initia
   }, [initialCap?.id, getCapacitacion, loadSesiones, loadEvaluaciones]);
 
   const estadoBadge = ESTADO_BADGE[capacitacion?.estado] || ESTADO_BADGE.PROGRAMADA;
+
+  const getEvaluacionLink = () => {
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    return `${baseUrl}/evaluacion`;
+  };
+
+  const copiarAlPortapapeles = async (texto) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(texto);
+        return true;
+      }
+      // Fallback para navegadores sin soporte
+      const textArea = document.createElement('textarea');
+      textArea.value = texto;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      return true;
+    } catch (err) {
+      console.error('Error al copiar:', err);
+      return false;
+    }
+  };
+
+  const copiarLinkEvaluacion = async () => {
+    const link = getEvaluacionLink();
+    const success = await copiarAlPortapapeles(link);
+    if (success) {
+      toast.success('Link copiado al portapapeles', {
+        description: 'Comparte este link con los participantes'
+      });
+    } else {
+      toast.error('No se pudo copiar al portapapeles');
+    }
+  };
+
+  const abrirLinkEvaluacion = () => {
+    const link = getEvaluacionLink();
+    window.open(link, '_blank');
+  };
 
   const getMesesProgramados = () => {
     if (!capacitacion) return [];
@@ -183,12 +229,51 @@ export default function CapacitacionDetail({ open, onClose, capacitacion: initia
             />
           </TabsContent>
 
-          <TabsContent value="evaluaciones" className="mt-4">
+          <TabsContent value="evaluaciones" className="mt-4 space-y-4">
+            {/* Link de acceso para participantes */}
+            <Card className="border-2 border-dashed border-purple-300 bg-gradient-to-r from-purple-50 to-pink-50">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
+                      <Link2 className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">Link de Evaluación</p>
+                      <p className="text-sm text-muted-foreground">Comparte este link con los participantes</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={copiarLinkEvaluacion}
+                      className="gap-2"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Copiar Link
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={abrirLinkEvaluacion}
+                      className="gap-2 bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Abrir
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <EvaluacionBuilder
               capacitacionId={capacitacion?.id}
               evaluaciones={evaluaciones}
               onRefresh={() => loadEvaluaciones(capacitacion?.id)}
             />
+
+            {/* Resultados de evaluaciones */}
+            <ResultadosEvaluaciones capacitacionId={capacitacion?.id} />
           </TabsContent>
 
           <TabsContent value="materiales" className="mt-4">

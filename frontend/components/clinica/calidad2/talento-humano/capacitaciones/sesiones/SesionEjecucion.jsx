@@ -8,11 +8,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { Users, Plus, CheckCircle, ClipboardList, Play, Trash2 } from 'lucide-react';
+import { Users, Plus, CheckCircle, ClipboardList, Play, Trash2, Copy, QrCode } from 'lucide-react';
 import { useSesionesCapacitacion } from '@/hooks/useSesionesCapacitacion';
 import { useCalidad2Personal } from '@/hooks/useCalidad2Personal';
 import EvaluacionPlayer from '../evaluaciones/EvaluacionPlayer';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { apiGet } from '@/services/api';
+import { toast } from 'sonner';
 
 export default function SesionEjecucion({ open, onClose, sesion, onFinalizar, onRefresh, user }) {
   const [activeTab, setActiveTab] = useState('asistencia');
@@ -20,6 +22,7 @@ export default function SesionEjecucion({ open, onClose, sesion, onFinalizar, on
   const [cargoNuevo, setCargoNuevo] = useState('');
   const [showPreTest, setShowPreTest] = useState(false);
   const [showPostTest, setShowPostTest] = useState(false);
+  const [codigoSesion, setCodigoSesion] = useState('');
 
   const { asistentes, loadAsistentes, addAsistentes, updateAsistente, removeAsistente, marcarAsistenciaMasiva } = useSesionesCapacitacion();
   const { personal, loadPersonal } = useCalidad2Personal();
@@ -28,8 +31,44 @@ export default function SesionEjecucion({ open, onClose, sesion, onFinalizar, on
     if (sesion?.id) {
       loadAsistentes(sesion.id);
       loadPersonal({ estado: 'ACTIVO', limit: 100 });
+      // Cargar código de sesión
+      apiGet(`/calidad2/capacitaciones/sesiones/${sesion.id}/codigo`)
+        .then(res => {
+          if (res.success && res.data?.codigo) {
+            setCodigoSesion(res.data.codigo);
+          }
+        })
+        .catch(() => {});
     }
   }, [sesion?.id, loadAsistentes, loadPersonal]);
+
+  const copiarCodigo = async () => {
+    const link = `${window.location.origin}/evaluacion`;
+    const texto = `Código: ${codigoSesion}\nLink: ${link}`;
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(texto);
+      } else {
+        // Fallback
+        const textArea = document.createElement('textarea');
+        textArea.value = texto;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      toast.success(`Código copiado: ${codigoSesion}`, {
+        description: `Link: ${link}`
+      });
+    } catch (err) {
+      toast.info(`Código: ${codigoSesion}`, {
+        description: `Link: ${link}`
+      });
+    }
+  };
 
   const handleAddAsistente = async () => {
     if (!nombreNuevo.trim()) return;
@@ -54,9 +93,27 @@ export default function SesionEjecucion({ open, onClose, sesion, onFinalizar, on
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Play className="h-5 w-5 text-green-500" />
-            Sesión en Curso
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Play className="h-5 w-5 text-green-500" />
+              Sesión en Curso
+            </div>
+            {codigoSesion && (
+              <div className="flex items-center gap-2">
+                <div className="bg-gradient-to-r from-purple-600 to-pink-500 text-white px-4 py-2 rounded-lg flex items-center gap-3">
+                  <div className="text-xs opacity-80">Código:</div>
+                  <div className="text-2xl font-bold font-mono tracking-wider">{codigoSesion}</div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-white hover:bg-white/20"
+                    onClick={copiarCodigo}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </DialogTitle>
         </DialogHeader>
 

@@ -18,13 +18,14 @@ export function useEvaluacionPlayer(sesionId, tipo) {
   const startTimeRef = useRef(null);
   const { toast } = useToast();
 
-  // Cargar evaluación
+  // Cargar evaluación (usando ruta pública para participantes)
   const loadEvaluacion = useCallback(async () => {
     if (!sesionId || !tipo) return null;
 
     try {
       setLoading(true);
-      const response = await apiGet(`/calidad2/capacitaciones/sesiones/${sesionId}/evaluacion/${tipo}`);
+      // Usar ruta pública que no requiere autenticación
+      const response = await apiGet(`/calidad2/capacitaciones/sesiones/public/${sesionId}/evaluacion/${tipo}`);
       const eval_ = response.data?.evaluacion || response.data;
       setEvaluacion(eval_);
       setPreguntaActual(0);
@@ -43,38 +44,6 @@ export function useEvaluacionPlayer(sesionId, tipo) {
       setLoading(false);
     }
   }, [sesionId, tipo, toast]);
-
-  // Timer por pregunta
-  useEffect(() => {
-    if (!evaluacion || finalizado) return;
-
-    const pregunta = evaluacion.preguntas?.[preguntaActual];
-    if (pregunta?.tiempoSegundos) {
-      setTiempoRestante(pregunta.tiempoSegundos);
-      startTimeRef.current = Date.now();
-
-      timerRef.current = setInterval(() => {
-        setTiempoRestante((prev) => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            // Auto-avanzar si se acaba el tiempo
-            handleSiguiente();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      setTiempoRestante(null);
-      startTimeRef.current = Date.now();
-    }
-
-    return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-    };
-  }, [preguntaActual, evaluacion, finalizado]);
 
   // Seleccionar opción
   const seleccionarOpcion = useCallback((opcionId) => {
@@ -110,11 +79,7 @@ export function useEvaluacionPlayer(sesionId, tipo) {
 
     const opcionesSeleccionadas = respuestas[pregunta.id] || [];
     if (opcionesSeleccionadas.length === 0) {
-      toast({
-        title: 'Selecciona una opción',
-        description: 'Debes seleccionar al menos una respuesta.',
-        variant: 'destructive',
-      });
+      // No toast on timeout - silently skip
       return null;
     }
 
@@ -131,6 +96,7 @@ export function useEvaluacionPlayer(sesionId, tipo) {
         opcionesSeleccionadas,
         tiempoRespuestaMs,
       });
+      // Return the response data which includes esCorrecta and puntaje
       return response.data;
     } catch (error) {
       console.error('Error sending respuesta:', error);
@@ -148,12 +114,9 @@ export function useEvaluacionPlayer(sesionId, tipo) {
     }
   }, [evaluacion, preguntaActual, respuestas, participante, sesionId, toast]);
 
-  // Siguiente pregunta
+  // Siguiente pregunta (sin enviar respuesta - se envía desde el componente)
   const handleSiguiente = useCallback(async () => {
     if (!evaluacion) return;
-
-    // Enviar respuesta actual
-    await enviarRespuesta();
 
     // Limpiar timer
     if (timerRef.current) {
@@ -171,7 +134,55 @@ export function useEvaluacionPlayer(sesionId, tipo) {
     } else {
       setPreguntaActual((prev) => prev + 1);
     }
-  }, [evaluacion, preguntaActual, enviarRespuesta, toast]);
+  }, [evaluacion, preguntaActual, toast]);
+
+  // Ref para la función de auto-avance (evita problemas de dependencias circulares)
+  const avanzarConRespuestaRef = useRef(null);
+
+  // Avanzar con envío de respuesta (para auto-avance por timeout)
+  const avanzarConRespuesta = useCallback(async () => {
+    await enviarRespuesta();
+    await handleSiguiente();
+  }, [enviarRespuesta, handleSiguiente]);
+
+  // Actualizar ref cuando cambie la función
+  useEffect(() => {
+    avanzarConRespuestaRef.current = avanzarConRespuesta;
+  }, [avanzarConRespuesta]);
+
+  // Timer por pregunta
+  useEffect(() => {
+    if (!evaluacion || finalizado) return;
+
+    const pregunta = evaluacion.preguntas?.[preguntaActual];
+    if (pregunta?.tiempoSegundos) {
+      setTiempoRestante(pregunta.tiempoSegundos);
+      startTimeRef.current = Date.now();
+
+      timerRef.current = setInterval(() => {
+        setTiempoRestante((prev) => {
+          if (prev <= 1) {
+            clearInterval(timerRef.current);
+            // Auto-avanzar si se acaba el tiempo (usar ref para evitar dependencia circular)
+            if (avanzarConRespuestaRef.current) {
+              avanzarConRespuestaRef.current();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      setTiempoRestante(null);
+      startTimeRef.current = Date.now();
+    }
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [preguntaActual, evaluacion, finalizado]);
 
   // Cargar resultados
   const loadResultados = useCallback(async () => {
@@ -207,12 +218,13 @@ export function useEvaluacionPlayer(sesionId, tipo) {
     }
   }, [sesionId]);
 
-  // Cargar ranking
+  // Cargar ranking (usando ruta pública para participantes)
   const loadRanking = useCallback(async () => {
     if (!sesionId) return null;
 
     try {
-      const response = await apiGet(`/calidad2/capacitaciones/sesiones/${sesionId}/ranking`);
+      // Usar ruta pública que no requiere autenticación
+      const response = await apiGet(`/calidad2/capacitaciones/sesiones/public/${sesionId}/ranking`);
       setRanking(response.data?.ranking || []);
       return response.data;
     } catch (error) {
@@ -261,6 +273,8 @@ export function useEvaluacionPlayer(sesionId, tipo) {
     loadEvaluacion,
     seleccionarOpcion,
     handleSiguiente,
+    avanzarConRespuesta,
+    enviarRespuesta,
     loadResultados,
     loadComparativo,
     loadRanking,

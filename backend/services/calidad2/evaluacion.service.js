@@ -134,6 +134,12 @@ class EvaluacionService {
 
     const { opciones, ...preguntaData } = data;
 
+    // Debug: Log what's being saved
+    console.log('[Evaluacion] Creando pregunta:');
+    console.log('  - Texto:', preguntaData.texto);
+    console.log('  - Tipo:', preguntaData.tipo);
+    console.log('  - Opciones recibidas:', opciones);
+
     // Create question with options
     return prisma.preguntaEvaluacion.create({
       data: {
@@ -366,6 +372,14 @@ class EvaluacionService {
       .filter(o => o.esCorrecta)
       .map(o => o.id);
 
+    // Debug logging
+    console.log('[Evaluacion] Validando respuesta:');
+    console.log('  - Pregunta:', pregunta.texto);
+    console.log('  - Tipo:', pregunta.tipo);
+    console.log('  - Opciones en BD:', pregunta.opciones.map(o => ({ id: o.id, texto: o.texto, esCorrecta: o.esCorrecta })));
+    console.log('  - Opciones correctas (IDs):', opcionesCorrectas);
+    console.log('  - Opciones seleccionadas:', opcionesSeleccionadas);
+
     let esCorrecta = false;
     if (pregunta.tipo === 'SELECCION_MULTIPLE') {
       // All correct options must be selected and no incorrect ones
@@ -377,7 +391,26 @@ class EvaluacionService {
         opcionesCorrectas.includes(opcionesSeleccionadas[0]);
     }
 
-    const puntaje = esCorrecta ? pregunta.evaluacion.puntajePorPregunta : 0;
+    console.log('  - Es correcta:', esCorrecta);
+
+    // Calcular puntaje basado en tiempo (tipo Kahoot)
+    // Puntaje máximo si responde correctamente
+    // Bonus por velocidad: hasta 50% extra si responde en menos de 5 segundos
+    let puntaje = 0;
+    if (esCorrecta) {
+      const puntajeBase = pregunta.evaluacion.puntajePorPregunta || 1;
+      const tiempoLimite = (pregunta.tiempoSegundos || 30) * 1000; // En ms
+
+      // Calcular bonus por velocidad (máximo 50% extra)
+      let bonusVelocidad = 0;
+      if (tiempoRespuestaMs && tiempoRespuestaMs < tiempoLimite) {
+        // Mientras más rápido, más bonus (lineal inverso)
+        const porcentajeTiempoUsado = tiempoRespuestaMs / tiempoLimite;
+        bonusVelocidad = Math.round(puntajeBase * 0.5 * (1 - porcentajeTiempoUsado));
+      }
+
+      puntaje = puntajeBase + bonusVelocidad;
+    }
 
     return prisma.respuestaEvaluacion.create({
       data: {

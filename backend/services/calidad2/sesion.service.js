@@ -1,7 +1,52 @@
 const prisma = require('../../db/prisma');
 const { NotFoundError, ValidationError } = require('../../utils/errors');
 
+// Generar código de sesión de 6 dígitos desde el UUID
+function generateSessionCode(sessionId) {
+  // Tomar los primeros caracteres del UUID y convertir a número
+  const hex = sessionId.replace(/-/g, '').substring(0, 8);
+  const num = parseInt(hex, 16);
+  // Generar código de 6 dígitos (100000 - 999999)
+  return String(100000 + (num % 900000));
+}
+
 class SesionService {
+  // Obtener código de sesión
+  getSessionCode(sessionId) {
+    return generateSessionCode(sessionId);
+  }
+
+  // Buscar sesión por código
+  async findByCode(code) {
+    // Buscar todas las sesiones EN_CURSO y verificar su código
+    const sesionesActivas = await prisma.sesionCapacitacion.findMany({
+      where: {
+        estado: 'EN_CURSO'
+      },
+      include: {
+        capacitacion: {
+          select: { id: true, tema: true, actividad: true }
+        },
+        _count: {
+          select: { asistentes: true }
+        }
+      }
+    });
+
+    // Encontrar la sesión cuyo código coincida
+    const sesion = sesionesActivas.find(s => generateSessionCode(s.id) === code);
+
+    if (!sesion) {
+      throw new NotFoundError('Código de sesión inválido o sesión no activa');
+    }
+
+    return {
+      id: sesion.id,
+      codigo: code,
+      capacitacion: sesion.capacitacion,
+      participantes: sesion._count.asistentes
+    };
+  }
   async findByCapacitacion(capacitacionId, query = {}) {
     const { estado, page = 1, limit = 20 } = query;
 
@@ -18,6 +63,9 @@ class SesionService {
               personal: { select: { id: true, nombreCompleto: true, cargo: true } }
             }
           },
+          respuestasEvaluacion: {
+            select: { nombreParticipante: true, participanteId: true }
+          },
           _count: {
             select: { asistentes: true, respuestasEvaluacion: true }
           }
@@ -31,10 +79,29 @@ class SesionService {
 
     // Calculate attendance stats
     const sesionesConStats = sesiones.map(s => {
-      const asistieron = s.asistentes.filter(a => a.asistio).length;
+      // Contar asistentes marcados manualmente
+      const asistentesManual = s.asistentes.filter(a => a.asistio).length;
+
+      // Contar participantes únicos de evaluaciones (que no estén ya en asistentes)
+      const nombresAsistentes = new Set(s.asistentes.map(a => a.nombreCompleto?.toLowerCase()));
+      const participantesEvaluacion = new Set();
+      s.respuestasEvaluacion.forEach(r => {
+        const nombre = r.nombreParticipante?.toLowerCase();
+        if (nombre && !nombresAsistentes.has(nombre)) {
+          participantesEvaluacion.add(nombre);
+        }
+      });
+
+      // Total de asistentes = manual + evaluaciones
+      const asistieron = asistentesManual + participantesEvaluacion.size;
+
+      // No incluir respuestasEvaluacion en la respuesta para no sobrecargar
+      const { respuestasEvaluacion, ...sesionSinRespuestas } = s;
+
       return {
-        ...s,
+        ...sesionSinRespuestas,
         asistieron,
+        participantesEvaluacion: participantesEvaluacion.size,
         porcentajeAsistencia: s.convocados > 0
           ? Math.round((asistieron / s.convocados) * 100)
           : 0

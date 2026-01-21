@@ -121,7 +121,7 @@ const permissionMiddleware = (modulo) => {
       // Mapeo temporal o verificación simple
       // Si el usuario tiene ALGÚN permiso que empiece con el nombre del módulo, pasa
       const { permissions, roles } = await roleService.getUserRoles(user.id);
-      
+
       const isSuperAdmin = roles.some(r => r.name === 'SUPER_ADMIN' || r.isSystem);
       if (isSuperAdmin) {
         await next();

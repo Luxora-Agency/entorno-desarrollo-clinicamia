@@ -97,9 +97,9 @@ const updateEvaluacionSchema = createEvaluacionSchema.partial();
 const createPreguntaSchema = z.object({
   texto: z.string().min(1, 'El texto de la pregunta es requerido'),
   tipo: z.enum(['OPCION_MULTIPLE', 'VERDADERO_FALSO', 'SELECCION_MULTIPLE']).default('OPCION_MULTIPLE'),
-  orden: z.number().int().optional(),
-  tiempoSegundos: z.number().int().positive().optional(),
-  imagenUrl: z.string().url().optional(),
+  orden: z.number().int().optional().nullable(),
+  tiempoSegundos: z.number().int().positive().optional().nullable(),
+  imagenUrl: z.string().url().optional().nullable(),
   opciones: z.array(z.object({
     texto: z.string().min(1, 'El texto de la opción es requerido'),
     esCorrecta: z.boolean().default(false)
